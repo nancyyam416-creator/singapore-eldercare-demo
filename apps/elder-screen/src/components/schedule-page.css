@@ -1,0 +1,416 @@
+@import "../../tokens.css";
+
+.schedule-page {
+  --schedule-green: var(--color-green);
+  --schedule-amber: var(--color-amber);
+  --schedule-blue: #67a9ec;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-body);
+}
+
+.schedule-page button {
+  font: inherit;
+}
+
+.schedule-page button:focus-visible {
+  outline: 4px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.schedule-page button:active {
+  transform: scale(0.98);
+}
+
+.schedule-page__summary {
+  text-align: right;
+}
+
+.schedule-page__summary p {
+  margin: 0;
+}
+
+.schedule-page__summary p:first-child {
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.schedule-page__summary p:last-child {
+  margin-top: 4px;
+  color: var(--schedule-green);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.schedule-page__main {
+  background: var(--color-canvas);
+}
+
+.schedule-page__main .text-gray-500,
+.schedule-page__main .text-gray-600 {
+  color: var(--color-text-soft);
+}
+
+.schedule-priority,
+.schedule-calendar,
+.schedule-agenda {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel);
+  box-shadow: 0 16px 34px color-mix(in oklch, var(--color-canvas-deep), transparent 36%);
+}
+
+.schedule-priority {
+  border-color: color-mix(in oklch, var(--schedule-green), transparent 48%);
+  background:
+    linear-gradient(145deg, color-mix(in oklch, var(--schedule-green), transparent 91%), transparent 42%),
+    var(--color-panel);
+}
+
+.schedule-priority h2 {
+  color: var(--schedule-green);
+}
+
+.schedule-priority h3,
+.schedule-priority p {
+  color: var(--color-text);
+}
+
+.schedule-priority p:last-child {
+  color: var(--color-text-soft);
+}
+
+.schedule-priority > div:first-child > span {
+  color: #ff9699;
+  background: color-mix(in oklch, var(--color-red-deep), transparent 42%);
+}
+
+.schedule-priority button {
+  color: var(--color-accent-ink);
+  background: var(--color-green-deep);
+  box-shadow: 0 0 32px color-mix(in oklch, var(--color-green), transparent 68%);
+}
+
+.schedule-calendar {
+  background: var(--color-panel);
+}
+
+.schedule-calendar > div:first-child button {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-calendar > div:first-child button:hover {
+  background: var(--color-panel-soft);
+}
+
+.schedule-calendar h2 {
+  color: var(--color-text);
+}
+
+.schedule-calendar-day {
+  color: var(--color-text-soft);
+  border-color: transparent;
+  background: var(--color-panel-raised);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.schedule-calendar-day:hover {
+  color: var(--color-text);
+  border-color: color-mix(in oklch, var(--color-cyan), transparent 48%);
+  background: var(--color-panel-soft);
+}
+
+.schedule-calendar-day.is-today:not(.is-selected) {
+  color: var(--color-cyan);
+  border-color: color-mix(in oklch, var(--color-cyan), transparent 36%);
+  background: color-mix(in oklch, var(--color-cyan), transparent 88%);
+}
+
+.schedule-calendar-day.is-selected {
+  color: var(--color-accent-ink);
+  border-color: var(--schedule-green);
+  background: var(--color-green-deep);
+  box-shadow: 0 0 18px color-mix(in oklch, var(--schedule-green), transparent 62%);
+}
+
+.schedule-voice-entry {
+  color: var(--color-accent-ink);
+  border-color: color-mix(in oklch, var(--schedule-green), var(--color-text) 18%);
+  background: var(--color-green-dark);
+  box-shadow: 0 0 26px color-mix(in oklch, var(--schedule-green), transparent 70%);
+}
+
+.schedule-voice-entry:hover {
+  background: var(--color-green-deep);
+}
+
+.schedule-voice-entry > span:first-child {
+  color: var(--color-green-deep);
+  background: var(--color-text);
+}
+
+.schedule-manual-entry {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-manual-entry:hover {
+  background: var(--color-panel-soft);
+}
+
+.schedule-quick-add + p {
+  color: var(--color-text-muted);
+}
+
+.schedule-agenda {
+  background: var(--color-panel);
+}
+
+.schedule-agenda__header {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-agenda__header h2 {
+  color: var(--color-text);
+}
+
+.schedule-agenda__header button {
+  color: var(--color-accent-ink);
+  border: 2px solid color-mix(in oklch, var(--schedule-green), transparent 44%);
+  background: var(--color-green-dark);
+}
+
+.schedule-agenda__header button:hover {
+  background: var(--color-green-deep);
+}
+
+.schedule-agenda section {
+  border-color: var(--color-line);
+}
+
+.schedule-agenda section h3 {
+  color: var(--color-text);
+}
+
+.schedule-item {
+  color: var(--color-text);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-text), transparent 94%);
+}
+
+.schedule-item h4,
+.schedule-item strong {
+  color: var(--color-text);
+}
+
+.schedule-item p {
+  color: var(--color-text-soft);
+}
+
+.schedule-item--medication {
+  border-color: color-mix(in oklch, var(--schedule-amber), transparent 38%);
+  background:
+    linear-gradient(120deg, color-mix(in oklch, var(--schedule-amber), transparent 87%), transparent 46%),
+    var(--color-panel-raised);
+}
+
+.schedule-item--daily {
+  border-color: color-mix(in oklch, var(--schedule-blue), transparent 48%);
+  background:
+    linear-gradient(120deg, color-mix(in oklch, var(--schedule-blue), transparent 90%), transparent 48%),
+    var(--color-panel-raised);
+}
+
+.schedule-item--medication > button {
+  color: var(--color-accent-ink);
+  background: var(--color-green-deep);
+}
+
+.schedule-item--daily > button {
+  color: var(--color-accent-ink);
+  background: #245c91;
+}
+
+.schedule-empty {
+  color: var(--color-text-soft);
+  border: 1px solid var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-completed h3 {
+  color: var(--schedule-green);
+}
+
+.schedule-completed__item {
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklch, var(--color-panel-raised), transparent 18%);
+}
+
+.schedule-toast {
+  color: var(--color-text);
+  border: 1px solid color-mix(in oklch, var(--color-green), transparent 52%);
+  background: var(--color-panel-raised);
+}
+
+.schedule-voice-dialog,
+.schedule-editor {
+  color: var(--color-text);
+  border-color: color-mix(in oklch, var(--schedule-green), transparent 40%);
+  background: var(--color-panel);
+}
+
+.schedule-voice-dialog > header,
+.schedule-editor > div:first-child {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-voice-dialog > header h2,
+.schedule-editor > div:first-child h2 {
+  color: var(--color-text);
+}
+
+.schedule-voice-dialog > header p,
+.schedule-editor > div:first-child p {
+  color: var(--color-text-soft);
+}
+
+.schedule-voice-dialog > header button,
+.schedule-editor > div:first-child button {
+  color: var(--color-text-soft);
+  border-color: var(--color-line);
+  background: var(--color-panel-soft);
+}
+
+.schedule-voice-dialog > div {
+  background: var(--color-panel);
+}
+
+.voice-guide-step,
+.voice-transcript,
+.voice-listening-example,
+.voice-error-transcript {
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+}
+
+.voice-guide-step strong,
+.voice-transcript p,
+.voice-listening-example,
+.voice-error-transcript {
+  color: var(--color-text);
+}
+
+.voice-example {
+  color: var(--color-text);
+  border-color: color-mix(in oklch, var(--schedule-amber), transparent 42%);
+  background: color-mix(in oklch, var(--schedule-amber), transparent 88%);
+}
+
+.voice-example p:first-child {
+  color: var(--schedule-amber);
+}
+
+.voice-example p:last-child {
+  color: var(--color-text);
+}
+
+.voice-listening-orb {
+  color: var(--schedule-green);
+  border-color: var(--schedule-green);
+  background: color-mix(in oklch, var(--schedule-green), transparent 88%);
+  box-shadow: 0 0 36px color-mix(in oklch, var(--schedule-green), transparent 66%);
+}
+
+.voice-draft {
+  color: var(--color-text);
+  border-color: color-mix(in oklch, var(--schedule-green), transparent 38%);
+  background: color-mix(in oklch, var(--schedule-green), transparent 90%);
+}
+
+.voice-draft p,
+.voice-draft strong {
+  color: var(--color-text);
+}
+
+.voice-draft > p {
+  color: var(--schedule-green);
+}
+
+.voice-error-icon {
+  color: var(--schedule-amber);
+  background: color-mix(in oklch, var(--schedule-amber), transparent 86%);
+}
+
+.voice-manual-fallback,
+.schedule-voice-dialog button.border-2 {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-editor > div:nth-child(2) {
+  background: var(--color-panel);
+}
+
+.schedule-editor label {
+  color: var(--color-text);
+}
+
+.schedule-editor input,
+.schedule-editor textarea {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-canvas-deep);
+  color-scheme: dark;
+}
+
+.schedule-editor input::placeholder,
+.schedule-editor textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.schedule-editor button[aria-pressed] {
+  color: var(--color-text-soft);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-editor button[aria-pressed="true"] {
+  color: var(--schedule-green);
+  border-color: color-mix(in oklch, var(--schedule-green), transparent 34%);
+  background: color-mix(in oklch, var(--schedule-green), transparent 88%);
+}
+
+.schedule-editor > div:last-child {
+  border-color: var(--color-line);
+  background: var(--color-canvas-deep);
+}
+
+.schedule-editor > div:last-child button:first-child {
+  color: var(--color-text-soft);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-editor > div:last-child button:last-child {
+  color: var(--color-accent-ink);
+  background: var(--color-green-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-page *,
+  .schedule-page *::before,
+  .schedule-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

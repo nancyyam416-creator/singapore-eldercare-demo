@@ -1,0 +1,27 @@
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V5 · macrostructure: Stat-Led · theme: Quiet blue-slate · layout: one score, four status rows, one pending action · contrast: pass (46–50) · slop: pass (51–55) · honest: prototype data (56) · chrome: preserved existing simulator (57) · tokens: pass (58) · responsive: pass (59) · icons: pass (60) · mobile: pass (36, 59, 61–69). */
+:root {
+  --care-page: oklch(0.975 0.005 255);
+  --care-surface: oklch(1 0 0);
+  --care-text: oklch(0.235 0.026 260);
+  --care-muted: oklch(0.55 0.027 257);
+  --care-primary: oklch(0.55 0.225 262);
+  --care-success: oklch(0.55 0.145 158);
+  --care-warning: oklch(0.59 0.16 60);
+  --care-border: oklch(0.91 0.014 255);
+  --care-radius: 1rem;
+  --care-focus: 0 0 0 3px oklch(0.78 0.11 256 / 0.5);
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

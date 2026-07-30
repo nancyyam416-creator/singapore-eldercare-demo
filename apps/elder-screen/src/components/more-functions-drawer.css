@@ -1,0 +1,179 @@
+@import "../../tokens.css";
+
+.more-functions-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+.more-functions-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: color-mix(in oklch, #000, transparent 34%);
+  backdrop-filter: blur(10px);
+  cursor: default;
+}
+
+.more-functions-drawer {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 650px;
+  padding: 28px 44px 38px;
+  overflow: hidden;
+  border: var(--rule-thin) solid var(--color-line);
+  border-bottom: 0;
+  border-radius: 36px 36px 0 0;
+  background: var(--color-canvas);
+  box-shadow: 0 -28px 80px color-mix(in oklch, #000, transparent 28%);
+}
+
+.more-functions-header {
+  min-height: 86px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+}
+
+.more-functions-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.more-functions-header p {
+  margin: 8px 0 0;
+  color: var(--color-text-soft);
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.more-functions-close {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: var(--rule-thin) solid var(--color-line);
+  border-radius: 50%;
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+  cursor: pointer;
+}
+
+.more-functions-close:hover {
+  background: var(--color-panel-soft);
+}
+
+.more-functions-close svg {
+  width: 30px;
+  height: 30px;
+}
+
+.more-functions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  height: calc(100% - 86px);
+}
+
+.more-function-card {
+  --function-accent: var(--color-green);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  border: var(--rule-strong) solid color-mix(in oklch, var(--function-accent), transparent 66%);
+  border-radius: 26px;
+  color: var(--color-text);
+  background:
+    linear-gradient(140deg, color-mix(in oklch, var(--function-accent), transparent 90%), transparent 58%),
+    var(--color-panel-raised);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-normal) var(--ease-out),
+    background-color var(--dur-normal) var(--ease-out),
+    box-shadow var(--dur-normal) var(--ease-out);
+}
+
+.more-function-card:hover {
+  border-color: color-mix(in oklch, var(--function-accent), transparent 28%);
+  background:
+    linear-gradient(140deg, color-mix(in oklch, var(--function-accent), transparent 82%), transparent 64%),
+    var(--color-panel-soft);
+  box-shadow: 0 12px 28px color-mix(in oklch, var(--function-accent), transparent 78%);
+}
+
+.more-function-card:active {
+  transform: scale(0.98);
+}
+
+.more-function-card:focus-visible,
+.more-functions-close:focus-visible {
+  outline: var(--rule-strong) solid var(--color-focus);
+  outline-offset: var(--space-xs);
+}
+
+.more-function-card[data-tone="rose"] { --function-accent: #ff5b67; }
+.more-function-card[data-tone="cyan"] { --function-accent: var(--color-cyan); }
+.more-function-card[data-tone="green"] { --function-accent: var(--color-green); }
+.more-function-card[data-tone="blue"] { --function-accent: #68aef4; }
+.more-function-card[data-tone="purple"] { --function-accent: #a86be8; }
+.more-function-card[data-tone="amber"] { --function-accent: var(--color-amber); }
+.more-function-card[data-tone="teal"] { --function-accent: #32c7b4; }
+.more-function-card[data-tone="magenta"] { --function-accent: #df669f; }
+
+.more-function-card__icon {
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  border: var(--rule-thin) solid color-mix(in oklch, var(--function-accent), transparent 54%);
+  border-radius: 24px;
+  color: var(--function-accent);
+  background: color-mix(in oklch, var(--function-accent), transparent 86%);
+}
+
+.more-function-card__icon svg {
+  width: 44px;
+  height: 44px;
+}
+
+.more-function-card__copy {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.more-function-card__copy strong {
+  font-size: 25px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.more-function-card__copy small {
+  overflow: hidden;
+  color: var(--color-text-soft);
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

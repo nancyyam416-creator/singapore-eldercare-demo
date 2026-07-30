@@ -1,0 +1,178 @@
+.today-overview-page {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  width: 1920px;
+  height: 1200px;
+  overflow: hidden;
+  color: var(--color-text);
+  background: var(--color-canvas-deep);
+  font-family: var(--font-body);
+}
+
+.today-overview-header {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 36px;
+  border-bottom: var(--rule-thin) solid var(--color-line);
+  background: var(--color-canvas);
+}
+.today-overview-header > div { display: flex; align-items: center; gap: 14px; }
+.today-overview-header > div svg { width: 34px; height: 34px; color: var(--color-green); }
+.today-overview-header h1 { margin: 0; font-size: 30px; font-weight: 900; }
+.today-overview-header button {
+  min-width: 176px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-round);
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+  font-size: 21px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.today-overview-header button:hover { background: var(--color-panel-soft); }
+.today-overview-header button svg { width: 26px; height: 26px; }
+
+.today-overview-layout {
+  height: calc(100% - 88px);
+  display: grid;
+  grid-template-columns: 46% 54%;
+}
+.today-schedule-panel,
+.today-recommendation-panel { min-width: 0; padding: 30px 34px; }
+.today-schedule-panel { border-right: var(--rule-thin) solid var(--color-line); }
+.overview-section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.overview-section-title > div { display: flex; align-items: center; gap: 12px; }
+.overview-section-title svg { width: 28px; height: 28px; color: var(--color-text-soft); }
+.overview-section-title h2 { margin: 0; font-size: 27px; font-weight: 900; }
+.overview-section-title > span {
+  padding: 7px 14px;
+  border: var(--rule-thin) solid var(--color-line);
+  border-radius: var(--radius-round);
+  color: var(--color-text-soft);
+  background: var(--color-panel-raised);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.today-timeline { position: relative; display: grid; gap: 17px; }
+.today-timeline::before { content: ""; position: absolute; top: 28px; bottom: 28px; left: 92px; width: 2px; background: var(--color-line); }
+.today-schedule-row { position: relative; min-height: 104px; display: grid; grid-template-columns: 74px 20px minmax(0, 1fr); align-items: center; gap: 10px; }
+.today-schedule-row time { font-family: var(--font-display); color: var(--color-text-muted); font-size: 23px; font-weight: 900; }
+.today-timeline-dot { position: relative; z-index: 1; width: 13px; height: 13px; justify-self: center; border: 3px solid var(--color-canvas-deep); border-radius: 50%; background: var(--color-text-muted); }
+.today-schedule-card {
+  min-width: 0;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 22px;
+  border: 2px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-panel-raised);
+}
+.today-schedule-name { min-width: 0; display: flex; align-items: center; gap: 14px; }
+.today-schedule-name svg { width: 30px; height: 30px; flex: 0 0 auto; color: var(--color-text-soft); }
+.today-schedule-name strong { overflow: hidden; font-size: 24px; text-overflow: ellipsis; white-space: nowrap; }
+.today-schedule-card button {
+  min-width: 118px;
+  height: 50px;
+  border: 2px solid color-mix(in oklch, var(--color-red), transparent 52%);
+  border-radius: 15px;
+  color: var(--color-red);
+  background: color-mix(in oklch, var(--color-red-deep), transparent 46%);
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.today-schedule-card button:hover { color: var(--color-text); background: var(--color-red-deep); }
+.today-schedule-action { display: flex; align-items: center; gap: 12px; }
+.today-schedule-state { display: flex; align-items: center; gap: 7px; color: var(--color-green); font-size: 20px; font-weight: 900; white-space: nowrap; }
+.today-schedule-state svg { width: 26px; height: 26px; }
+.today-schedule-state small { padding: 4px 8px; border-radius: var(--radius-round); color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 86%); font-size: 13px; }
+.today-schedule-row.is-completed time { color: var(--color-green); }
+.today-schedule-row.is-completed .today-timeline-dot { background: var(--color-green); }
+.today-schedule-row.is-completed .today-schedule-card { border-color: color-mix(in oklch, var(--color-green), transparent 68%); background: color-mix(in oklch, var(--color-green-dark), transparent 62%); }
+.today-schedule-row.is-unconfirmed time,
+.today-schedule-state.is-unconfirmed { color: var(--color-amber); }
+.today-schedule-row.is-unconfirmed .today-timeline-dot { background: var(--color-amber); }
+.today-schedule-row.is-unconfirmed .today-schedule-card { border-color: color-mix(in oklch, var(--color-amber), transparent 58%); }
+.today-schedule-row.is-expired time,
+.today-schedule-state.is-expired { color: var(--color-red); }
+.today-schedule-row.is-expired .today-timeline-dot { background: var(--color-red); }
+.today-schedule-row.is-expired .today-schedule-card { border-color: color-mix(in oklch, var(--color-red), transparent 66%); background: color-mix(in oklch, var(--color-red-deep), transparent 72%); }
+.today-schedule-state.is-not-yet { color: var(--color-text-muted); }
+.today-schedule-state.is-pending { color: var(--color-blue); }
+.today-offline-note { min-height: 46px; display: flex; align-items: center; gap: 10px; margin: 20px 0 0 104px; color: var(--color-text-muted); font-size: 16px; font-weight: 750; }
+.today-offline-note svg { width: 23px; height: 23px; flex: 0 0 auto; color: var(--color-green); }
+
+.today-network-warning { min-height: 74px; display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding: 12px 18px; border: 2px solid var(--color-line); border-radius: 18px; color: var(--color-text); background: var(--color-panel-raised); }
+.today-network-warning svg { width: 32px; height: 32px; color: var(--color-text-muted); }
+.today-network-warning div { display: grid; gap: 3px; }
+.today-network-warning strong { font-size: 20px; }
+.today-network-warning span { color: var(--color-text-muted); font-size: 16px; }
+.today-recommendation-list { display: grid; gap: 22px; }
+.today-recommendation-card {
+  min-height: 168px;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 156px;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 24px;
+  border: 2px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-panel-raised);
+}
+.today-recommendation-icon { width: 62px; height: 62px; display: grid; place-items: center; border-radius: 18px; background: var(--color-panel-soft); }
+.today-recommendation-icon svg { width: 34px; height: 34px; }
+.today-recommendation-copy { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 12px; }
+.today-recommendation-copy > span { justify-self: start; padding: 5px 10px; border-radius: var(--radius-round); font-size: 15px; font-weight: 900; }
+.today-recommendation-copy strong { min-width: 0; font-size: 25px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-recommendation-copy p { grid-column: 1 / -1; margin: 0; color: var(--color-text-soft); font-size: 18px; font-weight: 700; line-height: 1.45; }
+.today-recommendation-card > button { min-width: 144px; height: 54px; border: 2px solid currentColor; border-radius: 16px; font-size: 20px; font-weight: 900; cursor: pointer; }
+.today-recommendation-card > button:disabled { cursor: default; }
+.today-recommendation-card.is-security { border-color: color-mix(in oklch, var(--color-amber), transparent 72%); }
+.today-recommendation-card.is-security .today-recommendation-icon,
+.today-recommendation-card.is-security .today-recommendation-copy > span,
+.today-recommendation-card.is-security > button { color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 88%); }
+.today-recommendation-card.is-community { border-color: color-mix(in oklch, #c871ff, transparent 72%); }
+.today-recommendation-card.is-community .today-recommendation-icon,
+.today-recommendation-card.is-community .today-recommendation-copy > span,
+.today-recommendation-card.is-community > button { color: #d58aff; background: color-mix(in oklch, #9d43d5, transparent 86%); }
+.today-recommendation-card.is-service { border-color: color-mix(in oklch, #9b79ff, transparent 72%); }
+.today-recommendation-card.is-service .today-recommendation-icon,
+.today-recommendation-card.is-service .today-recommendation-copy > span,
+.today-recommendation-card.is-service > button { color: #b8a3ff; background: color-mix(in oklch, #7258cf, transparent 86%); }
+.today-recommendation-card.is-entertainment { border-color: color-mix(in oklch, #ff5f8f, transparent 72%); }
+.today-recommendation-card.is-entertainment .today-recommendation-icon,
+.today-recommendation-card.is-entertainment .today-recommendation-copy > span,
+.today-recommendation-card.is-entertainment > button { color: #ff86a8; background: color-mix(in oklch, #c23b65, transparent 86%); }
+.today-recommendation-card > button:disabled { color: var(--color-text-muted); border-color: var(--color-line); background: var(--color-panel-soft); }
+
+.recommendation-detail-backdrop { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; padding: 80px; background: color-mix(in oklch, var(--color-canvas-deep), transparent 20%); backdrop-filter: blur(12px); }
+.recommendation-detail { position: relative; width: 760px; min-height: 540px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 72px 54px; border: 3px solid color-mix(in oklch, var(--color-amber), transparent 48%); border-radius: 34px; background: var(--color-panel); box-shadow: 0 28px 90px color-mix(in oklch, black, transparent 38%); text-align: center; }
+.recommendation-detail-close { position: absolute; top: 24px; right: 24px; width: 58px; height: 58px; display: grid; place-items: center; border: var(--rule-thin) solid var(--color-line); border-radius: 50%; color: var(--color-text); background: var(--color-panel-raised); cursor: pointer; }
+.recommendation-detail-close svg { width: 30px; height: 30px; }
+.recommendation-detail-icon { width: 96px; height: 96px; display: grid; place-items: center; margin-bottom: 24px; border-radius: 28px; color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 88%); }
+.recommendation-detail-icon svg { width: 52px; height: 52px; }
+.recommendation-detail-eyebrow { padding: 7px 15px; border-radius: var(--radius-round); color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 88%); font-size: 18px; font-weight: 900; }
+.recommendation-detail h2 { margin: 18px 0 12px; font-size: 38px; }
+.recommendation-detail p { max-width: 600px; margin: 0; color: var(--color-text-soft); font-size: 23px; font-weight: 700; line-height: 1.6; }
+.recommendation-detail-action { min-width: 280px; height: 70px; margin-top: 34px; border: 0; border-radius: 20px; color: var(--color-text); background: var(--color-green-dark); font-size: 25px; font-weight: 900; cursor: pointer; }
+.recommendation-detail-action:disabled { color: var(--color-text-muted); background: var(--color-panel-soft); cursor: default; }
+.recommendation-detail small { margin-top: 12px; color: var(--color-text-muted); font-size: 17px; font-weight: 800; }
+.recommendation-detail.is-community { border-color: color-mix(in oklch, #c871ff, transparent 48%); }
+.recommendation-detail.is-service { border-color: color-mix(in oklch, #9b79ff, transparent 48%); }
+.recommendation-detail.is-entertainment { border-color: color-mix(in oklch, #ff5f8f, transparent 48%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .today-overview-page * { transition-duration: 1ms !important; }
+}

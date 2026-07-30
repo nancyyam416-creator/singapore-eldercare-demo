@@ -1,0 +1,185 @@
+@import "../../tokens.css";
+
+.contacts-communication {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-rows: 96px minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-body);
+}
+.contacts-communication button { font-family: inherit; }
+.contacts-communication button:focus-visible { outline: 4px solid var(--color-focus); outline-offset: 3px; }
+.contacts-communication button:active { transform: scale(0.985); }
+.communication-invite-family {
+  min-width: 190px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  border: 2px solid color-mix(in oklch, var(--color-green), transparent 35%);
+  border-radius: 18px;
+  color: var(--color-text);
+  background: linear-gradient(150deg, var(--color-green), var(--color-green-deep));
+  box-shadow: 0 0 26px color-mix(in oklch, var(--color-green), transparent 74%);
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.communication-invite-family svg { width: 27px; height: 27px; }
+
+.contacts-communication__workspace { min-height: 0; display: grid; grid-template-columns: 430px minmax(0, 1fr); }
+.communication-sidebar { min-height: 0; display: flex; flex-direction: column; padding: 24px 20px; border-right: var(--rule-thin) solid var(--color-line); background: var(--color-panel); }
+.communication-sidebar__title { display: flex; align-items: center; gap: 12px; padding: 0 10px 20px; }
+.communication-sidebar__title svg { width: 32px; height: 32px; color: var(--color-green); }
+.communication-sidebar__title h2 { margin: 0; font-size: 28px; }
+.communication-sidebar section { display: grid; gap: 10px; }
+.communication-sidebar section h3 { margin: 0; padding: 11px 10px; color: var(--color-text-muted); font-size: 17px; letter-spacing: .08em; }
+.communication-sidebar section > div { display: grid; gap: 10px; }
+.communication-contact-group--service { margin-top: 18px; padding-top: 12px; border-top: var(--rule-thin) solid var(--color-line); }
+.communication-family-empty {
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px;
+  border: 2px dashed var(--color-line);
+  border-radius: 20px;
+  color: var(--color-text-soft);
+  text-align: center;
+}
+.communication-family-empty svg { width: 42px; height: 42px; color: var(--color-green); }
+.communication-family-empty strong { color: var(--color-text); font-size: 21px; }
+.communication-family-empty span { font-size: 15px; font-weight: 750; }
+.communication-contact {
+  position: relative;
+  width: 100%;
+  min-height: 106px;
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  color: var(--color-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.communication-contact:hover { background: var(--color-panel-raised); }
+.communication-contact.is-selected { border-color: color-mix(in oklch, var(--color-green), transparent 50%); background: color-mix(in oklch, var(--color-green-dark), transparent 64%); }
+.communication-contact__avatar { position: relative; width: 72px; height: 72px; }
+.communication-contact__avatar img { width: 100%; height: 100%; border: 3px solid var(--color-line); border-radius: 50%; object-fit: cover; }
+.communication-contact__avatar i, .communication-main__avatar i { position: absolute; right: 0; bottom: 1px; width: 19px; height: 19px; border: 4px solid var(--color-panel); border-radius: 50%; background: var(--color-text-muted); }
+.communication-contact__avatar i.is-online, .communication-main__avatar i.is-online { background: var(--color-green); }
+.communication-contact__copy { min-width: 0; display: grid; gap: 7px; }
+.communication-contact__copy strong { overflow: hidden; font-size: 21px; text-overflow: ellipsis; white-space: nowrap; }
+.communication-contact__copy small { color: var(--color-text-soft); font-size: 16px; font-weight: 750; }
+.communication-contact__badge { min-width: 42px; height: 42px; display: grid; place-items: center; padding: 0 10px; border: 3px solid var(--color-text); border-radius: var(--radius-round); color: var(--color-text); background: var(--color-red); box-shadow: 0 0 18px color-mix(in oklch, var(--color-red), transparent 48%); font-size: 19px; }
+
+.communication-main { min-width: 0; min-height: 0; display: grid; grid-template-rows: 144px minmax(0, 1fr) 150px; background: var(--color-canvas-deep); }
+.communication-main__header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 28px; border-bottom: var(--rule-thin) solid var(--color-line); background: var(--color-panel); }
+.communication-main__identity { min-width: 0; display: flex; align-items: center; gap: 16px; }
+.communication-main__avatar { position: relative; width: 82px; height: 82px; flex: 0 0 auto; }
+.communication-main__avatar img { width: 100%; height: 100%; border: 3px solid var(--color-line); border-radius: 50%; object-fit: cover; }
+.communication-main__identity > span:last-child { min-width: 0; display: grid; gap: 8px; }
+.communication-main__identity strong { overflow: hidden; font-size: 30px; text-overflow: ellipsis; white-space: nowrap; }
+.communication-main__identity small { color: var(--color-green); font-size: 17px; font-weight: 800; }
+.communication-call-actions { display: flex; align-items: center; gap: 14px; }
+.communication-call-actions button { min-height: 80px; display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 20px; color: var(--color-text); font-size: 21px; font-weight: 900; cursor: pointer; }
+.communication-call-actions button svg { width: 28px; height: 28px; }
+.communication-call-primary { min-width: 230px; border: 2px solid color-mix(in oklch, var(--color-green), var(--color-text) 20%); background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); box-shadow: 0 0 30px color-mix(in oklch, var(--color-green), transparent 70%); }
+.communication-call-secondary { min-width: 190px; border: 2px solid color-mix(in oklch, var(--color-green), transparent 55%); background: color-mix(in oklch, var(--color-green-dark), transparent 45%); }
+
+.communication-timeline { min-height: 0; overflow-y: auto; padding: 22px 34px 32px; scroll-behavior: smooth; }
+.communication-timeline__label { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; color: var(--color-text-muted); font-size: 17px; font-weight: 800; }
+.communication-timeline__label svg { width: 22px; height: 22px; }
+.communication-message { display: flex; align-items: flex-start; gap: 14px; max-width: 900px; margin-bottom: 20px; }
+.communication-message.is-mine { margin-left: auto; justify-content: flex-end; }
+.communication-message__avatar { width: 56px; height: 56px; flex: 0 0 auto; border: 2px solid var(--color-line); border-radius: 50%; object-fit: cover; }
+.communication-message__body { min-width: 0; flex: 1; padding: 17px; border: 2px solid var(--color-line); border-radius: 22px; background: var(--color-panel); }
+.communication-message[data-unread="true"] .communication-message__body { border-color: color-mix(in oklch, var(--color-red), transparent 42%); }
+.communication-message.is-mine .communication-message__body { max-width: 690px; border-color: color-mix(in oklch, var(--color-green), transparent 62%); background: color-mix(in oklch, var(--color-green-dark), transparent 48%); }
+.communication-message__meta { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
+.communication-message__meta strong { font-size: 18px; }
+.communication-message__meta span { color: var(--color-text-muted); font-size: 15px; font-weight: 700; }
+.communication-message__meta i { margin-left: auto; padding: 5px 10px; border-radius: var(--radius-round); color: var(--color-text); background: var(--color-red-deep); font-size: 14px; font-style: normal; font-weight: 900; }
+.communication-photo-message { width: 100%; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px 18px; padding: 0; overflow: hidden; border: 0; border-radius: 16px; color: var(--color-text); background: var(--color-canvas-deep); text-align: left; cursor: pointer; }
+.communication-photo-message img { grid-row: 1 / 3; width: 240px; height: 150px; object-fit: cover; }
+.communication-photo-message > span { align-self: end; display: flex; align-items: center; gap: 9px; color: var(--color-green); font-size: 17px; font-weight: 850; }
+.communication-photo-message > span svg { width: 23px; height: 23px; }
+.communication-photo-message p { align-self: start; margin: 0; padding-right: 16px; font-size: 21px; font-weight: 750; line-height: 1.4; }
+.communication-voice-message { display: grid; gap: 16px; }
+.communication-voice-message p { margin: 0; font-size: 23px; font-weight: 750; line-height: 1.55; }
+.communication-voice-message button { min-width: 250px; min-height: 68px; display: flex; align-items: center; justify-content: center; gap: 12px; justify-self: start; border: 2px solid color-mix(in oklch, var(--color-green), transparent 48%); border-radius: 18px; color: var(--color-text); background: var(--color-green-dark); font-size: 20px; font-weight: 900; cursor: pointer; }
+.communication-voice-message button:disabled { opacity: .78; }
+.communication-voice-message button > svg { width: 28px; height: 28px; }
+.communication-message-wave { width: 44px; height: 34px; }
+.communication-empty { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--color-text-soft); text-align: center; }
+.communication-empty svg { width: 68px; height: 68px; color: var(--color-green); }
+.communication-empty strong { font-size: 27px; }
+.communication-empty span { font-size: 18px; font-weight: 700; }
+
+.communication-recorder { display: grid; align-items: center; padding: 20px 28px; border-top: var(--rule-thin) solid var(--color-line); background: var(--color-panel); }
+.communication-recorder.is-highlighted { box-shadow: inset 0 0 0 4px var(--color-focus), 0 -12px 34px color-mix(in oklch, var(--color-focus), transparent 78%); }
+.communication-recorder > button { width: 100%; min-height: 96px; display: flex; align-items: center; justify-content: center; gap: 18px; border: 3px solid color-mix(in oklch, var(--color-green), transparent 44%); border-radius: 24px; color: var(--color-text); background: color-mix(in oklch, var(--color-green-dark), transparent 42%); cursor: pointer; }
+.communication-recorder > button > svg { width: 40px; height: 40px; color: var(--color-green); }
+.communication-recorder > button > span { display: grid; gap: 7px; text-align: left; }
+.communication-recorder > button strong { font-size: 25px; }
+.communication-recorder > button small { color: var(--color-text-soft); font-size: 16px; font-weight: 750; }
+.communication-recorder__active { display: grid; grid-template-columns: minmax(220px, 1fr) 120px 260px 150px; align-items: center; gap: 18px; }
+.communication-recorder__wave { height: 66px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.communication-recorder__wave i { width: 9px; border-radius: var(--radius-round); background: var(--color-green); animation: communication-wave 900ms var(--ease-in-out) infinite alternate; }
+.communication-recorder__wave i:nth-child(2n) { animation-delay: 160ms; }
+.communication-recorder__wave i:nth-child(3n) { animation-delay: 320ms; }
+.communication-recorder__active > strong { font-family: var(--font-display); font-size: 35px; }
+.communication-recorder__active button { min-height: 74px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 18px; color: var(--color-text); font-size: 20px; font-weight: 900; cursor: pointer; }
+.communication-recorder__active button svg { width: 27px; height: 27px; }
+.communication-recorder__active button:first-of-type { border: 0; background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); }
+.communication-recorder__active button:last-child { border: 2px solid var(--color-line); background: var(--color-panel-raised); }
+.communication-recorder__sent { display: flex; align-items: center; justify-content: center; gap: 16px; color: var(--color-green); }
+.communication-recorder__sent svg { width: 50px; height: 50px; }
+.communication-recorder__sent strong { font-size: 25px; }
+
+.communication-photo-viewer { position: fixed; inset: 0; z-index: 85; overflow: hidden; background: var(--color-canvas-deep); }
+.communication-photo-viewer > img { width: 100%; height: 100%; object-fit: contain; }
+.communication-photo-viewer__shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, transparent 55%, var(--color-canvas-deep) 100%); }
+.communication-photo-viewer__close { position: absolute; top: 34px; left: 34px; min-width: 150px; height: 70px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 2px solid color-mix(in oklch, var(--color-text), transparent 65%); border-radius: 20px; color: var(--color-text); background: color-mix(in oklch, var(--color-canvas-deep), transparent 18%); font-size: 21px; font-weight: 900; cursor: pointer; }
+.communication-photo-viewer__close svg { width: 28px; height: 28px; }
+.communication-photo-viewer__caption { position: absolute; left: 50%; bottom: 40px; width: min(1180px, calc(100% - 80px)); display: grid; grid-template-columns: minmax(0, 1fr) auto 220px; align-items: center; gap: 22px; padding: 24px 28px; border: 2px solid color-mix(in oklch, var(--color-text), transparent 76%); border-radius: 26px; background: color-mix(in oklch, var(--color-canvas-deep), transparent 12%); backdrop-filter: blur(18px); transform: translateX(-50%); }
+.communication-photo-viewer__caption p { margin: 0; font-size: 27px; font-weight: 850; line-height: 1.4; }
+.communication-photo-viewer__caption > span { display: flex; align-items: center; gap: 10px; color: var(--color-green); font-size: 18px; font-weight: 850; white-space: nowrap; }
+.communication-photo-viewer__caption > span svg, .communication-photo-viewer__caption > span > div { width: 36px; height: 30px; }
+.communication-photo-viewer__caption button { height: 70px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 2px solid color-mix(in oklch, var(--color-green), transparent 50%); border-radius: 18px; color: var(--color-text); background: var(--color-green-dark); font-size: 19px; font-weight: 900; cursor: pointer; }
+.communication-photo-viewer__caption button svg { width: 26px; height: 26px; }
+
+.communication-call-overlay { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text); background: var(--color-canvas-deep); text-align: center; }
+.communication-call-overlay__close { position: absolute; top: 34px; right: 34px; width: 72px; height: 72px; display: grid; place-items: center; border: 2px solid var(--color-line); border-radius: 50%; color: var(--color-text); background: var(--color-panel-raised); cursor: pointer; }
+.communication-call-overlay__close svg { width: 34px; height: 34px; }
+.communication-call-overlay > img { position: relative; z-index: 2; width: 220px; height: 220px; border: 6px solid color-mix(in oklch, var(--color-green), transparent 38%); border-radius: 50%; object-fit: cover; box-shadow: 0 0 70px color-mix(in oklch, var(--color-green), transparent 52%); }
+.communication-call-overlay > h2 { position: relative; z-index: 2; margin: 34px 0 0; font-size: 42px; }
+.communication-call-overlay > p { position: relative; z-index: 2; margin: 15px 0 32px; color: var(--color-text-soft); font-size: 22px; font-weight: 750; }
+.communication-call-pulse { position: absolute; width: 340px; height: 340px; border: 4px solid color-mix(in oklch, var(--color-green), transparent 35%); border-radius: 50%; animation: communication-call-pulse 2s var(--ease-in-out) infinite; }
+.communication-hangup { position: relative; z-index: 2; min-width: 240px; height: 82px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 0; border-radius: var(--radius-round); color: var(--color-text); background: var(--color-red); font-size: 22px; font-weight: 900; cursor: pointer; }
+.communication-hangup svg { width: 30px; height: 30px; }
+.communication-call-fallback { position: absolute; z-index: 3; width: 660px; padding: 38px; border: 3px solid color-mix(in oklch, var(--color-green), transparent 40%); border-radius: 30px; background: var(--color-panel); box-shadow: 0 30px 90px color-mix(in oklch, #000, transparent 32%); }
+.communication-call-fallback h2 { margin: 0; font-size: 34px; }
+.communication-call-fallback p { margin: 14px 0 28px; color: var(--color-text-soft); font-size: 22px; font-weight: 750; }
+.communication-call-fallback button { width: 100%; height: 74px; border-radius: 18px; color: var(--color-text); font-size: 21px; font-weight: 900; cursor: pointer; }
+.communication-call-fallback button:first-of-type { display: flex; align-items: center; justify-content: center; gap: 12px; border: 0; background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); }
+.communication-call-fallback button:last-child { margin-top: 12px; border: 2px solid var(--color-line); background: var(--color-panel-raised); }
+
+@keyframes communication-wave { from { transform: scaleY(.55); opacity: .62; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes communication-call-pulse { 0%, 100% { transform: scale(.88); opacity: .25; } 50% { transform: scale(1.1); opacity: .72; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .contacts-communication *, .contacts-communication *::before, .contacts-communication *::after { animation-duration: var(--dur-fast) !important; animation-iteration-count: 1 !important; transition-duration: var(--dur-fast) !important; scroll-behavior: auto !important; }
+}

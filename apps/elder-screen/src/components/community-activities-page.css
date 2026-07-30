@@ -1,0 +1,303 @@
+@import "../../tokens.css";
+
+.community-activities-page {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: 96px minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-body);
+}
+
+.community-activities-page button {
+  color: inherit;
+  font: inherit;
+}
+
+.community-activities-page button:focus-visible {
+  outline: var(--rule-strong) solid var(--color-focus);
+  outline-offset: var(--space-xs);
+}
+
+.community-activities-summary {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.community-activities-summary strong {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.community-activities-summary span {
+  color: var(--color-green);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.community-activities-content {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 28px 34px 34px;
+  overflow-y: auto;
+}
+
+.community-activities-intro {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.community-activities-intro > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.community-activities-intro > div > svg {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  color: var(--color-amber);
+}
+
+.community-activities-intro h2,
+.community-activities-intro p {
+  margin: 0;
+}
+
+.community-activities-intro h2 {
+  font-size: 31px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.community-activities-intro p {
+  margin-top: 7px;
+  color: var(--color-text-soft);
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.community-activities-feedback {
+  max-width: 720px;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border: var(--rule-thin) solid color-mix(in oklch, var(--color-green), transparent 48%);
+  border-radius: var(--radius-round);
+  color: var(--color-green);
+  background: color-mix(in oklch, var(--color-green-dark), transparent 46%);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.community-activities-feedback svg {
+  width: 25px;
+  height: 25px;
+}
+
+.community-activities-list {
+  display: grid;
+  gap: 18px;
+}
+
+.community-activity-card {
+  min-height: 218px;
+  display: grid;
+  grid-template-columns: 238px minmax(0, 1fr) 300px;
+  align-items: center;
+  gap: 26px;
+  padding: 24px 28px;
+  border: var(--rule-strong) solid var(--color-line);
+  border-radius: 28px;
+  background: var(--color-panel);
+  box-shadow: 0 14px 34px color-mix(in oklch, var(--color-canvas-deep), transparent 38%);
+  transition:
+    border-color var(--dur-normal) var(--ease-out),
+    background-color var(--dur-normal) var(--ease-out);
+}
+
+.community-activity-card.is-registered {
+  border-color: color-mix(in oklch, var(--color-green), transparent 38%);
+  background:
+    linear-gradient(140deg, color-mix(in oklch, var(--color-green), transparent 91%), transparent 52%),
+    var(--color-panel);
+}
+
+.community-activity-card__image {
+  width: 238px;
+  height: 158px;
+  overflow: hidden;
+  border: var(--rule-thin) solid color-mix(in oklch, #68aef4, transparent 42%);
+  border-radius: 22px;
+  background: var(--color-panel-raised);
+  box-shadow: 0 10px 26px color-mix(in oklch, #000, transparent 55%);
+}
+
+.community-activity-card__image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.community-activity-card__content {
+  min-width: 0;
+}
+
+.community-activity-card__heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.community-activity-card__heading > span,
+.community-activity-card__heading em {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: var(--radius-round);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.community-activity-card__heading > span {
+  color: #9bcbff;
+  background: color-mix(in oklch, #3274b8, transparent 72%);
+}
+
+.community-activity-card__heading em {
+  color: var(--color-green);
+  background: color-mix(in oklch, var(--color-green-dark), transparent 42%);
+}
+
+.community-activity-card__heading em svg {
+  width: 19px;
+  height: 19px;
+}
+
+.community-activity-card h3 {
+  margin: 14px 0 16px;
+  font-size: 29px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.community-activity-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+}
+
+.community-activity-card__meta p {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.community-activity-card__meta svg {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  color: var(--color-cyan);
+}
+
+.community-activity-card__action {
+  display: grid;
+  justify-items: stretch;
+  gap: 14px;
+}
+
+.community-activity-card__action > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-text-soft);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.community-activity-card__action > span.is-urgent {
+  color: #ff9a9e;
+}
+
+.community-activity-card__action > span svg {
+  width: 23px;
+  height: 23px;
+}
+
+.community-activity-card__action button {
+  width: 100%;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: var(--rule-strong) solid var(--color-line);
+  border-radius: 22px;
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+  font-size: 21px;
+  font-weight: 900;
+  cursor: pointer;
+  border-color: color-mix(in oklch, var(--color-green), transparent 32%);
+  background: var(--color-green-dark);
+  box-shadow: 0 0 26px color-mix(in oklch, var(--color-green), transparent 78%);
+}
+
+.community-activity-card__action button:hover:not(:disabled) {
+  background: var(--color-green-deep);
+}
+
+.community-activity-card__action button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.community-activity-card__action button:disabled {
+  cursor: default;
+  color: var(--color-green);
+  border-color: color-mix(in oklch, var(--color-green), transparent 58%);
+  background: color-mix(in oklch, var(--color-green-dark), transparent 38%);
+  box-shadow: none;
+}
+
+.community-activity-card__action button svg {
+  width: 26px;
+  height: 26px;
+}
+
+@media (max-width: 980px) {
+  .community-activity-card {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .community-activity-card__image {
+    width: 180px;
+    height: 126px;
+  }
+
+  .community-activity-card__action {
+    grid-column: 1 / -1;
+  }
+}

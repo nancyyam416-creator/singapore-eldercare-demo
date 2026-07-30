@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;650;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "../tokens.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Animations and Utilities */
+@keyframes scale-in {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-spin-slow {
+  animation: spin 8s linear infinite;
+}
+
+/* Custom Scrollbar for H5 frame */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Additional 2xs, 3xs font sizing support - scaled up for high legibility */
+.text-2xs {
+  font-size: 0.84rem;
+}
+.text-3xs {
+  font-size: 0.78rem;
+}
+.text-4xs {
+  font-size: 0.72rem;
+}
+.text-5xs {
+  font-size: 0.65rem;
+}
