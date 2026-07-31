@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Play, Pause, Mic, Video, Volume2, VolumeX, X, Check, Sparkles, Smile, Heart, CornerDownLeft, Volume, Star } from "lucide-react";
+import { speakText, stopSpeech } from "../audio/speech";
 import { FamilyMessage } from "../types";
 
 interface FamilyMessageBoxPageProps {
@@ -67,6 +68,7 @@ export default function FamilyMessageBoxPage({
     if (playingMessageId === msg.id) {
       // Pause
       if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+      stopSpeech();
       setPlayingMessageId(null);
     } else {
       // Stop any running TTS
@@ -77,6 +79,14 @@ export default function FamilyMessageBoxPage({
       setPlayingMessageId(msg.id);
       setPlaybackProgress(0);
       onMarkRead(msg.id);
+      speakText(msg.content, {
+        rate: 0.86,
+        onEnd: () => {
+          setPlayingMessageId(null);
+          setPlaybackProgress(0);
+          onMarkRead(msg.id);
+        },
+      });
 
       const duration = msg.duration || 10;
       let elapsed = 0;
@@ -108,6 +118,14 @@ export default function FamilyMessageBoxPage({
       setReadingMessageId(msg.id);
       setReadingProgressWordIdx(0);
       onMarkRead(msg.id);
+      speakText(msg.content, {
+        rate: 0.86,
+        onEnd: () => {
+          setReadingMessageId(null);
+          setReadingProgressWordIdx(-1);
+          onMarkRead(msg.id);
+        },
+      });
 
       // Simulate word-by-word highlight for elderly
       const words = msg.content.split("");
@@ -128,6 +146,7 @@ export default function FamilyMessageBoxPage({
 
   const handleStopReading = () => {
     if (readingTimerRef.current) clearInterval(readingTimerRef.current);
+    stopSpeech();
     setReadingMessageId(null);
     setReadingProgressWordIdx(-1);
   };
@@ -218,6 +237,7 @@ export default function FamilyMessageBoxPage({
       if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
       if (readingTimerRef.current) clearInterval(readingTimerRef.current);
       if (recordingTimerIntervalRef.current) clearInterval(recordingTimerIntervalRef.current);
+      stopSpeech();
     };
   }, []);
 

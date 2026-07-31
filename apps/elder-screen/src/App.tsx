@@ -211,6 +211,7 @@ export default function App() {
   const [serviceBookings, setServiceBookings] = useState<SpecialServiceBooking[]>(readStoredServiceBookings);
   const [isTodayOverviewOpen, setIsTodayOverviewOpen] = useState(false);
   const [overviewRecommendationKind, setOverviewRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
+  const [homeRecommendationKind, setHomeRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
   const [fulfillmentRecords, setFulfillmentRecords] = useState<FulfillmentRecord[]>(createInitialFulfillmentRecords);
 
   // 1.11. More Modules bottom drawer popup state
@@ -229,7 +230,7 @@ export default function App() {
   const [acceptanceCareScenario, setAcceptanceCareScenario] = useState<AcceptanceCareScenario>("daily");
   const [acceptanceDisasterScenario, setAcceptanceDisasterScenario] = useState<AcceptanceDisasterScenario>("rainstorm");
   const [acceptanceMessageScenario, setAcceptanceMessageScenario] = useState<AcceptanceMessageScenario>("multiple");
-  const [acceptanceAlbumScenario, setAcceptanceAlbumScenario] = useState<AcceptanceAlbumScenario>("notice-mixed");
+  const [acceptanceAlbumScenario, setAcceptanceAlbumScenario] = useState<AcceptanceAlbumScenario>("default");
   const [acceptanceHeartScenario, setAcceptanceHeartScenario] = useState<AcceptanceHeartScenario>("not-liked");
   const [acceptanceReminderScenario, setAcceptanceReminderScenario] = useState<AcceptanceReminderScenario>("default");
   const [acceptanceRevision, setAcceptanceRevision] = useState(0);
@@ -397,13 +398,13 @@ export default function App() {
   const [activities, setActivities] = useState<CommunityActivity[]>([
     {
       id: "act-1",
-      title: "长者早操与太极剑法锻炼",
-      time: "今天上午 10:00 - 11:30",
-      location: "清华园小区文体广角",
+      title: "社区剪纸活动",
+      time: "明天上午 10:00 - 11:30",
+      location: "社区多功能活动室",
       spotsLeft: 3,
       registered: false,
-      tag: "活力运动",
-      imageUrl: "https://loremflickr.com/720/480/tai-chi,senior?lock=31",
+      tag: "手工活动",
+      imageUrl: "https://loremflickr.com/720/480/paper-cutting,craft?lock=31",
     },
     {
       id: "act-2",
@@ -806,9 +807,7 @@ export default function App() {
 
   const handleAcceptanceAlbumScenario = (scenario: AcceptanceAlbumScenario) => {
     setAcceptanceAlbumScenario(scenario);
-    if (scenario === "notice-photo") setAlbumUnreadCount(1);
-    else if (scenario === "notice-video") setAlbumUnreadCount(1);
-    else if (scenario === "notice-mixed") setAlbumUnreadCount(2);
+    if (scenario === "notice-photo" || scenario === "notice-video") setAlbumUnreadCount(1);
     showHomeForAcceptance();
   };
 
@@ -824,7 +823,7 @@ export default function App() {
     setAcceptanceCareScenario("daily");
     setAcceptanceDisasterScenario("rainstorm");
     setAcceptanceMessageScenario("multiple");
-    setAcceptanceAlbumScenario("notice-mixed");
+    setAcceptanceAlbumScenario("default");
     setAlbumUnreadCount(2);
     setAcceptanceHeartScenario("not-liked");
     setAcceptanceReminderScenario("default");
@@ -954,16 +953,26 @@ export default function App() {
             onOpenAlbum={() => setIsAlbumPageOpen(true)}
             onOpenMessageBox={() => setIsMessageBoxOpen(true)}
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
-            onOpenTodayOverview={() => setIsTodayOverviewOpen(true)}
-            onOpenCommunity={() => setIsCommunityActivitiesOpen(true)}
-            onOpenSpecialServices={() => setIsSpecialServicesOpen(true)}
+            onOpenTodayOverview={() => {
+              setHomeRecommendationKind(null);
+              setIsTodayOverviewOpen(true);
+            }}
+            onOpenCommunity={() => {
+              setHomeRecommendationKind(null);
+              setIsCommunityActivitiesOpen(true);
+            }}
+            onOpenSpecialServices={() => {
+              setHomeRecommendationKind(null);
+              setIsSpecialServicesOpen(true);
+            }}
             onOpenRecommendation={(kind) => {
+              setHomeRecommendationKind(kind);
               if (kind === "community") {
                 setIsCommunityActivitiesOpen(true);
                 return;
               }
               if (kind === "security") {
-                openSafetyInformation(true);
+                openSafetyInformation(false);
                 return;
               }
               if (kind === "service") {
@@ -1071,7 +1080,11 @@ export default function App() {
 
         <CommunityActivitiesPage
           isOpen={isCommunityActivitiesOpen}
-          onClose={() => setIsCommunityActivitiesOpen(false)}
+          initialActivityId={homeRecommendationKind === "community" ? "act-1" : null}
+          onClose={() => {
+            setIsCommunityActivitiesOpen(false);
+            if (homeRecommendationKind === "community") setHomeRecommendationKind(null);
+          }}
           activities={activities}
           onRegister={handleRegisterActivity}
         />
@@ -1079,12 +1092,14 @@ export default function App() {
         <SecurityInformationPage
           isOpen={isSecurityInformationOpen}
           autoPlayFeatured={autoPlaySafetyInformation}
+          initialTipId={homeRecommendationKind === "security" ? "tip-1" : null}
           tips={scamTips}
           readIds={safetyReadIds}
           onRead={handleReadSafetyTip}
           onClose={() => {
             setIsSecurityInformationOpen(false);
             setAutoPlaySafetyInformation(false);
+            if (homeRecommendationKind === "security") setHomeRecommendationKind(null);
           }}
           onContactFamily={() => {
             setIsSecurityInformationOpen(false);
@@ -1095,8 +1110,12 @@ export default function App() {
 
         <SpecialServicesPage
           isOpen={isSpecialServicesOpen}
+          initialServiceId={homeRecommendationKind === "service" ? "cleaning" : null}
           bookings={serviceBookings}
-          onClose={() => setIsSpecialServicesOpen(false)}
+          onClose={() => {
+            setIsSpecialServicesOpen(false);
+            if (homeRecommendationKind === "service") setHomeRecommendationKind(null);
+          }}
           onBook={handleBookService}
           onCancelBooking={handleCancelServiceBooking}
         />
@@ -1104,22 +1123,26 @@ export default function App() {
         <TodayOverviewPage
           isOpen={isTodayOverviewOpen}
           initialRecommendationKind={overviewRecommendationKind}
+          directRecommendation={homeRecommendationKind === "entertainment"}
           onFulfillment={appendFulfillmentRecord}
           isSecurityRead={safetyReadIds.includes("tip-1")}
           onOpenSecurity={() => {
             setIsTodayOverviewOpen(false);
             setOverviewRecommendationKind(null);
+            setHomeRecommendationKind(null);
             openSafetyInformation(false);
           }}
           isServiceBooked={serviceBookings.some((booking) => booking.status !== "cancelled")}
           onOpenService={() => {
             setIsTodayOverviewOpen(false);
             setOverviewRecommendationKind(null);
+            setHomeRecommendationKind(null);
             setIsSpecialServicesOpen(true);
           }}
           onClose={() => {
             setIsTodayOverviewOpen(false);
             setOverviewRecommendationKind(null);
+            if (homeRecommendationKind === "entertainment") setHomeRecommendationKind(null);
           }}
         />
 
@@ -1157,15 +1180,19 @@ export default function App() {
           onOpenContacts={() => setIsContactsOpen(true)}
           onOpenReminders={() => setIsSchedulePageOpen(true)}
           onOpenCommunity={() => {
+            setHomeRecommendationKind(null);
             setIsCommunityActivitiesOpen(true);
           }}
           onOpenSpecialServices={() => {
+            setHomeRecommendationKind(null);
             setIsSpecialServicesOpen(true);
           }}
           onOpenInformation={() => {
+            setHomeRecommendationKind(null);
             openSafetyInformation(false);
           }}
           onOpenEntertainment={() => {
+            setHomeRecommendationKind(null);
             setOverviewRecommendationKind("entertainment");
             setIsTodayOverviewOpen(true);
           }}
@@ -1174,7 +1201,6 @@ export default function App() {
         </div>
       </TabletSimulator>
       <InteractionAcceptanceConsole
-        timeOverride={acceptanceTimeOverride}
         taskScenario={acceptanceTaskScenario}
         taskContentScenario={acceptanceTaskContentScenario}
         recordScenario={acceptanceRecordScenario}

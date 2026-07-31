@@ -7,6 +7,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { speakText } from "../audio/speech";
 import type { CommunityActivity } from "../types";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./community-activities-page.css";
@@ -16,6 +17,7 @@ interface CommunityActivitiesPageProps {
   onClose: () => void;
   activities: CommunityActivity[];
   onRegister: (activityId: string) => void;
+  initialActivityId?: string | null;
 }
 
 export default function CommunityActivitiesPage({
@@ -23,22 +25,24 @@ export default function CommunityActivitiesPage({
   onClose,
   activities,
   onRegister,
+  initialActivityId = null,
 }: CommunityActivitiesPageProps) {
   const [feedback, setFeedback] = useState("");
   const registeredCount = activities.filter((activity) => activity.registered).length;
+  const directActivity = initialActivityId
+    ? activities.find((activity) => activity.id === initialActivityId) ?? null
+    : null;
+  const visibleActivities = directActivity ? [directActivity] : activities;
 
   const registerActivity = (activity: CommunityActivity) => {
     if (activity.registered) return;
     onRegister(activity.id);
     setFeedback(`已报名“${activity.title}”，活动开始前会提醒您`);
 
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const confirmation = new SpeechSynthesisUtterance(`报名成功，活动开始前会提醒您`);
-      confirmation.lang = "zh-CN";
-      confirmation.rate = 0.9;
-      window.speechSynthesis.speak(confirmation);
-    }
+    speakText("报名成功，活动开始前会提醒您", {
+      fallbackKey: "activity-registered",
+      rate: 0.9,
+    });
   };
 
   if (!isOpen) return null;
@@ -49,7 +53,7 @@ export default function CommunityActivitiesPage({
         title="社区活动"
         icon={<Flag aria-hidden="true" />}
         onBack={onClose}
-        actions={(
+        actions={directActivity ? undefined : (
           <div className="community-activities-summary">
             <strong>{activities.length} 项活动</strong>
             <span>已报名 {registeredCount} 项</span>
@@ -62,8 +66,8 @@ export default function CommunityActivitiesPage({
           <div>
             <Sparkles aria-hidden="true" />
             <div>
-              <h2 id="community-activities-title">近期社区活动</h2>
-              <p>选一个喜欢的活动，按一下就能报名</p>
+              <h2 id="community-activities-title">{directActivity ? "活动详情" : "近期社区活动"}</h2>
+              <p>{directActivity ? "确认时间和地点后，按一下即可报名" : "选一个喜欢的活动，按一下就能报名"}</p>
             </div>
           </div>
           {feedback && (
@@ -74,8 +78,8 @@ export default function CommunityActivitiesPage({
           )}
         </section>
 
-        <div className="community-activities-list">
-          {activities.map((activity) => {
+        <div className={`community-activities-list${directActivity ? " is-direct-detail" : ""}`}>
+          {visibleActivities.map((activity) => {
             const isNearlyFull = activity.spotsLeft <= 3 && !activity.registered;
             return (
               <article

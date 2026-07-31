@@ -17,6 +17,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { speakText } from "../audio/speech";
 import type { SpecialServiceBooking } from "../types";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./special-services-page.css";
@@ -46,6 +47,7 @@ interface SpecialServicesPageProps {
   onClose: () => void;
   onBook: (booking: SpecialServiceBooking) => void;
   onCancelBooking: (bookingId: string) => void;
+  initialServiceId?: string | null;
 }
 
 type PageView = "list" | "detail" | "confirm" | "success" | "bookings";
@@ -126,6 +128,7 @@ export default function SpecialServicesPage({
   onClose,
   onBook,
   onCancelBooking,
+  initialServiceId = null,
 }: SpecialServicesPageProps) {
   const [view, setView] = useState<PageView>("list");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -163,13 +166,20 @@ export default function SpecialServicesPage({
   }, []);
 
   useEffect(() => {
-    if (isOpen) return;
-    setView("list");
-    setSelectedServiceId(null);
-    setSelectedSlotId(null);
-    setLatestBookingId(null);
-    setCancelTargetId(null);
-  }, [isOpen]);
+    if (!isOpen) {
+      setView("list");
+      setSelectedServiceId(null);
+      setSelectedSlotId(null);
+      setLatestBookingId(null);
+      setCancelTargetId(null);
+      return;
+    }
+    if (initialServiceId && services.some((service) => service.id === initialServiceId)) {
+      setSelectedServiceId(initialServiceId);
+      setSelectedSlotId(null);
+      setView("detail");
+    }
+  }, [initialServiceId, isOpen]);
 
   const openService = (serviceId: string) => {
     setSelectedServiceId(serviceId);
@@ -196,15 +206,13 @@ export default function SpecialServicesPage({
     setLatestBookingId(booking.id);
     setView("success");
 
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(
-        `${selectedService.name}已经预约成功，服务人员将在${selectedSlot.label}上门，开始前会再次联系您。`,
-      );
-      utterance.lang = "zh-CN";
-      utterance.rate = 0.88;
-      window.speechSynthesis.speak(utterance);
-    }
+    speakText(
+      `${selectedService.name}已经预约成功，服务人员将在${selectedSlot.label}上门，开始前会再次联系您。`,
+      {
+        fallbackKey: "service-booked",
+        rate: 0.88,
+      },
+    );
   };
 
   if (!isOpen) return null;
@@ -268,9 +276,13 @@ export default function SpecialServicesPage({
 
       {view === "detail" && selectedService && (
         <div className="special-services-detail-view">
-          <button type="button" className="special-services-back" onClick={() => setView("list")}>
+          <button
+            type="button"
+            className="special-services-back"
+            onClick={() => initialServiceId ? onClose() : setView("list")}
+          >
             <ChevronLeft aria-hidden="true" />
-            返回服务列表
+            {initialServiceId ? "返回首页" : "返回服务列表"}
           </button>
 
           <div className="special-services-detail-layout">

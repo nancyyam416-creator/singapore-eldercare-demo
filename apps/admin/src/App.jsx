@@ -49,7 +49,6 @@ import {
   Sparkles,
   Trash2,
   Upload,
-  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -73,7 +72,6 @@ const menuGroups = [
       { key: "safety", label: "安全资讯", icon: ShieldCheck },
       { key: "activities", label: "社区活动", icon: CalendarDays },
       { key: "services", label: "预约服务", icon: ClipboardList },
-      { key: "advisors", label: "顾问跟进", icon: UserCog },
     ],
   },
   {
@@ -86,7 +84,6 @@ const menuGroups = [
       { key: "activity", label: "房间活动", icon: Activity },
       { key: "weatherLocations", label: "天气位置", icon: CloudSun },
       { key: "careScripts", label: "关怀话术", icon: MessageSquareText },
-      { key: "rules", label: "状态规则", icon: SlidersHorizontal },
     ],
   },
   {
@@ -100,6 +97,8 @@ const menuGroups = [
   },
 ];
 
+const availableMenuKeys = new Set(menuGroups.flatMap((group) => group.items.flatMap((item) => [item.key, ...(item.children || []).map((child) => child.key)])));
+
 const pageMeta = {
   elderly: { title: "老人档案", description: "维护老人基础资料、所属项目与服务关系", add: "新增老人" },
   relations: { title: "亲属档案", description: "查看所有手机号注册用户及其关联的老人", add: "新增联系人" },
@@ -110,13 +109,11 @@ const pageMeta = {
   safety: { title: "安全资讯", description: "发布诈骗提醒、家居安全与社区公告", add: "发布资讯" },
   activities: { title: "社区活动", description: "发布活动并跟踪老人参与意向与触达结果", add: "发布活动" },
   services: { title: "预约服务", description: "查看并处理老人通过中控屏提交的上门服务预约", add: "" },
-  advisors: { title: "顾问跟进", description: "分配顾问、处理待办并沉淀服务跟进记录", add: "新建任务" },
   tabletDevices: { title: "平板设备", description: "维护平板资产、老人绑定、激活和在线状态", add: "录入平板" },
   sensorDevices: { title: "房间活动传感器", description: "录入传感器、绑定老人和房间并完成安装校验", add: "添加传感器" },
   activity: { title: "房间活动", description: "查看房间停留、最近活动与设备数据可信度", add: "导出数据" },
   weatherLocations: { title: "天气位置", description: "按国家和地区查看天气接口接入与技术诊断状态", add: "" },
   careScripts: { title: "关怀话术", description: "按天气情况维护老人端可匹配展示的一条关怀话术", add: "" },
-  rules: { title: "状态规则", description: "配置需关注规则与跨端状态输出口径", add: "新增规则" },
   projects: { title: "项目与社区", description: "维护老人档案可选择的服务项目和所属社区", add: "新增项目" },
   accounts: { title: "账号与角色", description: "维护后台账号、角色权限与数据范围", add: "新增账号" },
   logs: { title: "操作日志", description: "追溯关键业务操作、结果与责任边界", add: "导出日志" },
@@ -491,7 +488,7 @@ function Overview({ onNavigate, inactivityRule, inactivityStates, onEditInactivi
       </section>
       <div className="overview-grid">
         <section className="panel attention-panel">
-          <div className="panel-title"><div><h3>今日需关注</h3><p>按优先级汇总异常线索与待办</p></div><button className="text-button" onClick={() => onNavigate("advisors")}>查看全部 <ChevronRight size={15} /></button></div>
+          <div className="panel-title"><div><h3>今日需关注</h3><p>按优先级汇总异常线索与待办</p></div></div>
           <div className="attention-list">
             {[
               ["高", "黄国强厨房设备已离线 4 小时", "设备异常", "12 分钟前"],
@@ -529,16 +526,15 @@ function Overview({ onNavigate, inactivityRule, inactivityStates, onEditInactivi
 }
 
 function getProfileCompleteness(record) {
-  const primaryEmergency = getEmergencyContacts(record).find((contact) => contact.primary)
-    || getEmergencyContacts(record)[0];
+  const emergencyContact = getEmergencyContacts(record)[0];
   const checks = [
     record.name,
     record.phone,
     record.project,
     record.community,
     record.address && record.address !== "待补充",
-    primaryEmergency?.name,
-    primaryEmergency?.phone,
+    emergencyContact?.name,
+    emergencyContact?.phone,
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
@@ -550,11 +546,10 @@ function getEmergencyContacts(record) {
       name: contact.name || "",
       relation: contact.relation || "",
       phone: contact.phone || "",
-      primary: contact.primary ?? index === 0,
     }));
   }
   if (record?.emergency?.name || record?.emergency?.phone) {
-    return [{ id: "contact-1", ...record.emergency, primary: true }];
+    return [{ id: "contact-1", name: record.emergency.name || "", relation: record.emergency.relation || "", phone: record.emergency.phone || "" }];
   }
   return [];
 }
@@ -773,21 +768,12 @@ function ElderlyDetailPage({ record, project, tablet, activation, sensors, remin
   const [tab, setTab] = useState("profile");
   const completeness = getProfileCompleteness(record);
   const emergencyContacts = getEmergencyContacts(record);
-  const primaryEmergency = emergencyContacts.find((contact) => contact.primary) || emergencyContacts[0] || {};
-  record = {
-    ...record,
-    emergency: {
-      ...primaryEmergency,
-      relation: `${primaryEmergency.relation || ""}${emergencyContacts.length > 1 ? `${primaryEmergency.relation ? " · " : ""}共 ${emergencyContacts.length} 位` : ""}`,
-    },
-  };
   tablet = tablet ? { ...tablet, id: formatDisplayId(tablet.id) } : tablet;
   const boundSensors = sensors.filter((sensor) => sensor.elderlyId === record.id && sensor.installStatus !== "已解绑");
   return <>
     <div className="detail-page-heading"><div><button className="back-link" onClick={onBack}><ChevronLeft size={16}/>返回老人档案</button><div className="profile-summary detail-profile-summary"><span className="profile-avatar">{record.name.slice(-1)}</span><div><div className="profile-name"><h1>{record.name}</h1><StatusTag>{record.status}</StatusTag></div><p>{record.gender} · {record.age} 岁 · {formatDisplayId(record.id)} · {record.project}</p><div className="profile-tags">{record.tags.map((tag) => <span key={tag}>{tag}</span>)}</div></div></div></div><button className="primary-button" onClick={onEdit}>编辑档案</button></div>
     <div className="elderly-detail-tabs"><button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}>档案信息</button><button className={tab === "family" ? "active" : ""} onClick={() => setTab("family")}>家庭关系 <span>{familyRelations.filter((item) => item.status === "正常").length}</span></button><button className={tab === "weather" ? "active" : ""} onClick={() => setTab("weather")}>天气位置</button><button className={tab === "reminders" ? "active" : ""} onClick={() => setTab("reminders")}>提醒事项 <span>{reminders.length}</span></button><button className={tab === "spaces" ? "active" : ""} onClick={() => setTab("spaces")}>房间活动传感器 <span>{boundSensors.length}</span></button><button className={tab === "tablet" ? "active" : ""} onClick={() => setTab("tablet")}>平板设备</button></div>
     {tab === "spaces" && <><DailyRoomActivityPanel record={record} sensors={boundSensors}/><InactivityReminderPanel rule={inactivityRule}/></>} 
-    {tab === "family" ? <FamilyRelationshipPanel invitations={familyInvitations} relations={familyRelations} onInvalidateInvite={onInvalidateInvite} onUnlinkRelation={onUnlinkRelation}/> : tab === "profile" ? <div className="elderly-detail-grid"><section className="panel detail-page-panel"><div className="panel-title"><div><h3>基础资料</h3><p>老人身份、联系信息和服务归属</p></div></div><div className="detail-page-body"><div className="info-grid"><div><span>出生日期</span><b>{record.birthday}</b></div><div><span>联系电话</span><b>{record.phone || "待补充"}</b></div><div><span>所属社区</span><b>{record.community}</b></div><div><span>服务顾问</span><b>{record.advisor}</b></div><div><span>天气位置状态</span><StatusTag>{weatherLocation?.status || "待完善"}</StatusTag></div><div className="full"><span>居住地址</span><b>{record.address}</b></div></div></div></section><div><section className="panel detail-page-panel compact"><div className="panel-title"><div><h3>资料完整度</h3><p>正式服务开通校验</p></div><b className={completeness < 100 ? "incomplete" : ""}>{completeness}%</b></div><div className="detail-page-body"><div className="profile-progress"><span style={{ width: `${completeness}%` }}/></div>{completeness < 100 && <p className="detail-warning">关键资料尚未补齐，当前不能开通正式服务。</p>}</div></section><section className="panel detail-page-panel compact"><div className="panel-title"><div><h3>紧急联系人</h3><p>紧急情况下的首要联系关系</p></div></div><div className="detail-page-body"><div className="relation-card"><div><HeartHandshake size={18}/><span><b>{record.emergency.name || "待补充"}</b><small>{record.emergency.relation || "关系待补充"} · {record.emergency.phone || "电话待补充"}</small></span></div></div></div></section></div></div> : tab === "weather" ? <div className="elderly-weather-tab"><section className="panel detail-page-panel"><div className="panel-title"><div><h3>老人天气位置</h3><p>由老人档案居住地址解析，不使用所属项目地址代替</p></div><button className="secondary-button" onClick={onEdit}>编辑居住地址</button></div><div className="detail-page-body"><WeatherLocationSummary location={weatherLocation} query={weatherQuery}/><div className="info-grid weather-detail-info-grid"><div><span>国家 / 地区</span><b>{weatherLocation?.countryName || "待完善"}</b></div><div><span>行政区</span><b>{weatherLocation?.regionName || "待完善"}</b></div><div><span>城市</span><b>{weatherLocation?.cityName || "待完善"}</b></div><div><span>IANA 时区</span><b>{weatherLocation?.timezone || "待完善"}</b></div><div><span>纬度</span><b>{Number.isFinite(weatherLocation?.latitude) ? weatherLocation.latitude : "待解析"}</b></div><div><span>经度</span><b>{Number.isFinite(weatherLocation?.longitude) ? weatherLocation.longitude : "待解析"}</b></div><div><span>位置来源</span><b>{weatherLocation?.source || "老人档案地址解析"}</b></div><div><span>最后更新时间</span><b>{weatherLocation?.updatedAt || "—"}</b></div></div></div></section><section className="panel detail-page-panel"><div className="panel-title"><div><h3>位置变更审计</h3><p>居住地址解析、状态和同步结果的历史记录</p></div><span className="result-count">共 {weatherAudits.length} 条</span></div><div className="table-scroll"><table className="relative-log-table"><thead><tr><th>操作内容</th><th>变更前</th><th>变更后</th><th>来源 / 操作人</th><th>时间</th><th>结果</th></tr></thead><tbody>{weatherAudits.map((item) => <tr key={item.id}><td><b>{item.action}</b></td><td>{item.before}</td><td>{item.after}</td><td><div className="stacked-cell"><b>{item.source}</b><small>{item.operator}</small></div></td><td>{item.operatedAt}</td><td><StatusTag>{item.result}</StatusTag></td></tr>)}{!weatherAudits.length && <tr><td colSpan="6"><div className="empty-table-state">暂无天气位置变更记录</div></td></tr>}</tbody></table></div></section></div> : tab === "reminders" ? <section className="panel elderly-reminder-panel"><div className="panel-title"><div><h3>提醒事项</h3><p>与后台提醒事项模块使用相同的提醒定义口径</p></div><span className="result-count">共 {reminders.length} 条</span></div><div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>提醒时间</th><th>重复方式</th><th>创建信息</th></tr></thead><tbody>{reminders.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time} · 老人当地时间</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{reminder.createdBy}</b><small>{reminder.createdAt}</small></div></td></tr>)}{!reminders.length && <tr><td colSpan="5"><div className="empty-table-state">当前老人暂无提醒事项</div></td></tr>}</tbody></table></div></section> : tab === "spaces" ? <div className="space-device-page"><section className="panel space-management-panel"><div className="panel-title"><div><h3>家庭空间</h3><p>先定义老人家中的房间，再为房间绑定活动传感器</p></div><button className="secondary-button" onClick={onManageSpaces}><Plus size={15}/>定义空间</button></div>{record.rooms?.length ? <div className="space-card-grid">{record.rooms.map((room) => { const roomSensors = boundSensors.filter((sensor) => sensor.room === room); const online = roomSensors.filter((sensor) => sensor.onlineStatus === "在线").length; return <div className="space-card" key={room}><span><Home size={19}/></span><div><b>{room}</b><small>{roomSensors.length ? `${online} / ${roomSensors.length} 台设备在线` : "尚未绑定设备"}</small></div><StatusTag>{roomSensors.length ? roomSensors.some((sensor) => sensor.onlineStatus !== "在线") ? "需检查" : "正常" : "待绑定"}</StatusTag></div>; })}</div> : <div className="space-empty-state"><Home size={28}/><h4>尚未定义家庭空间</h4><p>请先添加客厅、卧室、厨房等房间，再绑定活动传感器。</p><button className="primary-button" onClick={onManageSpaces}><Plus size={15}/>定义第一个空间</button></div>}</section><section className="panel sensor-relation-panel"><div className="panel-title"><div><h3>房间活动传感器</h3><p>设备只能绑定到上方已定义的家庭空间</p></div><button className="primary-button" disabled={!record.rooms?.length} onClick={onAddSensor}><Plus size={15}/>绑定传感器</button></div>{!record.rooms?.length && <div className="panel-inline-warning">请先定义至少一个家庭空间，才能绑定传感器。</div>}<div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称 / SN</th><th>安装房间</th><th>安装状态</th><th>运行状态</th><th>最近活动</th><th>最近上报</th><th className="sticky-right">操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><div className="device-name-cell sensor"><span><Activity size={17}/></span><div><b>{sensor.name}</b><small>{sensor.sn} · {sensor.model}</small></div></div></td><td>{sensor.room}</td><td><StatusTag>{sensor.installStatus}</StatusTag></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastActivity}</td><td>{sensor.lastReport}</td><td className="sticky-right"><button className="table-action" onClick={() => onViewSensor(sensor)}>详情与维护</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="7"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section></div> : <section className="panel tablet-detail-page"><div className="panel-title"><div><h3>老人主平板</h3><p>维护当前平板的激活、绑定、版本和在线状态</p></div><button className="primary-button" onClick={onManageTablet}>{tablet ? "管理绑定" : activation ? "查看激活信息" : "生成激活码"}</button></div><div className="tablet-detail-body">{tablet ? <><div className="device-hero"><span><MonitorSmartphone size={24}/></span><div><h3>{tablet.model}</h3><p>{tablet.id} · {tablet.sn}</p></div><StatusTag>{tablet.status}</StatusTag></div><div className="binding-audit-grid"><div><span>绑定老人</span><b>{record.name}</b></div><div><span>激活方式</span><b>{tablet.activationMethod || "激活码"}</b></div><div><span>当前版本</span><b>{tablet.currentVersion}</b></div><div><span>版本状态</span><StatusTag>{tablet.versionStatus}</StatusTag></div><div><span>绑定时间</span><b>{tablet.boundAt}</b></div><div><span>最近在线</span><b>{tablet.lastOnline}</b></div><div><span>时区</span><b>{project?.timezone || "未配置"}</b></div></div></> : <div className="space-empty-state"><MonitorSmartphone size={28}/><h4>{activation ? `激活码 ${activation.code} 待使用` : "尚未绑定老人平板"}</h4><p>{activation ? `目标设备 ${formatDisplayId(activation.deviceId)} · ${activation.deviceSn || "SN 待补充"}` : "生成激活码后，由安装人员在老人平板上完成激活。"}</p></div>}</div></section>}
   </>;
 }
 
@@ -818,10 +804,9 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
     community: record?.community || "",
     address: record?.address === "待补充" ? "" : record?.address || "",
     tags: record?.tags?.join("、") || "",
-    advisor: record?.advisor === "未开通" ? "" : record?.advisor || "",
     emergencyContacts: getEmergencyContacts(record).length
       ? getEmergencyContacts(record)
-      : [{ id: "contact-1", name: "", relation: "", phone: "", primary: true }],
+      : [{ id: "contact-1", name: "", relation: "", phone: "" }],
   });
 
   const updateForm = (field, value) => setForm((current) => ({ ...current, [field]: value }));
@@ -833,17 +818,12 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
     ...current,
     emergencyContacts: [
       ...current.emergencyContacts,
-      { id: `contact-${Date.now()}`, name: "", relation: "", phone: "", primary: current.emergencyContacts.length === 0 },
+      { id: `contact-${Date.now()}`, name: "", relation: "", phone: "" },
     ],
   }));
-  const removeEmergencyContact = (id) => setForm((current) => {
-    const nextContacts = current.emergencyContacts.filter((contact) => contact.id !== id);
-    if (nextContacts.length && !nextContacts.some((contact) => contact.primary)) nextContacts[0] = { ...nextContacts[0], primary: true };
-    return { ...current, emergencyContacts: nextContacts };
-  });
-  const setPrimaryEmergencyContact = (id) => setForm((current) => ({
+  const removeEmergencyContact = (id) => setForm((current) => ({
     ...current,
-    emergencyContacts: current.emergencyContacts.map((contact) => ({ ...contact, primary: contact.id === id })),
+    emergencyContacts: current.emergencyContacts.filter((contact) => contact.id !== id),
   }));
 
   const handleSave = () => {
@@ -865,14 +845,12 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
     if (Object.keys(nextErrors).length) return;
 
     const birthdayYear = Number(form.birthday.slice(0, 4));
-    const emergencyContacts = form.emergencyContacts.map((contact, index) => ({
+    const emergencyContacts = form.emergencyContacts.map((contact) => ({
       ...contact,
       name: contact.name.trim(),
       relation: contact.relation.trim(),
       phone: contact.phone.trim(),
-      primary: contact.primary || (!form.emergencyContacts.some((item) => item.primary) && index === 0),
     }));
-    const primaryEmergency = emergencyContacts.find((contact) => contact.primary) || emergencyContacts[0];
     onSave({
       ...record,
       name: form.name.trim(),
@@ -885,9 +863,9 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
       address: form.address.trim(),
       rooms: record?.rooms || [],
       tags: form.tags.split(/[、,，]/).map((item) => item.trim()).filter(Boolean),
-      advisor: form.advisor.trim() || "未开通",
+      advisor: record?.advisor || "未开通",
       emergencyContacts,
-      emergency: primaryEmergency,
+      emergency: emergencyContacts[0],
     });
   };
 
@@ -919,7 +897,7 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
               </div>
             </section>
             <section className="detail-section"><h3>房间活动感知设备</h3><div className="relation-card"><div><Home size={18}/><span><b>{record.rooms?.length ? `${record.rooms.length} 个已定义空间` : "尚未定义家庭空间"}</b><small>{record.rooms?.join("、") || "请先在老人详情页定义空间，再绑定活动传感器"}</small></span></div><StatusTag>{record.device || "未安装"}</StatusTag></div></section>
-            <section className="detail-section"><div className="detail-section-title"><h3>紧急联系人与家庭关系</h3><span className="relation-count">共 {emergencyContacts.length} 位联系人</span></div><div className="emergency-contact-view-list">{emergencyContacts.map((contact) => <div className="relation-card" key={contact.id}><div><HeartHandshake size={18}/><span><b>{contact.name || "待补充紧急联系人"}{contact.primary && <em>首要</em>}</b><small>{contact.relation || "关系待补充"} · {contact.phone || "电话待补充"}</small></span></div></div>)}</div></section>
+            <section className="detail-section"><div className="detail-section-title"><h3>紧急联系人与家庭关系</h3><span className="relation-count">共 {emergencyContacts.length} 位联系人</span></div><div className="emergency-contact-view-list">{emergencyContacts.map((contact) => <div className="relation-card" key={contact.id}><div><HeartHandshake size={18}/><span><b>{contact.name || "待补充紧急联系人"}</b><small>{contact.relation || "关系待补充"} · {contact.phone || "电话待补充"}</small></span></div></div>)}</div></section>
           </div>
           <footer><button className="secondary-button" onClick={onClose}>关闭</button><button className="primary-button" onClick={() => setMode("edit")}>编辑档案</button></footer>
         </aside>
@@ -945,25 +923,21 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
             </div>
             <h3>服务归属</h3>
             <label><span>所属项目 *</span><select className="select-control form-select-native" value={form.project} onChange={(event) => { const project = projects.find((item) => item.name === event.target.value); setForm((current) => ({ ...current, project: event.target.value, community: project?.community || current.community })); }}><option value="">请选择所属项目</option>{projects.filter((project) => project.status === "启用" || project.name === record?.project).map((project) => <option key={project.id}>{project.name}</option>)}</select>{errors.project && <small className="field-error">{errors.project}</small>}</label>
-            <div className="form-row">
-              <label><span>所属社区 *</span><input value={form.community} onChange={(event) => updateForm("community", event.target.value)} placeholder="请输入社区名称"/>{errors.community && <small className="field-error">{errors.community}</small>}</label>
-              <label><span>服务顾问</span><input value={form.advisor} onChange={(event) => updateForm("advisor", event.target.value)} placeholder="未开通可不填写"/></label>
-            </div>
+            <label><span>所属社区 *</span><input value={form.community} onChange={(event) => updateForm("community", event.target.value)} placeholder="请输入社区名称"/>{errors.community && <small className="field-error">{errors.community}</small>}</label>
             <label><span>居住地址 *</span><input value={form.address} onChange={(event) => updateForm("address", event.target.value)} placeholder="请输入完整居住地址"/>{errors.address && <small className="field-error">{errors.address}</small>}</label>
             <h3>运营标签</h3>
             <label><span>基础标签（选填）</span><input value={form.tags} onChange={(event) => updateForm("tags", event.target.value)} placeholder="例如：独居、高龄、用药关注"/><small className="field-help">标签用于后台筛选和运营分类，不作为医疗判断或服务开通条件。</small></label>
             <div className="emergency-section-heading">
-              <div><h3>紧急联系人</h3><p>可配置多位联系人，并指定一位首要联系人</p></div>
+              <div><h3>紧急联系人</h3><p>可配置多位联系人，联系人之间不区分优先级</p></div>
               <button type="button" className="secondary-button" onClick={addEmergencyContact}><Plus size={15}/>添加联系人</button>
             </div>
             {errors.emergencyContacts && <small className="field-error emergency-section-error">{errors.emergencyContacts}</small>}
             <div className="emergency-contact-editor-list">
               {form.emergencyContacts.map((contact, index) => (
-                <section className={`emergency-contact-editor ${contact.primary ? "primary" : ""}`} key={contact.id}>
+                <section className="emergency-contact-editor" key={contact.id}>
                   <div className="emergency-contact-editor-head">
-                    <div><b>联系人 {index + 1}</b>{contact.primary && <span>首要联系人</span>}</div>
+                    <div><b>联系人 {index + 1}</b></div>
                     <div>
-                      {!contact.primary && <button type="button" className="text-button" onClick={() => setPrimaryEmergencyContact(contact.id)}>设为首要</button>}
                       <button type="button" className="danger-text-button" disabled={form.emergencyContacts.length === 1} onClick={() => removeEmergencyContact(contact.id)}>删除</button>
                     </div>
                   </div>
@@ -1241,7 +1215,6 @@ function RecommendationStrategyPage({ strategies, policy, onSavePolicy, onCreate
         <div className="recommendation-pool-tabs">{recommendationPools.map((pool) => { const count = strategies.filter((item) => item.pool === pool.key).length; return <button key={pool.key} className={activePool === pool.key ? "active" : ""} onClick={() => setActivePool(pool.key)}><span>{pool.icon}</span>{pool.label}<em>{count}</em></button>; })}</div>
         <div className="recommendation-list-toolbar">
           <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、策略 ID 或动作"/></div><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>启用</option><option>停用</option></select></div>
-          <div className="recommendation-list-actions"><button className="secondary-button"><Upload size={15}/>批量导入策略</button></div>
         </div>
         <div className="table-scroll">
           <table className="recommendation-table"><thead><tr><th className="strategy-check-column"><input type="checkbox" aria-label="全选当前内容池"/></th><th>策略 ID</th><th>展示标题 / 大球文案</th><th>关联资源</th><th>累计推送</th><th>上次推送</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
@@ -2566,6 +2539,9 @@ function CreateDrawer({ page, onClose }) {
 export function App() {
   const [active, setActive] = useState("elderly");
   const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    if (!availableMenuKeys.has(active)) setActive("elderly");
+  }, [active]);
   const [elderlyRecords, setElderlyRecords] = useState(() => {
     try {
       const savedRecords = window.localStorage.getItem("u2g-elderly-records");

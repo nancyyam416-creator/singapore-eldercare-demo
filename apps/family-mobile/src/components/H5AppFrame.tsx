@@ -46,7 +46,8 @@ import {
   PublishedPhotoBatch,
   BoundElder,
   ElderBindingScenario,
-  ReminderScenario
+  ReminderScenario,
+  ChildLoginScenario
 } from '../types';
 import { initialBoundElders, initialChildResidenceAddress, initialFamilyConversations, initialFamilyMessages, initialPublishedPhotoBatches } from '../data/mockData';
 import { H5MonitorTab } from './H5MonitorTab';
@@ -55,6 +56,7 @@ import { H5PhotoShareSheet } from './H5PhotoShareSheet';
 import { H5OrdersTab } from './H5OrdersTab';
 import { H5ProfileTab } from './H5ProfileTab';
 import { H5ElderProfileSheet } from './H5ElderProfileSheet';
+import { H5LoginPage } from './H5LoginPage';
 
 interface H5AppFrameProps {
   parentProfile: typeof import('../data/mockData').initialParentProfile;
@@ -97,9 +99,11 @@ interface H5AppFrameProps {
   previewOpenProfileSignal: number;
   reminderScenario: ReminderScenario;
   previewOpenRemindersSignal: number;
+  previewOpenLoginSignal: number;
+  loginScenario: ChildLoginScenario;
   elderBindingScenario: ElderBindingScenario;
   onPreviewContextChange?: (
-    page: 'home' | 'family' | 'care' | 'profile',
+    page: 'login' | 'home' | 'family' | 'care' | 'profile',
     familyModule?: 'family_messages' | 'family_photos'
   ) => void;
 }
@@ -145,11 +149,13 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   previewOpenProfileSignal,
   reminderScenario,
   previewOpenRemindersSignal,
+  previewOpenLoginSignal,
+  loginScenario,
   elderBindingScenario,
   onPreviewContextChange
 }) => {
   const [activeTab, setActiveTab] = useState<'monitor' | 'store' | 'orders' | 'profile'>('monitor');
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCallingParent, setIsCallingParent] = useState(false);
   const [showElderProfile, setShowElderProfile] = useState(false);
   const [residenceAddress, setResidenceAddress] = useState(initialChildResidenceAddress);
@@ -190,7 +196,9 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'monitor') {
+    if (!isLoggedIn) {
+      onPreviewContextChange?.('login');
+    } else if (activeTab === 'monitor') {
       onPreviewContextChange?.('home');
     } else if (activeTab === 'store') {
       onPreviewContextChange?.(
@@ -202,7 +210,15 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
     } else if (activeTab === 'profile') {
       onPreviewContextChange?.('profile');
     }
-  }, [activeTab, familySection, onPreviewContextChange]);
+  }, [activeTab, familySection, isLoggedIn, onPreviewContextChange]);
+
+  useEffect(() => {
+    if (previewOpenLoginSignal > 0) {
+      setIsLoggedIn(false);
+      setShowElderProfile(false);
+      setShowPhotoShare(false);
+    }
+  }, [previewOpenLoginSignal]);
 
   useEffect(() => {
     if (previewOpenProfileSignal > 0) setActiveTab('profile');
@@ -312,12 +328,12 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
   const handleLogin = () => {
     setIsLoggedIn(true);
-    setActiveTab('monitor');
+    setActiveTab(elderBindingScenario === 'no_elder' ? 'profile' : 'monitor');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    setActiveTab('profile');
+    setActiveTab('monitor');
   };
 
   return (
@@ -344,14 +360,14 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{activeTab === 'monitor' ? '安心看' : activeTab === 'store' ? '亲情连' : activeTab === 'orders' ? '代管家' : '我的'}</h1>
+          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '安心看' : activeTab === 'store' ? '亲情连' : activeTab === 'orders' ? '代管家' : '我的'}</h1>
         </header>
 
         {/* 3. APP SCREEN WRAPPER WITH ABSOLUTE ALERT OVERLAYS */}
         <div ref={contentScrollRef} className="flex-1 overflow-y-auto relative min-h-0 bg-slate-50">
           
           {/* CRITICAL EMERGENCY ALARM POPUP OVERLAY */}
-          {emergencyAlert && (
+          {isLoggedIn && emergencyAlert && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl p-5 border border-rose-100 shadow-2xl max-w-sm text-center space-y-4 animate-scale-in">
                 <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
@@ -408,7 +424,11 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           )}
 
           {/* RENDERING ACTIVE TAB VIEW */}
-          {activeTab === 'monitor' && (
+          {!isLoggedIn && (
+            <H5LoginPage scenario={loginScenario} onLoginSuccess={handleLogin} />
+          )}
+
+          {isLoggedIn && activeTab === 'monitor' && (
             <H5MonitorTab 
               healthStats={healthStats}
               setHealthStats={setHealthStats}
@@ -455,7 +475,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {activeTab === 'store' && (
+          {isLoggedIn && activeTab === 'store' && (
             <H5FamilyTab
               conversations={initialFamilyConversations}
               messages={scopedFamilyMessages}
@@ -471,7 +491,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {activeTab === 'orders' && (
+          {isLoggedIn && activeTab === 'orders' && (
             <H5OrdersTab 
               orders={orders}
               setOrders={setOrders}
@@ -484,7 +504,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {activeTab === 'profile' && (
+          {isLoggedIn && activeTab === 'profile' && (
             <H5ProfileTab
               isLoggedIn={isLoggedIn}
               onLogin={handleLogin}
@@ -502,7 +522,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         </div>
 
-        {activeTab === 'store' && familySection === 'photos' && (
+        {isLoggedIn && activeTab === 'store' && familySection === 'photos' && (
           <button
             type="button"
             onClick={openPhotoShare}
@@ -513,7 +533,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           </button>
         )}
 
-        {showElderProfile && (
+        {isLoggedIn && showElderProfile && (
           <H5ElderProfileSheet
             parentProfile={currentParentProfile}
             dataScenario={elderProfileDataScenario}
@@ -525,7 +545,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           />
         )}
 
-        {photoShareMounted && (
+        {isLoggedIn && photoShareMounted && (
           <H5PhotoShareSheet
             key={familyPhotoScenario}
             elderNames={['爸爸']}
@@ -543,7 +563,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
         )}
 
         {/* 4. IOS Elegant Bottom Navigation Tabs bar */}
-        <nav className="h-16 bg-white border-t border-slate-150 flex items-center justify-around px-2 shrink-0 z-40 pb-2">
+        {isLoggedIn && <nav className="h-16 bg-white border-t border-slate-150 flex items-center justify-around px-2 shrink-0 z-40 pb-2">
           <button
             onClick={() => setActiveTab('monitor')}
             disabled={!isLoggedIn}
@@ -578,7 +598,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             <UserRound size={18} className={activeTab === 'profile' ? 'stroke-[2.5]' : ''} />
             <span className="text-5xs font-extrabold tracking-tight">我的</span>
           </button>
-        </nav>
+        </nav>}
 
         {/* iOS physical bottom bar pill */}
         <div className="hidden sm:block h-1 bg-slate-300 w-32 mx-auto rounded-full mb-1 shrink-0"></div>

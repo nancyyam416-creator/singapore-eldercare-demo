@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { speakText } from "../audio/speech";
 import { 
   CalendarRange, 
   ShieldAlert, 
@@ -822,9 +823,9 @@ export default function CommunityPanel({
                       const updated = { ...selectedActivity, registered: true };
                       setSelectedActivity(updated);
                       // Trigger audio confirm message
-                      const utterance = new SpeechSynthesisUtterance(`报名成功。您已成功预约：${selectedActivity.title}，我们将提前为您预留教室座位。`);
-                      utterance.lang = 'zh-CN';
-                      window.speechSynthesis?.speak(utterance);
+                      speakText(`报名成功。您已成功预约：${selectedActivity.title}，我们将提前为您预留教室座位。`, {
+                        fallbackKey: "activity-registered",
+                      });
                     }}
                     className="flex-1 py-4.5 bg-brand-green hover:bg-brand-green-hover text-white text-[22px] font-black rounded-xl shadow-lg border border-emerald-700/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
@@ -1198,9 +1199,9 @@ export default function CommunityPanel({
                     triggerServiceBooking(serviceName, detailMsg);
 
                     // Voice announcement
-                    const utterance = new SpeechSynthesisUtterance(`预约成功！我们已把您的需求安排妥当，将通过微信实时通报子女，请您在家里安心等待。`);
-                    utterance.lang = 'zh-CN';
-                    window.speechSynthesis?.speak(utterance);
+                    speakText("预约成功！我们已把您的需求安排妥当，请您在家里安心等待。", {
+                      fallbackKey: "service-booked",
+                    });
                   }}
                   className="w-full py-4.5 bg-brand-green hover:bg-brand-green-hover text-white text-[22px] font-black rounded-xl shadow-lg border border-emerald-700/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
@@ -1288,9 +1289,9 @@ export default function CommunityPanel({
                       <button
                         onClick={() => {
                           setScamUserChoice('warn');
-                          const utterance = new SpeechSynthesisUtterance(`千万别相信！这是绝对的骗局！千万不要听信对方去银行转汇任何资金。`);
-                          utterance.lang = 'zh-CN';
-                          window.speechSynthesis?.speak(utterance);
+                          speakText("千万别相信！这是骗局，不要听信对方转汇任何资金。", {
+                            fallbackKey: "security-reading",
+                          });
                         }}
                         className="p-5 bg-red-50 border-2 border-red-200 hover:border-red-500 rounded-xl text-left transition-all active:scale-95 cursor-pointer flex flex-col justify-between"
                       >
@@ -1307,9 +1308,9 @@ export default function CommunityPanel({
                       <button
                         onClick={() => {
                           setScamUserChoice('success');
-                          const utterance = new SpeechSynthesisUtterance(`恭喜您识破了骗子的恶毒陷阱！您已经荣获【社区防诈小能手】勋章，真为您点赞！`);
-                          utterance.lang = 'zh-CN';
-                          window.speechSynthesis?.speak(utterance);
+                          speakText("恭喜您识破了骗局，做得很好。", {
+                            fallbackKey: "security-reading",
+                          });
                         }}
                         className="p-5 bg-emerald-50 border-2 border-emerald-200 hover:border-brand-green rounded-xl text-left transition-all active:scale-95 cursor-pointer flex flex-col justify-between"
                       >
@@ -1493,9 +1494,7 @@ export default function CommunityPanel({
                         setTiktokLiked(updatedLiked);
                         
                         // Speak out
-                        const utterance = new SpeechSynthesisUtterance(updatedLiked[currentVideoIdx] ? "感谢您的点赞，祝您天天开心！" : "已取消点赞");
-                        utterance.lang = 'zh-CN';
-                        window.speechSynthesis?.speak(utterance);
+                        speakText(updatedLiked[currentVideoIdx] ? "感谢您的点赞，祝您天天开心！" : "已取消点赞");
                       }}
                       className="w-full flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/10 p-3.5 rounded-2xl transition-all cursor-pointer"
                     >
@@ -1510,9 +1509,7 @@ export default function CommunityPanel({
 
                     <button 
                       onClick={() => {
-                        const utterance = new SpeechSynthesisUtterance("感谢分享，已为您转发到儿女微信中。");
-                        utterance.lang = 'zh-CN';
-                        window.speechSynthesis?.speak(utterance);
+                        speakText("感谢分享，已完成转发。");
                       }}
                       className="w-full flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/10 p-3.5 rounded-2xl transition-all cursor-pointer"
                     >
@@ -1949,9 +1946,7 @@ export default function CommunityPanel({
                           key={speed}
                           onClick={() => {
                             setDanceSpeed(speed);
-                            const utterance = new SpeechSynthesisUtterance(`伴奏速度已切换至 ${speed}`);
-                            utterance.lang = 'zh-CN';
-                            window.speechSynthesis?.speak(utterance);
+                            speakText(`伴奏速度已切换至 ${speed}`);
                           }}
                           className={`px-2.5 py-1 text-xs font-black rounded-md cursor-pointer transition-all ${
                             danceSpeed === speed 

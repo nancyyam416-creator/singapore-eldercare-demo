@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Lottie from "lottie-react";
 import voiceWaveAnimation from "../animations/voiceWave";
+import { speakText, stopSpeech } from "../audio/speech";
 import {
   AlertTriangle,
   CalendarDays,
@@ -268,17 +269,10 @@ export default function ControlCenterHome({
         cropClass: "photo-crop--cover",
       })),
     ].slice(0, HOME_ALBUM_MAX_ITEMS);
-    const prefersVideo = acceptanceAlbumScenario === "notice-video"
-      || acceptanceAlbumScenario === "video-cover"
-      || acceptanceAlbumScenario === "video-viewed"
-      || acceptanceAlbumScenario === "video-failure";
+    const prefersVideo = acceptanceAlbumScenario === "video-failure";
     if (prefersVideo) {
       const firstVideo = photos.find((photo) => photo.type === "video");
       if (firstVideo) photos = [firstVideo, ...photos.filter((photo) => photo.id !== firstVideo.id)];
-    }
-    if (acceptanceAlbumScenario === "notice-photo") {
-      const firstSharedPhoto = photos.find((photo) => photo.type !== "video" && photo.id !== "home-featured-family");
-      if (firstSharedPhoto) photos = [firstSharedPhoto, ...photos.filter((photo) => photo.id !== firstSharedPhoto.id)];
     }
     if (acceptanceAlbumScenario === "single") return photos.slice(0, 1);
     if (acceptanceAlbumScenario === "load-failure") {
@@ -292,12 +286,10 @@ export default function ControlCenterHome({
     return photos;
   }, [albumPhotos, acceptanceAlbumScenario]);
   const isAlbumEmpty = acceptanceAlbumScenario === "empty";
-  const isAcceptanceVideoScenario = ["notice-video", "video-cover", "video-viewed", "video-failure"]
-    .includes(acceptanceAlbumScenario);
+  const isAcceptanceVideoScenario = acceptanceAlbumScenario === "video-failure";
   const currentPhoto = homePhotoPool[photoIndex] ?? homePhotoPool[0];
   const isCurrentVideo = currentPhoto?.type === "video";
-  const currentVideoViewed = Boolean(currentPhoto && viewedVideoIds.includes(currentPhoto.id))
-    || acceptanceAlbumScenario === "video-viewed";
+  const currentVideoViewed = Boolean(currentPhoto && viewedVideoIds.includes(currentPhoto.id));
   const pauseHomeVideo = () => {
     homeVideoRef.current?.pause();
     setHomeVideoState((state) => state === "playing" ? "cover" : state);
@@ -417,10 +409,8 @@ export default function ControlCenterHome({
     setPhotoIndex(0);
     setPhotoLoadFailedId(null);
     const targetVideo = homePhotoPool.find((photo) => photo.type === "video");
-    if (targetVideo && ["notice-video", "video-cover", "video-viewed", "video-failure"].includes(acceptanceAlbumScenario)) {
-      setViewedVideoIds((ids) => acceptanceAlbumScenario === "video-viewed"
-        ? (ids.includes(targetVideo.id) ? ids : [...ids, targetVideo.id])
-        : ids.filter((id) => id !== targetVideo.id));
+    if (targetVideo && acceptanceAlbumScenario === "video-failure") {
+      setViewedVideoIds((ids) => ids.filter((id) => id !== targetVideo.id));
     }
   }, [acceptanceAlbumScenario]);
 
@@ -432,7 +422,7 @@ export default function ControlCenterHome({
   useEffect(() => () => homeVideoRef.current?.pause(), []);
 
   useEffect(() => {
-    if (["notice-video", "video-cover", "video-viewed", "video-failure"].includes(acceptanceAlbumScenario)) return;
+    if (acceptanceAlbumScenario === "video-failure") return;
     if (!unreadPhotoMessage?.photoUrl) return;
     const incomingPhotoIndex = homePhotoPool.findIndex((photo) => photo.url === unreadPhotoMessage.photoUrl);
     if (incomingPhotoIndex >= 0) setPhotoIndex(incomingPhotoIndex);
@@ -472,7 +462,7 @@ export default function ControlCenterHome({
   useEffect(() => {
     if (acceptanceRevision === 0) return;
     audioRef.current?.pause();
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
     activeMessageRef.current = null;
     playbackTimerRef.current = null;
@@ -506,7 +496,7 @@ export default function ControlCenterHome({
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
-      window.speechSynthesis?.cancel();
+      stopSpeech();
       if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
       if (replySpeechTimerRef.current) window.clearTimeout(replySpeechTimerRef.current);
       if (replyExitTimerRef.current) window.clearTimeout(replyExitTimerRef.current);
@@ -561,8 +551,7 @@ export default function ControlCenterHome({
 
   function readWeatherDraft(draft = weatherDraft) {
     if (!draft) return;
-    const speechEngine = (window as Window & { speechSynthesis?: SpeechSynthesis }).speechSynthesis;
-    speechEngine?.cancel();
+    stopSpeech();
     clearWeatherSpeechTimers();
     setWeatherProgress(8);
     setWeatherReminderStage("reading");
@@ -573,15 +562,12 @@ export default function ControlCenterHome({
 
     const estimatedDuration = Math.max(4200, Math.min(7600, draft.text.length * 150));
     weatherSpeechFallbackRef.current = window.setTimeout(finishWeatherReading, estimatedDuration);
-    if (!speechEngine) return;
-
-    const utterance = new SpeechSynthesisUtterance(draft.text);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.84;
-    utterance.volume = 1;
-    utterance.onend = finishWeatherReading;
-    utterance.onerror = finishWeatherReading;
-    speechEngine.speak(utterance);
+    speakText(draft.text, {
+      fallbackKey: "weather-care",
+      rate: 0.84,
+      onEnd: finishWeatherReading,
+      onError: finishWeatherReading,
+    });
   }
 
   async function generateWeatherReminder() {
@@ -594,7 +580,7 @@ export default function ControlCenterHome({
       && (selectedWeather.weather.queryState === "success" || selectedWeather.weather.queryState === "cached");
     if (!hasWeatherContext) return;
 
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     clearWeatherSpeechTimers();
     setWeatherError("");
     setWeatherReminderStage("generating");
@@ -616,7 +602,7 @@ export default function ControlCenterHome({
   }
 
   function cancelWeatherReminder(clearDraft = true) {
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     clearWeatherSpeechTimers();
     setWeatherProgress(0);
     setWeatherError("");
@@ -627,7 +613,7 @@ export default function ControlCenterHome({
 
   async function confirmWeatherReminder() {
     if (!selectedWeather || !weatherDraft || weatherReminderStage === "sending" || weatherSendInFlightRef.current) return;
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     clearWeatherSpeechTimers();
     const requestId = weatherSendRequestId ?? `weather-care-${selectedWeather.id}-${Date.now()}`;
     if (!isWeatherOnline) {
@@ -658,19 +644,17 @@ export default function ControlCenterHome({
     setWeatherReminderStage(result.status === "already-sent" ? "blocked" : "success");
     if (result.status === "success") onQuickReply(selectedWeather.displayName, weatherDraft.text);
 
-    const speechEngine = (window as Window & { speechSynthesis?: SpeechSynthesis }).speechSynthesis;
-    if (!speechEngine) return;
-    const utterance = new SpeechSynthesisUtterance(result.status === "already-sent"
+    const confirmationText = result.status === "already-sent"
       ? `今天已经给${selectedWeather.relationship}发送过天气关怀了`
-      : `已给${selectedWeather.relationship}发送天气关怀`);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.88;
-    utterance.volume = 1;
-    speechEngine.speak(utterance);
+      : `已给${selectedWeather.relationship}发送天气关怀`;
+    speakText(confirmationText, {
+      fallbackKey: result.status === "already-sent" ? "weather-already" : "weather-sent",
+      rate: 0.88,
+    });
   }
 
   function selectWeatherRecipient(weather: FamilyWeatherMember) {
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     clearWeatherSpeechTimers();
     setSelectedWeatherId(weather.id);
     setWeatherProgress(0);
@@ -741,24 +725,10 @@ export default function ControlCenterHome({
 
   function playWithDeviceVoice(content: string) {
     const estimatedDuration = Math.max(6000, Math.min(10000, content.length * 220));
-    const speechEngine = (window as Window & { speechSynthesis?: SpeechSynthesis }).speechSynthesis;
-    if (!speechEngine) {
-      playbackTimerRef.current = globalThis.setTimeout(finishMessagePlayback, estimatedDuration);
-      return;
-    }
-
-    speechEngine.cancel();
-    const utterance = new SpeechSynthesisUtterance(content);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.86;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    utterance.onend = finishMessagePlayback;
-    utterance.onerror = () => {
-      // Some embedded browsers do not expose an audio voice. Keep the visual
-      // playback state for the estimated message duration instead of flashing.
-    };
-    speechEngine.speak(utterance);
+    speakText(content, {
+      rate: 0.86,
+      onEnd: finishMessagePlayback,
+    });
     playbackTimerRef.current = window.setTimeout(finishMessagePlayback, estimatedDuration);
   }
 
@@ -809,24 +779,12 @@ export default function ControlCenterHome({
       dismissMessageCard(message.id);
     };
 
-    const speechEngine = (window as Window & { speechSynthesis?: SpeechSynthesis }).speechSynthesis;
-    if (!speechEngine) {
-      replySpeechTimerRef.current = window.setTimeout(finishConfirmation, 1600);
-      return;
-    }
-
-    speechEngine.cancel();
     const relation = message.sender.includes("女儿") ? "女儿" : message.sender;
-    const utterance = new SpeechSynthesisUtterance(`已告诉${relation}我收到了`);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.88;
-    utterance.volume = 1;
-    utterance.onend = finishConfirmation;
-    utterance.onerror = () => {
-      // Keep the visual confirmation long enough to be understood when the
-      // embedded browser cannot access a system voice.
-    };
-    speechEngine.speak(utterance);
+    speakText(`已告诉${relation}我收到了`, {
+      fallbackKey: "reply-received",
+      rate: 0.88,
+      onEnd: finishConfirmation,
+    });
     replySpeechTimerRef.current = window.setTimeout(finishConfirmation, 2800);
   };
 
@@ -848,7 +806,7 @@ export default function ControlCenterHome({
     photoMessageExitTimerRef.current = null;
     if (activeMessageRef.current?.id === activePhotoMessageId) {
       audioRef.current?.pause();
-      window.speechSynthesis?.cancel();
+      stopSpeech();
       if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
       playbackTimerRef.current = null;
       activeMessageRef.current = null;
@@ -897,12 +855,8 @@ export default function ControlCenterHome({
       heartFeedbackTimerRef.current = null;
     }, 1800);
 
-    if (!isVoicePlaybackActive && !replyingMessageId && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const confirmation = new SpeechSynthesisUtterance("已把爱心送给家人");
-      confirmation.lang = "zh-CN";
-      confirmation.rate = 0.9;
-      window.speechSynthesis.speak(confirmation);
+    if (!isVoicePlaybackActive && !replyingMessageId) {
+      speakText("已告诉家人您喜欢这张照片", { fallbackKey: "heart-family", rate: 0.9 });
     }
   };
 
@@ -1102,7 +1056,9 @@ export default function ControlCenterHome({
                   onPause={() => setHomeVideoState((state) => state === "playing" ? "cover" : state)}
                   onEnded={() => setHomeVideoState("ended")}
                 />
-                <span className="home-video-badge"><Video aria-hidden="true" />家庭视频{currentVideoViewed ? " · 已查看" : " · 未查看"}</span>
+                {homeVideoState !== "failed" && (
+                  <span className="home-video-badge"><Video aria-hidden="true" />家庭视频{currentVideoViewed ? " · 已查看" : " · 未查看"}</span>
+                )}
                 {homeVideoState === "failed" ? (
                   <div className="home-video-failure" role="alert">
                     <AlertTriangle aria-hidden="true" />
@@ -1279,16 +1235,16 @@ export default function ControlCenterHome({
               type="button"
               onClick={sendPhotoHeart}
               disabled={acceptanceHeartScenario === "sending"}
-              aria-label={currentPhotoLiked ? "取消这张照片的爱心" : "给这张照片送个爱心"}
+              aria-label={currentPhotoLiked ? "取消喜欢这张照片" : "喜欢这张照片"}
             >
               <Heart aria-hidden="true" />
-              <span>{acceptanceHeartScenario === "sending" ? "爱心发送中" : currentPhotoLiked ? "已送爱心" : "送个爱心"}</span>
+              <span>{acceptanceHeartScenario === "sending" ? "喜欢中" : currentPhotoLiked ? "已喜欢" : "喜欢"}</span>
             </button>}
           </div>
           {isHeartFailureToastVisible && (
             <div className="home-heart-toast is-error" role="status" aria-live="polite">
               <AlertTriangle aria-hidden="true" />
-              <span>爱心发送失败，请稍后重试</span>
+              <span>喜欢失败，请稍后重试</span>
             </div>
           )}
           {photoHeartBurstKey > 0 && (

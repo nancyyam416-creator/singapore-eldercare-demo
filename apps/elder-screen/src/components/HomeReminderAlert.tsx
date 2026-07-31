@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { BellRing, CalendarDays, CheckCircle2, Clock3, Pill } from "lucide-react";
+import { speakText, stopSpeech } from "../audio/speech";
 import type { MedicationReminder } from "../types";
 
 interface HomeReminderAlertProps {
@@ -19,6 +21,19 @@ export default function HomeReminderAlert({
   const actionLabel = isDailyReminder ? "我已完成" : "我已服药";
   const remainingLabel = minutesUntil > 0 ? `还有 ${minutesUntil} 分钟` : "提醒时间到了";
   const ReminderIcon = isDailyReminder ? CalendarDays : Pill;
+
+  useEffect(() => {
+    speakText(
+      isDailyReminder
+        ? `马上有一件日常事项，${reminder.name}。${reminder.dosage}`
+        : `马上到服药时间了，${reminder.name}。${reminder.dosage}`,
+      {
+        fallbackKey: isDailyReminder ? "daily-upcoming" : "medication-upcoming",
+        rate: 0.84,
+      },
+    );
+    return stopSpeech;
+  }, [isDailyReminder, reminder.dosage, reminder.id, reminder.name]);
 
   return (
     <div className="home-reminder-alert" role="presentation">

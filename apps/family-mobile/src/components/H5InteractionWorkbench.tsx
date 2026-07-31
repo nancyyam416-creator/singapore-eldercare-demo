@@ -6,11 +6,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   Cpu,
-  LayoutGrid,
-  Layers3,
   MousePointerClick,
   RotateCcw,
-  SlidersHorizontal,
   X
 } from 'lucide-react';
 import {
@@ -26,14 +23,14 @@ import {
   CareFeedScenario,
   ReassuranceScoreScenario,
   ElderBindingScenario,
-  ReminderScenario
+  ReminderScenario,
+  ChildLoginScenario
 } from '../types';
 
-type WorkbenchMode = 'page' | 'module' | 'overview';
 type ElderAcceptanceTarget = 'card' | 'profile';
 type FamilyPhotoAcceptanceTarget = 'list' | 'publish';
-type AcceptancePage = 'home' | 'family' | 'care' | 'profile';
-type AcceptanceModule = 'elder' | 'score' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_photos' | 'reminders' | 'elder_binding';
+type AcceptancePage = 'login' | 'home' | 'family' | 'care' | 'profile';
+type AcceptanceModule = 'login' | 'elder' | 'score' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_photos' | 'reminders' | 'elder_binding';
 type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
@@ -51,6 +48,7 @@ interface H5InteractionWorkbenchProps {
   elderProfileDeviceScenario: ElderProfileDeviceScenario;
   elderBindingScenario: ElderBindingScenario;
   reminderScenario: ReminderScenario;
+  loginScenario: ChildLoginScenario;
   elderProfileRadarExpanded: boolean;
   showSimulator: boolean;
   onHomeCareScenarioChange: (scenario: HomeCareScenario) => void;
@@ -69,6 +67,8 @@ interface H5InteractionWorkbenchProps {
   onElderProfileDeviceScenarioChange: (scenario: ElderProfileDeviceScenario) => void;
   onElderBindingScenarioChange: (scenario: ElderBindingScenario) => void;
   onReminderScenarioChange: (scenario: ReminderScenario) => void;
+  onLoginScenarioChange: (scenario: ChildLoginScenario) => void;
+  onOpenLogin: () => void;
   onElderProfileRadarExpandedChange: (expanded: boolean) => void;
   onOpenElderProfile: () => void;
   onCloseElderProfile: () => void;
@@ -82,22 +82,6 @@ interface H5InteractionWorkbenchProps {
   onReset: () => void;
   onToggleSimulator: () => void;
 }
-
-const modeOptions: Array<{
-  value: WorkbenchMode;
-  label: string;
-  icon: React.ComponentType<{ size?: number }>;
-}> = [
-  { value: 'page', label: '页面联动', icon: Layers3 },
-  { value: 'module', label: '模块验收', icon: SlidersHorizontal },
-  { value: 'overview', label: '状态总览', icon: LayoutGrid }
-];
-
-const pageScenarios: Array<{ value: HomeCareScenario; label: string; description: string }> = [
-  { value: 'normal', label: '正常一天', description: '首页各模块处于正常状态' },
-  { value: 'medication_overdue', label: '用药超时', description: '联动安心评分与今日动态' },
-  { value: 'inactivity', label: '久未活动', description: '联动空间行为与关注提示' }
-];
 
 const elderScenarios: Array<{ value: ElderStatusCardScenario; label: string; description: string }> = [
   { value: 'normal', label: '正常', description: '设备在线，存在最后位置' },
@@ -172,6 +156,16 @@ const elderBindingScenarios: Array<{ value: ElderBindingScenario; label: string;
   { value: 'tablet_code', label: '误输平板激活码', description: '明确提示扫描老人屏幕上的邀请二维码。', status: '码类型错误' }
 ];
 
+const loginScenarios: Array<{ value: ChildLoginScenario; label: string; description: string; status: string }> = [
+  { value: 'default', label: '首次打开', description: '默认进入登录页，手机号和验证码均为空。', status: '待登录' },
+  { value: 'code_sent', label: '验证码已发送', description: '手机号校验通过，展示发送结果与演示验证码。', status: '已发送' },
+  { value: 'invalid_phone', label: '手机号格式错误', description: '分别校验+65八位号码与+86十一位号码。', status: '格式错误' },
+  { value: 'invalid_code', label: '验证码错误', description: '保留手机号并提示重新输入验证码。', status: '验证失败' },
+  { value: 'code_expired', label: '验证码已过期', description: '提示重新获取验证码，不进入登录后页面。', status: '已过期' },
+  { value: 'send_failed', label: '验证码发送失败', description: '保留手机号，允许再次点击获取验证码。', status: '可重试' },
+  { value: 'network_error', label: '登录网络异常', description: '登录失败后保留输入内容，可稍后重试。', status: '网络异常' }
+];
+
 const reminderScenarios: Array<{ value: ReminderScenario; label: string; description: string; status: string }> = [
   { value: 'create', label: '新增提醒', description: '打开新增面板，可创建用药提醒或日常提醒。', status: '新增' },
   { value: 'edit', label: '编辑提醒', description: '打开现有提醒并修改名称、时间与重复规则。', status: '编辑' },
@@ -182,6 +176,9 @@ const reminderScenarios: Array<{ value: ReminderScenario; label: string; descrip
 ];
 
 const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceModule; label: string }>> = {
+  login: [
+    { value: 'login', label: '手机号验证码登录' }
+  ],
   home: [
     { value: 'elder', label: '老人信息' },
     { value: 'score', label: '安心评分' },
@@ -288,6 +285,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   elderProfileDeviceScenario,
   elderBindingScenario,
   reminderScenario,
+  loginScenario,
   elderProfileRadarExpanded,
   showSimulator,
   onHomeCareScenarioChange,
@@ -306,6 +304,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   onElderProfileDeviceScenarioChange,
   onElderBindingScenarioChange,
   onReminderScenarioChange,
+  onLoginScenarioChange,
+  onOpenLogin,
   onElderProfileRadarExpandedChange,
   onOpenElderProfile,
   onCloseElderProfile,
@@ -319,7 +319,6 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   onReset,
   onToggleSimulator
 }) => {
-  const [mode, setMode] = useState<WorkbenchMode>('module');
   const [elderTarget, setElderTarget] = useState<ElderAcceptanceTarget>('card');
   const [acceptancePage, setAcceptancePage] = useState<AcceptancePage>('home');
   const [acceptanceModule, setAcceptanceModule] = useState<AcceptanceModule>('score');
@@ -330,7 +329,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   useEffect(() => {
     setAcceptancePage(activePreviewPage);
     setAcceptanceModule(
-      activePreviewPage === 'home'
+      activePreviewPage === 'login'
+        ? 'login'
+        : activePreviewPage === 'home'
         ? 'score'
         : activePreviewPage === 'care'
           ? 'reminders'
@@ -354,7 +355,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
 
   const changeAcceptancePage = (page: AcceptancePage) => {
     setAcceptancePage(page);
-    const nextModule: AcceptanceModule = page === 'home'
+    const nextModule: AcceptanceModule = page === 'login'
+      ? 'login'
+      : page === 'home'
       ? 'score'
       : page === 'care'
         ? 'reminders'
@@ -365,7 +368,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     onCloseElderProfile();
     onCloseScoreDetails();
     onCloseFamilyReceipts();
-    if (page === 'home') onOpenHome();
+    if (page === 'login') onOpenLogin();
+    else if (page === 'home') onOpenHome();
     else if (page === 'care') onOpenReminders();
     else if (page === 'profile') onOpenElderBinding();
     else onOpenFamilyMessages();
@@ -392,41 +396,6 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     }
   };
 
-  const changeMode = (nextMode: WorkbenchMode) => {
-    setMode(nextMode);
-    if (nextMode === 'page') {
-      setElderTarget('card');
-      onCloseElderProfile();
-      onCloseScoreDetails();
-      onCloseFamilyReceipts();
-      onElderStatusCardScenarioChange('normal');
-      onReassuranceScoreScenarioChange('normal');
-      setScoreCategory('overall');
-    } else {
-      onHomeCareScenarioChange('normal');
-      onCloseFamilyReceipts();
-    }
-  };
-
-  const acceptanceModuleLabel = acceptanceModulesByPage[acceptancePage].find(option => option.value === acceptanceModule)?.label ?? '模块';
-  const overviewOptions: Array<{ value: string; label: string; description: string }> = acceptanceModule === 'score'
-    ? scoreScenarios
-    : acceptanceModule === 'activity'
-      ? homeActivityScenarios
-      : acceptanceModule === 'family_receipts'
-        ? familyReceiptScenarios
-        : acceptanceModule === 'family_messages'
-          ? familyMessageScenarios
-          : acceptanceModule === 'elder_binding'
-            ? elderBindingScenarios
-          : acceptanceModule === 'reminders'
-            ? reminderScenarios
-          : acceptanceModule === 'today_feed'
-            ? careFeedScenarios
-            : acceptanceModule === 'elder'
-              ? elderScenarios
-              : [];
-
   return (
     <aside
       aria-label="交互验收台"
@@ -452,65 +421,15 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
 
       <div className="space-y-5 p-4">
         <section>
-          <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">验收模式</h3>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-            {modeOptions.map(option => {
-              const Icon = option.icon;
-              const selected = mode === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => changeMode(option.value)}
-                  aria-pressed={selected}
-                  className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-bold transition-colors ${
-                    selected ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
+          <h3 className="text-[11px] font-extrabold text-slate-500">模块验收</h3>
+          <p className="mt-0.5 text-[10px] text-slate-400">选择页面、模块和状态，在手机界面查看效果</p>
         </section>
 
-        {mode === 'page' && (
-          <section aria-label="页面联动场景">
-            <div className="mb-2">
-              <h3 className="text-[11px] font-extrabold text-slate-500">完整业务场景</h3>
-              <p className="mt-0.5 text-[10px] text-slate-400">一次联动多个首页模块</p>
-            </div>
-            <div className="space-y-2">
-              {pageScenarios.map(option => {
-                const selected = homeCareScenario === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => onHomeCareScenarioChange(option.value)}
-                    aria-pressed={selected}
-                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                      selected
-                        ? 'border-blue-200 bg-blue-50'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <strong className={`block text-xs ${selected ? 'text-blue-700' : 'text-slate-800'}`}>{option.label}</strong>
-                    <span className="mt-0.5 block text-[10px] text-slate-400">{option.description}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {mode !== 'page' && (
-          <section className="space-y-3" aria-label="页面与模块层级">
+        <section className="space-y-3" aria-label="页面与模块层级">
             <div>
               <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">一级页面</h3>
-              <div className="grid grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1">
-                {([['home', '安心看'], ['family', '亲情连'], ['care', '代管家'], ['profile', '我的']] as const).map(([page, label]) => (
+              <div className="grid grid-cols-5 gap-1 rounded-xl bg-slate-100 p-1">
+                {([['login', '登录'], ['home', '安心看'], ['family', '亲情连'], ['care', '代管家'], ['profile', '我的']] as const).map(([page, label]) => (
                   <button key={page} type="button" onClick={() => changeAcceptancePage(page)} aria-pressed={acceptancePage === page} className={`rounded-lg px-2 py-2 text-[10px] font-bold ${acceptancePage === page ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>{label}</button>
                 ))}
               </div>
@@ -524,6 +443,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                 onChange={event => {
                   const nextModule = event.target.value as AcceptanceModule;
                   setAcceptanceModule(nextModule);
+                  if (nextModule === 'login') onOpenLogin();
                   if (acceptancePage === 'home') onOpenHome();
                   if (nextModule === 'reminders') onOpenReminders();
                   if (nextModule === 'family_messages') onOpenFamilyMessages();
@@ -575,11 +495,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   ? '我的页面验证老人绑定、切换与异常状态。'
                   : '亲情连验证完整会话与家庭影像业务。'}
             </p>
-          </section>
-        )}
+        </section>
 
-        {mode === 'module' && (
-          <>
+        <>
 
             {acceptanceModule === 'elder' && <section aria-label="老人信息验收对象">
               <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">验收对象</h3>
@@ -940,6 +858,44 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
               </>
             )}
 
+            {acceptanceModule === 'login' && (
+              <>
+                <section aria-label="子女登录状态">
+                  <div className="mb-2">
+                    <h3 className="text-[11px] font-extrabold text-slate-500">登录状态</h3>
+                    <p className="mt-0.5 text-[10px] text-slate-400">手机号、验证码与必要失败反馈</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {loginScenarios.map(option => {
+                      const selected = loginScenario === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            onLoginScenarioChange(option.value);
+                            onOpenLogin();
+                          }}
+                          aria-pressed={selected}
+                          className={`w-full rounded-xl border px-3 py-2.5 text-left ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                        >
+                          <span className="flex items-start justify-between gap-2">
+                            <strong className="text-[11px] text-slate-800">{option.label}</strong>
+                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-600">{option.status}</span>
+                          </span>
+                          <span className="mt-1 block text-[9px] leading-snug text-slate-400">{option.description}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+                <section aria-label="子女登录交互">
+                  <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3>
+                  <button type="button" onClick={onOpenLogin} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开登录页</button>
+                </section>
+              </>
+            )}
+
             {acceptanceModule === 'elder_binding' && (
               <>
                 <section aria-label="老人绑定状态">
@@ -1063,86 +1019,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                 </section>
               </>
             )}
-          </>
-        )}
-
-        {mode === 'overview' && (
-          <section aria-label={`${acceptanceModuleLabel}状态总览`}>
-            <div className="mb-3">
-              <h3 className="text-[11px] font-extrabold text-slate-500">{acceptanceModuleLabel} · 状态总览</h3>
-              <p className="mt-0.5 text-[10px] text-slate-400">选择任一状态在手机中查看</p>
-            </div>
-            {acceptanceModule === 'family_photos' && (
-              <div className="space-y-2">
-                {(familyPhotoTarget === 'list' ? familyPhotoListScenarios : familyPhotoPublishScenarios).map(rule => (
-                  <button key={rule.value} type="button" onClick={() => { onFamilyPhotoScenarioChange(rule.value); onOpenFamilyPhotos(); }} aria-pressed={familyPhotoScenario === rule.value} className="flex w-full items-start gap-3 py-2 text-left">
-                    <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${familyPhotoScenario === rule.value ? 'bg-blue-600 ring-4 ring-blue-100' : 'bg-slate-200'}`} />
-                    <span className="min-w-0 flex-1">
-                      <strong className="block text-xs text-slate-800">{rule.label}</strong>
-                      <span className="mt-0.5 block text-[10px] leading-relaxed text-slate-400">{rule.description}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="divide-y divide-slate-100">
-              {overviewOptions.map(option => {
-                const selected = acceptanceModule === 'score'
-                  ? reassuranceScoreScenario === option.value
-                  : acceptanceModule === 'activity'
-                    ? homeActivityScenario === option.value
-                    : acceptanceModule === 'family_receipts'
-                      ? familyReceiptScenario === option.value
-                      : acceptanceModule === 'family_messages'
-                        ? familyMessageScenario === option.value
-                      : acceptanceModule === 'elder_binding'
-                          ? elderBindingScenario === option.value
-                        : acceptanceModule === 'reminders'
-                          ? reminderScenario === option.value
-                        : acceptanceModule === 'today_feed'
-                          ? careFeedScenario === option.value
-                          : elderStatusCardScenario === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      if (acceptanceModule === 'score') {
-                        onReassuranceScoreScenarioChange(option.value as ReassuranceScoreScenario);
-                      } else if (acceptanceModule === 'activity') {
-                        onHomeActivityScenarioChange(option.value as HomeActivityScenario);
-                      } else if (acceptanceModule === 'family_receipts') {
-                        onFamilyReceiptScenarioChange(option.value as FamilyReceiptScenario);
-                        onOpenHome();
-                      } else if (acceptanceModule === 'family_messages') {
-                        onFamilyMessageScenarioChange(option.value as FamilyMessageScenario);
-                        onOpenFamilyMessages();
-                      } else if (acceptanceModule === 'elder_binding') {
-                        onElderBindingScenarioChange(option.value as ElderBindingScenario);
-                        onOpenElderBinding();
-                      } else if (acceptanceModule === 'reminders') {
-                        onReminderScenarioChange(option.value as ReminderScenario);
-                        onOpenReminders();
-                      } else if (acceptanceModule === 'today_feed') {
-                        onCareFeedScenarioChange(option.value as CareFeedScenario);
-                      } else {
-                        onElderStatusCardScenarioChange(option.value as ElderStatusCardScenario);
-                      }
-                    }}
-                    aria-pressed={selected}
-                    className="flex w-full items-center gap-3 py-3 text-left"
-                  >
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${selected ? 'bg-blue-600 ring-4 ring-blue-100' : 'bg-slate-200'}`} />
-                    <span className="min-w-0 flex-1">
-                      <strong className="block text-xs text-slate-800">{option.label}</strong>
-                      <span className="mt-0.5 block text-[10px] text-slate-400">{option.description}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
+        </>
       </div>
 
       <footer className="mt-auto border-t border-slate-100 p-3">

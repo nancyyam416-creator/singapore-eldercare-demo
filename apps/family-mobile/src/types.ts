@@ -142,6 +142,15 @@ export type ElderBindingScenario =
   | 'relationship_removed'
   | 'tablet_code';
 
+export type ChildLoginScenario =
+  | 'default'
+  | 'code_sent'
+  | 'invalid_phone'
+  | 'invalid_code'
+  | 'code_expired'
+  | 'send_failed'
+  | 'network_error';
+
 export type ReminderScenario =
   | 'list'
   | 'create'

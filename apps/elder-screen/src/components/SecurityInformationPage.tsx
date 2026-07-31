@@ -11,6 +11,7 @@ import {
   Volume2,
   WifiOff,
 } from "lucide-react";
+import { pauseSpeech, resumeSpeech, speakText, stopSpeech } from "../audio/speech";
 import type { AntiScamTip } from "../types";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./security-information-page.css";
@@ -18,6 +19,7 @@ import "./security-information-page.css";
 interface SecurityInformationPageProps {
   isOpen: boolean;
   autoPlayFeatured?: boolean;
+  initialTipId?: string | null;
   tips: AntiScamTip[];
   readIds: string[];
   onRead: (tipId: string) => void;
@@ -69,6 +71,7 @@ const buildSpeechChunks = (tip: AntiScamTip): SpeechChunk[] => {
 export default function SecurityInformationPage({
   isOpen,
   autoPlayFeatured = false,
+  initialTipId = null,
   tips,
   readIds,
   onRead,
@@ -91,7 +94,7 @@ export default function SecurityInformationPage({
 
   const stopSpeaking = useCallback(() => {
     speechSessionRef.current += 1;
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     setIsSpeaking(false);
     setIsPaused(false);
     setSpeechProgress({ current: 0, total: 0, paragraphIndex: -1 });
@@ -99,43 +102,26 @@ export default function SecurityInformationPage({
 
   const startSpeaking = useCallback((tip: AntiScamTip) => {
     onRead(tip.id);
-    if (!("speechSynthesis" in window)) return;
-
     const chunks = buildSpeechChunks(tip);
     const sessionId = speechSessionRef.current + 1;
     speechSessionRef.current = sessionId;
-    window.speechSynthesis.cancel();
     setIsSpeaking(true);
     setIsPaused(false);
-
-    const playChunk = (index: number) => {
-      if (speechSessionRef.current !== sessionId) return;
-      if (index >= chunks.length) {
+    setSpeechProgress({ current: 1, total: chunks.length, paragraphIndex: 0 });
+    speakText(chunks.map((chunk) => chunk.text).join("。"), {
+      fallbackKey: "security-reading",
+      rate: 0.86,
+      onEnd: () => {
+        if (speechSessionRef.current !== sessionId) return;
         setIsSpeaking(false);
         setIsPaused(false);
         setSpeechProgress({ current: chunks.length, total: chunks.length, paragraphIndex: -1 });
-        return;
-      }
-
-      const chunk = chunks[index];
-      setSpeechProgress({
-        current: index + 1,
-        total: chunks.length,
-        paragraphIndex: chunk.paragraphIndex - (tip.summary ? 2 : 1),
-      });
-      const utterance = new SpeechSynthesisUtterance(chunk.text);
-      utterance.lang = "zh-CN";
-      utterance.rate = 0.86;
-      utterance.volume = 1;
-      utterance.onend = () => playChunk(index + 1);
-      utterance.onerror = () => {
+      },
+      onError: () => {
         setIsSpeaking(false);
         setIsPaused(false);
-      };
-      window.speechSynthesis.speak(utterance);
-    };
-
-    playChunk(0);
+      },
+    });
   }, [onRead]);
 
   const openTip = useCallback((tip: AntiScamTip, shouldSpeak = false) => {
@@ -152,10 +138,10 @@ export default function SecurityInformationPage({
       return;
     }
     if (isPaused) {
-      window.speechSynthesis.resume();
+      resumeSpeech();
       setIsPaused(false);
     } else {
-      window.speechSynthesis.pause();
+      pauseSpeech();
       setIsPaused(true);
     }
   };
@@ -167,11 +153,18 @@ export default function SecurityInformationPage({
       setSelectedTipId(null);
       return;
     }
+    const directTip = initialTipId
+      ? tips.find((tip) => tip.id === initialTipId)
+      : null;
+    if (directTip && selectedTipId !== directTip.id) {
+      openTip(directTip);
+      return;
+    }
     if (autoPlayFeatured && tips[0] && !autoPlayedRef.current) {
       autoPlayedRef.current = true;
       openTip(tips[0], true);
     }
-  }, [autoPlayFeatured, isOpen, openTip, stopSpeaking, tips]);
+  }, [autoPlayFeatured, initialTipId, isOpen, openTip, selectedTipId, stopSpeaking, tips]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -184,7 +177,7 @@ export default function SecurityInformationPage({
     };
   }, []);
 
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  useEffect(() => () => stopSpeech(), []);
 
   if (!isOpen) return null;
 
@@ -268,11 +261,12 @@ export default function SecurityInformationPage({
             className="security-information-back-list"
             onClick={() => {
               stopSpeaking();
-              setSelectedTipId(null);
+              if (initialTipId) onClose();
+              else setSelectedTipId(null);
             }}
           >
             <ChevronLeft aria-hidden="true" />
-            返回安全资讯列表
+            {initialTipId ? "返回首页" : "返回安全资讯列表"}
           </button>
 
           <article className="security-information-article">

@@ -9,15 +9,14 @@ import {
   Heart,
   Images,
   ImageOff,
-  MonitorPlay,
   Pause,
   Play,
   RefreshCw,
-  Sparkles,
   UsersRound,
   Video,
   Volume2,
 } from "lucide-react";
+import { speakText, stopSpeech } from "../audio/speech";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario } from "./InteractionAcceptanceConsole";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./family-album-page.css";
@@ -65,7 +64,6 @@ interface FamilyAlbumPageProps {
 }
 
 const CATEGORY_STORAGE_KEY = "u2g-family-album-category-v1";
-const SCREEN_SAVER_INTERVAL = 8_000;
 
 const categories: AlbumCategory[] = [
   {
@@ -284,8 +282,6 @@ export default function FamilyAlbumPage({
   const [photos, setPhotos] = useState(initialPhotos);
   const [selectedCategoryId, setSelectedCategoryId] = useState<AlbumCategoryId>(getInitialCategory);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [screenSaverEnabled, setScreenSaverEnabled] = useState(false);
-  const [screenSaverPaused, setScreenSaverPaused] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [localHeartStates, setLocalHeartStates] = useState<Record<string, boolean>>({});
   const [heartBurstKey, setHeartBurstKey] = useState(0);
@@ -318,9 +314,7 @@ export default function FamilyAlbumPage({
   const unreadCount = scenarioPhotos.filter((photo) => photo.unread).length;
 
   const stopVoice = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeech();
     setVoiceState("idle");
   };
 
@@ -385,30 +379,20 @@ export default function FamilyAlbumPage({
       return;
     }
 
-    if (!("speechSynthesis" in window)) {
-      setVoiceState("finished");
-      setFeedback("当前设备暂不支持语音播放");
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(activePhoto.caption);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.86;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    utterance.onend = () => {
-      setVoiceState("finished");
-      setFeedback("留言播放完毕");
-      onLogInteraction?.(`收听了${activePhoto.senderName}的照片留言`);
-    };
-    utterance.onerror = () => {
-      setVoiceState("idle");
-      setFeedback("播放没有成功，请再按一次");
-    };
     setVoiceState("playing");
     setFeedback(`正在播放${activePhoto.senderName}的留言`);
-    window.speechSynthesis.speak(utterance);
+    speakText(activePhoto.caption, {
+      rate: 0.86,
+      onEnd: () => {
+        setVoiceState("finished");
+        setFeedback("留言播放完毕");
+        onLogInteraction?.(`收听了${activePhoto.senderName}的照片留言`);
+      },
+      onError: () => {
+        setVoiceState("idle");
+        setFeedback("播放没有成功，请再按一次");
+      },
+    });
   };
 
   const sendHeart = () => {
@@ -426,26 +410,22 @@ export default function FamilyAlbumPage({
       }));
     }
     if (!nextLiked) {
-      setFeedback("已取消爱心");
-      onLogInteraction?.(`取消了${activePhoto.senderName}分享影像的爱心`);
+      setFeedback("已取消喜欢");
+      onLogInteraction?.(`取消喜欢${activePhoto.senderName}分享的影像`);
       return;
     }
     setHeartBurstKey((key) => key + 1);
-    setFeedback(`已把爱心送给${activePhoto.senderName}`);
-    onLogInteraction?.(`给${activePhoto.senderName}分享的影像送了爱心`);
+    setFeedback(`已喜欢${activePhoto.senderName}分享的影像`);
+    onLogInteraction?.(`喜欢了${activePhoto.senderName}分享的影像`);
 
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const confirmation = new SpeechSynthesisUtterance(`已把爱心送给${activePhoto.senderName}`);
-      confirmation.lang = "zh-CN";
-      confirmation.rate = 0.9;
-      window.speechSynthesis.speak(confirmation);
-    }
+    speakText(`已告诉${activePhoto.senderName}您喜欢这项家庭影像`, {
+      fallbackKey: "heart-family",
+      rate: 0.9,
+    });
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     pointerStartX.current = event.clientX;
-    if (screenSaverEnabled) setScreenSaverPaused(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
@@ -472,7 +452,7 @@ export default function FamilyAlbumPage({
   }, [onUnreadCountChange, unreadCount]);
 
   useEffect(() => {
-    if (!isOpen || !activePhoto?.unread || activePhoto.type === "video" || acceptanceScenario === "notice-photo" || acceptanceScenario === "notice-mixed") return;
+    if (!isOpen || !activePhoto?.unread || activePhoto.type === "video" || acceptanceScenario === "notice-photo") return;
     const timer = window.setTimeout(() => {
       setPhotos((current) =>
         current.map((photo) =>
@@ -485,30 +465,19 @@ export default function FamilyAlbumPage({
   }, [acceptanceScenario, activePhoto?.id, activePhoto?.unread, isOpen, onLogInteraction]);
 
   useEffect(() => {
-    if (!isOpen || !screenSaverEnabled || screenSaverPaused || videoState === "playing" || visiblePhotos.length <= 1) return;
-    const timer = window.setInterval(showNextPhoto, SCREEN_SAVER_INTERVAL);
-    return () => window.clearInterval(timer);
-  }, [isOpen, screenSaverEnabled, screenSaverPaused, videoState, visiblePhotos.length]);
-
-  useEffect(() => {
     if (!isOpen) return;
     setSelectedCategoryId("all");
     setCurrentIndex(0);
     setVideoState("cover");
     setVoiceState("idle");
     setFeedback("");
-    const shouldShowVideo = acceptanceScenario === "notice-video"
-      || acceptanceScenario === "video-cover"
-      || acceptanceScenario === "video-viewed"
-      || acceptanceScenario === "video-failure";
+    const shouldShowVideo = acceptanceScenario === "video-failure" || acceptanceScenario === "notice-video";
     const firstVideoIndex = initialPhotos.findIndex((item) => item.type === "video");
     if (shouldShowVideo && firstVideoIndex >= 0) setCurrentIndex(firstVideoIndex);
     if (shouldShowVideo) setVideoState(acceptanceScenario === "video-failure" ? "failed" : "cover");
     if (shouldShowVideo && firstVideoIndex >= 0) {
       const videoId = initialPhotos[firstVideoIndex].id;
-      setViewedVideoIds((ids) => acceptanceScenario === "video-viewed"
-        ? (ids.includes(videoId) ? ids : [...ids, videoId])
-        : ids.filter((id) => id !== videoId));
+      setViewedVideoIds((ids) => ids.filter((id) => id !== videoId));
     }
   }, [acceptanceScenario, isOpen]);
 
@@ -517,16 +486,12 @@ export default function FamilyAlbumPage({
     stopVoice();
     videoRef.current?.pause();
     setVideoState("cover");
-    setScreenSaverEnabled(false);
-    setScreenSaverPaused(false);
     setFeedback("");
   }, [isOpen]);
 
   useEffect(
     () => () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeech();
       videoRef.current?.pause();
     },
     [],
@@ -534,27 +499,70 @@ export default function FamilyAlbumPage({
 
   if (!isOpen) return null;
 
+  const renderCategorySidebar = () => (
+    <aside className="family-album-sidebar" aria-label="相册分类">
+      <div className="family-album-sidebar__heading">
+        <p>相册分类</p>
+        <strong>{scenarioPhotos.length} 项家庭影像</strong>
+      </div>
+
+      <nav className="family-album-categories" aria-label="选择相册分类">
+        {categories.map((category) => {
+          const CategoryIcon = category.icon;
+          const categoryCount =
+            category.id === "all"
+              ? scenarioPhotos.length
+              : scenarioPhotos.filter((photo) => photo.categoryId === category.id).length;
+          const isSelected = category.id === selectedCategoryId;
+
+          return (
+            <button
+              type="button"
+              key={category.id}
+              className={isSelected ? "is-selected" : ""}
+              aria-current={isSelected ? "page" : undefined}
+              onClick={() => selectCategory(category.id)}
+            >
+              <span className="family-album-category__icon">
+                <CategoryIcon aria-hidden="true" />
+              </span>
+              <span className="family-album-category__copy">
+                <strong>{category.name}</strong>
+              </span>
+              <span className="family-album-category__count">{categoryCount}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+
   if (!activePhoto) return (
     <main className="family-album-page" aria-label="家庭相册">
       <SecondaryPageHeader title="家庭相册" icon={<Images aria-hidden="true" />} onBack={onClose} />
-      <section className="family-album-empty" role="status">
-        <Images aria-hidden="true" />
-        <strong>暂无家庭照片</strong>
-        <span>家人分享照片后，会在这里展示</span>
-      </section>
+      <div className="family-album-layout">
+        {renderCategorySidebar()}
+        <section className="family-album-stage">
+          <header className="family-album-stage__toolbar">
+            <div>
+              <h2>{selectedCategory.name}</h2>
+            </div>
+          </header>
+          <div className="family-album-empty" role="status">
+            <Images aria-hidden="true" />
+            <strong>暂无家庭影像</strong>
+            <span>家人分享照片或视频后，会在这里展示</span>
+          </div>
+        </section>
+      </div>
     </main>
   );
 
   const currentPhotoLiked = acceptanceHeartScenario === "liked"
     || (acceptanceHeartScenario !== "not-liked" && Boolean(heartStates?.[activePhoto.url] ?? localHeartStates[activePhoto.url]));
   const isActiveVideo = activePhoto.type === "video";
-  const isActivePhotoUnread = !isActiveVideo && (
-    acceptanceScenario === "notice-photo"
-    || acceptanceScenario === "notice-mixed"
-    || activePhoto.unread
-  );
-  const activeVideoViewed = viewedVideoIds.includes(activePhoto.id) || acceptanceScenario === "video-viewed";
-  const activeCategoryName = categories.find((category) => category.id === activePhoto.categoryId)?.name ?? "家庭相册";
+  const isActivePhotoUnread = !isActiveVideo && (acceptanceScenario === "notice-photo" || activePhoto.unread);
+  const isActiveVideoUnread = isActiveVideo && acceptanceScenario === "notice-video";
 
   return (
     <main className="family-album-page" aria-label="家庭相册">
@@ -562,92 +570,18 @@ export default function FamilyAlbumPage({
         title="家庭相册"
         icon={<Images aria-hidden="true" />}
         onBack={onClose}
-        actions={(
-          <button
-            type="button"
-            className={`family-album-screen-saver${screenSaverEnabled ? " is-active" : ""}`}
-            aria-pressed={screenSaverEnabled}
-            onClick={() => {
-              setScreenSaverEnabled((enabled) => {
-                if (enabled) setScreenSaverPaused(false);
-                return !enabled;
-              });
-              setFeedback(screenSaverEnabled ? "屏保轮播已关闭" : "屏保轮播已开启，每8秒切换一项");
-            }}
-          >
-            {screenSaverEnabled ? <Pause aria-hidden="true" /> : <MonitorPlay aria-hidden="true" />}
-            {screenSaverEnabled ? "关闭屏保轮播" : "开启屏保轮播"}
-          </button>
-        )}
       />
 
       <div className="family-album-layout">
-        <aside className="family-album-sidebar" aria-label="相册分类">
-          <div className="family-album-sidebar__heading">
-            <p>相册分类</p>
-            <strong>{scenarioPhotos.length} 项家庭影像</strong>
-          </div>
-
-          <nav className="family-album-categories" aria-label="选择相册分类">
-            {categories.map((category) => {
-              const CategoryIcon = category.icon;
-              const categoryCount =
-                category.id === "all"
-                  ? scenarioPhotos.length
-                  : scenarioPhotos.filter((photo) => photo.categoryId === category.id).length;
-              const isSelected = category.id === selectedCategoryId;
-
-              return (
-                <button
-                  type="button"
-                  key={category.id}
-                  className={isSelected ? "is-selected" : ""}
-                  aria-current={isSelected ? "page" : undefined}
-                  onClick={() => selectCategory(category.id)}
-                >
-                  <span className="family-album-category__icon">
-                    <CategoryIcon aria-hidden="true" />
-                  </span>
-                  <span className="family-album-category__copy">
-                    <strong>{category.name}</strong>
-                    <small>{category.description}</small>
-                  </span>
-                  <span className="family-album-category__count">{categoryCount}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="family-album-sidebar__tip">
-            <Sparkles aria-hidden="true" />
-            <p>
-              <strong>会记住您的选择</strong>
-              下次打开，仍会停在这个分类
-            </p>
-          </div>
-        </aside>
+        {renderCategorySidebar()}
 
         <section
           className="family-album-stage"
           aria-labelledby="active-album-title"
-          onFocusCapture={() => {
-            if (screenSaverEnabled) setScreenSaverPaused(true);
-          }}
-          onBlurCapture={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-              setScreenSaverPaused(false);
-            }
-          }}
         >
           <header className="family-album-stage__toolbar">
             <div>
               <h2 id="active-album-title">{selectedCategory.name}</h2>
-              <p>
-                第 {currentIndex + 1} 项，共 {visiblePhotos.length} 项
-                {screenSaverEnabled && (
-                  <span>{screenSaverPaused ? "屏保轮播已暂停" : "屏保轮播中"}</span>
-                )}
-              </p>
             </div>
 
             <div className="family-album-paging" aria-label="家庭影像翻页">
@@ -675,24 +609,11 @@ export default function FamilyAlbumPage({
           <div
             className="family-album-photo"
             onPointerDown={handlePointerDown}
-            onPointerUp={(event) => {
-              handlePointerUp(event);
-              setScreenSaverPaused(false);
-            }}
+            onPointerUp={handlePointerUp}
             onPointerCancel={() => {
               pointerStartX.current = null;
-              setScreenSaverPaused(false);
             }}
-            onMouseEnter={() => {
-              if (screenSaverEnabled) setScreenSaverPaused(true);
-            }}
-            onMouseLeave={() => setScreenSaverPaused(false)}
           >
-            {isActivePhotoUnread && (
-              <span className="family-album-new-badge">
-                {acceptanceScenario === "notice-mixed" ? "3 项新影像 · 含照片和视频" : "新照片 · 未查看"}
-              </span>
-            )}
             {isActiveVideo ? (
               <>
                 <video
@@ -719,7 +640,6 @@ export default function FamilyAlbumPage({
                     setFeedback("视频播放完毕，可以重新播放");
                   }}
                 />
-                <span className={`family-album-video__badge${activeVideoViewed ? "" : " is-unread"}`}><Video aria-hidden="true" />家庭视频 · {activeVideoViewed ? "已查看" : "未查看"}</span>
                 {videoState === "failed" ? (
                   <div className="family-album-video__failure" role="alert">
                     <AlertTriangle aria-hidden="true" />
@@ -773,7 +693,7 @@ export default function FamilyAlbumPage({
               </div>
             )}
             {acceptanceHeartScenario === "failure" && (
-              <div className="family-album-heart-toast" role="status"><AlertTriangle aria-hidden="true" />爱心发送失败，请稍后重试</div>
+              <div className="family-album-heart-toast" role="status"><AlertTriangle aria-hidden="true" />喜欢失败，请稍后重试</div>
             )}
           </div>
 
@@ -781,30 +701,28 @@ export default function FamilyAlbumPage({
             <div className="family-album-story__copy">
               <div className="family-album-story__meta">
                 <span className="family-album-story__sender">{activePhoto.senderName}</span>
-                <span>{activePhoto.senderRole}</span>
                 <span>{activePhoto.uploadTime}</span>
-                <span>{activeCategoryName}</span>
-                <span>{isActiveVideo ? "视频" : "照片"}</span>
                 {isActivePhotoUnread && <span className="family-album-story__unread">新照片 · 未查看</span>}
+                {isActiveVideoUnread && <span className="family-album-story__unread">新视频 · 未查看</span>}
               </div>
-              <blockquote><em>批次附言</em>“{activePhoto.batchCaption || activePhoto.caption}”</blockquote>
-              <p className="family-album-feedback" aria-live="polite">
-                {isActiveVideo && videoState === "playing" ? (
-                  <><Video aria-hidden="true" />视频正在播放…</>
-                ) : voiceState === "playing" ? (
-                  <>
-                    <Volume2 aria-hidden="true" />
-                    正在大声播放留言…
-                  </>
-                ) : feedback ? (
-                  <>
-                    <Check aria-hidden="true" />
-                    {feedback}
-                  </>
-                ) : (
-                  isActiveVideo ? "按播放键查看视频，也可以给家人送个爱心" : "可以播放留言，也可以给家人送个爱心"
-                )}
-              </p>
+              <blockquote>“{activePhoto.batchCaption || activePhoto.caption}”</blockquote>
+              {(isActiveVideo && videoState === "playing") || voiceState === "playing" || feedback ? (
+                <p className="family-album-feedback" aria-live="polite">
+                  {isActiveVideo && videoState === "playing" ? (
+                    <><Video aria-hidden="true" />视频正在播放…</>
+                  ) : voiceState === "playing" ? (
+                    <>
+                      <Volume2 aria-hidden="true" />
+                      正在大声播放留言…
+                    </>
+                  ) : (
+                    <>
+                      <Check aria-hidden="true" />
+                      {feedback}
+                    </>
+                  )}
+                </p>
+              ) : null}
             </div>
 
             <div className="family-album-story__actions">
@@ -828,7 +746,7 @@ export default function FamilyAlbumPage({
                       : `播放留言 ${activePhoto.voiceDuration}秒`}
                 </button>
               )}
-              <button type="button" className={`family-album-heart${currentPhotoLiked ? " is-liked" : ""}`} onClick={sendHeart} disabled={acceptanceHeartScenario === "sending"} aria-label={currentPhotoLiked ? "取消这项家庭影像的爱心" : "给这项家庭影像送个爱心"}>
+              <button type="button" className={`family-album-heart${currentPhotoLiked ? " is-liked" : ""}`} onClick={sendHeart} disabled={acceptanceHeartScenario === "sending"} aria-label={currentPhotoLiked ? "取消喜欢这项家庭影像" : "喜欢这项家庭影像"}>
                 <Heart aria-hidden="true" />
                 {acceptanceHeartScenario === "sending" ? "发送中" : currentPhotoLiked ? "取消喜欢" : "喜欢"}
               </button>

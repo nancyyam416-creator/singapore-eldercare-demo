@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import voiceWaveAnimation from "../animations/voiceWave";
+import { speakText, stopSpeech } from "../audio/speech";
 import type { FamilyMessage } from "../types";
 import FamilyInvitationModal from "./FamilyInvitationModal";
 import SecondaryPageHeader from "./SecondaryPageHeader";
@@ -132,7 +133,7 @@ export default function ContactsCommunicationPage({
   );
 
   useEffect(() => () => {
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
     if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
     if (callTimerRef.current) window.clearTimeout(callTimerRef.current);
@@ -142,27 +143,11 @@ export default function ContactsCommunicationPage({
   if (!isOpen) return null;
 
   const speak = (content: string, onEnd?: () => void) => {
-    const engine = (window as Window & { speechSynthesis?: SpeechSynthesis }).speechSynthesis;
-    if (!engine) {
-      if (onEnd) playbackTimerRef.current = window.setTimeout(onEnd, 2200);
-      return;
-    }
-    engine.cancel();
-    const utterance = new SpeechSynthesisUtterance(content);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.86;
-    utterance.volume = 1;
-    if (onEnd) {
-      utterance.onend = onEnd;
-      utterance.onerror = () => {
-        // Keep the visual playback fallback when no system voice is available.
-      };
-    }
-    engine.speak(utterance);
+    speakText(content, { rate: 0.86, onEnd });
   };
 
   const selectContact = (contact: CommunicationContact) => {
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
     setPlayingMessageId(null);
     setPhotoMessage(null);
@@ -384,7 +369,7 @@ export default function ContactsCommunicationPage({
         <section className="communication-photo-viewer" role="dialog" aria-modal="true" aria-label="查看照片留言">
           <img src={photoMessage.photoUrl} alt={photoMessage.content} />
           <div className="communication-photo-viewer__shade" />
-          <button type="button" className="communication-photo-viewer__close" onClick={() => { window.speechSynthesis?.cancel(); setPhotoMessage(null); setPlayingMessageId(null); }}><X aria-hidden="true" />收起</button>
+          <button type="button" className="communication-photo-viewer__close" onClick={() => { stopSpeech(); setPhotoMessage(null); setPlayingMessageId(null); }}><X aria-hidden="true" />收起</button>
           <div className="communication-photo-viewer__caption">
             <p>“{photoMessage.content}”</p>
             <span>{playingMessageId === photoMessage.id ? <Lottie animationData={voiceWaveAnimation} loop /> : <Volume2 aria-hidden="true" />}{playingMessageId === photoMessage.id ? "正在播放家属留言…" : "留言已播放"}</span>

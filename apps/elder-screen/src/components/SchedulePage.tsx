@@ -15,6 +15,7 @@ import {
   Volume2,
   X,
 } from "lucide-react";
+import { speakText } from "../audio/speech";
 import { MedicationReminder } from "../types";
 import type { AcceptanceReminderScenario } from "./InteractionAcceptanceConsole";
 import SecondaryPageHeader from "./SecondaryPageHeader";
@@ -448,17 +449,10 @@ export default function SchedulePage({
   };
 
   const speak = (content: string) => {
-    const engine = window.speechSynthesis;
-    if (!engine) {
-      setToast("当前设备暂不支持语音播报");
-      return;
-    }
-    engine.cancel();
-    const utterance = new SpeechSynthesisUtterance(content);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.86;
-    utterance.volume = 1;
-    engine.speak(utterance);
+    speakText(content, {
+      rate: 0.86,
+      onError: () => setToast("语音播放失败，请再试一次"),
+    });
   };
 
   const speakItem = (item: ScheduleItem) => {

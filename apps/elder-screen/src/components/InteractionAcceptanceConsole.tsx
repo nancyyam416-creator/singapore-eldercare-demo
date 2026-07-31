@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   CircleEllipsis,
   CloudOff,
@@ -14,20 +13,16 @@ import {
   DatabaseBackup,
   Heart,
   Image,
-  Layers3,
-  LayoutGrid,
   MapPinOff,
   MessageCircleHeart,
   PanelRightClose,
   PanelRightOpen,
-  Pause,
   Pill,
   Play,
   RefreshCcw,
   Send,
   ShieldAlert,
   Siren,
-  SlidersHorizontal,
   Sparkles,
   TabletSmartphone,
   UserRoundCheck,
@@ -53,9 +48,6 @@ export type AcceptanceAlbumScenario =
   | "default"
   | "notice-photo"
   | "notice-video"
-  | "notice-mixed"
-  | "video-cover"
-  | "video-viewed"
   | "video-failure"
   | "empty"
   | "single"
@@ -75,7 +67,6 @@ export type AcceptanceHomeCommand =
   | "open-weather-care";
 
 interface InteractionAcceptanceConsoleProps {
-  timeOverride: string | null;
   taskScenario: AcceptanceTaskScenario;
   taskContentScenario: AcceptanceTaskContentScenario;
   recordScenario: AcceptanceRecordScenario;
@@ -115,7 +106,6 @@ interface InteractionAcceptanceConsoleProps {
 
 type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "message" | "task-progress" | "reminders";
 type AcceptanceConsolePage = "home" | "family-album" | "reminders";
-type AcceptanceConsoleMode = "page" | "module" | "overview";
 type WeatherAcceptanceTarget = "home" | "detail" | "care";
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
@@ -206,22 +196,22 @@ const messageLabels: Record<AcceptanceMessageScenario, string> = {
 
 const albumLabels: Record<AcceptanceAlbumScenario, string> = {
   default: "正常轮播",
-  "notice-photo": "新照片提醒",
-  "notice-video": "新视频提醒",
-  "notice-mixed": "照片和视频提醒",
-  "video-cover": "视频封面未查看",
-  "video-viewed": "视频已查看",
+  "notice-photo": "新照片未查看",
+  "notice-video": "新视频未查看",
   "video-failure": "视频播放失败",
   empty: "暂无家庭影像",
   single: "仅有一项",
   "load-failure": "影像加载失败",
 };
 
+const homeAlbumScenarios: AcceptanceAlbumScenario[] = ["default", "video-failure", "empty", "single", "load-failure"];
+const familyAlbumScenarios: AcceptanceAlbumScenario[] = ["default", "notice-photo", "notice-video", "video-failure", "empty", "single", "load-failure"];
+
 const heartLabels: Record<AcceptanceHeartScenario, string> = {
-  "not-liked": "未送爱心",
-  sending: "爱心发送中",
-  liked: "已送爱心",
-  failure: "爱心发送失败",
+  "not-liked": "未喜欢",
+  sending: "喜欢中",
+  liked: "已喜欢",
+  failure: "喜欢失败",
 };
 
 const reminderLabels: Record<AcceptanceReminderScenario, string> = {
@@ -361,7 +351,6 @@ function getWeatherScenarioPresentation(target: WeatherAcceptanceTargetDefinitio
 }
 
 export default function InteractionAcceptanceConsole({
-  timeOverride,
   taskScenario,
   taskContentScenario,
   recordScenario,
@@ -399,7 +388,6 @@ export default function InteractionAcceptanceConsole({
   onReset,
 }: InteractionAcceptanceConsoleProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [acceptanceMode, setAcceptanceMode] = useState<AcceptanceConsoleMode>("module");
   const [activePage, setActivePage] = useState<AcceptanceConsolePage>("home");
   const [activeSection, setActiveSection] = useState<AcceptanceConsoleSection>("weather");
   const [weatherAcceptanceTarget, setWeatherAcceptanceTarget] = useState<WeatherAcceptanceTarget>("home");
@@ -413,6 +401,7 @@ export default function InteractionAcceptanceConsole({
   const selectedWeatherScenario = getWeatherScenarioPresentation(selectedWeatherTarget, weatherScenario);
   const selectedPage = acceptancePageOptions.find((page) => page.id === activePage) ?? acceptancePageOptions[0];
   const selectedPageSections = acceptanceSectionOptions.filter((section) => selectedPage.sections.includes(section.id));
+  const albumScenarioOptions = activePage === "family-album" ? familyAlbumScenarios : homeAlbumScenarios;
 
   const runAndClose = (action: () => void) => {
     action();
@@ -510,15 +499,6 @@ export default function InteractionAcceptanceConsole({
             <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setIsOpen(false)} aria-label="收起交互验收台"><PanelRightClose /></button>
           </header>
 
-          <section className="interaction-acceptance-mode" aria-label="验收模式">
-            <h2>验收模式</h2>
-            <div role="group" aria-label="选择验收模式">
-              <button type="button" className={acceptanceMode === "page" ? "is-active" : ""} onClick={() => setAcceptanceMode("page")}><Layers3 aria-hidden="true" /><span>页面联动</span></button>
-              <button type="button" className={acceptanceMode === "module" ? "is-active" : ""} onClick={() => setAcceptanceMode("module")}><SlidersHorizontal aria-hidden="true" /><span>模块验收</span></button>
-              <button type="button" className={acceptanceMode === "overview" ? "is-active" : ""} onClick={() => setAcceptanceMode("overview")}><LayoutGrid aria-hidden="true" /><span>状态总览</span></button>
-            </div>
-          </section>
-
           <section className="interaction-acceptance-hierarchy" aria-label="验收页面与模块">
             <label className="interaction-acceptance-page-picker interaction-acceptance-module-picker">
               <span>一级页面</span>
@@ -548,25 +528,7 @@ export default function InteractionAcceptanceConsole({
             </label>
           </section>
 
-          {acceptanceMode === "page" && (
-            <button type="button" className="interaction-acceptance-home" onClick={() => runAndClose(onShowHome)}>
-              <ChevronLeft aria-hidden="true" />回到首页进行联动验收
-            </button>
-          )}
-
           <div className="interaction-acceptance-section">
-            {acceptanceMode === "overview" ? (
-              <section className="interaction-acceptance-overview">
-                <h2><LayoutGrid aria-hidden="true" />当前状态总览</h2>
-                <dl>
-                  <div><dt><Clock3 aria-hidden="true" />时间场景</dt><dd>{timeOverride ?? "实时系统时间"}</dd></div>
-                  <div><dt><CheckCircle2 aria-hidden="true" />任务场景</dt><dd>{taskLabels[taskScenario]}</dd></div>
-                  <div><dt><MessageCircleHeart aria-hidden="true" />留言场景</dt><dd>{messageLabels[messageScenario]}</dd></div>
-                  <div><dt><CloudSun aria-hidden="true" />天气场景</dt><dd>{weatherLabels[weatherScenario]}</dd></div>
-                  <div><dt><Pause aria-hidden="true" />家庭影像</dt><dd>{albumLabels[albumScenario]}</dd></div>
-                </dl>
-              </section>
-            ) : <>
             {activeSection === "message" && <section>
               <h2><MessageCircleHeart aria-hidden="true" />留言场景</h2>
               <div className="interaction-acceptance-grid is-two-columns">
@@ -589,7 +551,7 @@ export default function InteractionAcceptanceConsole({
             {activeSection === "album" && <section>
               <h2><Image aria-hidden="true" />家庭影像场景</h2>
               <div className="interaction-acceptance-grid is-two-columns">
-                {(Object.keys(albumLabels) as AcceptanceAlbumScenario[]).map((scenario) => (
+                {albumScenarioOptions.map((scenario) => (
                   <button
                     key={scenario}
                     type="button"
@@ -603,7 +565,7 @@ export default function InteractionAcceptanceConsole({
                   </button>
                 ))}
               </div>
-              <h2><Heart aria-hidden="true" />爱心状态</h2>
+              <h2><Heart aria-hidden="true" />喜欢状态</h2>
               <div className="interaction-acceptance-grid is-two-columns">
                 {(Object.keys(heartLabels) as AcceptanceHeartScenario[]).map((scenario) => (
                   <button
@@ -619,7 +581,11 @@ export default function InteractionAcceptanceConsole({
                   </button>
                 ))}
               </div>
-              <p className="interaction-acceptance-note">新照片、新视频和混合提醒与普通留言保持独立；视频封面、已查看、播放失败和喜欢状态均可单独切换验收。</p>
+              <p className="interaction-acceptance-note">
+                {activePage === "family-album"
+                  ? "新照片、新视频未查看仅在家庭相册的信息区展示；视频状态以封面和播放按钮验收，不播放真实视频。"
+                  : "首页仅验收家庭影像轮播、异常与喜欢状态，不展示新照片或新视频提醒。"}
+              </p>
             </section>}
 
             {activeSection === "reminders" && <section>
@@ -827,7 +793,6 @@ export default function InteractionAcceptanceConsole({
               </div>
               <p className="interaction-acceptance-note">选择后立即联动首页；具体时段、节日、天气和地区文案按 PRD 规则匹配，不逐条设置验收按钮。</p>
             </section>}
-            </>}
           </div>
 
           <footer>

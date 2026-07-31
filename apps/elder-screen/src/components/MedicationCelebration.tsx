@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Star, CheckCircle, X, Volume2 } from "lucide-react";
+import { speakText, stopSpeech } from "../audio/speech";
 import { MedicationReminder } from "../types";
 
 interface MedicationCelebrationProps {
@@ -45,6 +46,21 @@ export default function MedicationCelebration({
       }));
       setParticles(newParticles);
     }
+  }, [isOpen, reminder]);
+
+  useEffect(() => {
+    if (!isOpen || !reminder) return;
+    const isDailyReminder = reminder.category === "schedule";
+    speakText(
+      isDailyReminder
+        ? `本次事项已完成。做得很好，${reminder.name}已经完成。慢慢来，注意安全。`
+        : `本次用药已完成。${reminder.name}已经确认服用，请安心休息。`,
+      {
+        fallbackKey: isDailyReminder ? "daily-complete" : "medication-complete",
+        rate: 0.86,
+      },
+    );
+    return stopSpeech;
   }, [isOpen, reminder]);
 
   if (!isOpen || !reminder) return null;

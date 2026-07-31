@@ -3230,11 +3230,6 @@ th.sticky-right { background: #f7f8fa; }
   background: #fff;
 }
 
-.admin-style-theme .emergency-contact-editor.primary {
-  border-color: #bfdbfe;
-  background: #f8fbff;
-}
-
 .admin-style-theme .emergency-contact-editor-head {
   margin-bottom: 15px;
   display: flex;
@@ -3253,17 +3248,6 @@ th.sticky-right { background: #f7f8fa; }
   color: #1e293b;
   font-size: 14px;
   font-weight: 600;
-}
-
-.admin-style-theme .emergency-contact-editor-head span,
-.admin-style-theme .relation-card b em {
-  padding: 3px 7px;
-  border-radius: 6px;
-  color: #1d4ed8;
-  background: #dbeafe;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 500;
 }
 
 .admin-style-theme .danger-text-button {
@@ -3295,10 +3279,6 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .emergency-contact-view-list .relation-card {
   min-height: 72px;
-}
-
-.admin-style-theme .relation-card b em {
-  margin-left: 8px;
 }
 
 .admin-style-theme .relative-archive-filters .input-wrap {
@@ -4631,8 +4611,7 @@ th.sticky-right { background: #f7f8fa; }
   gap: 16px;
 }
 
-.admin-style-theme .recommendation-list-filters,
-.admin-style-theme .recommendation-list-actions {
+.admin-style-theme .recommendation-list-filters {
   display: flex;
   align-items: center;
   gap: 10px;

@@ -26,6 +26,7 @@ interface TodayOverviewPageProps {
   isOpen: boolean;
   onClose: () => void;
   initialRecommendationKind?: RecommendationKind | null;
+  directRecommendation?: boolean;
   onFulfillment?: (record: { kind: "schedule" | "activity" | "service" | "content"; title: string }) => void;
   isSecurityRead?: boolean;
   onOpenSecurity?: () => void;
@@ -134,6 +135,7 @@ export default function TodayOverviewPage({
   isOpen,
   onClose,
   initialRecommendationKind,
+  directRecommendation = false,
   onFulfillment,
   isSecurityRead = false,
   onOpenSecurity,
@@ -174,6 +176,10 @@ export default function TodayOverviewPage({
     }
     setActiveRecommendationId(recommendation?.id ?? null);
   }, [initialRecommendationKind, isOpen, onOpenSecurity, onOpenService]);
+
+  useEffect(() => {
+    if (!isOpen) setActiveRecommendationId(null);
+  }, [isOpen]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -358,8 +364,13 @@ export default function TodayOverviewPage({
       {activeRecommendation && (
         <section className="recommendation-detail-backdrop" role="dialog" aria-modal="true" aria-label={`${activeRecommendation.eyebrow}详情`}>
           <article className={`recommendation-detail is-${activeRecommendation.kind}`}>
-            <button type="button" className="recommendation-detail-close" onClick={() => setActiveRecommendationId(null)} aria-label="关闭详情">
-              <X aria-hidden="true" />
+            <button
+              type="button"
+              className="recommendation-detail-close"
+              onClick={() => directRecommendation ? onClose() : setActiveRecommendationId(null)}
+              aria-label={directRecommendation ? "返回首页" : "关闭详情"}
+            >
+              {directRecommendation ? <ArrowLeft aria-hidden="true" /> : <X aria-hidden="true" />}
             </button>
             <span className="recommendation-detail-icon"><activeRecommendation.Icon aria-hidden="true" /></span>
             <span className="recommendation-detail-eyebrow">{activeRecommendation.eyebrow}</span>
