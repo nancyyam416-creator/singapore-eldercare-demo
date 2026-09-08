@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   Check,
-  ChevronLeft,
   Headphones,
   Pause,
   RotateCcw,
@@ -10,6 +9,7 @@ import {
   Users,
   Volume2,
   WifiOff,
+  X,
 } from "lucide-react";
 import { pauseSpeech, resumeSpeech, speakText, stopSpeech } from "../audio/speech";
 import type { AntiScamTip } from "../types";
@@ -25,6 +25,7 @@ interface SecurityInformationPageProps {
   onRead: (tipId: string) => void;
   onClose: () => void;
   onContactFamily: () => void;
+  pageTitle?: "安全资讯" | "警惕事项";
 }
 
 interface SpeechChunk {
@@ -77,6 +78,7 @@ export default function SecurityInformationPage({
   onRead,
   onClose,
   onContactFamily,
+  pageTitle = "安全资讯",
 }: SecurityInformationPageProps) {
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -182,9 +184,9 @@ export default function SecurityInformationPage({
   if (!isOpen) return null;
 
   return (
-    <main className="security-information-page" aria-label="安全资讯">
+    <main className="security-information-page" aria-label={pageTitle}>
       <SecondaryPageHeader
-        title="安全资讯"
+        title={pageTitle}
         icon={<ShieldAlert aria-hidden="true" />}
         onBack={onClose}
         actions={(
@@ -195,13 +197,13 @@ export default function SecurityInformationPage({
         )}
       />
 
-      {!selectedTip ? (
+      {(
         <div className="security-information-list-view">
           <section className="security-information-intro">
             <div>
               <BadgeCheck aria-hidden="true" />
               <div>
-                <h2>安全资讯</h2>
+                <h2>{pageTitle}</h2>
                 <p>选择一条查看，或者按“听一听”大声朗读</p>
               </div>
             </div>
@@ -254,20 +256,25 @@ export default function SecurityInformationPage({
             })}
           </div>
         </div>
-      ) : (
-        <div className="security-information-detail-view">
-          <button
-            type="button"
-            className="security-information-back-list"
-            onClick={() => {
-              stopSpeaking();
-              if (initialTipId) onClose();
-              else setSelectedTipId(null);
-            }}
-          >
-            <ChevronLeft aria-hidden="true" />
-            {initialTipId ? "返回首页" : "返回安全资讯列表"}
-          </button>
+      )}
+
+      {selectedTip && (
+        <section className="security-information-detail-view" role="dialog" aria-modal="true" aria-label={`查看${pageTitle}：${selectedTip.title}`}>
+          <header className="security-information-detail-header">
+            <button
+              type="button"
+              className="security-information-detail-close"
+              onClick={() => {
+                stopSpeaking();
+                if (initialTipId) onClose();
+                else setSelectedTipId(null);
+              }}
+            >
+              <X aria-hidden="true" />
+              <strong>收起</strong>
+            </button>
+            <strong>{pageTitle}</strong>
+          </header>
 
           <article className="security-information-article">
             <header>
@@ -328,7 +335,7 @@ export default function SecurityInformationPage({
               </button>
             )}
           </div>
-        </div>
+        </section>
       )}
     </main>
   );

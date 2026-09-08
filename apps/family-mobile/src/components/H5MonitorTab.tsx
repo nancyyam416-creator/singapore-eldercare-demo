@@ -266,6 +266,8 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   const [showResolutionOptions, setShowResolutionOptions] = useState(false);
   const [resolutionState, setResolutionState] = useState<null | { status: 'resolved' | 'pending' | 'urgent'; text: string }>(null);
   const [showMedicationAttentionDetails, setShowMedicationAttentionDetails] = useState(false);
+  const [showTakenMedications, setShowTakenMedications] = useState(false);
+  const [selectedMedicationId, setSelectedMedicationId] = useState<string>('med-overdue');
   const [medicationContactStarted, setMedicationContactStarted] = useState(false);
   const [showTrendDetails, setShowTrendDetails] = useState(false);
   const [spaceView, setSpaceView] = useState<'day' | 'week'>('day');
@@ -285,6 +287,8 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
     setShowResolutionOptions(false);
     setResolutionState(null);
     setShowMedicationAttentionDetails(false);
+    setShowTakenMedications(false);
+    setSelectedMedicationId(homeCareScenario === 'normal' ? 'med-overdue' : 'med-3');
     setMedicationContactStarted(false);
     setShowTrendDetails(false);
     setSpaceView('day');
@@ -331,9 +335,10 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   useEffect(() => {
     if (previewOpenMedicationDetailsSignal > 0) {
       setMedicationContactStarted(false);
+      setSelectedMedicationId(homeCareScenario === 'normal' ? 'med-overdue' : 'med-3');
       setShowMedicationAttentionDetails(true);
     }
-  }, [previewOpenMedicationDetailsSignal]);
+  }, [previewOpenMedicationDetailsSignal, homeCareScenario]);
 
   useEffect(() => {
     if (previewCompleteFamilyVoiceSignal > 0) {
@@ -349,6 +354,8 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
       setResolutionState(null);
       setShowResolutionOptions(false);
       setShowMedicationAttentionDetails(false);
+      setShowTakenMedications(false);
+      setSelectedMedicationId('med-overdue');
       setMedicationContactStarted(false);
     }
   }, [previewResetSignal]);
@@ -477,8 +484,10 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
     }
   }, [previewCloseScoreDetailsSignal]);
 
-  const effectiveScenario: HomeCareScenario = resolutionState?.status === 'resolved' && homeCareScenario !== 'medication_overdue' ? 'normal' : homeCareScenario;
-  const currentTimeLabel = homeCareScenario === 'medication_overdue' ? '22:10' : '18:26';
+  const effectiveScenario: HomeCareScenario = resolutionState?.status === 'resolved' && homeCareScenario !== 'medication_overdue' && homeCareScenario !== 'medication_expired' ? 'normal' : homeCareScenario;
+  const isMedicationExpiredScenario = effectiveScenario === 'medication_expired';
+  const isMedicationAttentionScenario = effectiveScenario === 'medication_overdue' || isMedicationExpiredScenario;
+  const currentTimeLabel = isMedicationExpiredScenario ? '23:59' : homeCareScenario === 'medication_overdue' ? '22:10' : '18:26';
   const currentTimeMinutes = toMinutes(currentTimeLabel);
   const activityDataCutoffMinutes = effectiveScenario === 'inactivity' ? toMinutes('12:20') : currentTimeMinutes;
 
@@ -953,13 +962,43 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   const overdueMedications = pendingMedications.filter(medication => toMinutes(medication.timeStr) <= currentTimeMinutes);
   const medicationExceptions = [...missedMedications, ...overdueMedications];
   const nextScheduledMedication = scheduledMedications[0];
+  const todayMedicationRows = [...medications]
+    .sort((a, b) => toMinutes(a.timeStr) - toMinutes(b.timeStr))
+    .map(medication => {
+      const isTaken = medication.status === 'taken';
+      const isMissed = medication.status === 'missed';
+      const isExpired = !isTaken && (isMissed || (isMedicationExpiredScenario && medication.id === 'med-3'));
+      const isOverdue = !isTaken && (isMissed || toMinutes(medication.timeStr) <= currentTimeMinutes);
+      return {
+        ...medication,
+        isTaken,
+        isMissed,
+        isExpired,
+        isOverdue,
+        statusLabel: isTaken
+          ? `${medication.takenTime ?? medication.timeStr} 已服用`
+          : isExpired
+            ? '已过期未服用'
+            : isOverdue
+              ? '超时未服用'
+            : '待服用'
+      };
+    });
+  const overdueMedicationCount = todayMedicationRows.filter(medication => medication.isOverdue).length;
+  const expiredMedicationCount = todayMedicationRows.filter(medication => medication.isExpired).length;
+  const outstandingMedicationRows = todayMedicationRows
+    .filter(medication => !medication.isTaken)
+    .sort((left, right) => Number(right.isExpired) - Number(left.isExpired) || Number(right.isOverdue) - Number(left.isOverdue) || toMinutes(left.timeStr) - toMinutes(right.timeStr));
+  const takenMedicationRows = todayMedicationRows.filter(medication => medication.isTaken);
+  const selectedMedication = todayMedicationRows.find(medication => medication.id === selectedMedicationId) ?? outstandingMedicationRows[0] ?? todayMedicationRows[0];
+  const selectedMedicationExpired = selectedMedication?.isExpired ?? false;
   const latestFamilyReply = [...familyMessages].reverse().find(message => message.status === 'replied');
   const visibleActivities = activities.filter(activity => !/(手环|心率|步数)/.test(activity.content));
   const isUrgent = resolutionState?.status === 'urgent';
   const isPending = resolutionState?.status === 'pending';
   const medicationWasResolved = false;
-  const medicationIssueActive = effectiveScenario === 'medication_overdue' || medicationExceptions.length > 0;
-  const medicationPoints = effectiveScenario === 'medication_overdue' ? 15 : medicationExceptions.length === 0 || totalMeds === 0 ? 30 : Math.round((takenCount / totalMeds) * 30);
+  const medicationIssueActive = isMedicationAttentionScenario || medicationExceptions.length > 0;
+  const medicationPoints = isMedicationExpiredScenario ? 0 : effectiveScenario === 'medication_overdue' ? 15 : medicationExceptions.length === 0 || totalMeds === 0 ? 30 : Math.round((takenCount / totalMeds) * 30);
   const movementPoints = effectiveScenario === 'inactivity' ? (isUrgent ? 0 : 15) : 30;
 
   const getTrajectoryWidth = (timeRange: string) => {
@@ -1061,7 +1100,16 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
     onOpenFamilyMessages();
   };
 
-  const exceptionConfig = effectiveScenario === 'medication_overdue'
+  const exceptionConfig = effectiveScenario === 'medication_expired'
+    ? {
+        icon: Pill,
+        eyebrow: '用药记录已过期',
+        title: '19:00 阿司匹林当天未形成服用记录',
+        description: '当天有效确认时段已结束，记录为已过期未服用',
+        hint: '可查看详情后决定是否联系长辈',
+        segment: 'status' as const
+      }
+    : effectiveScenario === 'medication_overdue'
     ? {
         icon: Pill,
         eyebrow: isUrgent ? '用药需要立即关注' : '用药等待确认',
@@ -1083,7 +1131,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
 
   const statusItems = [
     medicationIssueActive
-      ? { key: 'medication', segment: 'status' as const, icon: Pill, iconClass: 'bg-amber-50 text-amber-700', label: '用药情况', value: '晚间用药尚未确认', detail: '超过计划时间 3 小时 · 中控屏已提醒', score: `${medicationPoints}/30`, scoreClass: 'text-amber-700', priority: 0 }
+      ? { key: 'medication', segment: 'status' as const, icon: Pill, iconClass: isMedicationExpiredScenario ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700', label: '用药情况', value: isMedicationExpiredScenario ? '有药物已过期未服用' : '晚间用药尚未确认', detail: isMedicationExpiredScenario ? '当天未形成服用记录' : '超过计划时间 3 小时 · 中控屏已提醒', score: `${medicationPoints}/30`, scoreClass: isMedicationExpiredScenario ? 'text-rose-700' : 'text-amber-700', priority: 0 }
       : { key: 'medication', segment: 'status' as const, icon: Pill, iconClass: 'bg-emerald-50 text-emerald-700', label: '用药情况', value: '目前均正常', detail: nextScheduledMedication ? `${nextScheduledMedication.timeStr} 服药计划 · 尚未到时间` : '今日用药情况已确认', score: `${medicationPoints}/30`, scoreClass: 'text-emerald-700', priority: 1 },
     { key: 'community', segment: 'activities' as const, icon: Calendar, iconClass: 'bg-emerald-50 text-emerald-700', label: '参加活动', value: '已参加今日活动', detail: '09:30 社区健康讲座已签到', score: '20/20', scoreClass: 'text-emerald-700', priority: 2 },
     effectiveScenario === 'inactivity'
@@ -1092,17 +1140,17 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
     { key: 'family', segment: 'messages' as const, icon: Images, iconClass: 'bg-blue-50 text-blue-700', label: '家庭互动', value: latestFamilyReply ? '有 1 条留言回复' : '暂无新留言', detail: '照片暂无新点赞', score: latestFamilyReply ? '20/20' : '10/20', scoreClass: 'text-blue-700', priority: 4 }
   ].sort((a, b) => a.priority - b.priority);
 
-  const resolutionOptions = homeCareScenario === 'medication_overdue'
+  const resolutionOptions = homeCareScenario === 'medication_overdue' || homeCareScenario === 'medication_expired'
     ? ['老人表示已服用', '老人表示稍后服用', '暂未联系上']
     : ['已联系，长辈正常', '正在午睡', '已外出', '暂时联系不上'];
 
   const handleResolution = (option: string) => {
     const unreachable = option === '暂时联系不上' || option === '暂未联系上';
     const urgent = unreachable && homeCareScenario === 'inactivity';
-    const pending = unreachable && homeCareScenario === 'medication_overdue';
+    const pending = unreachable && (homeCareScenario === 'medication_overdue' || homeCareScenario === 'medication_expired');
     setResolutionState({
       status: urgent ? 'urgent' : pending ? 'pending' : 'resolved',
-      text: urgent ? `${currentTimeLabel} 暂时联系不上，提醒已升级` : homeCareScenario === 'medication_overdue' ? `22:18 家属反馈：${option}` : `${pending ? currentTimeLabel : '18:34'} ${option}`
+      text: urgent ? `${currentTimeLabel} 暂时联系不上，提醒已升级` : homeCareScenario === 'medication_overdue' || homeCareScenario === 'medication_expired' ? `${currentTimeLabel} 家属反馈：${option}` : `${pending ? currentTimeLabel : '18:34'} ${option}`
     });
     setShowResolutionOptions(false);
     setShowMedicationAttentionDetails(false);
@@ -1919,6 +1967,126 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         </section>
       )}
 
+      <section data-testid="today-medication-card" className={`overflow-hidden rounded-3xl border bg-white shadow-xs ${expiredMedicationCount > 0 ? 'border-rose-200' : overdueMedicationCount > 0 ? 'border-amber-200' : 'border-slate-200'}`}>
+        <div className="flex items-start justify-between gap-3 px-4 py-3.5">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${expiredMedicationCount > 0 ? 'bg-rose-50 text-rose-700' : overdueMedicationCount > 0 ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'}`}>
+              <Pill size={18} />
+            </span>
+            <div className="min-w-0">
+              <h4 className="text-sm font-extrabold text-slate-900">今日应服药物</h4>
+              <p className="mt-0.5 text-[10px] text-slate-500">优先展示尚未服用的药物</p>
+            </div>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${expiredMedicationCount > 0 ? 'bg-rose-100 text-rose-700' : overdueMedicationCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>
+            {totalMeds === 0
+              ? '今日无用药'
+              : expiredMedicationCount > 0
+                ? `${expiredMedicationCount} 项已过期`
+                : overdueMedicationCount > 0
+                ? `${overdueMedicationCount} 项未服用`
+                : outstandingMedicationRows.length > 0
+                  ? `${outstandingMedicationRows.length} 项待服用`
+                  : '今日均已服用'}
+          </span>
+        </div>
+
+        {todayMedicationRows.length === 0 ? (
+          <div className="border-t border-slate-100 px-4 py-5 text-center">
+            <strong className="text-xs text-slate-700">今天没有应服药物</strong>
+            <p className="mt-1 text-[10px] text-slate-400">新增用药提醒后会在这里展示</p>
+          </div>
+        ) : (
+          <div className="border-t border-slate-100">
+            {outstandingMedicationRows.length === 0 && (
+              <div className="flex items-center gap-2.5 px-4 py-3.5 text-emerald-700">
+                <CheckCircle size={17} className="shrink-0" />
+                <div>
+                  <strong className="block text-xs">今天应服药物均已服用</strong>
+                  <span className="mt-0.5 block text-[10px] text-emerald-600">如需核对时间，可展开已服用记录</span>
+                </div>
+              </div>
+            )}
+
+            <div className="divide-y divide-slate-100 px-4">
+            {outstandingMedicationRows.map(medication => {
+              const content = (
+                <>
+                  <span className={`flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-xl font-mono ${medication.isExpired ? 'bg-rose-50 text-rose-700' : medication.isOverdue ? 'bg-amber-50 text-amber-800' : medication.isTaken ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <strong className="text-[11px] leading-none">{medication.timeStr}</strong>
+                    <span className="mt-1 text-[8px] font-bold">计划</span>
+                  </span>
+                  <span className="min-w-0 flex-1 text-left">
+                    <strong className={`block truncate text-xs ${medication.isExpired ? 'text-rose-950' : medication.isOverdue ? 'text-amber-950' : 'text-slate-900'}`}>{medication.name}</strong>
+                    <span className="mt-1 block truncate text-[10px] text-slate-500">{medication.dosage}</span>
+                    {(medication.consecutiveUnconfirmedDays ?? 0) >= 2 && (
+                      <span className="mt-1 block text-[9px] font-bold text-amber-700">已连续{medication.consecutiveUnconfirmedDays}天未确认服用</span>
+                    )}
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${medication.isExpired ? 'bg-rose-100 text-rose-700' : medication.isOverdue ? 'bg-amber-100 text-amber-800' : medication.isTaken ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {medication.statusLabel}
+                  </span>
+                  {medication.isOverdue && <ChevronRight size={14} className={`shrink-0 ${medication.isExpired ? 'text-rose-400' : 'text-amber-400'}`} />}
+                </>
+              );
+              return medication.isOverdue ? (
+                <button
+                  key={medication.id}
+                  type="button"
+                  onClick={() => {
+                    setMedicationContactStarted(false);
+                    setSelectedMedicationId(medication.id);
+                    setShowMedicationAttentionDetails(true);
+                  }}
+                  aria-label={`查看${medication.timeStr}${medication.name}${medication.statusLabel}详情`}
+                  className={`flex w-full items-center gap-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${medication.isExpired ? 'hover:bg-rose-50/50' : 'hover:bg-amber-50/50'}`}
+                >
+                  {content}
+                </button>
+              ) : (
+                <div key={medication.id} className="flex items-center gap-3 py-3">{content}</div>
+              );
+            })}
+            </div>
+
+            {showTakenMedications && takenMedicationRows.length > 0 && (
+              <div className="border-t border-slate-100 bg-slate-50/60">
+                <div className="px-4 pb-1 pt-3 text-[10px] font-bold text-slate-500">已服用（{takenMedicationRows.length}）</div>
+                <div className="divide-y divide-slate-200/70 px-4">
+                  {takenMedicationRows.map(medication => (
+                    <div key={medication.id} className="flex items-center gap-3 py-3">
+                      <span className="flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-emerald-50 font-mono text-emerald-700">
+                        <strong className="text-[11px] leading-none">{medication.timeStr}</strong>
+                        <span className="mt-1 text-[8px] font-bold">计划</span>
+                      </span>
+                      <span className="min-w-0 flex-1 text-left">
+                        <strong className="block truncate text-xs text-slate-700">{medication.name}</strong>
+                        <span className="mt-1 block truncate text-[10px] text-slate-500">{medication.dosage}</span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">
+                        {medication.statusLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {takenMedicationRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowTakenMedications(current => !current)}
+                aria-expanded={showTakenMedications}
+                className="flex w-full items-center justify-center gap-1.5 border-t border-slate-100 px-4 py-2.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              >
+                {showTakenMedications ? '收起已服用' : `查看已服用 ${takenMedicationRows.length} 项`}
+                <ChevronDown size={13} className={`transition-transform ${showTakenMedications ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
         <div className="flex items-center justify-between px-4 py-3.5">
           <div>
@@ -2264,17 +2432,29 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
           <section role="dialog" aria-modal="true" aria-labelledby="medication-attention-title" onClick={event => event.stopPropagation()} className="max-h-[calc(100%_-_24px)] w-full overflow-y-auto rounded-3xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 px-4 py-4">
               <div>
-                <span className="text-[10px] font-bold text-amber-700">用药详情</span>
-                <h4 id="medication-attention-title" className="mt-1 text-base font-extrabold text-slate-900">阿司匹林仍未确认</h4>
+                <span className={`text-[10px] font-bold ${selectedMedicationExpired ? 'text-rose-700' : 'text-amber-700'}`}>用药详情</span>
+                <h4 id="medication-attention-title" className="mt-1 text-base font-extrabold text-slate-900">{selectedMedication?.name ?? '药物'}{selectedMedicationExpired ? '已过期未服用' : '仍未确认'}</h4>
               </div>
               <button type="button" onClick={() => setShowMedicationAttentionDetails(false)} aria-label="关闭用药详情" className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button>
             </div>
             <div className="space-y-4 p-4">
-              <div className="rounded-2xl bg-amber-50 p-3.5">
-                <div className="flex items-center justify-between gap-3"><strong className="text-sm text-amber-950">计划时间 19:00</strong><span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">需留意</span></div>
-                <p className="mt-2 text-xs leading-relaxed text-amber-900">截至 22:10，已超过计划时间 3 小时。中控屏已提醒，系统仍未收到用药确认。</p>
+              <div className={`rounded-2xl p-3.5 ${selectedMedicationExpired ? 'bg-rose-50' : 'bg-amber-50'}`}>
+                <div className="flex items-center justify-between gap-3"><strong className={`text-sm ${selectedMedicationExpired ? 'text-rose-950' : 'text-amber-950'}`}>计划时间 {selectedMedication?.timeStr ?? '--:--'}</strong><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${selectedMedicationExpired ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'}`}>{selectedMedication?.statusLabel ?? '待确认'}</span></div>
+                <p className={`mt-2 text-xs leading-relaxed ${selectedMedicationExpired ? 'text-rose-900' : 'text-amber-900'}`}>{selectedMedicationExpired ? '当天有效确认时段已结束，系统仍未收到服用记录，本次用药记为已过期未服用。' : (selectedMedication?.consecutiveUnconfirmedDays ?? 0) >= 2 ? `今天再次超过计划时间仍未形成服用记录，已连续${selectedMedication?.consecutiveUnconfirmedDays}天未确认服用。` : `截至 ${currentTimeLabel}，已超过计划时间，系统仍未收到用药确认。`}</p>
               </div>
-              {resolutionState && homeCareScenario === 'medication_overdue' && (
+              {(selectedMedication?.consecutiveUnconfirmedDays ?? 0) >= 2 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <strong className="text-xs text-slate-900">连续未确认记录</strong>
+                    <span className="text-[10px] font-bold text-amber-700">连续 {selectedMedication?.consecutiveUnconfirmedDays} 天</span>
+                  </div>
+                  <div className="mt-3 space-y-2 text-[10px]">
+                    <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{selectedMedication?.lastUnconfirmedAt}</span><strong className="text-rose-700">已过期未服用</strong></div>
+                    <div className="flex items-center justify-between gap-3"><span className="text-slate-500">今天 {selectedMedication?.timeStr}</span><strong className="text-amber-700">超时未服用</strong></div>
+                  </div>
+                </div>
+              )}
+              {resolutionState && (homeCareScenario === 'medication_overdue' || homeCareScenario === 'medication_expired') && (
                 <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50 p-3.5">
                   <CheckCircle size={16} className="mt-0.5 shrink-0 text-blue-600" />
                   <div><strong className="text-xs text-blue-800">已记录家属反馈</strong><p className="mt-1 text-[10px] leading-relaxed text-blue-700">{resolutionState.text}。该反馈不会更改系统用药确认状态。</p></div>

@@ -75,6 +75,11 @@ export interface CommunityActivity {
   registered: boolean;
   tag: string;
   imageUrl: string;
+  description?: string;
+  audience?: string;
+  contact?: string;
+  status?: 'registration' | 'ongoing' | 'ended' | 'cancelled';
+  requiresConfirmation?: boolean;
 }
 
 export interface AntiScamTip {
@@ -93,6 +98,8 @@ export interface SpecialServiceBooking {
   serviceId: string;
   serviceName: string;
   provider: string;
+  categoryCode?: "home" | "care" | "meal" | "health" | "safety";
+  categoryName?: string;
   slotId: string;
   slotLabel: string;
   status: 'booked' | 'accepted' | 'in_service' | 'completed' | 'cancelled';

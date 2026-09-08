@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0.0",
+  "deliveryLevel": "L2",
+  "mockNow": "2026-08-24T10:00:00+08:00",
+  "communities": [
+    { "projectId": "PRJ-001", "communityId": "COM-001", "projectName": "红山社区养老计划", "communityName": "红山社区" },
+    { "projectId": "PRJ-002", "communityId": "COM-002", "projectName": "大巴窑关怀中心", "communityName": "大巴窑社区" }
+  ],
+  "serviceCategories": [
+    { "id": "SC-PRJ001-HOME", "projectId": "PRJ-001", "communityId": "COM-001", "code": "home", "name": "居家服务", "description": "家政清洁、上门维修等居家生活服务", "displayOrder": 1, "status": "enabled", "availableServiceCount": 2, "updatedAt": "2026-08-20 09:10" },
+    { "id": "SC-PRJ001-CARE", "projectId": "PRJ-001", "communityId": "COM-001", "code": "care", "name": "照护服务", "description": "上门助浴、生活照护和陪伴服务", "displayOrder": 2, "status": "enabled", "availableServiceCount": 2, "updatedAt": "2026-08-20 09:12" },
+    { "id": "SC-PRJ001-MEAL", "projectId": "PRJ-001", "communityId": "COM-001", "code": "meal", "name": "助餐服务", "description": "营养配餐、送餐及上门做饭服务", "displayOrder": 3, "status": "enabled", "availableServiceCount": 2, "updatedAt": "2026-08-20 09:14" },
+    { "id": "SC-PRJ001-HEALTH", "projectId": "PRJ-001", "communityId": "COM-001", "code": "health", "name": "健康服务", "description": "陪诊、健康咨询、视频问诊和护士上门", "displayOrder": 4, "status": "enabled", "availableServiceCount": 2, "updatedAt": "2026-08-20 09:16" },
+    { "id": "SC-PRJ001-SAFETY", "projectId": "PRJ-001", "communityId": "COM-001", "code": "safety", "name": "适老安全", "description": "扶手安装、居家安全改造和安全设备安装", "displayOrder": 5, "status": "enabled", "availableServiceCount": 2, "updatedAt": "2026-08-20 09:18" },
+    { "id": "SC-PRJ002-HOME", "projectId": "PRJ-002", "communityId": "COM-002", "code": "home", "name": "居家服务", "description": "家政清洁、上门维修等居家生活服务", "displayOrder": 1, "status": "enabled", "availableServiceCount": 1, "updatedAt": "2026-08-19 10:10" },
+    { "id": "SC-PRJ002-CARE", "projectId": "PRJ-002", "communityId": "COM-002", "code": "care", "name": "照护服务", "description": "上门助浴、生活照护和陪伴服务", "displayOrder": 2, "status": "enabled", "availableServiceCount": 1, "updatedAt": "2026-08-19 10:12" },
+    { "id": "SC-PRJ002-MEAL", "projectId": "PRJ-002", "communityId": "COM-002", "code": "meal", "name": "助餐服务", "description": "营养配餐、送餐及上门做饭服务", "displayOrder": 3, "status": "enabled", "availableServiceCount": 1, "updatedAt": "2026-08-19 10:14" },
+    { "id": "SC-PRJ002-HEALTH", "projectId": "PRJ-002", "communityId": "COM-002", "code": "health", "name": "健康服务", "description": "陪诊、健康咨询、视频问诊和护士上门", "displayOrder": 4, "status": "enabled", "availableServiceCount": 1, "updatedAt": "2026-08-19 10:16" },
+    { "id": "SC-PRJ002-SAFETY", "projectId": "PRJ-002", "communityId": "COM-002", "code": "safety", "name": "适老安全", "description": "扶手安装、居家安全改造和安全设备安装", "displayOrder": 5, "status": "enabled", "availableServiceCount": 1, "updatedAt": "2026-08-19 10:18" }
+  ],
+  "serviceItems": [
+    { "id": "SRV-001", "projectId": "PRJ-001", "communityId": "COM-001", "name": "家政保洁", "categoryCode": "home", "categoryName": "居家服务", "provider": "安心到家社区服务中心", "status": "enabled", "available": true },
+    { "id": "SRV-002", "projectId": "PRJ-001", "communityId": "COM-001", "name": "上门维修", "categoryCode": "home", "categoryName": "居家服务", "provider": "社区便民维修站", "status": "enabled", "available": true },
+    { "id": "SRV-003", "projectId": "PRJ-001", "communityId": "COM-001", "name": "上门助浴", "categoryCode": "care", "categoryName": "照护服务", "provider": "红山照护服务队", "status": "enabled", "available": true },
+    { "id": "SRV-004", "projectId": "PRJ-001", "communityId": "COM-001", "name": "日常陪伴", "categoryCode": "care", "categoryName": "照护服务", "provider": "红山照护服务队", "status": "enabled", "available": true },
+    { "id": "SRV-005", "projectId": "PRJ-001", "communityId": "COM-001", "name": "营养配餐", "categoryCode": "meal", "categoryName": "助餐服务", "provider": "红山社区助餐点", "status": "enabled", "available": true },
+    { "id": "SRV-006", "projectId": "PRJ-001", "communityId": "COM-001", "name": "上门做饭", "categoryCode": "meal", "categoryName": "助餐服务", "provider": "乐龄餐食服务组", "status": "enabled", "available": true },
+    { "id": "SRV-007", "projectId": "PRJ-001", "communityId": "COM-001", "name": "陪诊服务", "categoryCode": "health", "categoryName": "健康服务", "provider": "社区健康管家中心", "status": "enabled", "available": true },
+    { "id": "SRV-008", "projectId": "PRJ-001", "communityId": "COM-001", "name": "护士上门", "categoryCode": "health", "categoryName": "健康服务", "provider": "红山社区护理站", "status": "enabled", "available": true },
+    { "id": "SRV-009", "projectId": "PRJ-001", "communityId": "COM-001", "name": "扶手安装", "categoryCode": "safety", "categoryName": "适老安全", "provider": "适老改造服务中心", "status": "enabled", "available": true },
+    { "id": "SRV-010", "projectId": "PRJ-001", "communityId": "COM-001", "name": "居家安全评估", "categoryCode": "safety", "categoryName": "适老安全", "provider": "适老改造服务中心", "status": "enabled", "available": true },
+    { "id": "SRV-101", "projectId": "PRJ-002", "communityId": "COM-002", "name": "大巴窑家政清洁", "categoryCode": "home", "categoryName": "居家服务", "provider": "大巴窑社区服务站", "status": "enabled", "available": true },
+    { "id": "SRV-102", "projectId": "PRJ-002", "communityId": "COM-002", "name": "上门生活照护", "categoryCode": "care", "categoryName": "照护服务", "provider": "大巴窑照护队", "status": "enabled", "available": true },
+    { "id": "SRV-103", "projectId": "PRJ-002", "communityId": "COM-002", "name": "社区送餐", "categoryCode": "meal", "categoryName": "助餐服务", "provider": "大巴窑助餐点", "status": "enabled", "available": true },
+    { "id": "SRV-104", "projectId": "PRJ-002", "communityId": "COM-002", "name": "健康咨询", "categoryCode": "health", "categoryName": "健康服务", "provider": "大巴窑健康站", "status": "enabled", "available": true },
+    { "id": "SRV-105", "projectId": "PRJ-002", "communityId": "COM-002", "name": "防滑设施安装", "categoryCode": "safety", "categoryName": "适老安全", "provider": "大巴窑适老服务组", "status": "enabled", "available": true }
+  ],
+  "serviceBookings": [
+    { "id": "RSV-20260824001", "projectId": "PRJ-001", "communityId": "COM-001", "serviceId": "SRV-001", "serviceName": "家政保洁", "categoryId": "SC-PRJ001-HOME", "categoryCode": "home", "categoryNameSnapshot": "居家服务", "elderlyId": "SG-E-000128", "provider": "安心到家社区服务中心", "slotLabel": "明天上午 09:00—11:00", "status": "待确认", "createdAt": "2026-08-24 09:18", "updatedAt": "2026-08-24 09:18", "source": "老人中控屏", "operator": "" },
+    { "id": "RSV-20260823002", "projectId": "PRJ-001", "communityId": "COM-001", "serviceId": "SRV-003", "serviceName": "上门助浴", "categoryId": "SC-PRJ001-CARE", "categoryCode": "care", "categoryNameSnapshot": "照护服务", "elderlyId": "SG-E-000128", "provider": "红山照护服务队", "slotLabel": "明天下午 14:00—16:00", "status": "已确认", "createdAt": "2026-08-23 16:40", "updatedAt": "2026-08-24 08:30", "source": "老人中控屏", "operator": "赵亚男" },
+    { "id": "RSV-20260822003", "projectId": "PRJ-001", "communityId": "COM-001", "serviceId": "SRV-005", "serviceName": "营养配餐", "categoryId": "SC-PRJ001-MEAL", "categoryCode": "meal", "categoryNameSnapshot": "助餐服务", "elderlyId": "SG-E-000125", "provider": "红山社区助餐点", "slotLabel": "后天中午 11:30—12:30", "status": "服务中", "createdAt": "2026-08-22 10:12", "updatedAt": "2026-08-24 09:20", "source": "老人中控屏", "operator": "赵亚男" },
+    { "id": "RSV-20260821004", "projectId": "PRJ-001", "communityId": "COM-001", "serviceId": "SRV-007", "serviceName": "陪诊服务", "categoryId": "SC-PRJ001-HEALTH", "categoryCode": "health", "categoryNameSnapshot": "健康服务", "elderlyId": "SG-E-000128", "provider": "社区健康管家中心", "slotLabel": "后天上午 07:30—12:00", "status": "已完成", "createdAt": "2026-08-21 08:45", "updatedAt": "2026-08-22 13:10", "source": "老人中控屏", "operator": "赵亚男" },
+    { "id": "RSV-20260820005", "projectId": "PRJ-001", "communityId": "COM-001", "serviceId": "SRV-009", "serviceName": "扶手安装", "categoryId": "SC-PRJ001-SAFETY", "categoryCode": "safety", "categoryNameSnapshot": "适老安全", "elderlyId": "SG-E-000128", "provider": "适老改造服务中心", "slotLabel": "本周五上午 10:00—12:00", "status": "已取消", "createdAt": "2026-08-20 14:26", "updatedAt": "2026-08-20 15:02", "source": "老人中控屏", "operator": "老人本人" },
+    { "id": "RSV-20260824011", "projectId": "PRJ-002", "communityId": "COM-002", "serviceId": "SRV-101", "serviceName": "大巴窑家政清洁", "categoryId": "SC-PRJ002-HOME", "categoryCode": "home", "categoryNameSnapshot": "居家服务", "elderlyId": "SG-E-000127", "provider": "大巴窑社区服务站", "slotLabel": "明天上午 10:00—12:00", "status": "待确认", "createdAt": "2026-08-24 08:42", "updatedAt": "2026-08-24 08:42", "source": "老人中控屏", "operator": "" },
+    { "id": "RSV-20260823012", "projectId": "PRJ-002", "communityId": "COM-002", "serviceId": "SRV-104", "serviceName": "健康咨询", "categoryId": "SC-PRJ002-HEALTH", "categoryCode": "health", "categoryNameSnapshot": "健康服务", "elderlyId": "SG-E-000123", "provider": "大巴窑健康站", "slotLabel": "明天下午 15:00—16:00", "status": "已完成", "createdAt": "2026-08-23 09:35", "updatedAt": "2026-08-23 16:20", "source": "老人中控屏", "operator": "赵亚男" }
+  ]
+}

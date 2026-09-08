@@ -259,37 +259,56 @@
 }
 
 .security-information-detail-view {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 24px 34px 30px;
+  grid-template-rows: 104px minmax(0, 1fr) 126px;
+  gap: 0;
   overflow: hidden;
+  background: #02070d;
 }
 
-.security-information-back-list {
-  width: fit-content;
-  min-height: 58px;
+.security-information-detail-header {
+  display: grid;
+  grid-template-columns: 220px 1fr 220px;
+  align-items: center;
+  padding: 0 34px;
+  border-bottom: 1px solid var(--color-line);
+  background: color-mix(in oklch, var(--color-canvas), transparent 8%);
+}
+
+.security-information-detail-header > strong {
+  grid-column: 2;
+  justify-self: center;
+  font-size: 30px;
+}
+
+.security-information-detail-close {
+  min-width: 168px;
+  height: 64px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 0 20px;
-  border: var(--rule-thin) solid var(--color-line);
-  border-radius: var(--radius-round);
+  justify-self: start;
+  border: 2px solid var(--color-line);
+  border-radius: 18px;
   background: var(--color-panel-raised);
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 900;
   cursor: pointer;
 }
 
-.security-information-back-list svg {
-  width: 26px;
-  height: 26px;
+.security-information-detail-close svg {
+  width: 30px;
+  height: 30px;
 }
 
 .security-information-article {
   width: min(1480px, 100%);
   min-height: 0;
-  margin: 0 auto;
+  margin: 20px auto;
   padding: 30px 40px 48px;
   overflow-y: auto;
   border: var(--rule-strong) solid var(--color-line);
@@ -402,7 +421,7 @@
   display: flex;
   align-items: stretch;
   gap: 14px;
-  margin: 0 auto;
+  margin: 0 auto 22px;
 }
 
 .security-information-speech-status {

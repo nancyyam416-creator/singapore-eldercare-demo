@@ -3,11 +3,10 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   CalendarClock,
   ContactRound,
-  Flag,
   HandHeart,
   Images,
+  Landmark,
   Radio,
-  ShieldPlus,
   X,
 } from "lucide-react";
 import "./more-functions-drawer.css";
@@ -20,7 +19,6 @@ interface MoreFunctionsDrawerProps {
   onOpenReminders: () => void;
   onOpenCommunity: () => void;
   onOpenSpecialServices: () => void;
-  onOpenInformation: () => void;
   onOpenEntertainment: () => void;
 }
 
@@ -41,7 +39,6 @@ export default function MoreFunctionsDrawer({
   onOpenReminders,
   onOpenCommunity,
   onOpenSpecialServices,
-  onOpenInformation,
   onOpenEntertainment,
 }: MoreFunctionsDrawerProps) {
   const entries: FunctionEntry[] = [
@@ -71,9 +68,9 @@ export default function MoreFunctionsDrawer({
     },
     {
       id: "community",
-      title: "社区活动",
-      description: "查看活动并一键报名",
-      icon: Flag,
+      title: "社区生活",
+      description: "公告、资讯、话题、活动与警惕事项",
+      icon: Landmark,
       tone: "blue",
       action: onOpenCommunity,
     },
@@ -84,14 +81,6 @@ export default function MoreFunctionsDrawer({
       icon: HandHeart,
       tone: "purple",
       action: onOpenSpecialServices,
-    },
-    {
-      id: "information",
-      title: "安全资讯",
-      description: "查看并收听安全提醒",
-      icon: ShieldPlus,
-      tone: "amber",
-      action: onOpenInformation,
     },
     {
       id: "entertainment",

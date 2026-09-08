@@ -12,6 +12,8 @@ export interface Medication {
   status: 'taken' | 'untaken' | 'missed';
   takenTime?: string;
   note?: string;
+  consecutiveUnconfirmedDays?: number;
+  lastUnconfirmedAt?: string;
 }
 
 export interface ActivityLog {
@@ -33,7 +35,7 @@ export interface HealthStats {
   controlScreenStatus?: 'online' | 'offline';
 }
 
-export type HomeCareScenario = 'normal' | 'medication_overdue' | 'inactivity';
+export type HomeCareScenario = 'normal' | 'medication_overdue' | 'medication_expired' | 'inactivity';
 
 export type ElderStatusCardScenario = 'normal' | 'device_offline' | 'location_empty';
 
@@ -187,7 +189,9 @@ export interface BoundElder {
 export interface ServiceProduct {
   id: string;
   name: string;
-  category: 'care' | 'medical' | 'safety' | 'food';
+  category: ServiceCategoryCode;
+  communityIds: string[];
+  isBookable: boolean;
   price: number;
   unit: string;
   description: string;
@@ -198,10 +202,25 @@ export interface ServiceProduct {
   features: string[];
 }
 
+export type ServiceCategoryCode = 'home' | 'care' | 'meal' | 'health' | 'safety';
+
+export interface ServiceCategory {
+  id: string;
+  communityId: string;
+  code: ServiceCategoryCode;
+  name: string;
+  description: string;
+  displayOrder: number;
+  status: 'enabled' | 'disabled';
+}
+
+export type StoreCategoryScenario = 'default' | 'alternate_community' | 'empty' | 'load_error' | 'category_disabled';
+
 export interface Order {
   id: string;
   serviceId: string;
   serviceName: string;
+  categoryNameSnapshot: string;
   price: number;
   serviceDate: string;
   serviceTime: string;

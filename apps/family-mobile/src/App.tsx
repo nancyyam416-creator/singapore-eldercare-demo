@@ -23,7 +23,8 @@ import {
   ElderProfileDeviceScenario,
   ElderBindingScenario,
   ReminderScenario,
-  ChildLoginScenario
+  ChildLoginScenario,
+  StoreCategoryScenario
 } from './types';
 import { 
   initialParentProfile, 
@@ -57,6 +58,7 @@ export default function App() {
   const [elderBindingScenario, setElderBindingScenario] = useState<ElderBindingScenario>('bound');
   const [reminderScenario, setReminderScenario] = useState<ReminderScenario>('list');
   const [loginScenario, setLoginScenario] = useState<ChildLoginScenario>('default');
+  const [storeCategoryScenario, setStoreCategoryScenario] = useState<StoreCategoryScenario>('default');
   const [elderProfileRadarExpanded, setElderProfileRadarExpanded] = useState(true);
   const [previewOpenElderProfileSignal, setPreviewOpenElderProfileSignal] = useState(0);
   const [previewCloseElderProfileSignal, setPreviewCloseElderProfileSignal] = useState(0);
@@ -74,6 +76,7 @@ export default function App() {
   const [previewOpenProfileSignal, setPreviewOpenProfileSignal] = useState(0);
   const [previewOpenRemindersSignal, setPreviewOpenRemindersSignal] = useState(0);
   const [previewOpenLoginSignal, setPreviewOpenLoginSignal] = useState(0);
+  const [previewOpenStoreSignal, setPreviewOpenStoreSignal] = useState(0);
   const [activePreviewPage, setActivePreviewPage] = useState<'login' | 'home' | 'family' | 'care' | 'profile'>('login');
   const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos'>('family_messages');
   
@@ -121,6 +124,7 @@ export default function App() {
     setElderBindingScenario('bound');
     setReminderScenario('list');
     setLoginScenario('default');
+    setStoreCategoryScenario('default');
     setElderProfileRadarExpanded(true);
     setPreviewCloseScoreDetailsSignal(value => value + 1);
     setPreviewCloseFamilyReceiptsSignal(value => value + 1);
@@ -183,6 +187,8 @@ export default function App() {
               loginScenario={loginScenario}
               previewOpenLoginSignal={previewOpenLoginSignal}
               elderBindingScenario={elderBindingScenario}
+              storeCategoryScenario={storeCategoryScenario}
+              previewOpenStoreSignal={previewOpenStoreSignal}
               onPreviewContextChange={(page, familyModule) => {
                 setActivePreviewPage(page);
                 if (familyModule) setActivePreviewFamilyModule(familyModule);
@@ -206,6 +212,7 @@ export default function App() {
             elderBindingScenario={elderBindingScenario}
             reminderScenario={reminderScenario}
             loginScenario={loginScenario}
+            storeCategoryScenario={storeCategoryScenario}
             elderProfileRadarExpanded={elderProfileRadarExpanded}
             showSimulator={showSimulator}
             onHomeCareScenarioChange={setHomeCareScenario}
@@ -228,6 +235,7 @@ export default function App() {
             onElderBindingScenarioChange={setElderBindingScenario}
             onReminderScenarioChange={setReminderScenario}
             onLoginScenarioChange={setLoginScenario}
+            onStoreCategoryScenarioChange={setStoreCategoryScenario}
             onOpenLogin={() => setPreviewOpenLoginSignal(value => value + 1)}
             onElderProfileRadarExpandedChange={setElderProfileRadarExpanded}
             onOpenElderProfile={() => setPreviewOpenElderProfileSignal(value => value + 1)}
@@ -246,6 +254,7 @@ export default function App() {
               setPreviewOpenMedicationDetailsSignal(value => value + 1);
             }}
             onOpenReminders={() => setPreviewOpenRemindersSignal(value => value + 1)}
+            onOpenStore={() => setPreviewOpenStoreSignal(value => value + 1)}
             onReset={handleResetPreview}
             onToggleSimulator={() => setShowSimulator(value => !value)}
           />

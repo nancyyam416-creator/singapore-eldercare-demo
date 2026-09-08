@@ -24,6 +24,7 @@ import "./schedule-page.css";
 type ScheduleKind = "medication" | "life";
 type ReminderStatus = "pending" | "completed" | "unconfirmed" | "expired";
 type RepeatRule = "once" | "daily" | "weekly";
+const SHOW_QUICK_ADD = false;
 
 interface ScheduleItem {
   id: string;
@@ -114,14 +115,6 @@ const pad = (value: number) => String(value).padStart(2, "0");
 
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
-const formatDate = (date: Date) =>
-  date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
 
 const formatShortDate = (key: string) => {
   const [year, month, day] = key.split("-").map(Number);
@@ -356,9 +349,6 @@ export default function SchedulePage({
     })
     .sort((a, b) => a.time.localeCompare(b.time));
 
-  const todayItems = getItemsForDate(todayKey);
-  const unresolvedItems = todayItems.filter((item) => item.status !== "completed");
-  const completedItems = todayItems.filter((item) => item.status === "completed");
   const selectedItems = getItemsForDate(selectedDateKey);
   const selectedMedicationItems = selectedItems.filter((item) => item.kind === "medication");
   const selectedDailyItems = selectedItems.filter((item) => item.kind !== "medication");
@@ -591,12 +581,6 @@ export default function SchedulePage({
         title="提醒事项"
         icon={<CalendarDays aria-hidden="true" />}
         onBack={onClose}
-        actions={(
-          <div className="schedule-page__summary">
-            <p>{formatDate(today)}</p>
-            <p>今天还有 {unresolvedItems.length} 件 · 已完成 {completedItems.length} 件</p>
-          </div>
-        )}
       />
 
       <main className="schedule-page__main flex-1 min-h-0 p-6 flex gap-6">
@@ -631,14 +615,14 @@ export default function SchedulePage({
             )}
           </div>
 
-          <div className="schedule-calendar flex-1 min-h-0 rounded-[26px] border-2 border-[#E2DDD4] bg-white p-5">
+          <div className="schedule-calendar flex-1 min-h-0 rounded-[26px] border-2 border-[#E2DDD4] bg-white p-5 flex flex-col">
             <div className="flex items-center justify-between gap-3">
               <button type="button" aria-label="上个月" onClick={() => setCalendarMonth(new Date(calendarYear, calendarMonthIndex - 1, 1))} className="w-12 h-12 rounded-full border-2 border-[#DDD7CE] flex items-center justify-center"><ChevronLeft className="w-6 h-6" /></button>
               <div className="text-center"><h2 className="text-[23px] font-black">{calendarYear}年{calendarMonthIndex + 1}月</h2><p className="mt-1 text-[14px] font-bold text-gray-500">红点用药 · 蓝点事项</p></div>
               <button type="button" aria-label="下个月" onClick={() => setCalendarMonth(new Date(calendarYear, calendarMonthIndex + 1, 1))} className="w-12 h-12 rounded-full border-2 border-[#DDD7CE] flex items-center justify-center"><ChevronRight className="w-6 h-6" /></button>
             </div>
-            <div className="mt-4 grid grid-cols-7 text-center text-[15px] font-black text-gray-500">{["日", "一", "二", "三", "四", "五", "六"].map((day) => <span key={day}>{day}</span>)}</div>
-            <div className="mt-2 grid grid-cols-7 gap-1.5">
+            <div className="schedule-calendar__weekdays mt-4 grid grid-cols-7 text-center text-[15px] font-black text-gray-500">{["日", "一", "二", "三", "四", "五", "六"].map((day) => <span key={day}>{day}</span>)}</div>
+            <div className="schedule-calendar__days mt-2 grid grid-cols-7 gap-1.5 flex-1 min-h-0">
               {calendarCells.map((day, index) => {
                 if (!day) return <span key={`blank-${index}`} />;
                 const dayKey = `${calendarYear}-${pad(calendarMonthIndex + 1)}-${pad(day)}`;
@@ -648,7 +632,7 @@ export default function SchedulePage({
                 const selected = dayKey === selectedDateKey;
                 const isToday = dayKey === todayKey;
                 return (
-                  <button key={dayKey} type="button" onClick={() => setSelectedDateKey(dayKey)} aria-label={`${day}日${isToday ? "，今天" : ""}`} className={`schedule-calendar-day ${selected ? "is-selected" : ""} ${isToday ? "is-today" : ""} h-[52px] rounded-2xl border-2 flex flex-col items-center justify-center text-[19px] font-black ${selected ? "border-[#16824F] bg-[#16824F] text-white" : isToday ? "border-[#65B98A] bg-[#EFF9F3] text-[#14533C]" : "border-transparent bg-[#FAF8F5]"}`}>
+                  <button key={dayKey} type="button" onClick={() => setSelectedDateKey(dayKey)} aria-label={`${day}日${isToday ? "，今天" : ""}`} className={`schedule-calendar-day ${selected ? "is-selected" : ""} ${isToday ? "is-today" : ""} min-h-[52px] rounded-2xl border-2 flex flex-col items-center justify-center text-[19px] font-black ${selected ? "border-[#16824F] bg-[#16824F] text-white" : isToday ? "border-[#65B98A] bg-[#EFF9F3] text-[#14533C]" : "border-transparent bg-[#FAF8F5]"}`}>
                     {day}<span className="mt-1 flex gap-1">{hasMedication && <i className="w-2 h-2 rounded-full bg-[#E1473E]" />}{hasDaily && <i className="w-2 h-2 rounded-full bg-[#3B82C4]" />}</span>
                   </button>
                 );
@@ -656,35 +640,39 @@ export default function SchedulePage({
             </div>
           </div>
 
-          <div className="schedule-quick-add grid grid-cols-[1fr_152px] gap-3">
-            <button
-              type="button"
-              onClick={startVoiceCreate}
-              className="schedule-voice-entry min-h-[112px] rounded-[24px] border-2 border-[#16824F] bg-[#14533C] px-5 text-left text-white shadow-md flex items-center gap-4 hover:bg-[#0F6B40]"
-            >
-              <span className="w-16 h-16 shrink-0 rounded-full bg-white text-[#16824F] flex items-center justify-center shadow-sm">
-                <Mic className="w-9 h-9" />
-              </span>
-              <span className="min-w-0">
-                <strong className="block text-[22px] leading-tight font-black">点一下，用说话添加提醒</strong>
-                <span className="mt-2 block text-[15px] leading-snug font-bold text-white/85">例如：“明天下午3点提醒我去复诊”</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="schedule-manual-entry min-h-[112px] rounded-[24px] border-2 border-[#DDD7CE] bg-white text-[#315B49] text-[18px] font-black flex flex-col items-center justify-center gap-2 hover:bg-[#F7F4EF]"
-            >
-              <Plus className="w-8 h-8" />
-              手动填写
-            </button>
-          </div>
-          <p className="text-center text-[14px] leading-none font-black text-gray-500">点击绿色按钮后，按提示说一句完整的话即可</p>
+          {SHOW_QUICK_ADD && (
+            <>
+              <div className="schedule-quick-add grid grid-cols-[1fr_152px] gap-3">
+                <button
+                  type="button"
+                  onClick={startVoiceCreate}
+                  className="schedule-voice-entry min-h-[112px] rounded-[24px] border-2 border-[#16824F] bg-[#14533C] px-5 text-left text-white shadow-md flex items-center gap-4 hover:bg-[#0F6B40]"
+                >
+                  <span className="w-16 h-16 shrink-0 rounded-full bg-white text-[#16824F] flex items-center justify-center shadow-sm">
+                    <Mic className="w-9 h-9" />
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block text-[22px] leading-tight font-black">点一下，用说话添加提醒</strong>
+                    <span className="mt-2 block text-[15px] leading-snug font-bold text-white/85">例如：“明天下午3点提醒我去复诊”</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="schedule-manual-entry min-h-[112px] rounded-[24px] border-2 border-[#DDD7CE] bg-white text-[#315B49] text-[18px] font-black flex flex-col items-center justify-center gap-2 hover:bg-[#F7F4EF]"
+                >
+                  <Plus className="w-8 h-8" />
+                  手动填写
+                </button>
+              </div>
+              <p className="text-center text-[14px] leading-none font-black text-gray-500">点击绿色按钮后，按提示说一句完整的话即可</p>
+            </>
+          )}
         </section>
 
         <section className="schedule-agenda flex-1 min-w-0 rounded-[28px] border-2 border-[#E2DDD4] bg-white flex flex-col overflow-hidden" aria-label={`${selectedDateTitle}的日程`}>
           <div className="schedule-agenda__header shrink-0 px-7 py-5 border-b border-[#E8E2D9] flex items-center justify-between gap-5">
-            <div><h2 className="text-[28px] font-black">{selectedDateTitle}</h2><p className="mt-2 text-[16px] font-bold text-gray-500">用药优先展示，完成后自动移到底部</p></div>
+            <h2 className="text-[28px] font-black">{selectedDateTitle}</h2>
             <button type="button" onClick={speakRemaining} className="min-w-[190px] h-[66px] rounded-[20px] bg-[#14533C] text-white text-[19px] font-black flex items-center justify-center gap-3"><Volume2 className="w-7 h-7" />语音播报</button>
           </div>
 
@@ -696,7 +684,7 @@ export default function SchedulePage({
                     <article key={`med-${item.id}`} className="schedule-item schedule-item--medication min-h-[180px] rounded-[24px] border-2 border-[#E9C98D] bg-[#FFFAEE] p-5 flex items-center gap-5">
                     <div className="w-20 h-20 rounded-[22px] bg-[#FFE6B8] text-[#B76500] flex items-center justify-center shrink-0"><Pill className="w-11 h-11" /></div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3"><strong className="text-[27px]">{item.time}</strong><span className="px-3 py-1 rounded-full bg-[#FFF0D8] text-[#9B5700] text-[14px] font-black">用药提醒</span><span className={`px-3 py-1 rounded-full text-[14px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span></div>
+                      <div className="flex items-center gap-3"><strong className="text-[27px]">{item.time}</strong><span className={`px-3 py-1 rounded-full text-[14px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span></div>
                       <h4 className="mt-2 text-[25px] leading-tight font-black">{item.title}</h4><p className="mt-2 text-[18px] font-bold text-gray-600">{item.detail}</p>
                     </div>
                     <div className="w-[220px] shrink-0">
@@ -717,7 +705,7 @@ export default function SchedulePage({
                     <article key={`daily-${item.id}`} className="schedule-item schedule-item--daily min-h-[132px] rounded-[24px] border-2 border-[#C9DCEB] bg-[#F5FAFE] p-5 flex items-center gap-5">
                       <div className="w-[72px] h-[72px] rounded-[22px] bg-[#E5F0FA] text-[#376A94] flex items-center justify-center shrink-0"><Icon className="w-9 h-9" /></div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3"><strong className="text-[25px]">{item.time}</strong><span className="rounded-full bg-[#E5F0FA] px-3 py-1 text-[13px] font-black text-[#376A94]">日常提醒</span><span className={`rounded-full px-3 py-1 text-[13px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span></div>
+                        <div className="flex items-center gap-3"><strong className="text-[25px]">{item.time}</strong><span className={`rounded-full px-3 py-1 text-[13px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span></div>
                         <h4 className="mt-2 text-[23px] leading-tight font-black">{item.title}</h4><p className="mt-2 text-[17px] font-bold text-gray-600 line-clamp-2">{item.detail}</p>
                       </div>
                       <div className="w-[220px] shrink-0">

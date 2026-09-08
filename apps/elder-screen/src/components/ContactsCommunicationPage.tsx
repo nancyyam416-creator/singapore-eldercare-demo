@@ -3,22 +3,30 @@ import Lottie from "lottie-react";
 import {
   Check,
   CheckCircle2,
+  CloudRain,
+  CloudSun,
   Clock3,
   Image,
   MessageCircleHeart,
   Mic,
   Phone,
+  PhoneMissed,
   PhoneOff,
   RotateCcw,
   UserPlus,
   Users,
   Video,
   Volume2,
+  Wind,
   X,
 } from "lucide-react";
 import voiceWaveAnimation from "../animations/voiceWave";
 import { speakText, stopSpeech } from "../audio/speech";
 import type { FamilyMessage } from "../types";
+import {
+  familyWeatherMockApi,
+  type FamilyWeatherMember,
+} from "../weather/familyWeather";
 import FamilyInvitationModal from "./FamilyInvitationModal";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./contacts-communication.css";
@@ -28,8 +36,10 @@ interface ContactsCommunicationPageProps {
   onClose: () => void;
   hasBoundFamily?: boolean;
   messages: FamilyMessage[];
+  missedCallCount: number;
   onAddMessage: (message: FamilyMessage) => void;
   onMarkRead: (messageId: string) => void;
+  onClearMissedCalls: () => void;
 }
 
 interface CommunicationContact {
@@ -38,8 +48,8 @@ interface CommunicationContact {
   relation: string;
   avatar: string;
   group: "family" | "service";
-  online: boolean;
-  contactHint: string;
+  detail?: string;
+  weatherUserId?: string;
 }
 
 type RecorderState = "idle" | "recording" | "sent";
@@ -52,8 +62,7 @@ const CONTACTS: CommunicationContact[] = [
     relation: "女儿",
     avatar: "https://picsum.photos/seed/xiaomin/240/240",
     group: "family",
-    online: true,
-    contactHint: "当前可联系",
+    weatherUserId: "daughter-xiaomin",
   },
   {
     id: "son",
@@ -61,8 +70,7 @@ const CONTACTS: CommunicationContact[] = [
     relation: "儿子",
     avatar: "https://picsum.photos/seed/xiaogang/240/240",
     group: "family",
-    online: true,
-    contactHint: "当前可联系",
+    weatherUserId: "son-xiaogang",
   },
   {
     id: "nurse",
@@ -70,8 +78,7 @@ const CONTACTS: CommunicationContact[] = [
     relation: "王护士",
     avatar: "https://picsum.photos/seed/nurse/240/240",
     group: "service",
-    online: true,
-    contactHint: "工作时间在线",
+    detail: "健康服务",
   },
   {
     id: "community",
@@ -79,8 +86,7 @@ const CONTACTS: CommunicationContact[] = [
     relation: "清华园社区",
     avatar: "https://picsum.photos/seed/community-center/240/240",
     group: "service",
-    online: false,
-    contactHint: "服务时间 08:00–18:00",
+    detail: "服务时间 08:00–18:00",
   },
 ];
 
@@ -89,13 +95,52 @@ const formatSeconds = (seconds: number) => {
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 };
 
+const formatContactLocalTime = (timeZone: string) => new Intl.DateTimeFormat("zh-CN", {
+  timeZone,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+}).format(new Date());
+
+const getWeatherSummary = (member: FamilyWeatherMember | undefined, elderTimeZone: string | undefined) => {
+  if (!member?.location || member.location.status !== "valid") {
+    return { primary: "暂未设置所在地", secondary: "", state: "missing" as const };
+  }
+
+  const { weather, location } = member;
+  const isCrossTimeZone = Boolean(elderTimeZone && location.timeZone !== elderTimeZone);
+  const pronoun = member.relationship.includes("女") ? "她" : "他";
+  const secondary = isCrossTimeZone ? `${pronoun}那里现在 ${formatContactLocalTime(location.timeZone)}` : "";
+  if (!weather || !["success", "cached"].includes(weather.queryState) || weather.temperatureC === undefined) {
+    return {
+      primary: `${location.cityName} · 天气暂不可用`,
+      secondary,
+      state: "unavailable" as const,
+    };
+  }
+
+  return {
+    primary: `${location.cityName} · ${weather.conditionText ?? "天气"} ${weather.temperatureC}℃`,
+    secondary,
+    state: weather.conditionCode ?? "cloudy",
+  };
+};
+
+const WeatherGlyph = ({ state }: { state: ReturnType<typeof getWeatherSummary>["state"] }) => {
+  if (state === "rain" || state === "storm" || state === "snow") return <CloudRain aria-hidden="true" />;
+  if (state === "wind" || state === "cold") return <Wind aria-hidden="true" />;
+  return <CloudSun aria-hidden="true" />;
+};
+
 export default function ContactsCommunicationPage({
   isOpen,
   onClose,
   hasBoundFamily = true,
   messages,
+  missedCallCount,
   onAddMessage,
   onMarkRead,
+  onClearMissedCalls,
 }: ContactsCommunicationPageProps) {
   const [selectedContactId, setSelectedContactId] = useState("daughter");
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
@@ -107,16 +152,24 @@ export default function ContactsCommunicationPage({
   const [callMode, setCallMode] = useState<"video" | "voice">("video");
   const [callContact, setCallContact] = useState<CommunicationContact | null>(null);
   const [isFamilyInvitationOpen, setIsFamilyInvitationOpen] = useState(false);
+  const [missedCallHistoryCount, setMissedCallHistoryCount] = useState(0);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const recordingTimerRef = useRef<number | null>(null);
   const playbackTimerRef = useRef<number | null>(null);
   const callTimerRef = useRef<number | null>(null);
   const sentTimerRef = useRef<number | null>(null);
+  const familyWeatherSnapshot = useMemo(() => familyWeatherMockApi.getSnapshot("default"), []);
+  const familyWeatherByUserId = useMemo(
+    () => new Map(familyWeatherSnapshot.children.map((member) => [member.userId, member])),
+    [familyWeatherSnapshot],
+  );
+  const elderTimeZone = familyWeatherSnapshot.elder.location?.timeZone;
 
   const contactsWithUnread = useMemo(() => CONTACTS.map((contact, index) => {
     const unread = messages.filter((message) => message.sender === contact.name && !message.played).length;
-    return { ...contact, unread, originalIndex: index };
-  }), [messages]);
+    const missedCalls = contact.id === "daughter" ? missedCallCount : 0;
+    return { ...contact, unread, missedCalls, originalIndex: index };
+  }), [messages, missedCallCount]);
 
   const visibleContacts = useMemo(
     () => hasBoundFamily ? contactsWithUnread : contactsWithUnread.filter((contact) => contact.group !== "family"),
@@ -125,12 +178,23 @@ export default function ContactsCommunicationPage({
 
   const familyContacts = useMemo(() => visibleContacts
     .filter((contact) => contact.group === "family")
-    .sort((first, second) => second.unread - first.unread || first.originalIndex - second.originalIndex), [visibleContacts]);
+    .sort((first, second) => (second.missedCalls + second.unread) - (first.missedCalls + first.unread) || first.originalIndex - second.originalIndex), [visibleContacts]);
   const serviceContacts = useMemo(() => visibleContacts.filter((contact) => contact.group === "service"), [visibleContacts]);
   const selectedContact = visibleContacts.find((contact) => contact.id === selectedContactId) ?? visibleContacts[0];
   const selectedMessages = messages.filter((message) =>
     message.sender === selectedContact.name || (message.sender === "您 (我)" && message.recipient === selectedContact.name)
   );
+  const selectedMissedCallHistoryCount = selectedContact.id === "daughter" ? missedCallHistoryCount : 0;
+
+  useEffect(() => {
+    if (missedCallCount > 0) setMissedCallHistoryCount(missedCallCount);
+  }, [missedCallCount]);
+
+  useEffect(() => {
+    if (!isOpen || selectedContactId !== "daughter" || missedCallCount <= 0) return;
+    const timer = window.setTimeout(onClearMissedCalls, 900);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, selectedContactId, missedCallCount, onClearMissedCalls]);
 
   useEffect(() => () => {
     stopSpeech();
@@ -245,25 +309,47 @@ export default function ContactsCommunicationPage({
     window.setTimeout(startRecording, 160);
   };
 
-  const renderContact = (contact: typeof contactsWithUnread[number]) => (
-    <button
+  const renderContact = (contact: typeof contactsWithUnread[number]) => {
+    const weather = contact.group === "family"
+      ? getWeatherSummary(contact.weatherUserId ? familyWeatherByUserId.get(contact.weatherUserId) : undefined, elderTimeZone)
+      : null;
+    const contactSummary = contact.missedCalls > 0
+      ? `${contact.missedCalls}次未接来电${contact.unread > 0 ? ` · ${contact.unread}条未读留言` : ""}`
+      : contact.unread > 0 ? `${contact.unread}条未读留言` : contact.detail;
+    const weatherLabel = weather ? [weather.primary, weather.secondary].filter(Boolean).join("，") : "";
+
+    return (
+      <button
       key={contact.id}
       type="button"
-      className={`communication-contact ${selectedContact.id === contact.id ? "is-selected" : ""}`}
+      className={`communication-contact is-${contact.group} ${selectedContact.id === contact.id ? "is-selected" : ""}`}
       onClick={() => selectContact(contact)}
-      aria-label={`${contact.name}，${contact.unread > 0 ? `${contact.unread}条未读留言` : "没有未读留言"}`}
+      aria-label={`${contact.name}，${weatherLabel ? `${weatherLabel}，` : ""}${contact.missedCalls > 0 ? `${contact.missedCalls}次未接来电，` : ""}${contact.unread > 0 ? `${contact.unread}条未读留言` : "没有未读留言"}`}
     >
       <span className="communication-contact__avatar">
         <img src={contact.avatar} alt="" referrerPolicy="no-referrer" />
-        <i className={contact.online ? "is-online" : ""} aria-label={contact.online ? "当前可联系" : "暂时离线"} />
       </span>
       <span className="communication-contact__copy">
         <strong>{contact.name}</strong>
-        <small>{contact.unread > 0 ? `${contact.unread}条未读留言` : contact.contactHint}</small>
+        {contactSummary && <small className={contact.missedCalls > 0 ? "is-missed" : ""}>{contactSummary}</small>}
+        {weather && (
+          <span className={`communication-contact__weather is-${weather.state}`}>
+            <WeatherGlyph state={weather.state} />
+            <span><b>{weather.primary}</b>{weather.secondary && <em>{weather.secondary}</em>}</span>
+          </span>
+        )}
       </span>
-      {contact.unread > 0 && <b className="communication-contact__badge">{contact.unread}</b>}
-    </button>
-  );
+      <span className="communication-contact__alerts">
+        {contact.missedCalls > 0 && <b className="communication-contact__missed"><PhoneMissed aria-hidden="true" />未接 {contact.missedCalls}</b>}
+        {contact.unread > 0 && <b className="communication-contact__badge" aria-label={`${contact.unread}条未读留言`}>{contact.unread}</b>}
+      </span>
+      </button>
+    );
+  };
+
+  const selectedWeather = selectedContact.group === "family"
+    ? getWeatherSummary(selectedContact.weatherUserId ? familyWeatherByUserId.get(selectedContact.weatherUserId) : undefined, elderTimeZone)
+    : null;
 
   return (
     <main className="contacts-communication" aria-label="通讯录">
@@ -281,7 +367,6 @@ export default function ContactsCommunicationPage({
 
       <div className="contacts-communication__workspace">
         <aside className="communication-sidebar" aria-label="联系人列表">
-          <div className="communication-sidebar__title"><Users aria-hidden="true" /><h2>联系人</h2></div>
           <section>
             <h3>亲情圈</h3>
             <div>
@@ -299,8 +384,19 @@ export default function ContactsCommunicationPage({
         <section className="communication-main" aria-label={`${selectedContact.name}的沟通记录`}>
           <header className="communication-main__header">
             <span className="communication-main__identity">
-              <span className="communication-main__avatar"><img src={selectedContact.avatar} alt="" referrerPolicy="no-referrer" /><i className={selectedContact.online ? "is-online" : ""} /></span>
-              <span><strong>{selectedContact.name}</strong><small>{selectedContact.relation} · {selectedContact.contactHint}</small></span>
+              <span className="communication-main__avatar"><img src={selectedContact.avatar} alt="" referrerPolicy="no-referrer" /></span>
+              <span>
+                <strong>{selectedContact.name}</strong>
+                {selectedWeather && (
+                  <span className={`communication-main__weather is-${selectedWeather.state}`}>
+                    <WeatherGlyph state={selectedWeather.state} />
+                    <span>
+                      <b>{selectedWeather.primary}</b>
+                      {selectedWeather.secondary && <em>{selectedWeather.secondary}</em>}
+                    </span>
+                  </span>
+                )}
+              </span>
             </span>
             <div className="communication-call-actions">
               <button type="button" className="communication-call-secondary" onClick={() => startCall("voice")}><Phone aria-hidden="true" />语音通话</button>
@@ -309,8 +405,25 @@ export default function ContactsCommunicationPage({
           </header>
 
           <div className="communication-timeline" ref={timelineRef}>
-            <div className="communication-timeline__label"><Clock3 aria-hidden="true" />沟通与留言</div>
-            {selectedMessages.length === 0 ? (
+            <div className="communication-timeline__label"><Clock3 aria-hidden="true" />通话与留言</div>
+            {selectedMissedCallHistoryCount > 0 && (
+              <article className="communication-message communication-call-history" data-unread={selectedContact.missedCalls > 0 ? "true" : "false"}>
+                <img className="communication-message__avatar" src={selectedContact.avatar} alt="" referrerPolicy="no-referrer" />
+                <div className="communication-message__body">
+                  <div className="communication-message__meta">
+                    <strong>{selectedContact.name}</strong>
+                    <span>刚刚</span>
+                    <i>未接来电</i>
+                  </div>
+                  <div className="communication-call-history__content">
+                    <span><PhoneMissed aria-hidden="true" /></span>
+                    <p><strong>{selectedMissedCallHistoryCount}次未接来电</strong><small>您没有接听</small></p>
+                    <button type="button" onClick={() => startCall("voice")}><Phone aria-hidden="true" />回拨语音</button>
+                  </div>
+                </div>
+              </article>
+            )}
+            {selectedMessages.length === 0 && selectedMissedCallHistoryCount === 0 ? (
               <div className="communication-empty"><MessageCircleHeart aria-hidden="true" /><strong>还没有留言</strong><span>可以直接打电话，或在下方给对方留段语音。</span></div>
             ) : selectedMessages.map((message) => {
               const isMine = message.sender === "您 (我)";

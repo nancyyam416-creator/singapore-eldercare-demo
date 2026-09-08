@@ -190,6 +190,17 @@ export const initialMedications: Medication[] = [
     note: "随餐服用"
   },
   {
+    id: "med-overdue",
+    name: "碳酸钙D3片",
+    dosage: "1片",
+    timeSlot: "evening",
+    timeStr: "17:30",
+    status: "untaken",
+    note: "饭后服用",
+    consecutiveUnconfirmedDays: 2,
+    lastUnconfirmedAt: "昨天 17:30"
+  },
+  {
     id: "med-3",
     name: "阿司匹林肠溶片 (抗血小板)",
     dosage: "100mg / 1片",
@@ -262,11 +273,40 @@ export const initialActivities: ActivityLog[] = [
   }
 ];
 
+export const serviceCategories = [
+  { id: 'cat-jingan-home', communityId: 'community-jingan', code: 'home', name: '居家服务', description: '保洁、维修与生活协助', displayOrder: 1, status: 'enabled' },
+  { id: 'cat-jingan-care', communityId: 'community-jingan', code: 'care', name: '照护服务', description: '助浴、陪伴与专业照护', displayOrder: 2, status: 'enabled' },
+  { id: 'cat-jingan-meal', communityId: 'community-jingan', code: 'meal', name: '助餐服务', description: '营养配餐与送餐到家', displayOrder: 3, status: 'enabled' },
+  { id: 'cat-jingan-health', communityId: 'community-jingan', code: 'health', name: '健康服务', description: '问诊、护理与健康支持', displayOrder: 4, status: 'enabled' },
+  { id: 'cat-jingan-safety', communityId: 'community-jingan', code: 'safety', name: '适老安全', description: '适老改造与安全设备', displayOrder: 5, status: 'enabled' },
+  { id: 'cat-changning-home', communityId: 'community-changning', code: 'home', name: '居家服务', description: '保洁、维修与生活协助', displayOrder: 1, status: 'enabled' },
+  { id: 'cat-changning-care', communityId: 'community-changning', code: 'care', name: '照护服务', description: '助浴、陪伴与专业照护', displayOrder: 2, status: 'enabled' },
+  { id: 'cat-changning-health', communityId: 'community-changning', code: 'health', name: '健康服务', description: '问诊、护理与健康支持', displayOrder: 4, status: 'enabled' },
+  { id: 'cat-changning-safety-disabled', communityId: 'community-changning', code: 'safety', name: '适老安全', description: '适老改造与安全设备', displayOrder: 5, status: 'disabled' }
+] as const;
+
 export const serviceCatalog: ServiceProduct[] = [
+  {
+    id: "srv-home-1",
+    name: "长辈居家深度保洁",
+    category: "home",
+    communityIds: ["community-jingan", "community-changning"],
+    isBookable: true,
+    price: 128,
+    unit: "次",
+    description: "重点清洁厨房、卫生间和长辈高频活动区域，减少居家清洁负担。",
+    longDescription: "由经过适老服务培训的保洁人员上门，完成厨房、卫生间、卧室及客厅的重点清洁，并留意地面湿滑、杂物阻挡等常见居家安全问题。",
+    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&h=400&q=80",
+    rating: 4.8,
+    sales: 680,
+    features: ["适老清洁流程", "重点区域消毒", "工具独立分区", "完成后现场确认"]
+  },
   {
     id: "srv-care-1",
     name: "专业长辈上门助浴服务",
     category: "care",
+    communityIds: ["community-jingan", "community-changning"],
+    isBookable: true,
     price: 158,
     unit: "次",
     description: "专业护理员双人上门，专为行动不便或关节退化的长辈提供安全舒缓的洗浴协助。含安全检查、血压测量及皮肤状况记录。",
@@ -280,6 +320,8 @@ export const serviceCatalog: ServiceProduct[] = [
     id: "srv-care-2",
     name: "温情陪伴/棋牌聊天/户外散步",
     category: "care",
+    communityIds: ["community-jingan"],
+    isBookable: true,
     price: 198,
     unit: "半天 (4小时)",
     description: "温暖耐心的养老护理员上门，陪长辈聊天看报、读信、下棋、散步晒太阳，提供精神慰藉与安全陪护。",
@@ -292,7 +334,9 @@ export const serviceCatalog: ServiceProduct[] = [
   {
     id: "srv-food-1",
     name: "长辈专属营养餐制作/配餐上门",
-    category: "food",
+    category: "meal",
+    communityIds: ["community-jingan"],
+    isBookable: true,
     price: 68,
     unit: "餐",
     description: "由金牌健康烹饪师上门，根据长辈的慢性病（高血压、高血糖等）量身定制三菜一汤低盐低脂健康餐，并打扫厨房。",
@@ -305,7 +349,9 @@ export const serviceCatalog: ServiceProduct[] = [
   {
     id: "srv-med-1",
     name: "三甲名医远程视频问诊+处方代配",
-    category: "medical",
+    category: "health",
+    communityIds: ["community-jingan", "community-changning"],
+    isBookable: true,
     price: 99,
     unit: "次",
     description: "协助长辈在家庭中控屏/手机上发起与三甲大医院医生的1对1视频问诊，协助解读体检报告、慢病调药及电子处方配药送药上门。",
@@ -318,7 +364,9 @@ export const serviceCatalog: ServiceProduct[] = [
   {
     id: "srv-med-2",
     name: "持证专业护士上门换药/抽血/导尿",
-    category: "medical",
+    category: "health",
+    communityIds: ["community-jingan"],
+    isBookable: true,
     price: 180,
     unit: "次",
     description: "专业持证注册护士上门，提供术后伤口换药、留置胃管/尿管更换、静脉采血送检等专业临床护理服务。",
@@ -332,6 +380,8 @@ export const serviceCatalog: ServiceProduct[] = [
     id: "srv-safe-1",
     name: "卫生间高强度防摔安全扶手安装",
     category: "safety",
+    communityIds: ["community-jingan"],
+    isBookable: true,
     price: 350,
     unit: "套 (含2个扶手+上门安装)",
     description: "专业适老化改造工程师上门评估，在马桶旁、淋浴区精准打孔安装2个航天级防滑不锈钢承重拉手（单个承重200kg）。",
@@ -345,6 +395,8 @@ export const serviceCatalog: ServiceProduct[] = [
     id: "srv-safe-2",
     name: "一键式紧急无线SOS呼救呼叫器",
     category: "safety",
+    communityIds: ["community-jingan"],
+    isBookable: true,
     price: 580,
     unit: "套 (含设备+1年24小时专座服务)",
     description: "包含1台无线网关、2个挂墙大按钮、1个挂脖随身SOS按钮。按下瞬间直达中控屏、子女手机和24小时人工呼叫中心。",
@@ -361,6 +413,7 @@ export const initialOrders: Order[] = [
     id: "ord-1",
     serviceId: "srv-care-1",
     serviceName: "专业长辈上门助浴服务",
+    categoryNameSnapshot: "照护服务",
     price: 158,
     serviceDate: "2026-07-03",
     serviceTime: "14:00-16:00",

@@ -3,6 +3,8 @@ import activityTaichiCover from "./activity-taichi.svg";
 import activitySafetyCover from "./activity-safety.svg";
 import activityMusicCover from "./activity-music.svg";
 import activityHealthCover from "./activity-health.svg";
+import communityLifeMock from "./communityLifeMock.json";
+import serviceCategoryMock from "./serviceCategoryMock.json";
 import {
   careScriptMockApi,
   formatWeatherLocation,
@@ -16,6 +18,7 @@ import {
   weatherConditionCatalog,
   weatherMockApi,
 } from "./weatherMock";
+import { AcceptanceWorkbench } from "./AcceptanceWorkbench";
 import {
   Activity,
   AlertTriangle,
@@ -42,7 +45,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Save,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -53,7 +55,7 @@ import {
   X,
 } from "lucide-react";
 
-const menuGroups = [
+const communityMenuGroups = [
   { label: "工作台", items: [{ key: "overview", label: "运营概览", icon: LayoutDashboard }] },
   {
     label: "老人服务",
@@ -62,14 +64,13 @@ const menuGroups = [
       { key: "relations", label: "亲属档案", icon: HeartHandshake },
       { key: "reminders", label: "提醒事项", icon: Bell },
       { key: "emergencyHelp", label: "紧急求助", icon: AlertTriangle },
-      { key: "familyAlbums", label: "家庭相册", icon: Images },
     ],
   },
   {
     label: "运营内容",
     items: [
       { key: "recommendations", label: "推荐策略", icon: Sparkles },
-      { key: "safety", label: "安全资讯", icon: ShieldCheck },
+      { key: "safety", label: "社区内容", icon: MessageSquareText },
       { key: "activities", label: "社区活动", icon: CalendarDays },
       { key: "services", label: "预约服务", icon: ClipboardList },
     ],
@@ -82,31 +83,47 @@ const menuGroups = [
         { key: "sensorDevices", label: "房间活动传感器" },
       ] },
       { key: "activity", label: "房间活动", icon: Activity },
+    ],
+  },
+];
+
+const platformMenuGroups = [
+  { label: "平台工作台", items: [{ key: "platformOverview", label: "平台总览", icon: LayoutDashboard }] },
+  {
+    label: "组织与权限",
+    items: [
+      { key: "projects", label: "项目与社区", icon: Building2 },
+      { key: "accounts", label: "账号与角色", icon: CircleUserRound },
+    ],
+  },
+  {
+    label: "公共能力",
+    items: [
       { key: "weatherLocations", label: "天气位置", icon: CloudSun },
       { key: "careScripts", label: "关怀话术", icon: MessageSquareText },
     ],
   },
   {
-    label: "系统管理",
+    label: "平台管理",
     items: [
-      { key: "projects", label: "项目与社区", icon: Building2 },
-      { key: "accounts", label: "账号与角色", icon: CircleUserRound },
       { key: "logs", label: "操作日志", icon: FileClock },
       { key: "settings", label: "基础配置", icon: Settings },
     ],
   },
 ];
 
-const availableMenuKeys = new Set(menuGroups.flatMap((group) => group.items.flatMap((item) => [item.key, ...(item.children || []).map((child) => child.key)])));
+const allMenuGroups = [...communityMenuGroups, ...platformMenuGroups];
+const availableMenuKeys = new Set(allMenuGroups.flatMap((group) => group.items.flatMap((item) => [item.key, ...(item.children || []).map((child) => child.key)])));
 
 const pageMeta = {
+  platformOverview: { title: "平台总览", description: "查看全部项目与社区的运行状态和数据范围", add: "" },
   elderly: { title: "老人档案", description: "维护老人基础资料、所属项目与服务关系", add: "新增老人" },
   relations: { title: "亲属档案", description: "查看所有手机号注册用户及其关联的老人", add: "新增联系人" },
   reminders: { title: "提醒事项", description: "维护用药提醒和日常提醒定义，并查看后台详细计划", add: "新建提醒" },
   emergencyHelp: { title: "紧急求助", description: "跟进老人发起的紧急求助、通知送达与事件处理结果", add: "" },
   familyAlbums: { title: "家庭相册", description: "管理照片与视频批次，查看同步、首次查看和喜欢状态", add: "" },
   recommendations: { title: "推荐策略", description: "维护老人端每日推荐内容及自动轮播规则", add: "新增推荐策略" },
-  safety: { title: "安全资讯", description: "发布诈骗提醒、家居安全与社区公告", add: "发布资讯" },
+  safety: { title: "社区内容", description: "管理社区资讯内容与社区话题互动", add: "新增内容" },
   activities: { title: "社区活动", description: "发布活动并跟踪老人参与意向与触达结果", add: "发布活动" },
   services: { title: "预约服务", description: "查看并处理老人通过中控屏提交的上门服务预约", add: "" },
   tabletDevices: { title: "平板设备", description: "维护平板资产、老人绑定、激活和在线状态", add: "录入平板" },
@@ -182,14 +199,26 @@ const initialProjects = [
   { id: "PRJ-004", name: "宏茂桥活跃乐龄中心", community: "宏茂桥社区", country: "新加坡", city: "新加坡", district: "Ang Mo Kio", address: "305 Ang Mo Kio Avenue 1", timezone: "Asia/Singapore (UTC+8)", contact: "黄国民", phone: "+65 6456 9208", status: "启用" },
 ];
 
-const initialSafetyNews = [
-  { id: "SAF-001", title: "警惕冒充银行客服诈骗", category: "诈骗提醒", content: "近期出现冒充银行客服，以账户异常为由索取验证码的诈骗行为。请勿向陌生人提供银行卡信息、密码或短信验证码。", description: "银行工作人员不会通过电话索取密码或验证码。", cover: "", scope: "all", projectIds: [], status: "已发布", updatedAt: "2026-07-15 16:20" },
-  { id: "SAF-002", title: "雨季居家防滑注意事项", category: "家居安全", content: "雨季地面容易湿滑，请及时擦干玄关、厨房和卫生间积水，穿着防滑鞋，并保持夜间照明充足。", description: "及时清理积水，重点检查卫生间和玄关。", cover: "", scope: "projects", projectIds: ["PRJ-001"], status: "已发布", updatedAt: "2026-07-14 09:10" },
-  { id: "SAF-003", title: "社区维修工程通知", category: "社区公告", content: "大巴窑关怀中心公共区域将进行照明维护，施工期间请老人注意绕行，并听从现场工作人员指引。", description: "", cover: "", scope: "projects", projectIds: ["PRJ-002"], status: "已发布", updatedAt: "2026-07-16 11:05" },
-  { id: "SAF-004", title: "陌生人上门服务核验指南", category: "生活安全", content: "如有陌生人自称维修、送货或社区工作人员上门，请先通过官方电话核验身份，不要让无法确认身份的人员进入住所。", description: "无法核验身份时，不开门、不转账，并联系亲属或项目人员。", cover: "", scope: "all", projectIds: [], status: "已发布", updatedAt: "2026-07-08 13:40" },
+const communityContentTypes = ["社区公告", "生活资讯", "警惕事项"];
+const communityContentMockNow = "2026-08-27 10:00";
+const legacySafetyNews = [
+  { id: "SAF-001", projectId: "PRJ-001", type: "警惕事项", title: "警惕冒充银行客服诈骗", description: "银行工作人员不会通过电话索取密码或验证码。", content: "近期出现冒充银行客服，以账户异常为由索取验证码的诈骗行为。请勿向陌生人提供银行卡信息、密码或短信验证码。", cover: "", source: "红山社区服务站", audience: "当前社区全部老人", publishAt: "2026-08-20 08:00", validUntil: "2026-09-20 23:59", displayOrder: 1, status: "已发布", updatedAt: "2026-08-20 08:00" },
+  { id: "SAF-002", projectId: "PRJ-001", type: "生活资讯", title: "雨季居家防滑注意事项", description: "及时清理积水，重点检查卫生间和玄关。", content: "雨季地面容易湿滑，请及时擦干玄关、厨房和卫生间积水，穿着防滑鞋，并保持夜间照明充足。", cover: "", source: "红山社区健康组", audience: "当前社区全部老人", publishAt: "2026-08-21 09:00", validUntil: "2026-09-30 23:59", displayOrder: 2, status: "已发布", updatedAt: "2026-08-21 09:00" },
+  { id: "SAF-005", projectId: "PRJ-001", type: "社区公告", title: "周三公共区域清洁安排", description: "上午十点前完成走廊清洁，请注意避让作业区域。", content: "本周三上午将进行公共走廊和活动室清洁，作业期间部分区域临时封闭，请按照现场指引通行。", cover: "", source: "红山社区运营组", audience: "当前社区全部老人", publishAt: "2026-08-24 08:00", validUntil: "2026-08-27 18:00", displayOrder: 1, status: "已发布", updatedAt: "2026-08-23 16:30" },
+  { id: "SAF-007", projectId: "PRJ-001", type: "警惕事项", title: "雨天外出注意台阶积水", description: "雨天出行提示，外出时请放慢脚步。", content: "近期午后阵雨较多，社区入口台阶可能短时积水，建议外出时穿防滑鞋并使用扶手。", cover: "", source: "红山社区服务站", audience: "当前社区全部老人", publishAt: "2026-08-10 08:00", validUntil: "2026-08-20 23:59", displayOrder: 4, status: "已发布", updatedAt: "2026-08-10 08:00" },
+  { id: "SAF-008", projectId: "PRJ-001", type: "生活资讯", title: "午后补水小提示", description: "已停止继续展示的生活资讯示例。", content: "天气炎热时请少量多次饮水，如有身体不适请及时联系家人或社区人员。", cover: "", source: "红山社区健康组", audience: "当前社区全部老人", publishAt: "2026-08-12 09:00", validUntil: "2026-09-12 23:59", displayOrder: 5, status: "已停用", updatedAt: "2026-08-22 15:10" },
+  { id: "SAF-003", projectId: "PRJ-002", type: "社区公告", title: "社区维修工程通知", description: "公共区域照明维护，请按现场指引绕行。", content: "大巴窑关怀中心公共区域将进行照明维护，施工期间请老人注意绕行，并听从现场工作人员指引。", cover: "", source: "大巴窑社区运营组", audience: "当前社区全部老人", publishAt: "2026-08-22 08:00", validUntil: "2026-08-28 18:00", displayOrder: 1, status: "已发布", updatedAt: "2026-08-22 08:00" },
+  { id: "SAF-004", projectId: "PRJ-002", type: "警惕事项", title: "陌生人上门服务核验指南", description: "无法核验身份时，不开门、不转账。", content: "如有陌生人自称维修、送货或社区工作人员上门，请先通过官方电话核验身份。", cover: "", source: "大巴窑社区服务站", audience: "当前社区全部老人", publishAt: "2026-08-18 08:00", validUntil: "2026-09-18 23:59", displayOrder: 2, status: "已发布", updatedAt: "2026-08-18 08:00" },
 ];
 
-const initialServiceBookings = [
+function getCommunityContentStatus(record) {
+  if (record.status === "已停用") return "已停用";
+  if (record.status === "未发布" || record.publishAt > communityContentMockNow) return "未发布";
+  if (record.validUntil && record.validUntil < communityContentMockNow) return "已失效";
+  return "已发布";
+}
+
+const legacyServiceBookings = [
   { id: "RSV-20260726001", serviceId: "cleaning", serviceName: "家政保洁", category: "居家服务", elderlyId: "SG-E-000128", provider: "安心到家社区服务中心", slotId: "clean-tomorrow-am", slotLabel: "明天上午 09:00—11:00", status: "待确认", createdAt: "2026-07-26 09:18", source: "老人中控屏", operator: "", updatedAt: "2026-07-26 09:18" },
   { id: "RSV-20260726002", serviceId: "repair", serviceName: "上门维修", category: "居家服务", elderlyId: "SG-E-000127", provider: "社区便民维修站", slotId: "repair-tomorrow-pm", slotLabel: "明天下午 14:00—16:00", status: "已确认", createdAt: "2026-07-26 08:42", source: "老人中控屏", operator: "赵亚男", updatedAt: "2026-07-26 09:05" },
   { id: "RSV-20260725003", serviceId: "medical-companion", serviceName: "陪诊服务", category: "健康服务", elderlyId: "SG-E-000126", provider: "社区健康管家中心", slotId: "medical-tomorrow-am", slotLabel: "明天上午 07:30—12:00", status: "服务中", createdAt: "2026-07-25 16:20", source: "老人中控屏", operator: "张文杰", updatedAt: "2026-07-26 07:25" },
@@ -197,12 +226,32 @@ const initialServiceBookings = [
   { id: "RSV-20260724005", serviceId: "cleaning", serviceName: "家政保洁", category: "居家服务", elderlyId: "SG-E-000123", provider: "安心到家社区服务中心", slotId: "clean-after-am", slotLabel: "后天上午 09:00—11:00", status: "已取消", createdAt: "2026-07-24 10:16", source: "老人中控屏", operator: "老人本人", updatedAt: "2026-07-24 10:28" },
 ];
 
-const initialServiceCatalog = [
+const legacyServiceCatalog = [
   { id: "SRV-001", name: "家政保洁", category: "居家服务", provider: "安心到家社区服务中心", description: "提供日常居家清洁、地面清洁和基础整理服务。", slots: ["明天上午 09:00—11:00", "明天下午 14:00—16:00", "后天上午 09:00—11:00"], status: "启用", updatedAt: "2026-07-24 10:20" },
   { id: "SRV-002", name: "上门维修", category: "居家服务", provider: "社区便民维修站", description: "提供水电、门锁及常用居家设施的上门检查和维修。", slots: ["明天上午 10:00—12:00", "明天下午 14:00—16:00"], status: "启用", updatedAt: "2026-07-23 16:45" },
   { id: "SRV-003", name: "陪诊服务", category: "健康服务", provider: "社区健康管家中心", description: "协助老人就医报到、院内陪同及返程联系。", slots: ["明天上午 07:30—12:00", "后天上午 07:30—12:00"], status: "启用", updatedAt: "2026-07-22 09:18" },
   { id: "SRV-004", name: "助老生活照护", category: "照护服务", provider: "社区综合助老服务站", description: "提供生活协助、简单照护和日常陪伴。", slots: ["明天上午 09:30—11:30", "明天下午 14:30—16:30"], status: "启用", updatedAt: "2026-07-21 14:06" },
 ];
+
+const initialServiceCategories = serviceCategoryMock.serviceCategories.map((category) => ({
+  ...category,
+  status: category.status === "enabled" ? "启用" : "已停用",
+}));
+
+const initialServiceBookings = serviceCategoryMock.serviceBookings.map((booking) => ({
+  ...booking,
+  category: booking.categoryNameSnapshot,
+  slotId: `${booking.serviceId}-${booking.id}`,
+}));
+
+const initialServiceCatalog = serviceCategoryMock.serviceItems.map((service) => ({
+  ...service,
+  category: service.categoryName,
+  description: `${service.categoryName}可预约服务`,
+  slots: ["明天上午 09:00—11:00"],
+  status: service.status === "enabled" && service.available ? "启用" : "停用",
+  updatedAt: serviceCategoryMock.mockNow.slice(0, 16).replace("T", " "),
+}));
 
 const initialTabletDevices = [
   { id: "TAB-SG-20260031", sn: "SN-TAB-260031", model: "U2G Home 14", currentVersion: "v2.5.3", versionStatus: "待更新", activationCode: "583104", activationMethod: "激活码", operator: "赵亚男", status: "在线", boundElderlyId: "SG-E-000128", boundAt: "2026-07-02 10:18", lastOnline: "2 分钟前" },
@@ -348,30 +397,102 @@ const initialEmergencyHelpEvents = [
   },
 ];
 
-const initialCommunityActivities = [
-  { id: "ACT-001", title: "乐龄太极体验课", category: "健康活动", date: "2026-07-19", time: "09:00", location: "红山民众俱乐部", description: "专业老师带领适合长者的舒缓太极练习。", cover: activityTaichiCover, interestCount: 42, status: "报名中", publishedAt: "2026-07-16 10:30" },
-  { id: "ACT-002", title: "防诈骗分享会", category: "安全讲座", date: "2026-07-20", time: "14:30", location: "大巴窑关怀中心", description: "结合近期案例讲解常见诈骗手法和核验方式。", cover: activitySafetyCover, interestCount: 28, status: "报名中", publishedAt: "2026-07-15 15:20" },
-  { id: "ACT-003", title: "怀旧金曲下午茶", category: "兴趣活动", date: "2026-07-22", time: "15:00", location: "女皇镇乐龄中心", description: "欣赏怀旧金曲，与社区朋友轻松交流。", cover: activityMusicCover, interestCount: 36, status: "已发布", publishedAt: "2026-07-14 09:45" },
-  { id: "ACT-004", title: "营养健康咨询日", category: "健康活动", date: "2026-07-12", time: "10:00", location: "宏茂桥活跃乐龄中心", description: "提供日常饮食与营养搭配咨询。", cover: activityHealthCover, interestCount: 51, status: "已结束", publishedAt: "2026-07-08 11:10" },
-];
+const communityContentTypeLabels = {
+  announcement: "社区公告",
+  life_info: "生活资讯",
+  topic: "社区话题",
+  alert: "警惕事项",
+};
+const communityContentStatusLabels = { unpublished: "未发布", published: "已发布", disabled: "已停用" };
+const communityActivityStatusLabels = {
+  not_started: "未开始",
+  registration_open: "报名中",
+  registration_closed: "报名结束",
+  in_progress: "进行中",
+  ended: "已结束",
+  cancelled: "已取消",
+};
+const communityParticipationStatusLabels = { interested: "想参加", not_interested: "暂不参加" };
+const communityCoverAssets = {
+  alert: activitySafetyCover,
+  announcement: activityTaichiCover,
+  life_info: activityHealthCover,
+  topic: activityMusicCover,
+  "ACT-001": activityTaichiCover,
+  "ACT-002": activitySafetyCover,
+  "ACT-005": activityMusicCover,
+  "ACT-006": activityHealthCover,
+  "ACT-007": activityHealthCover,
+  "ACT-008": activitySafetyCover,
+};
+const formatMockDateTime = (value = "") => value ? value.slice(0, 16).replace("T", " ") : "";
+const formatMockInputDateTime = (value = "") => value ? value.slice(0, 16) : "";
 
-const initialActivityRegistrations = [
-  { id: "REG-001", activityId: "ACT-001", elderlyId: "SG-E-000128", registeredAt: "2026-07-16 11:05", status: "已报名" },
-  { id: "REG-002", activityId: "ACT-001", elderlyId: "SG-E-000126", registeredAt: "2026-07-16 13:18", status: "已报名" },
-  { id: "REG-003", activityId: "ACT-001", elderlyId: "SG-E-000124", registeredAt: "2026-07-17 08:42", status: "已报名" },
-  { id: "REG-004", activityId: "ACT-001", elderlyId: "SG-E-000123", registeredAt: "2026-07-17 09:16", status: "已取消" },
-  { id: "REG-005", activityId: "ACT-002", elderlyId: "SG-E-000127", registeredAt: "2026-07-15 16:08", status: "已报名" },
-  { id: "REG-006", activityId: "ACT-002", elderlyId: "SG-E-000128", registeredAt: "2026-07-16 09:35", status: "已报名" },
-  { id: "REG-007", activityId: "ACT-002", elderlyId: "SG-E-000125", registeredAt: "2026-07-16 14:22", status: "已报名" },
-  { id: "REG-008", activityId: "ACT-003", elderlyId: "SG-E-000128", registeredAt: "2026-07-14 10:12", status: "已报名" },
-  { id: "REG-009", activityId: "ACT-003", elderlyId: "SG-E-000127", registeredAt: "2026-07-14 11:26", status: "已报名" },
-  { id: "REG-010", activityId: "ACT-003", elderlyId: "SG-E-000126", registeredAt: "2026-07-15 08:30", status: "已报名" },
-  { id: "REG-011", activityId: "ACT-003", elderlyId: "SG-E-000124", registeredAt: "2026-07-15 15:44", status: "已报名" },
-  { id: "REG-012", activityId: "ACT-003", elderlyId: "SG-E-000123", registeredAt: "2026-07-16 09:02", status: "已报名" },
-  { id: "REG-013", activityId: "ACT-004", elderlyId: "SG-E-000128", registeredAt: "2026-07-09 09:20", status: "已签到" },
-  { id: "REG-014", activityId: "ACT-004", elderlyId: "SG-E-000127", registeredAt: "2026-07-09 10:15", status: "已签到" },
-  { id: "REG-015", activityId: "ACT-004", elderlyId: "SG-E-000126", registeredAt: "2026-07-10 14:06", status: "未签到" },
-];
+const initialSafetyNews = communityLifeMock.communityContents.map((item) => ({
+  id: item.id,
+  projectId: item.projectId,
+  communityId: item.communityId,
+  resourceType: item.resourceType,
+  type: communityContentTypeLabels[item.resourceType],
+  title: item.title,
+  description: item.summary,
+  content: richTextToPlainText(item.bodyHtml),
+  contentHtml: item.bodyHtml,
+  cover: communityCoverAssets[item.resourceType] || "",
+  coverUrl: item.coverUrl,
+  source: item.source,
+  audience: item.audience,
+  publishAt: formatMockDateTime(item.publishAt),
+  validUntil: formatMockDateTime(item.validUntil),
+  displayOrder: item.displayOrder,
+  status: communityContentStatusLabels[item.publishStatus],
+  updatedAt: formatMockDateTime(item.updatedAt),
+}));
+
+const initialCommunityTopics = (communityLifeMock.communityTopics || []).map((item) => ({
+  ...item,
+  createdAt: formatMockDateTime(item.createdAt),
+  body: richTextToPlainText(item.bodyHtml),
+}));
+
+const initialTopicComments = (communityLifeMock.topicComments || []).map((item) => ({
+  ...item,
+  createdAt: formatMockDateTime(item.createdAt),
+}));
+
+const initialCommunityActivities = communityLifeMock.communityActivities.map((item) => ({
+  id: item.id,
+  projectId: item.projectId,
+  communityId: item.communityId,
+  resourceType: item.resourceType,
+  title: item.title,
+  category: item.category,
+  description: item.summary,
+  contentHtml: item.bodyHtml,
+  cover: communityCoverAssets[item.id] || "",
+  coverUrl: item.coverUrl,
+  startAt: formatMockInputDateTime(item.startAt),
+  endAt: formatMockInputDateTime(item.endAt),
+  location: item.location,
+  audience: item.audience,
+  capacity: item.capacity,
+  registrationStartAt: formatMockInputDateTime(item.registrationStartAt),
+  registrationEndAt: formatMockInputDateTime(item.registrationEndAt),
+  status: communityActivityStatusLabels[item.activityStatus],
+  contact: item.contact,
+  publishedAt: formatMockDateTime(item.publishAt),
+  updatedAt: formatMockDateTime(item.updatedAt),
+}));
+
+const initialActivityRegistrations = communityLifeMock.activityParticipationIntents.map((item) => ({
+  id: item.id,
+  projectId: item.projectId,
+  communityId: item.communityId,
+  activityId: item.activityId,
+  elderlyId: item.elderlyId,
+  registeredAt: formatMockDateTime(item.submittedAt),
+  status: communityParticipationStatusLabels[item.participationStatus],
+}));
 
 const initialAlbumCategories = [
   { id: "ALB-CAT-001", name: "家庭日常", description: "记录家人生活、聚餐和日常问候影像", sort: 1, status: "启用", updatedAt: "2026-07-26 16:20" },
@@ -391,31 +512,64 @@ const initialFamilyAlbumBatches = [
   { id: "BATCH-20260722-01", uploaderId: "RU-00031", elderlyId: "SG-E-000128", categoryId: "ALB-CAT-003", categoryNameSnapshot: "旅行时光", contentType: "仅照片", photoCount: 3, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-22 10:08", publishStatus: "发布失败", syncStatus: "未入队", successCount: 0, failedCount: 3, lastSyncAt: "—", syncError: "Mock 上传批次未完成，没有进入老人端同步队列", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
 ];
 
-const recommendationPools = [
-  { key: "wellness", label: "安全资讯池", icon: "📰" },
-  { key: "community", label: "社区活动池", icon: "🎈" },
-  { key: "service", label: "预约服务池", icon: "🩺" },
+const recommendationTypes = [
+  { key: "activity", label: "社区活动" },
+  { key: "safety", label: "社区内容" },
+  { key: "entertainment", label: "娱乐" },
 ];
 
-const initialRecommendationPolicy = {
-  mode: "random",
-  repeatDays: 7,
-  wellnessStart: "08:00",
-  wellnessEnd: "11:00",
-  communityStart: "09:00",
-  communityEnd: "12:00",
-  serviceStart: "09:00",
-  serviceEnd: "17:00",
-};
+const recommendationMockNow = "2026-08-21T10:00";
+
+const entertainmentRecommendationResources = [
+  { id: "ENT-001", name: "怀旧金曲精选：经典女声", category: "怀旧音乐", summary: "收录适合长者收听的经典华语女声歌曲。", date: "2026-08-19 08:40", status: "已发布" },
+  { id: "ENT-002", name: "午后轻音乐：舒缓钢琴", category: "轻音乐", summary: "适合午后休息场景的舒缓钢琴曲目。", date: "2026-08-19 10:00", status: "已发布" },
+  { id: "ENT-003", name: "经典粤语老歌精选", category: "怀旧音乐", summary: "经典粤语老歌专题内容。", date: "2026-08-17 16:00", status: "已发布" },
+];
 
 const initialRecommendationStrategies = [
-  { id: "STR-001", pool: "wellness", resourceType: "safety", resourceId: "SAF-001", resourceName: "警惕冒充银行客服诈骗", title: "警惕冒充银行客服诈骗", status: "启用", pushCount: 12, lastPush: "2026-07-20 08:30" },
-  { id: "STR-002", pool: "wellness", resourceType: "safety", resourceId: "SAF-002", resourceName: "雨季居家防滑注意事项", title: "雨季居家防滑注意事项", status: "启用", pushCount: 9, lastPush: "昨天 08:10" },
-  { id: "STR-003", pool: "community", resourceType: "activity", resourceId: "ACT-001", resourceName: "乐龄太极体验课", title: "明早一起练太极", status: "启用", pushCount: 18, lastPush: "2026-07-22 10:00" },
-  { id: "STR-004", pool: "community", resourceType: "activity", resourceId: "ACT-003", resourceName: "怀旧金曲下午茶", title: "怀旧金曲下午茶等您参加", status: "停用", pushCount: 5, lastPush: "2026-07-15 09:20" },
-  { id: "STR-005", pool: "service", resourceType: "service", resourceId: "SRV-003", resourceName: "陪诊服务", title: "需要陪诊服务吗？", status: "启用", pushCount: 16, lastPush: "昨天 15:00" },
-  { id: "STR-006", pool: "service", resourceType: "service", resourceId: "SRV-001", resourceName: "家政保洁", title: "预约一次居家清洁", status: "启用", pushCount: 7, lastPush: "2026-07-19 14:30" },
+  { id: "REC-001", projectId: "PRJ-001", name: "明早一起练太极", type: "activity", sourceId: "ACT-001", sourceName: "乐龄太极体验课", sourceUpdatedAt: "2026-08-20 10:30", audience: "红山社区老人", startsAt: "2026-08-19T08:00", endsAt: "2026-08-22T18:00", enabled: true, displayOrder: 1, durationSeconds: 18, dailyLimit: 3, cooldownMinutes: 120, afterView: "continue", publishedAt: "2026-08-18T17:30", todayShown: 1, cooldownUntil: "" },
+  { id: "REC-002", projectId: "PRJ-001", name: "雨天居家防滑提醒", type: "safety", sourceId: "SAF-002", sourceName: "雨季居家防滑注意事项", sourceUpdatedAt: "2026-08-21 09:00", audience: "全部在服务老人", startsAt: "2026-08-18T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 2, durationSeconds: 20, dailyLimit: 2, cooldownMinutes: 180, afterView: "exit", publishedAt: "2026-08-19T09:20", todayShown: 0, cooldownUntil: "" },
+  { id: "REC-003", projectId: "PRJ-001", name: "怀旧金曲下午茶", type: "entertainment", sourceId: "ENT-001", sourceName: "怀旧金曲精选：经典女声", sourceUpdatedAt: "2026-08-19 08:40", audience: "喜欢戏曲与音乐", startsAt: "2026-08-19T09:00", endsAt: "2026-08-25T20:00", enabled: true, displayOrder: 2, durationSeconds: 25, dailyLimit: 4, cooldownMinutes: 90, afterView: "continue", publishedAt: "2026-08-19T08:40", todayShown: 1, cooldownUntil: "" },
+  { id: "REC-004", projectId: "PRJ-002", name: "大巴窑防诈骗分享会", type: "activity", sourceId: "ACT-002", sourceName: "大巴窑防诈骗分享会", sourceUpdatedAt: "2026-08-20 15:20", audience: "大巴窑社区老人", startsAt: "2026-08-22T09:00", endsAt: "2026-08-24T19:00", enabled: true, displayOrder: 3, durationSeconds: 18, dailyLimit: 2, cooldownMinutes: 120, afterView: "exit", publishedAt: "2026-08-18T11:00", todayShown: 0, cooldownUntil: "" },
+  { id: "REC-005", projectId: "PRJ-001", name: "银行客服诈骗核验", type: "safety", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "全部在服务老人", startsAt: "2026-08-01T08:00", endsAt: "2026-08-18T23:59", enabled: true, displayOrder: 4, durationSeconds: 22, dailyLimit: 3, cooldownMinutes: 180, afterView: "continue", publishedAt: "2026-08-01T10:15", todayShown: 0, cooldownUntil: "" },
+  { id: "REC-006", projectId: "PRJ-001", name: "经典粤语老歌精选", type: "entertainment", sourceId: "ENT-003", sourceName: "经典粤语老歌精选", sourceUpdatedAt: "2026-08-17 16:00", audience: "全部在服务老人", startsAt: "2026-08-10T08:00", endsAt: "2026-08-31T23:59", enabled: false, displayOrder: 5, durationSeconds: 30, dailyLimit: 3, cooldownMinutes: 120, afterView: "continue", publishedAt: "2026-08-17T16:00", todayShown: 0, cooldownUntil: "" },
+  { id: "REC-007", projectId: "PRJ-001", name: "午后轻音乐", type: "entertainment", sourceId: "ENT-002", sourceName: "午后轻音乐：舒缓钢琴", sourceUpdatedAt: "2026-08-19 10:00", audience: "全部在服务老人", startsAt: "2026-08-19T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 6, durationSeconds: 30, dailyLimit: 2, cooldownMinutes: 120, afterView: "continue", publishedAt: "2026-08-19T10:00", todayShown: 2, cooldownUntil: "" },
+  { id: "REC-008", projectId: "PRJ-001", name: "社区防骗小课堂", type: "safety", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "红山社区老人", startsAt: "2026-08-19T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 7, durationSeconds: 20, dailyLimit: 5, cooldownMinutes: 180, afterView: "continue", publishedAt: "2026-08-19T12:00", todayShown: 1, cooldownUntil: "2026-08-21T15:30" },
+  { id: "REC-009", projectId: "PRJ-001", name: "周末防诈骗直播", type: "safety", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "高龄老人", startsAt: "2026-08-23T09:00", endsAt: "2026-08-30T18:00", enabled: true, displayOrder: 3, durationSeconds: 20, dailyLimit: 2, cooldownMinutes: 180, afterView: "exit", publishedAt: "2026-08-20T14:30", todayShown: 0, cooldownUntil: "" },
 ];
+
+function getRecommendationAvailability(item, now = recommendationMockNow) {
+  if (!item.enabled) return "已停用";
+  if (item.startsAt > now) return "未生效";
+  if (item.endsAt < now) return "已过期";
+  if (Number(item.todayShown) >= Number(item.dailyLimit)) return "达到展示上限";
+  if (item.cooldownUntil && item.cooldownUntil > now) return "冷却中";
+  return "可展示";
+}
+
+function sortRecommendations(items) {
+  return [...items].sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder)
+    || String(b.publishedAt).localeCompare(String(a.publishedAt))
+    || String(a.id).localeCompare(String(b.id)));
+}
+
+function isRecommendationScheduledForDate(item, date) {
+  return item.enabled && item.startsAt.slice(0, 10) <= date && item.endsAt.slice(0, 10) >= date;
+}
+
+function getRecommendationDayItems(items, date) {
+  return sortRecommendations(items.filter((item) => isRecommendationScheduledForDate(item, date)));
+}
+
+function formatRecommendationDate(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function buildRecommendationCalendar(year, month) {
+  const days = new Date(year, month + 1, 0).getDate();
+  const offset = (new Date(year, month, 1).getDay() + 6) % 7;
+  return [...Array(offset).fill(null), ...Array.from({ length: days }, (_, index) => formatRecommendationDate(year, month, index + 1))];
+}
 
 const genericRows = {
   safety: [
@@ -424,7 +578,7 @@ const genericRows = {
     ["社区维修工程通知", "社区公告", "大巴窑关怀中心", "草稿", "—", "2026-07-16 11:05"],
     ["陌生人上门服务核验指南", "生活安全", "全部老人", "已撤回", "88%", "2026-07-08 13:40"],
   ],
-  activities: initialCommunityActivities.map((activity) => [activity.title, activity.category, `${activity.date.slice(5)} ${activity.time}`, activity.location, `${activity.interestCount} 人`, activity.status]),
+  activities: initialCommunityActivities.map((activity) => [activity.title, activity.category, activity.startAt.replace("T", " "), activity.location, activity.audience, activity.status]),
   devices: [
     ["客厅活动感知器", "SN-A20-88931", "陈美玲 / 客厅", "在线", "2 分钟前", "已校验"],
     ["卧室活动感知器", "SN-A20-88932", "陈美玲 / 卧室", "在线", "6 分钟前", "已校验"],
@@ -464,62 +618,209 @@ function StatusTag({ children }) {
   return <span className={`status-tag ${tone}`}>{children}</span>;
 }
 
-function Overview({ onNavigate, inactivityRule, inactivityStates, onEditInactivityRule }) {
-  const pendingInactivity = Object.values(inactivityStates || {}).filter((item) => item.status === "待关注");
-  const metrics = [
-    ["服务中老人", "286", "较昨日 +3", Users],
-    ["今日待处理", "18", "其中高优先级 4", ClipboardList],
-    ["设备在线率", "96.8%", "9 台设备需检查", MonitorSmartphone],
-    ["提醒完成率", "88.4%", "本周提升 2.6%", Bell],
-  ];
+const overviewAttentionMock = [
+  { id: "clue-001", priority: "紧急", elderly: "陈美玲", description: "紧急求助仍在进行中，部分联系人通知失败", source: "紧急求助", generatedAt: "2026-07-28 09:42", status: "进行中", page: "emergencyHelp", drawer: { kind: "emergencyHelp", eventId: "SOS-20260728001" } },
+  { id: "clue-002", priority: "高", elderly: "陈美玲", description: "紧急联系人陈丽华通知失败，已重试 2 次", source: "紧急求助", generatedAt: "2026-07-28 09:44", status: "待重试", page: "emergencyHelp", drawer: { kind: "emergencyHelp", eventId: "SOS-20260728001" } },
+  { id: "clue-003", priority: "高", elderly: "王德昌", description: "玄关传感器安装后尚未通过在线校验", source: "房间活动传感器", generatedAt: "2026-07-28 09:18", status: "设备异常", page: "sensorDevices" },
+  { id: "clue-004", priority: "高", elderly: "陈美玲", description: "连续 3 小时未检测到有效房间活动", source: "房间活动", generatedAt: "2026-07-27 18:24", status: "待关注", page: "activity" },
+  { id: "clue-005", priority: "中", elderly: "陈美玲", description: "早间降压药提醒已到时间但尚未确认", source: "提醒事项", generatedAt: "2026-07-27 08:30", status: "未确认", page: "reminders" },
+  { id: "clue-006", priority: "低", elderly: "王德昌", description: "档案中的紧急联系人资料尚未补全", source: "老人档案", generatedAt: "2026-07-26 16:10", status: "待补充", page: "elderly" },
+  { id: "clue-007", priority: "低", elderly: "陈美玲", description: "家庭影像批次未进入老人端同步队列", source: "家庭相册", generatedAt: "2026-07-22 10:08", status: "未入队", page: "familyAlbums", drawer: { kind: "familyAlbumBatch", batchId: "BATCH-20260722-01" } },
+];
+
+const overviewTrendMock = {
+  reminder: { label: "提醒完成率", unit: "%", values: [82, 86, null, 75, 88, 91, 67] },
+  device: { label: "设备在线率", unit: "%", values: [80, 80, 100, 100, 80, 80, 80] },
+  safety: { label: "社区内容阅读率", unit: "%", values: [65, 71, 74, null, 78, 82, 84] },
+  service: { label: "已完成预约服务", unit: "单", values: [2, 3, null, 4, 1, 5, 3] },
+};
+
+function PlatformOverview({ projects, elderlyRecords, tablets, sensors, onEnterCommunity }) {
+  const rows = projects.map((project) => {
+    const communityElderly = elderlyRecords.filter((record) => record.community === project.community);
+    const elderlyIds = new Set(communityElderly.map((record) => record.id));
+    const validDevices = [
+      ...tablets.filter((device) => device.boundElderlyId && elderlyIds.has(device.boundElderlyId)),
+      ...sensors.filter((device) => elderlyIds.has(device.elderlyId) && device.installStatus === "已安装" && device.onlineStatus !== "停用"),
+    ];
+    const onlineDevices = validDevices.filter((device) => device.status === "在线" || device.onlineStatus === "在线").length;
+    const attentionCount = communityElderly.filter((record) => record.attention !== "正常").length;
+    return {
+      ...project,
+      elderlyCount: communityElderly.filter((record) => record.status === "服务中").length,
+      attentionCount,
+      onlineRate: validDevices.length ? `${Math.round((onlineDevices / validDevices.length) * 100)}%` : "—",
+    };
+  });
+  const activeRows = rows.filter((row) => row.status === "启用");
   return (
     <>
-      <div className="metric-grid">
-        {metrics.map(([label, value, hint, Icon]) => (
-          <div className="metric-card" key={label}>
-            <div className="metric-icon"><Icon size={20} /></div>
-            <div><span>{label}</span><strong>{value}</strong><small>{hint}</small></div>
+      <div className="page-heading platform-overview-heading">
+        <div><h1>平台总览</h1><p>集中查看全部项目与社区的运行状态；具体运营工作需进入对应社区</p></div>
+        <span className="scope-badge"><Building2 size={15}/>跨社区数据范围</span>
+      </div>
+      <div className="platform-metric-grid">
+        <div className="platform-metric-card"><span>项目数量</span><b>{projects.length}<small> 个</small></b><p>平台已建立项目</p></div>
+        <div className="platform-metric-card"><span>启用社区</span><b>{activeRows.length}<small> 个</small></b><p>当前可进入运营</p></div>
+        <div className="platform-metric-card"><span>在服务老人</span><b>{rows.reduce((sum, row) => sum + row.elderlyCount, 0)}<small> 位</small></b><p>全部授权项目汇总</p></div>
+        <div className="platform-metric-card"><span>待关注线索</span><b>{rows.reduce((sum, row) => sum + row.attentionCount, 0)}<small> 条</small></b><p>按社区线索汇总</p></div>
+      </div>
+      <section className="panel platform-community-panel">
+        <div className="panel-title"><div><h3>项目与社区运行概况</h3><p>平台端只查看跨社区汇总；点击“进入社区”切换到该社区运营端</p></div></div>
+        <div className="table-scroll">
+          <table className="platform-community-table">
+            <thead><tr><th>项目 / 社区</th><th>区域</th><th>在服务老人</th><th>设备在线率</th><th>待关注</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>{rows.map((row) => <tr key={row.id}>
+              <td><div className="stacked-cell"><b>{row.name}</b><small>{row.community}</small></div></td>
+              <td>{row.district}</td><td>{row.elderlyCount} 位</td><td>{row.onlineRate}</td><td><StatusTag>{row.attentionCount ? `${row.attentionCount} 条待关注` : "正常"}</StatusTag></td>
+              <td><div className="stacked-cell"><b>{row.contact}</b><small>{row.phone}</small></div></td><td><StatusTag>{row.status}</StatusTag></td>
+              <td><button className="table-action" disabled={row.status !== "启用"} onClick={() => onEnterCommunity(row.id)}>进入社区</button></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function Overview({ onNavigate, inactivityRule, onEditInactivityRule, scenario, resetSignal, scope, records, tablets, sensors, reminders }) {
+  const [trendKey, setTrendKey] = useState("reminder");
+  const [updatedAt, setUpdatedAt] = useState("2026-07-31 15:40:00");
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState("");
+  useEffect(() => {
+    setTrendKey("reminder");
+    setUpdatedAt("2026-07-31 15:40:00");
+    setRefreshing(false);
+    setRefreshNotice("");
+  }, [resetSignal, scenario]);
+  const trend = overviewTrendMock[trendKey];
+  const sourceFailed = scenario === "partial" || scenario === "allFailed";
+  const scopedNames = new Set(records.map((record) => record.name));
+  const scopedAttentionItems = overviewAttentionMock.filter((item) => scopedNames.has(item.elderly));
+  const availableAttentionItems = scenario === "partial" ? scopedAttentionItems.filter((item) => item.source !== "提醒事项") : scopedAttentionItems;
+  const attentionItems = scenario === "noAttention" ? [] : availableAttentionItems.slice(0, 6);
+  const maxTrendValue = trend.unit === "%" ? 100 : Math.max(...trend.values.filter((value) => value !== null), 1);
+
+  const validDevices = [...tablets.filter((device) => device.boundElderlyId), ...sensors.filter((device) => device.installStatus === "已安装" && device.onlineStatus !== "停用")];
+  const onlineDevices = validDevices.filter((device) => device.status === "在线" || device.onlineStatus === "在线").length;
+  const dueOccurrences = reminders.flatMap((reminder) => reminder.occurrences || []).filter((item) => item.status !== "未到时间");
+  const completedOccurrences = dueOccurrences.filter((item) => item.status === "已完成").length;
+  const metrics = [
+    { label: "在服务老人", value: String(records.filter((record) => record.status === "服务中").length), unit: "位", hint: "有效在服务老人；停用或移除不计", icon: Users, page: "elderly", filter: `${scope.name} · 服务状态：服务中` },
+    { label: "当前待关注", value: String(scopedAttentionItems.length), unit: "条", hint: "按未结束线索统计，不按老人去重", icon: ClipboardList, page: "emergencyHelp", filter: `${scope.name} · 当前未结束线索` },
+    { label: "设备在线率", value: validDevices.length ? ((onlineDevices / validDevices.length) * 100).toFixed(1) : "—", unit: validDevices.length ? "%" : "", hint: validDevices.length ? `${onlineDevices} 台在线 ÷ ${validDevices.length} 台应在线有效设备` : "当前社区暂无应在线有效设备", icon: MonitorSmartphone, page: "tabletDevices", filter: `${scope.name} · 已激活绑定及安装校验设备` },
+    { label: "今日提醒完成率", value: dueOccurrences.length ? ((completedOccurrences / dueOccurrences.length) * 100).toFixed(1) : "—", unit: dueOccurrences.length ? "%" : "", hint: dueOccurrences.length ? `${completedOccurrences} 条已完成 ÷ ${dueOccurrences.length} 条已到执行时间` : "今日暂无已到执行时间提醒", icon: Bell, page: "reminders", filter: `${scope.name} · 今日已到执行时间` },
+  ].map((metric, index) => {
+    if (scenario === "allFailed") return { ...metric, value: "—", unit: "", hint: "数据源获取失败，未按 0 展示" };
+    if (scenario === "partial" && index === 1) return { ...metric, value: `≥${availableAttentionItems.length}`, unit: "条", hint: `已获取 ${availableAttentionItems.length} 条；提醒来源失败未计入` };
+    if (scenario === "partial" && index === 3) return { ...metric, value: "—", unit: "", hint: "提醒来源获取失败，其他指标仍可查看" };
+    if (scenario === "noAttention" && index === 1) return { ...metric, value: "0", hint: "当前没有尚未结束的关注线索" };
+    return metric;
+  });
+
+  const handleRefresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshNotice("");
+    window.setTimeout(() => {
+      setRefreshing(false);
+      if (["partial", "allFailed"].includes(scenario)) {
+        setRefreshNotice("刷新未全部成功，已保留上次成功数据与更新时间");
+        return;
+      }
+      setUpdatedAt("2026-07-31 15:45:00");
+      setRefreshNotice("Mock 数据已刷新");
+    }, 500);
+  };
+
+  if (scenario === "noProject") {
+    return (
+      <>
+        <div className="page-heading overview-heading overview-page-heading">
+          <div><h1>运营概览</h1><p>当前账号没有可访问项目</p></div>
+        </div>
+        <section className="panel overview-empty-state">
+          <Building2 size={34}/>
+          <h3>当前账号无项目</h3>
+          <p>请联系管理员分配项目和社区数据权限后再查看运营概览。</p>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="page-heading overview-heading overview-page-heading">
+        <div>
+          <h1>运营概览</h1>
+          <p>{scope.project} · {scope.name}</p>
+          <div className="overview-time-meta">
+            <span>项目当地日期（Mock）：2026年7月31日 · 星期五</span>
+            <span>IANA 时区：Asia/Singapore (UTC+8)</span>
+            <span>最近更新：{scenario === "stale" ? "2026-07-30 09:10:00" : updatedAt}</span>
           </div>
+        </div>
+        <div className="overview-heading-actions">
+          <button className="secondary-button" onClick={handleRefresh} disabled={refreshing}><RefreshCw className={refreshing ? "spinning" : ""} size={15}/>{refreshing ? "刷新中" : "刷新数据"}</button>
+        </div>
+      </div>
+
+      {scenario === "partial" && <div className="overview-state-banner warning"><AlertTriangle size={17}/><div><b>部分来源失败</b><span>提醒事项来源暂不可用，失败数据以“—”展示；其他正常模块继续显示。</span></div></div>}
+      {scenario === "allFailed" && <div className="overview-state-banner danger"><AlertTriangle size={17}/><div><b>全部来源失败</b><span>当前无法获取运营数据，页面未将失败结果显示为 0，请稍后刷新重试。</span></div></div>}
+      {scenario === "stale" && <div className="overview-state-banner warning"><FileClock size={17}/><div><b>数据过旧</b><span>数据最后更新于 2026-07-30 09:10:00，请刷新后再用于运营判断。</span></div></div>}
+      {refreshNotice && <div className="overview-refresh-notice">{refreshNotice}</div>}
+
+      <div className="metric-grid">
+        {metrics.map(({ label, value, unit, hint, icon: Icon, page, filter }) => (
+          <button className="metric-card" key={label} onClick={() => onNavigate({ page, filter })}>
+            <div className="metric-icon"><Icon size={20} /></div>
+            <div><span>{label}</span><strong>{value}{unit && <em>{unit}</em>}</strong><small>{hint}</small></div>
+            <ChevronRight className="metric-link-icon" size={17}/>
+          </button>
         ))}
       </div>
+
       <section className="panel overview-inactivity-panel">
-        <div className="panel-title"><div><h3>无活动轻提醒</h3><p>集中查看全部老人长时间无活动的待关注线索</p></div><div className="overview-inactivity-actions"><button className="secondary-button" onClick={onEditInactivityRule}><Settings size={15}/>设置全局规则</button><button className="text-button" onClick={() => onNavigate("reminders")}>查看提醒记录 <ChevronRight size={15}/></button></div></div>
-        <div className="overview-inactivity-body"><div className="overview-inactivity-count"><span>当前待关注</span><b>{pendingInactivity.length}</b><small>位老人</small></div><div className="overview-inactivity-rule"><span>当前全局规则</span><b>{inactivityRule.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动` : "规则已停用"}</b><small>{inactivityRule.enabled ? `${inactivityRule.startTime}–${inactivityRule.endTime} · 仅后台提醒` : "停用期间不生成新的无活动提醒"}</small></div><div className="overview-inactivity-latest"><span>最近待关注</span>{pendingInactivity.length ? <><b>黄国强 · 3 小时 05 分无活动</b><small>最后活动：卧室 · 今天 11:31</small></> : <><b>当前没有待关注老人</b><small>所有活动状态正常</small></>}</div><StatusTag>{inactivityRule.enabled ? "全局已启用" : "全局已停用"}</StatusTag></div>
+        <div className="panel-title"><div><h3>无活动轻提醒</h3><p>仅在有效传感器全部在线时判断；设备离线单独归为设备异常</p></div><div className="overview-inactivity-actions"><button className="secondary-button" onClick={onEditInactivityRule}><Settings size={15}/>设置规则</button><button className="text-button" onClick={() => onNavigate({ page: "activity", filter: `${scope.project} / ${scope.name} · 无活动待关注` })}>查看记录 <ChevronRight size={15}/></button></div></div>
+        {scenario === "allFailed"
+          ? <div className="overview-module-failed"><AlertTriangle size={20}/><div><b>无活动数据获取失败</b><span>无法确认待关注人数，未按 0 展示。</span></div></div>
+          : <div className="overview-inactivity-body"><div className="overview-inactivity-count"><span>待关注人数</span><b>{scenario === "noAttention" ? 0 : scopedAttentionItems.filter((item) => item.source === "房间活动").length}</b><small>位老人</small></div><div className="overview-inactivity-rule"><span>当前社区规则</span><b>{inactivityRule.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动` : "规则已停用"}</b><small>{inactivityRule.enabled ? `${inactivityRule.startTime}–${inactivityRule.endTime} · 仅后台轻提醒` : "停用期间不生成新的无活动提醒"}</small></div><div className="overview-inactivity-latest"><span>最近线索</span>{scenario === "noAttention" || !scopedAttentionItems.some((item) => item.source === "房间活动") ? <><b>当前暂无待关注线索</b><small>设备异常不会被记作老人无活动</small></> : <><b>{scopedAttentionItems.find((item) => item.source === "房间活动")?.elderly} · 连续 3 小时无活动</b><small>最后活动：客厅 · 2026-07-27 15:20</small></>}</div><StatusTag>{inactivityRule.enabled ? "规则已启用" : "规则已停用"}</StatusTag></div>}
       </section>
+
       <div className="overview-grid">
         <section className="panel attention-panel">
-          <div className="panel-title"><div><h3>今日需关注</h3><p>按优先级汇总异常线索与待办</p></div></div>
-          <div className="attention-list">
-            {[
-              ["高", "黄国强厨房设备已离线 4 小时", "设备异常", "12 分钟前"],
-              ["高", "林秀英晚间用药提醒连续 2 次未完成", "提醒异常", "36 分钟前"],
-              ["中", "陈美玲的家政保洁预约待确认", "预约服务", "1 小时前"],
-              ["中", "王德昌档案缺少紧急联系人", "资料待补", "2 小时前"],
-            ].map(([level, title, type, time]) => (
-              <button className="attention-row" key={title}>
-                <span className={`priority ${level === "高" ? "high" : "medium"}`}>{level}</span>
-                <span className="attention-copy"><b>{title}</b><small>{type}</small></span>
-                <span className="attention-time">{time}</span><ChevronRight size={16} />
-              </button>
-            ))}
-          </div>
+          <div className="panel-title"><div><h3>当前需关注</h3><p>最多展示 6 条尚未结束线索；同级按产生时间由新到旧</p></div><span className="attention-count">{scenario === "allFailed" ? "—" : scenario === "partial" ? `已获取 ${availableAttentionItems.length} 条` : `${scenario === "noAttention" ? 0 : scopedAttentionItems.length} 条`}</span></div>
+          {scenario === "allFailed"
+            ? <div className="overview-module-failed"><AlertTriangle size={20}/><div><b>关注线索获取失败</b><span>请刷新后重试。</span></div></div>
+            : attentionItems.length
+              ? <div className="attention-list">{attentionItems.map((item) => <button className="attention-row" key={item.id} onClick={() => onNavigate({ page: item.page, filter: `${scope.project} / ${scope.name} · ${item.status}`, drawer: item.drawer })}><span className={`priority ${item.priority === "紧急" ? "urgent" : item.priority === "高" ? "high" : item.priority === "中" ? "medium" : "low"}`}>{item.priority}</span><span className="attention-copy"><b>{item.elderly} · {item.description}</b><small><span>{item.source}</span><span>{item.generatedAt}</span><span>{item.status}</span></small></span><span className="attention-detail">详情</span><ChevronRight size={16}/></button>)}</div>
+              : <div className="overview-module-empty"><ShieldCheck size={24}/><b>暂无待关注</b><span>当前没有尚未结束的关注线索。</span></div>}
         </section>
+
         <section className="panel quick-panel">
-          <div className="panel-title"><div><h3>快捷入口</h3><p>常用运营动作</p></div></div>
+          <div className="panel-title"><div><h3>快捷入口</h3><p>当前账号拥有以下操作权限</p></div></div>
           <div className="quick-grid">
             {[
-              ["新增老人", Users, "elderly"], ["新建提醒", Bell, "reminders"],
-              ["发布资讯", BookOpen, "safety"], ["录入设备", MonitorSmartphone, "sensorDevices"],
-              ["查看预约", ClipboardList, "services"], ["发布活动", CalendarDays, "activities"],
-            ].map(([label, Icon, key]) => <button key={label} onClick={() => onNavigate(key)}><Icon size={19}/><span>{label}</span></button>)}
+              ["新增老人", Users, { page: "elderly", drawer: { kind: "elderly", mode: "create" } }],
+              ["新建提醒", Bell, { page: "reminders", drawer: { kind: "reminder" } }],
+              ["新增社区内容", BookOpen, { page: "safety", drawer: { kind: "safety", mode: "edit" } }],
+              ["录入房间活动传感器", MonitorSmartphone, { page: "sensorDevices", drawer: { kind: "sensorCreate" } }],
+              ["查看预约服务", ClipboardList, { page: "services", filter: `${scope.project} / ${scope.name}` }],
+              ["发布社区活动", CalendarDays, { page: "activities", drawer: { kind: "activity" } }],
+            ].map(([label, Icon, target]) => <button key={label} onClick={() => onNavigate(target)}><Icon size={19}/><span>{label}</span></button>)}
           </div>
         </section>
       </div>
+
       <section className="panel trend-panel">
-        <div className="panel-title"><div><h3>近 7 日运营概况</h3><p>提醒完成、内容阅读与服务处理趋势</p></div><button className="select-button">近 7 日 <ChevronDown size={14}/></button></div>
-        <div className="mini-chart" aria-label="运营趋势图">
-          {[58, 66, 62, 74, 69, 82, 88].map((v, i) => <div key={i}><span style={{height: `${v}%`}}></span><small>{["周四","周五","周六","周日","周一","周二","今天"][i]}</small></div>)}
+        <div className="panel-title"><div><h3>近 7 日运营概况</h3><p>按项目当地自然日统计，一次仅展示一种同单位指标</p></div><span className="trend-current-unit">当前单位：{trend.unit}</span></div>
+        <div className="trend-tabs" role="tablist" aria-label="趋势指标切换">
+          {Object.entries(overviewTrendMock).map(([key, item]) => <button className={trendKey === key ? "active" : ""} key={key} onClick={() => setTrendKey(key)} role="tab" aria-selected={trendKey === key}>{item.label}</button>)}
         </div>
+        {scenario === "allFailed" || (scenario === "partial" && trendKey === "reminder")
+          ? <div className="overview-module-failed trend-failed"><AlertTriangle size={20}/><div><b>{scenario === "allFailed" ? "趋势数据获取失败" : "提醒趋势来源失败"}</b><span>失败数据以“—”展示，不生成伪造走势。</span></div></div>
+          : <div className="mini-chart" aria-label={`${trend.label}近7日趋势图`}>{trend.values.map((value, index) => <div key={index} className={value === null ? "no-data" : ""}><b>{value === null ? "—" : `${value}${trend.unit}`}</b>{value === null ? <span className="empty-bar"/> : <span style={{height: `${Math.max(8, (value / maxTrendValue) * 100)}%`}}/>}<small>{["7月25日","7月26日","7月27日","7月28日","7月29日","7月30日","7月31日"][index]}</small></div>)}</div>}
       </section>
     </>
   );
@@ -554,8 +855,8 @@ function getEmergencyContacts(record) {
   return [];
 }
 
-function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOpen }) {
-  const initialFilters = { query: "", project: "全部项目", status: "全部状态", attention: "全部关注状态" };
+function ElderlyPage({ records, tabletDevices, activationRecords, onOpen }) {
+  const initialFilters = { query: "", status: "全部状态", attention: "全部关注状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
   const [notice, setNotice] = useState("");
@@ -567,10 +868,9 @@ function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOp
       record.name, record.id, record.phone, record.project, record.community,
       record.address, ...emergencyKeywords,
     ].join(" ").toLowerCase().includes(keyword);
-    const projectMatched = filters.project === "全部项目" || record.project === filters.project;
     const statusMatched = filters.status === "全部状态" || record.status === filters.status;
     const attentionMatched = filters.attention === "全部关注状态" || record.attention === filters.attention;
-    return keywordMatched && projectMatched && statusMatched && attentionMatched;
+    return keywordMatched && statusMatched && attentionMatched;
   }), [records, filters]);
 
   const showNotice = (message) => {
@@ -581,7 +881,7 @@ function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOp
   return (
     <>
       <div className="page-heading">
-        <div><h1>老人档案</h1><p>维护老人基础资料、项目归属和服务关系，进入详情页定义家庭空间并管理设备</p></div>
+        <div><h1>老人档案</h1><p>维护当前社区老人的基础资料和服务关系，进入详情页定义家庭空间并管理设备</p></div>
         <button className="primary-button" onClick={() => onOpen("create")}><Plus size={16}/>新增老人</button>
       </div>
       <section className="panel management-panel elderly-management">
@@ -589,13 +889,6 @@ function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOp
           <label>
             <span>关键字</span>
             <div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters({ ...draftFilters, query: event.target.value })} placeholder="姓名、档案编号、手机号或地址" /></div>
-          </label>
-          <label>
-            <span>所属项目</span>
-            <select className="select-control wide" value={draftFilters.project} onChange={(event) => setDraftFilters({ ...draftFilters, project: event.target.value })}>
-              <option>全部项目</option>
-              {projects.filter((project) => project.status === "启用").map((project) => <option key={project.id}>{project.name}</option>)}
-            </select>
           </label>
           <label>
             <span>服务状态</span>
@@ -620,7 +913,7 @@ function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOp
         </div>
         <div className="table-scroll">
           <table className="elderly-table">
-            <thead><tr><th>老人信息</th><th>所属项目 / 社区</th><th>联系方式</th><th>平板状态</th><th>感知设备</th><th>顾问</th><th>资料完整度</th><th>服务状态</th><th>关注状态</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>老人信息</th><th>联系方式</th><th>平板状态</th><th>感知设备</th><th>顾问</th><th>资料完整度</th><th>服务状态</th><th>关注状态</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
               {filteredRecords.map((record) => {
                 const completeness = getProfileCompleteness(record);
@@ -629,7 +922,6 @@ function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOp
                 return (
                   <tr key={record.id}>
                     <td><button className="elderly-name-cell" onClick={() => onOpen("view", record)}><span className="person-avatar">{record.name.slice(-1)}</span><span><b>{record.name}</b><small>{record.gender} · {record.age} 岁 · {formatDisplayId(record.id)}</small></span></button></td>
-                    <td><div className="stacked-cell"><b>{record.project}</b><small>{record.community}</small></div></td>
                     <td><div className="stacked-cell"><b>{record.phone || "待补充"}</b><small>{record.address}</small></div></td>
                     <td><div className="stacked-cell"><StatusTag>{tablet?.status || (pendingActivation ? "待激活" : "待绑定")}</StatusTag><small>{tablet ? formatDisplayId(tablet.id) : (pendingActivation ? `激活码 ${pendingActivation.code}` : "未生成激活信息")}</small></div></td>
                     <td><StatusTag>{record.device}</StatusTag></td>
@@ -644,7 +936,7 @@ function ElderlyPage({ records, projects, tabletDevices, activationRecords, onOp
                   </tr>
                 );
               })}
-              {!filteredRecords.length && <tr><td colSpan="10"><div className="empty-state"><Search size={24}/><b>未找到匹配的老人档案</b><span>请调整筛选条件后重新查询</span></div></td></tr>}
+              {!filteredRecords.length && <tr><td colSpan="9"><div className="empty-state"><Search size={24}/><b>未找到匹配的老人档案</b><span>请调整筛选条件后重新查询</span></div></td></tr>}
             </tbody>
           </table>
         </div>
@@ -770,10 +1062,34 @@ function ElderlyDetailPage({ record, project, tablet, activation, sensors, remin
   const emergencyContacts = getEmergencyContacts(record);
   tablet = tablet ? { ...tablet, id: formatDisplayId(tablet.id) } : tablet;
   const boundSensors = sensors.filter((sensor) => sensor.elderlyId === record.id && sensor.installStatus !== "已解绑");
+  const latestReminderOccurrence = (reminder) => reminder.occurrences?.[reminder.occurrences.length - 1];
   return <>
     <div className="detail-page-heading"><div><button className="back-link" onClick={onBack}><ChevronLeft size={16}/>返回老人档案</button><div className="profile-summary detail-profile-summary"><span className="profile-avatar">{record.name.slice(-1)}</span><div><div className="profile-name"><h1>{record.name}</h1><StatusTag>{record.status}</StatusTag></div><p>{record.gender} · {record.age} 岁 · {formatDisplayId(record.id)} · {record.project}</p><div className="profile-tags">{record.tags.map((tag) => <span key={tag}>{tag}</span>)}</div></div></div></div><button className="primary-button" onClick={onEdit}>编辑档案</button></div>
     <div className="elderly-detail-tabs"><button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}>档案信息</button><button className={tab === "family" ? "active" : ""} onClick={() => setTab("family")}>家庭关系 <span>{familyRelations.filter((item) => item.status === "正常").length}</span></button><button className={tab === "weather" ? "active" : ""} onClick={() => setTab("weather")}>天气位置</button><button className={tab === "reminders" ? "active" : ""} onClick={() => setTab("reminders")}>提醒事项 <span>{reminders.length}</span></button><button className={tab === "spaces" ? "active" : ""} onClick={() => setTab("spaces")}>房间活动传感器 <span>{boundSensors.length}</span></button><button className={tab === "tablet" ? "active" : ""} onClick={() => setTab("tablet")}>平板设备</button></div>
-    {tab === "spaces" && <><DailyRoomActivityPanel record={record} sensors={boundSensors}/><InactivityReminderPanel rule={inactivityRule}/></>} 
+    {tab === "profile" && <div className="elderly-detail-grid elderly-detail-content">
+      <section className="panel detail-page-panel">
+        <div className="panel-title"><div><h3>基础资料</h3><p>老人身份、联系方式及当前服务归属</p></div><span className="result-count">更新于 {record.updatedAt || "—"}</span></div>
+        <div className="elderly-detail-section-body"><div className="info-grid elderly-profile-info-grid">
+          <div><span>出生日期</span><b>{record.birthday || "待补充"}</b></div><div><span>联系电话</span><b>{record.phone || "待补充"}</b></div>
+          <div><span>所属项目</span><b>{record.project || "待补充"}</b></div><div><span>所属社区</span><b>{record.community || "待补充"}</b></div>
+          <div><span>服务状态</span><StatusTag>{record.status}</StatusTag></div><div><span>关注状态</span><StatusTag>{record.attention}</StatusTag></div>
+          <div className="full"><span>居住地址</span><b>{record.address || "待补充"}</b></div>
+          <div className="full"><span>运营标签</span><div className="profile-tags">{record.tags?.length ? record.tags.map((tag) => <span key={tag}>{tag}</span>) : <b>暂无标签</b>}</div></div>
+        </div></div>
+      </section>
+      <div className="elderly-detail-side">
+        <section className="panel detail-page-panel elderly-completeness-panel"><div className="panel-title"><div><h3>资料完整度</h3><p>按基础资料必填项计算</p></div><strong className={completeness < 100 ? "incomplete" : ""}>{completeness}%</strong></div><div className="elderly-detail-section-body"><div className="profile-progress"><span style={{ width: `${completeness}%` }}/></div>{completeness < 100 && <p className="detail-warning">仍有必填资料待补充。</p>}</div></section>
+        <section className="panel detail-page-panel elderly-contact-panel"><div className="panel-title"><div><h3>紧急联系人</h3><p>联系人之间不区分优先级</p></div><span className="result-count">{emergencyContacts.length} 位</span></div><div className="elderly-detail-section-body emergency-contact-view-list">{emergencyContacts.map((contact) => <div className="relation-card" key={contact.id}><div><HeartHandshake size={18}/><span><b>{contact.name || "待补充"}</b><small>{contact.relation || "关系待补充"} · {contact.phone || "电话待补充"}</small></span></div></div>)}</div></section>
+      </div>
+    </div>}
+    {tab === "family" && <FamilyRelationshipPanel invitations={familyInvitations} relations={familyRelations} onInvalidateInvite={onInvalidateInvite} onUnlinkRelation={onUnlinkRelation}/>}
+    {tab === "weather" && <div className="elderly-weather-tab elderly-detail-content">
+      <section className="panel detail-page-panel"><div className="panel-title"><div><h3>居住地址解析结果</h3><p>天气位置由老人档案的居住地址解析，不在此处单独维护</p></div><StatusTag>{weatherLocation?.status || "待完善"}</StatusTag></div><div className="elderly-detail-section-body"><WeatherLocationSummary location={weatherLocation} query={weatherQuery}/><div className="info-grid weather-detail-info-grid"><div><span>国家 / 地区</span><b>{weatherLocation?.countryName || "待解析"}</b></div><div><span>行政区</span><b>{weatherLocation?.regionName || "待解析"}</b></div><div><span>城市</span><b>{weatherLocation?.cityName || "待解析"}</b></div><div><span>IANA 时区</span><b>{weatherLocation?.timezone || project?.timezone || "待解析"}</b></div><div><span>纬度</span><b>{Number.isFinite(weatherLocation?.latitude) ? weatherLocation.latitude : "待解析"}</b></div><div><span>经度</span><b>{Number.isFinite(weatherLocation?.longitude) ? weatherLocation.longitude : "待解析"}</b></div><div className="full"><span>解析地址</span><b>{weatherLocation?.sourceDetail || record.address || "待补充"}</b></div></div></div></section>
+      <section className="panel detail-page-panel"><div className="panel-title"><div><h3>技术状态与变更记录</h3><p>仅用于位置解析、同步和天气查询诊断</p></div><span className="result-count">{weatherAudits.length} 条变更</span></div><div className="elderly-detail-section-body"><div className="info-grid weather-technical-grid"><div><span>同步状态</span><StatusTag>{weatherLocation?.syncStatus || "待同步"}</StatusTag></div><div><span>天气查询状态</span><StatusTag>{weatherQuery?.status || "尚未查询"}</StatusTag></div><div><span>最后更新时间</span><b>{weatherLocation?.updatedAt || "—"}</b></div><div><span>最后查询时间</span><b>{weatherQuery?.fetchedAt || "—"}</b></div></div>{weatherAudits.length ? <div className="weather-audit-list elderly-weather-audit-list">{weatherAudits.map((audit) => <div key={audit.id}><div><b>{audit.action}</b><small>{audit.operatedAt} · {audit.operator}</small></div><StatusTag>{audit.result}</StatusTag><p>{audit.before} → {audit.after}</p></div>)}</div> : <div className="empty-table-state compact">暂无位置变更记录</div>}</div></section>
+    </div>}
+    {tab === "reminders" && <section className="panel detail-page-panel elderly-reminder-panel elderly-detail-content"><div className="panel-title"><div><h3>提醒事项</h3><p>仅展示当前老人已创建的用药提醒和日常提醒定义</p></div><span className="result-count">共 {reminders.length} 条</span></div><div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>计划时间</th><th>重复方式</th><th>最近实例状态</th><th>最后更新</th></tr></thead><tbody>{reminders.map((reminder) => { const occurrence = latestReminderOccurrence(reminder); return <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time} · 老人当地时间</small></div></td><td>{reminder.repeat}</td><td>{occurrence ? <div className="stacked-cell"><StatusTag>{occurrence.status}</StatusTag><small>{occurrence.date} {occurrence.time}</small></div> : "—"}</td><td><div className="stacked-cell"><b>{reminder.updatedBy || reminder.createdBy}</b><small>{reminder.updatedAt || reminder.createdAt}</small></div></td></tr>; })}{!reminders.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人暂无提醒事项</div></td></tr>}</tbody></table></div></section>}
+    {tab === "spaces" && <><section className="panel sensor-relation-panel elderly-detail-content"><div className="panel-title"><div><h3>房间与活动传感器</h3><p>先定义房间，再将活动传感器绑定至对应房间</p></div><div className="panel-title-actions"><button className="secondary-button" onClick={onManageSpaces}>管理房间</button><button className="primary-button" onClick={onAddSensor}><Plus size={15}/>添加传感器</button></div></div><div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称</th><th>安装房间</th><th>设备型号 / SN</th><th>在线状态</th><th>最近上报</th><th>操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><b>{sensor.name}</b></td><td>{sensor.room}</td><td><div className="stacked-cell"><b>{sensor.model}</b><small>{sensor.sn}</small></div></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastReport}</td><td><button className="table-action" onClick={() => onViewSensor(sensor)}>详情</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section><DailyRoomActivityPanel record={record} sensors={boundSensors}/><InactivityReminderPanel rule={inactivityRule}/></>}
+    {tab === "tablet" && <section className="panel tablet-detail-page elderly-detail-content"><div className="panel-title"><div><h3>平板设备</h3><p>查看当前老人绑定的平板、版本和激活状态</p></div><button className="primary-button" onClick={onManageTablet}>{tablet ? "管理绑定" : activation ? "查看激活信息" : "绑定平板"}</button></div><div className="elderly-detail-section-body">{tablet ? <><div className="tablet-profile-card"><span><MonitorSmartphone size={22}/></span><div><b>{tablet.model}</b><small>{tablet.id} · {tablet.sn}</small></div><StatusTag>{tablet.status}</StatusTag></div><div className="info-grid tablet-profile-info-grid"><div><span>当前版本</span><b>{tablet.currentVersion}</b></div><div><span>版本状态</span><StatusTag>{tablet.versionStatus}</StatusTag></div><div><span>激活方式</span><b>{tablet.activationMethod || "—"}</b></div><div><span>绑定时间</span><b>{tablet.boundAt || "—"}</b></div><div><span>最近在线</span><b>{tablet.lastOnline || "—"}</b></div><div><span>操作人员</span><b>{tablet.operator || "—"}</b></div></div></> : <div className="space-empty-state"><MonitorSmartphone size={28}/><h4>{activation ? `当前激活状态：${activation.status}` : "尚未绑定平板"}</h4><p>{activation ? `目标设备 ${formatDisplayId(activation.deviceId)} · ${activation.deviceSn}` : "请先指定老人和待激活设备，再生成激活码。"}</p></div>}</div></section>}
   </>;
 }
 
@@ -795,13 +1111,14 @@ function SpaceManagementDrawer({ record, onClose, onSave }) {
 function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation, onManageTablet, onClose, onSave }) {
   const [mode, setMode] = useState(initialMode);
   const [errors, setErrors] = useState({});
+  const scopedProject = projects.find((project) => project.name === record?.project) || projects[0];
   const [form, setForm] = useState({
     name: record?.name || "",
     gender: record?.gender || "女",
     birthday: record?.birthday || "",
     phone: record?.phone || "",
-    project: record?.project || "",
-    community: record?.community || "",
+    project: record?.project || scopedProject?.name || "",
+    community: record?.community || scopedProject?.community || "",
     address: record?.address === "待补充" ? "" : record?.address || "",
     tags: record?.tags?.join("、") || "",
     emergencyContacts: getEmergencyContacts(record).length
@@ -830,8 +1147,6 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
     const requiredFields = {
       name: "请输入老人姓名",
       phone: "请输入联系电话",
-      project: "请选择所属项目",
-      community: "请输入所属社区",
       address: "请输入居住地址",
     };
     const nextErrors = Object.fromEntries(Object.entries(requiredFields).filter(([field]) => !form[field].trim()));
@@ -921,9 +1236,6 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
               <label><span>出生日期</span><input type="date" value={form.birthday} onChange={(event) => updateForm("birthday", event.target.value)}/></label>
               <label><span>联系电话 *</span><input value={form.phone} onChange={(event) => updateForm("phone", event.target.value)} placeholder="+65"/>{errors.phone && <small className="field-error">{errors.phone}</small>}</label>
             </div>
-            <h3>服务归属</h3>
-            <label><span>所属项目 *</span><select className="select-control form-select-native" value={form.project} onChange={(event) => { const project = projects.find((item) => item.name === event.target.value); setForm((current) => ({ ...current, project: event.target.value, community: project?.community || current.community })); }}><option value="">请选择所属项目</option>{projects.filter((project) => project.status === "启用" || project.name === record?.project).map((project) => <option key={project.id}>{project.name}</option>)}</select>{errors.project && <small className="field-error">{errors.project}</small>}</label>
-            <label><span>所属社区 *</span><input value={form.community} onChange={(event) => updateForm("community", event.target.value)} placeholder="请输入社区名称"/>{errors.community && <small className="field-error">{errors.community}</small>}</label>
             <label><span>居住地址 *</span><input value={form.address} onChange={(event) => updateForm("address", event.target.value)} placeholder="请输入完整居住地址"/>{errors.address && <small className="field-error">{errors.address}</small>}</label>
             <h3>运营标签</h3>
             <label><span>基础标签（选填）</span><input value={form.tags} onChange={(event) => updateForm("tags", event.target.value)} placeholder="例如：独居、高龄、用药关注"/><small className="field-help">标签用于后台筛选和运营分类，不作为医疗判断或服务开通条件。</small></label>
@@ -957,7 +1269,7 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
   );
 }
 
-function TabletBindingModal({ record, project, devices, activation, onGenerate, onActivate, onFail, onClose, onUnbind }) {
+function TabletBindingModal({ record, project, devices, activation, failureSignal, onGenerate, onActivate, onFail, onClose, onUnbind }) {
   const currentTablet = devices.find((device) => device.boundElderlyId === record.id);
   const availableDevices = devices.filter((device) => !device.boundElderlyId);
   const [selectedId, setSelectedId] = useState(activation?.deviceId || "");
@@ -997,6 +1309,12 @@ function TabletBindingModal({ record, project, devices, activation, onGenerate, 
     setValidationError(message);
     if (activation?.status === "待使用") onFail(activation.id);
   };
+  useEffect(() => {
+    if (!failureSignal?.id || stage !== "waiting") return;
+    failActivation(failureSignal.type === "offline"
+      ? "当前网络未连接，本次激活已标记为失败，可检查网络后重新生成。"
+      : "激活码不正确，本次激活已标记为失败，可重新生成激活码。");
+  }, [failureSignal?.id]);
 
   const steps = ["指定对象", "设备校验", "身份确认", "数据同步", "激活完成"];
   const stageIndex = { generate: 0, waiting: 1, identity: 2, syncing: 3, success: 4 }[stage] ?? 4;
@@ -1036,7 +1354,6 @@ function TabletBindingModal({ record, project, devices, activation, onGenerate, 
               <div className="activation-code-card"><div className="fake-qr" aria-label="激活二维码"><i/><i/><i/><i/><i/><i/><i/><i/><i/></div><div><span>6 位平板激活码</span><strong>{activation?.code || "------"}</strong><small>生成时间 {activation?.createdAt}</small></div><StatusTag>{activation?.status || "待使用"}</StatusTag></div>
               <div className="activation-device-preview"><div><span>指定老人</span><b>{record.name}</b></div><div><span>目标设备编号</span><b>{formatDisplayId(activation?.deviceId)}</b></div><div><span>设备 SN</span><b>{activation?.deviceSn || activationDevice?.sn}</b></div><div><span>设备型号</span><b>{activationDevice?.model || "—"}</b></div></div>
               {validationError && <div className="activation-error">{validationError}</div>}
-              <div className="validation-demo-actions"><button onClick={() => failActivation("激活码不正确，本次激活已标记为失败，可重新生成激活码。")}>演示激活码错误</button><button onClick={() => failActivation("当前网络未连接，本次激活已标记为失败，可检查网络后重新生成。")}>演示网络异常</button></div>
             </>
           ) : stage === "identity" ? (
             <div className="identity-confirm-card"><span className="profile-avatar">{record.name.slice(-1)}</span><div><span>请确认使用人</span><h4>{record.name}</h4><p>{record.project} · {record.community}</p><small>{record.address.slice(0, 12)}****</small></div><StatusTag>待确认</StatusTag></div>
@@ -1177,112 +1494,143 @@ function DeviceManagementPage({ deviceType, tablets, sensors, elderlyRecords, on
   );
 }
 
-function RecommendationStrategyPage({ strategies, policy, onSavePolicy, onCreate, onEdit, onToggle }) {
-  const [activePool, setActivePool] = useState("wellness");
+function RecommendationStrategyPage({ strategies, communityName, onCreate, onEdit, onToggle, onMove }) {
   const [query, setQuery] = useState("");
+  const [type, setType] = useState("全部类型");
   const [status, setStatus] = useState("全部状态");
-  const [draftPolicy, setDraftPolicy] = useState(policy);
-  const [saved, setSaved] = useState(false);
-  const poolStrategies = strategies.filter((item) => item.pool === activePool);
-  const rows = poolStrategies.filter((item) => {
-    const keyword = query.trim().toLowerCase();
-    return (!keyword || `${item.title}${item.id}${item.action}`.toLowerCase().includes(keyword)) && (status === "全部状态" || item.status === status);
+  const [previewMode, setPreviewMode] = useState("正常排序");
+  const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
+  const [selectedDate, setSelectedDate] = useState(recommendationMockNow.slice(0, 10));
+  const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
+  const [activeView, setActiveView] = useState("calendar");
+  const sortedStrategies = sortRecommendations(strategies);
+  const calendarDays = buildRecommendationCalendar(calendarMonth.year, calendarMonth.month);
+  const todayKey = recommendationMockNow.slice(0, 10);
+  const selectedIsToday = selectedDate === todayKey;
+  const selectedScheduledItems = getRecommendationDayItems(sortedStrategies, selectedDate);
+  const selectedDayItems = previewMode === "无可用内容"
+    ? []
+    : selectedIsToday
+      ? selectedScheduledItems.filter((item) => getRecommendationAvailability(item) === "可展示")
+      : selectedScheduledItems;
+  const selectedDateLabel = `${Number(selectedDate.slice(5, 7))}月${Number(selectedDate.slice(8, 10))}日`;
+  const sevenDayCoverage = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(2026, 7, 21 + index);
+    const key = formatRecommendationDate(date.getFullYear(), date.getMonth(), date.getDate());
+    return getRecommendationDayItems(sortedStrategies, key).length;
   });
-  const updatePolicy = (field, value) => setDraftPolicy((current) => ({ ...current, [field]: value }));
-  const savePolicy = () => {
-    onSavePolicy(draftPolicy);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1600);
+  const displayedSevenDayCoverage = previewMode === "无可用内容" ? sevenDayCoverage.map(() => 0) : sevenDayCoverage;
+  const todayAvailableCount = previewMode === "无可用内容" ? 0 : getRecommendationDayItems(sortedStrategies, todayKey).filter((item) => getRecommendationAvailability(item) === "可展示").length;
+  const moveCalendarMonth = (offset) => {
+    const next = new Date(calendarMonth.year, calendarMonth.month + offset, 1);
+    const nextMonth = { year: next.getFullYear(), month: next.getMonth() };
+    setCalendarMonth(nextMonth);
+    setSelectedDate(formatRecommendationDate(nextMonth.year, nextMonth.month, 1));
+    setDateFilterEnabled(false);
   };
+  const rows = sortedStrategies.filter((item) => {
+    const keyword = query.trim().toLowerCase();
+    const availability = getRecommendationAvailability(item);
+    return (!keyword || `${item.name}${item.id}${item.sourceName}${item.sourceId}${item.audience}`.toLowerCase().includes(keyword))
+      && (type === "全部类型" || item.type === type)
+      && (status === "全部状态" || availability === status)
+      && (!dateFilterEnabled || isRecommendationScheduledForDate(item, selectedDate));
+  });
 
   return (
     <>
-      <div className="page-heading"><div><h1>推荐策略</h1><p>从安全资讯、社区活动和预约服务中选择内容，配置老人端每日推荐</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增推荐策略</button></div>
-      <section className="panel recommendation-policy-panel">
-        <div className="recommendation-section-heading"><div><span><Settings size={18}/></span><div><h3>全局自动轮播规则</h3><p>规则保存后对所有启用的推荐内容生效</p></div></div><button className="primary-button" onClick={savePolicy}><Save size={15}/>{saved ? "已保存" : "保存规则"}</button></div>
-        <div className="recommendation-policy-grid">
-          <div className="policy-field policy-mode-field"><span>每日更换策略</span><div className="policy-radio-group"><label><input type="radio" name="recommendation-mode" checked={draftPolicy.mode === "random"} onChange={() => updatePolicy("mode", "random")}/><span><b>随机抽样</b><small>每日从当前内容池抽取 1 条未展示项</small></span></label><label><input type="radio" name="recommendation-mode" checked={draftPolicy.mode === "sequence"} onChange={() => updatePolicy("mode", "sequence")}/><span><b>顺序轮播</b><small>按列表添加顺序每日向后轮播 1 条</small></span></label></div></div>
-          <label className="policy-field"><span>防重复保护</span><div className="policy-inline-control"><input type="number" min="1" max="30" value={draftPolicy.repeatDays} onChange={(event) => updatePolicy("repeatDays", Number(event.target.value))}/><em>天内已展示条目不再重复推送</em></div></label>
-          <div className="policy-field policy-time-field">
-            <span>场景化时段偏好</span>
-            <div className="time-preference-row"><b>安全资讯池</b><input type="time" value={draftPolicy.wellnessStart} onChange={(event) => updatePolicy("wellnessStart", event.target.value)}/><i>至</i><input type="time" value={draftPolicy.wellnessEnd} onChange={(event) => updatePolicy("wellnessEnd", event.target.value)}/></div>
-            <div className="time-preference-row"><b>社区活动池</b><input type="time" value={draftPolicy.communityStart} onChange={(event) => updatePolicy("communityStart", event.target.value)}/><i>至</i><input type="time" value={draftPolicy.communityEnd} onChange={(event) => updatePolicy("communityEnd", event.target.value)}/></div>
-            <div className="time-preference-row"><b>预约服务池</b><input type="time" value={draftPolicy.serviceStart} onChange={(event) => updatePolicy("serviceStart", event.target.value)}/><i>至</i><input type="time" value={draftPolicy.serviceEnd} onChange={(event) => updatePolicy("serviceEnd", event.target.value)}/></div>
+      <div className="page-heading"><div><h1>推荐策略</h1><p>{communityName} · 配置当前社区老人端右侧推荐内容的展示顺序、有效时间与轮换参数</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增推荐内容</button></div>
+      <section className="panel recommendation-calendar-panel">
+        <div className="recommendation-preview-heading"><div><span><CalendarDays size={18}/></span><div><h3>排期覆盖概览</h3><p>检查推荐覆盖情况，并在排期日历与内容管理之间切换</p></div></div><label><span>演示状态</span><select className="select-control" value={previewMode} onChange={(event) => setPreviewMode(event.target.value)}><option>正常排序</option><option>无可用内容</option></select></label></div>
+        <div className="recommendation-calendar-summary"><div><span>当前可展示</span><b>{todayAvailableCount} 条</b></div><div><span>未来 7 天有排期</span><b>{displayedSevenDayCoverage.filter(Boolean).length} 天</b></div><div className={displayedSevenDayCoverage.some((count) => !count) ? "warning" : "success"}><span>未来 7 天无排期</span><b>{displayedSevenDayCoverage.filter((count) => !count).length} 天</b></div><p>今天按启用、生失效、每日上限和冷却状态计算实际顺序；未来日期只校验排期覆盖。</p></div>
+        <div className="recommendation-view-tabs" role="tablist" aria-label="推荐策略视图"><button type="button" role="tab" aria-selected={activeView === "calendar"} className={activeView === "calendar" ? "active" : ""} onClick={() => setActiveView("calendar")}><CalendarDays size={15}/>排期日历</button><button type="button" role="tab" aria-selected={activeView === "content"} className={activeView === "content" ? "active" : ""} onClick={() => { setActiveView("content"); setDateFilterEnabled(false); }}><SlidersHorizontal size={15}/>内容管理 <span>{strategies.length}</span></button></div>
+        {activeView === "calendar" && <div className="recommendation-calendar-layout">
+          <div className="recommendation-calendar-box">
+            <div className="recommendation-calendar-toolbar"><button type="button" aria-label="上个月" onClick={() => moveCalendarMonth(-1)}><ChevronLeft size={16}/></button><b>{calendarMonth.year} 年 {calendarMonth.month + 1} 月</b><button type="button" aria-label="下个月" onClick={() => moveCalendarMonth(1)}><ChevronRight size={16}/></button></div>
+            <div className="recommendation-calendar-weekdays">{["周一", "周二", "周三", "周四", "周五", "周六", "周日"].map((item) => <span key={item}>{item}</span>)}</div>
+            <div className="recommendation-calendar-grid">{calendarDays.map((date, index) => {
+              if (!date) return <span className="calendar-blank" key={`blank-${index}`}/>;
+              const count = previewMode === "无可用内容" ? 0 : getRecommendationDayItems(sortedStrategies, date).length;
+              const coverage = count === 0 ? "gap" : count === 1 ? "low" : "covered";
+              return <button type="button" key={date} className={`${coverage} ${date === selectedDate ? "selected" : ""} ${date === todayKey ? "today" : ""}`} onClick={() => { setSelectedDate(date); setDateFilterEnabled(false); }}><span>{Number(date.slice(8, 10))}</span><small>{count ? `${count} 条` : "无排期"}</small></button>;
+            })}</div>
+            <div className="recommendation-calendar-legend"><span><i className="covered"/>2 条及以上</span><span><i className="low"/>仅 1 条</span><span><i className="gap"/>无排期</span></div>
           </div>
-        </div>
+          <div className="recommendation-day-preview">
+            <div className="recommendation-day-preview-heading"><div><span>{selectedDateLabel}</span><h4>{selectedIsToday ? "当前生效顺序预览" : "当天排期顺序"}</h4></div><StatusTag>{selectedDayItems.length ? `${selectedIsToday ? "可展示" : "排期"} ${selectedDayItems.length} 条` : selectedIsToday ? "当前无可用内容" : "无排期"}</StatusTag></div>
+            {selectedDayItems.length ? <div className="recommendation-day-list">{selectedDayItems.map((item, index) => <div key={item.id}><em>{index + 1}</em><span><b>{item.name}</b><small>{recommendationTypes.find((option) => option.key === item.type)?.label} · {item.audience} · 展示 {item.durationSeconds} 秒</small></span></div>)}</div> : <div className="recommendation-preview-empty"><Sparkles size={22}/><div><b>{selectedIsToday ? "当前没有可展示的推荐内容" : "当天没有推荐排期"}</b><span>老人端将由系统补位显示 AI 语音入口，AI 语音不参与后台排序。</span></div></div>}
+            <button type="button" className="secondary-button recommendation-date-filter-button" onClick={() => { setDateFilterEnabled(true); setActiveView("content"); }}>查看 {selectedDateLabel} 内容</button>
+          </div>
+        </div>}
       </section>
-      <section className="panel recommendation-pool-panel">
-        <div className="recommendation-pool-tabs">{recommendationPools.map((pool) => { const count = strategies.filter((item) => item.pool === pool.key).length; return <button key={pool.key} className={activePool === pool.key ? "active" : ""} onClick={() => setActivePool(pool.key)}><span>{pool.icon}</span>{pool.label}<em>{count}</em></button>; })}</div>
+      {activeView === "content" && <section className="panel recommendation-pool-panel">
         <div className="recommendation-list-toolbar">
-          <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、策略 ID 或动作"/></div><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>启用</option><option>停用</option></select></div>
+          <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索内容名称、编号或适用人群"/></div><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>可展示</option><option>未生效</option><option>已过期</option><option>已停用</option><option>达到展示上限</option><option>冷却中</option></select>{dateFilterEnabled && <button type="button" className="recommendation-date-chip" onClick={() => setDateFilterEnabled(false)}>{selectedDateLabel}排期 <X size={13}/></button>}</div>
         </div>
         <div className="table-scroll">
-          <table className="recommendation-table"><thead><tr><th className="strategy-check-column"><input type="checkbox" aria-label="全选当前内容池"/></th><th>策略 ID</th><th>展示标题 / 大球文案</th><th>关联资源</th><th>累计推送</th><th>上次推送</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-            {rows.map((item) => <tr key={item.id}><td className="strategy-check-column"><input type="checkbox" aria-label={`选择${item.title}`}/></td><td className="mono">{item.id}</td><td><div className="strategy-title-cell"><b>{item.title}</b><small>{recommendationPools.find((pool) => pool.key === item.pool)?.label}</small></div></td><td><div className="stacked-cell"><b>{item.resourceName || "原资源待重新关联"}</b><small>{item.resourceId || "未关联资源"}</small></div></td><td>{item.pushCount} 次</td><td>{item.lastPush || "尚未推送"}</td><td><button type="button" role="switch" aria-checked={item.status === "启用"} aria-label={`${item.title}状态`} className={`strategy-status-switch ${item.status === "启用" ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{item.status}</span></button></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>)}
-            {!rows.length && <tr><td colSpan="8"><div className="empty-table-state">当前内容池暂无符合条件的推荐策略</div></td></tr>}
+          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>关联内容</th><th>类型 / 适用人群</th><th>生效时间 / 失效时间</th><th>顺序</th><th>轮换参数</th><th>查看后</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+            {rows.map((item) => { const availability = getRecommendationAvailability(item); return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>{item.id} · 发布 {item.publishedAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{item.sourceId || "—"} · 更新 {item.sourceUpdatedAt || "—"}</small></div></td><td><div className="stacked-cell"><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b><small>{item.audience}</small></div></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><div className="stacked-cell"><b>{item.durationSeconds} 秒 / 次 · {item.dailyLimit} 次 / 日</b><small>冷却 {item.cooldownMinutes} 分钟</small></div></td><td>{item.afterView === "exit" ? "退出推荐" : "继续轮换"}</td><td><div className="stacked-cell"><StatusTag>{availability}</StatusTag><button type="button" role="switch" aria-checked={item.enabled} aria-label={`${item.name}启用状态`} className={`strategy-status-switch ${item.enabled ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{item.enabled ? "启用" : "停用"}</span></button></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
+            {!rows.length && <tr><td colSpan="9"><div className="empty-table-state">暂无符合条件的推荐内容</div></td></tr>}
           </tbody></table>
         </div>
-        <div className="pagination"><span>当前内容池共 {poolStrategies.length} 条，筛选后展示 {rows.length} 条</span></div>
-      </section>
+        <div className="pagination"><span>共 {strategies.length} 条推荐内容，筛选后展示 {rows.length} 条{dateFilterEnabled ? ` · 当前仅看 ${selectedDateLabel}` : ""}</span><span>内容类型不决定排序</span></div>
+      </section>}
     </>
   );
 }
 
-function RecommendationStrategyDrawer({ record, safetyNews, activities, services, onClose, onSave }) {
+function RecommendationStrategyDrawer({ record, safetyNews, activities, currentProject, onClose, onSave }) {
+  const activityResources = [
+    ...activities.filter((item) => !["未发布", "已结束", "已取消"].includes(item.status)).map((item) => ({ id: item.id, name: item.title, category: item.category, summary: `${item.startAt.replace("T", " ")} · ${item.location} · ${item.description}`, date: item.publishedAt, status: item.status })),
+  ];
   const resourceGroups = {
-    safety: {
-      label: "安全资讯",
-      pool: "wellness",
-      items: safetyNews.filter((item) => item.status === "已发布").map((item) => ({ id: item.id, name: item.title, category: item.category, summary: item.description || item.content, date: item.updatedAt, status: item.status })),
-    },
-    activity: {
-      label: "社区活动",
-      pool: "community",
-      items: activities.filter((item) => item.status !== "已结束").map((item) => ({ id: item.id, name: item.title, category: item.category, summary: `${item.date} ${item.time} · ${item.location} · 已有 ${item.interestCount} 人表达意向`, date: item.publishedAt, status: item.status })),
-    },
-    service: {
-      label: "预约服务",
-      pool: "service",
-      items: services.filter((item) => item.status === "启用").map((item) => ({ id: item.id, name: item.name, category: item.category, summary: `${item.description} · ${item.provider}`, date: item.updatedAt, status: item.status })),
-    },
+    activity: { label: "社区活动", items: activityResources },
+    safety: { label: "社区内容", items: safetyNews.filter((item) => getCommunityContentStatus(item) === "已发布").map((item) => ({ id: item.id, name: item.title, category: item.type, summary: item.description || item.content, date: item.updatedAt, status: "已发布" })) },
+    entertainment: { label: "娱乐内容", items: entertainmentRecommendationResources },
   };
-  const [form, setForm] = useState(() => ({ resourceType: "safety", resourceId: "", resourceName: "", pool: "wellness", title: "", status: "启用", ...record }));
+  const [form, setForm] = useState(() => ({ projectId: currentProject?.id, name: "", type: "activity", sourceId: "", sourceName: "", sourceUpdatedAt: "", audience: "全部在服务老人", startsAt: "2026-08-21T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 1, durationSeconds: 20, dailyLimit: 3, cooldownMinutes: 120, afterView: "continue", publishedAt: recommendationMockNow, todayShown: 0, cooldownUntil: "", ...record }));
   const [errors, setErrors] = useState({});
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  const currentGroup = resourceGroups[form.resourceType] || resourceGroups.safety;
-  const selectedResource = currentGroup.items.find((item) => item.id === form.resourceId);
-  const changeResourceType = (resourceType) => setForm((current) => ({ ...current, resourceType, resourceId: "", resourceName: "", pool: resourceGroups[resourceType].pool, title: "" }));
-  const changeResource = (resource) => {
-    setForm((current) => ({ ...current, resourceId: resource.id, resourceName: resource.name, title: resource.name }));
-    setErrors((current) => ({ ...current, resourceId: "" }));
+  const currentGroup = resourceGroups[form.type];
+  const selectedResource = currentGroup.items.find((item) => item.id === form.sourceId) || (form.sourceId ? { id: form.sourceId, name: form.sourceName, date: form.sourceUpdatedAt, category: recommendationTypes.find((item) => item.key === form.type)?.label, summary: "当前推荐已关联的来源内容", status: "已发布" } : null);
+  const changeType = (type) => setForm((current) => ({ ...current, type, sourceId: "", sourceName: "", sourceUpdatedAt: "" }));
+  const selectResource = (resource) => {
+    setForm((current) => ({ ...current, sourceId: resource.id, sourceName: resource.name, sourceUpdatedAt: resource.date, name: current.name || resource.name }));
+    setErrors((current) => ({ ...current, sourceId: "" }));
     setResourcePickerOpen(false);
   };
   const save = () => {
     const nextErrors = {};
-    if (!form.resourceId) nextErrors.resourceId = "请选择关联资源";
-    if (!form.title.trim()) nextErrors.title = "请输入前端展示文案";
+    if (!form.sourceId) nextErrors.sourceId = "请选择需要推荐的来源内容";
+    if (!form.name.trim()) nextErrors.name = "请输入内容名称";
+    if (!form.startsAt || !form.endsAt) nextErrors.validity = "请选择生效和失效时间";
+    if (form.startsAt && form.endsAt && form.startsAt >= form.endsAt) nextErrors.validity = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    const { action: _removedAction, target: _removedTarget, ...cleanForm } = form;
-    onSave({ ...cleanForm, pool: currentGroup.pool, resourceName: selectedResource?.name || form.resourceName, title: form.title.trim() });
+    onSave({ ...form, name: form.name.trim(), displayOrder: Number(form.displayOrder), durationSeconds: Number(form.durationSeconds), dailyLimit: Number(form.dailyLimit), cooldownMinutes: Number(form.cooldownMinutes) });
   };
   return (
     <div className="drawer-layer">
       <button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/>
-      <aside className="drawer recommendation-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑推荐策略" : "新增推荐策略"}>
-        <header><div><h2>{record ? "编辑推荐策略" : "新增推荐策略"}</h2><p>从已发布的内容资源中选择推荐内容</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+      <aside className="drawer recommendation-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑推荐内容" : "新增推荐内容"}>
+        <header><div><h2>{record ? "编辑推荐内容" : "新增推荐内容"}</h2><p>配置老人端右侧内容的展示顺序与轮换参数</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
         <div className="drawer-body"><div className="form-section">
-          <h3>关联内容资源</h3>
-          <label><span>资源类型 *</span><div className="strategy-resource-types">{Object.entries(resourceGroups).map(([key, group]) => <button type="button" key={key} className={form.resourceType === key ? "active" : ""} onClick={() => changeResourceType(key)}><b>{group.label}</b><small>{group.items.length} 条可用资源</small></button>)}</div></label>
-          <label><span>选择资源 *</span><button type="button" className={`strategy-resource-picker-trigger ${selectedResource ? "selected" : ""}`} onClick={() => setResourcePickerOpen(true)}>{selectedResource ? <><span><b>{selectedResource.name}</b><small>{selectedResource.category} · {selectedResource.date}</small></span><em>更换</em></> : <><span><b>请选择{currentGroup.label}</b><small>可按标题、摘要、分类和日期辨别资源</small></span><em>选择</em></>}</button>{errors.resourceId && <small className="field-error">{errors.resourceId}</small>}</label>
-          {selectedResource && <div className="strategy-resource-preview"><span>{currentGroup.label}</span><div><b>{selectedResource.name}</b><small>{selectedResource.summary}</small></div><em>{selectedResource.id}</em></div>}
-          <label><span>前端展示文案（大球 / 卡片）*</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="选择资源后自动带入，可按展示需要调整"/>{errors.title && <small className="field-error">{errors.title}</small>}</label>
-          <label><span>策略状态 *</span><div className="strategy-enable-options"><button type="button" className={form.status === "启用" ? "active" : ""} onClick={() => update("status", "启用")}><b>立即加入轮播池</b><small>保存后参与每日推荐抽取</small></button><button type="button" className={form.status === "停用" ? "active" : ""} onClick={() => update("status", "停用")}><b>暂不启用</b><small>保存内容但不参与推送</small></button></div></label>
+          <h3>内容信息</h3>
+          <div className="form-row"><label><span>内容类型 *</span><select className="select-control form-select-native" value={form.type} onChange={(event) => changeType(event.target.value)}>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label><label><span>适用老人 / 人群 *</span><select className="select-control form-select-native" value={form.audience} onChange={(event) => update("audience", event.target.value)}><option>全部在服务老人</option><option>{currentProject?.community}老人</option><option>独居老人</option><option>高龄老人</option><option>喜欢戏曲与音乐</option></select></label></div>
+          <div className="recommendation-resource-field"><span>关联内容 *</span><button type="button" className={`strategy-resource-picker-trigger ${selectedResource ? "selected" : ""}`} onClick={() => setResourcePickerOpen(true)}>{selectedResource ? <><span><b>{selectedResource.name}</b><small>{selectedResource.id} · 更新 {selectedResource.date}</small></span><em>更换</em></> : <><span><b>请选择{currentGroup.label}</b><small>推荐必须关联一条已发布的来源内容</small></span><em>选择</em></>}</button>{errors.sourceId && <small className="field-error">{errors.sourceId}</small>}</div>
+          <label><span>内容名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：明早一起练太极"/>{errors.name && <small className="field-error">{errors.name}</small>}</label>
+          <div className="form-row"><label><span>生效时间 *</span><input type="datetime-local" value={form.startsAt} onChange={(event) => update("startsAt", event.target.value)}/></label><label><span>失效时间 *</span><input type="datetime-local" value={form.endsAt} onChange={(event) => update("endsAt", event.target.value)}/></label></div>{errors.validity && <small className="field-error">{errors.validity}</small>}
+          <h3>排序与轮换</h3>
+          <div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label><label><span>单次展示时长（秒）*</span><input type="number" min="5" max="120" value={form.durationSeconds} onChange={(event) => update("durationSeconds", event.target.value)}/></label></div>
+          <div className="form-row"><label><span>每日展示上限（次）*</span><input type="number" min="1" max="20" value={form.dailyLimit} onChange={(event) => update("dailyLimit", event.target.value)}/></label><label><span>冷却时间（分钟）*</span><input type="number" min="0" value={form.cooldownMinutes} onChange={(event) => update("cooldownMinutes", event.target.value)}/></label></div>
+          <label><span>老人查看后 *</span><div className="strategy-enable-options"><button type="button" className={form.afterView === "continue" ? "active" : ""} onClick={() => update("afterView", "continue")}><b>继续轮换</b><small>下一轮仍可按规则再次展示</small></button><button type="button" className={form.afterView === "exit" ? "active" : ""} onClick={() => update("afterView", "exit")}><b>退出推荐</b><small>本轮退出，不删除原内容记录</small></button></div></label>
+          <label><span>启用状态 *</span><div className="strategy-enable-options"><button type="button" className={form.enabled ? "active" : ""} onClick={() => update("enabled", true)}><b>启用</b><small>符合有效期与轮换条件时可展示</small></button><button type="button" className={!form.enabled ? "active" : ""} onClick={() => update("enabled", false)}><b>停用</b><small>保留配置但不进入有效顺序</small></button></div></label>
+          <div className="form-tip"><Sparkles size={16}/><div><b>排序规则</b><span>内容类型不参与优先级判断；同一展示顺序按发布时间倒序，再按固定内容编号排序。</span></div></div>
         </div></div>
-        <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存策略</button></footer>
+        <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存内容</button></footer>
       </aside>
-      {resourcePickerOpen && <RecommendationResourcePicker group={currentGroup} selectedId={form.resourceId} onClose={() => setResourcePickerOpen(false)} onConfirm={changeResource}/>} 
+      {resourcePickerOpen && <RecommendationResourcePicker group={currentGroup} selectedId={form.sourceId} onClose={() => setResourcePickerOpen(false)} onConfirm={selectResource}/>}
     </div>
   );
 }
@@ -1736,23 +2084,23 @@ function DataTable({ page, query }) {
   return <table><thead><tr>{headers.map(h => <th key={h}>{h}</th>)}<th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{j === 0 ? <button className="name-link">{cell}</button> : /状态|在线|已|待|草稿|服务中|需关注/.test(String(cell)) ? <StatusTag>{cell}</StatusTag> : cell}</td>)}<td className="sticky-right"><button className="table-action">详情</button><button className="table-action">编辑</button></td></tr>)}</tbody></table>;
 }
 
-function ServiceBookingPage({ bookings, services, elderlyRecords, projects, onOpen, onCreateService, onEditService, onToggleService }) {
+function ServiceBookingPage({ bookings, categories, elderlyRecords, communityName, onOpen, onCreateCategory, onEditCategory, onMoveCategory, onToggleCategory }) {
   const [activeTab, setActiveTab] = useState("bookings");
-  const initialFilters = { query: "", project: "全部项目", service: "全部服务", status: "全部状态" };
+  const initialFilters = { query: "", category: "全部分类", service: "全部服务", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
   const serviceOptions = ["全部服务", ...new Set(bookings.map((booking) => booking.serviceName))];
-  const projectOptions = ["全部项目", ...projects.filter((project) => project.status === "启用").map((project) => project.name)];
+  const categoryOptions = ["全部分类", ...categories.slice().sort((a, b) => a.displayOrder - b.displayOrder).map((category) => category.name)];
   const rows = bookings.map((booking) => ({
     ...booking,
     elderly: elderlyRecords.find((record) => record.id === booking.elderlyId),
   })).filter((booking) => {
     const keyword = filters.query.trim().toLowerCase();
     const matchesKeyword = !keyword || [booking.id, booking.serviceName, booking.provider, booking.elderly?.name, booking.elderly?.phone].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
-    const matchesProject = filters.project === "全部项目" || booking.elderly?.project === filters.project;
+    const matchesCategory = filters.category === "全部分类" || booking.categoryNameSnapshot === filters.category;
     const matchesService = filters.service === "全部服务" || booking.serviceName === filters.service;
     const matchesStatus = filters.status === "全部状态" || booking.status === filters.status;
-    return matchesKeyword && matchesProject && matchesService && matchesStatus;
+    return matchesKeyword && matchesCategory && matchesService && matchesStatus;
   });
   const reset = () => {
     setDraftFilters(initialFilters);
@@ -1767,10 +2115,10 @@ function ServiceBookingPage({ bookings, services, elderlyRecords, projects, onOp
 
   return (
     <>
-      <div className="page-heading"><div><h1>预约服务</h1><p>{activeTab === "bookings" ? "查看老人通过中控屏提交的服务预约，并跟进确认与服务进度" : "维护老人中控屏可查看和预约的服务内容"}</p></div>{activeTab === "services" && <button className="primary-button" onClick={onCreateService}><Plus size={16}/>新增服务</button>}</div>
+      <div className="page-heading"><div><h1>预约服务</h1><p>{activeTab === "bookings" ? `查看${communityName}老人提交的服务预约，并跟进确认与服务进度` : `维护${communityName}统一使用的特约服务分类`}</p></div>{activeTab === "categories" && <button className="primary-button" onClick={onCreateCategory}><Plus size={16}/>新增分类</button>}</div>
       <div className="service-module-tabs">
         <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>预约记录<span>{bookings.length}</span></button>
-        <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>服务管理<span>{services.length}</span></button>
+        <button className={activeTab === "categories" ? "active" : ""} onClick={() => setActiveTab("categories")}>服务分类<span>{categories.length}</span></button>
       </div>
       {activeTab === "bookings" ? <>
         <div className="service-booking-summary">
@@ -1782,7 +2130,7 @@ function ServiceBookingPage({ bookings, services, elderlyRecords, projects, onOp
         <section className="panel management-panel service-booking-panel">
           <div className="filters service-booking-filters">
             <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="预约编号、老人、服务或机构"/></div></label>
-            <label><span>所属项目</span><select className="select-control filter-select wide" value={draftFilters.project} onChange={(event) => setDraftFilters((current) => ({ ...current, project: event.target.value }))}>{projectOptions.map((project) => <option key={project}>{project}</option>)}</select></label>
+            <label><span>服务分类</span><select className="select-control filter-select" value={draftFilters.category} onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}>{categoryOptions.map((category) => <option key={category}>{category}</option>)}</select></label>
             <label><span>预约服务</span><select className="select-control filter-select" value={draftFilters.service} onChange={(event) => setDraftFilters((current) => ({ ...current, service: event.target.value }))}>{serviceOptions.map((service) => <option key={service}>{service}</option>)}</select></label>
             <label><span>预约状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}>{["全部状态", "待确认", "已确认", "服务中", "已完成", "已取消"].map((status) => <option key={status}>{status}</option>)}</select></label>
             <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
@@ -1790,18 +2138,73 @@ function ServiceBookingPage({ bookings, services, elderlyRecords, projects, onOp
           <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 条预约</span><span className="toolbar-hint">预约来自老人中控屏，后台负责确认和更新服务进度</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
           <div className="table-scroll">
             <table className="service-booking-table">
-              <thead><tr><th>预约服务 / 编号</th><th>预约老人</th><th>所属项目 / 地址</th><th>预约时段</th><th>服务机构</th><th>提交时间</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
+              <thead><tr><th>预约服务 / 编号</th><th>服务分类快照</th><th>预约老人</th><th>服务地址</th><th>预约时段</th><th>服务机构</th><th>提交时间</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
               <tbody>
-                {rows.map((booking) => <tr key={booking.id}><td><button className="service-booking-name" onClick={() => onOpen(booking)}><b>{booking.serviceName}</b><small>{booking.id} · {booking.category}</small></button></td><td>{booking.elderly ? <div className="stacked-cell"><b>{booking.elderly.name}</b><small>{booking.elderly.phone || "电话待补充"}</small></div> : "老人档案已移除"}</td><td>{booking.elderly ? <div className="stacked-cell"><b>{booking.elderly.project}</b><small>{booking.elderly.address}</small></div> : "—"}</td><td><b>{booking.slotLabel}</b></td><td>{booking.provider}</td><td>{booking.createdAt}</td><td><StatusTag>{booking.status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onOpen(booking)}>详情</button></td></tr>)}
-                {!rows.length && <tr><td colSpan="8"><div className="empty-table-state">暂无符合条件的预约记录</div></td></tr>}
+                {rows.map((booking) => <tr key={booking.id}><td><button className="service-booking-name" onClick={() => onOpen(booking)}><b>{booking.serviceName}</b><small>{booking.id}</small></button></td><td><StatusTag>{booking.categoryNameSnapshot}</StatusTag></td><td>{booking.elderly ? <div className="stacked-cell"><b>{booking.elderly.name}</b><small>{booking.elderly.phone || "电话待补充"}</small></div> : "老人档案已移除"}</td><td>{booking.elderly?.address || "—"}</td><td><b>{booking.slotLabel}</b></td><td>{booking.provider}</td><td>{booking.createdAt}</td><td><StatusTag>{booking.status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onOpen(booking)}>详情</button></td></tr>)}
+                {!rows.length && <tr><td colSpan="9"><div className="empty-table-state">暂无符合条件的预约记录</div></td></tr>}
               </tbody>
             </table>
           </div>
           <div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
         </section>
-      </> : <ServiceCatalogPanel services={services} onCreate={onCreateService} onEdit={onEditService} onToggle={onToggleService}/>} 
+      </> : <ServiceCategoryPanel categories={categories} onCreate={onCreateCategory} onEdit={onEditCategory} onMove={onMoveCategory} onToggle={onToggleCategory}/>}
     </>
   );
+}
+
+function ServiceCategoryPanel({ categories, onCreate, onEdit, onMove, onToggle }) {
+  const [draftFilters, setDraftFilters] = useState({ query: "", status: "全部状态" });
+  const [filters, setFilters] = useState({ query: "", status: "全部状态" });
+  const [confirmTarget, setConfirmTarget] = useState(null);
+  const sorted = categories.slice().sort((a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
+  const rows = sorted.filter((category) => {
+    const keyword = filters.query.trim().toLowerCase();
+    return (!keyword || [category.name, category.code, category.description].some((value) => `${value || ""}`.toLowerCase().includes(keyword)))
+      && (filters.status === "全部状态" || category.status === filters.status);
+  });
+  const reset = () => {
+    const next = { query: "", status: "全部状态" };
+    setDraftFilters(next);
+    setFilters(next);
+  };
+  return <>
+    <section className="panel management-panel service-category-panel">
+      <div className="filters service-category-filters">
+        <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="分类名称、标识或说明"/></div></label>
+        <label><span>分类状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>启用</option><option>已停用</option></select></label>
+        <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
+      </div>
+      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个分类</span><span className="toolbar-hint">分类停用后不进入新预约入口，历史预约继续保留分类快照</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
+      <div className="table-scroll"><table className="service-category-table"><thead><tr><th>分类名称 / 标识</th><th>分类说明</th><th>展示顺序</th><th>可预约服务</th><th>分类状态</th><th>更新时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {rows.map((category) => { const sourceIndex = sorted.findIndex((item) => item.id === category.id); return <tr key={category.id}><td><button className="service-booking-name" onClick={() => onEdit(category)}><b>{category.name}</b><small>{category.code}</small></button></td><td>{category.description || "—"}</td><td><div className="category-order-cell"><b>{category.displayOrder}</b><span><button disabled={sourceIndex === 0} onClick={() => onMove(category.id, "up")}>上移</button><button disabled={sourceIndex === sorted.length - 1} onClick={() => onMove(category.id, "down")}>下移</button></span></div></td><td><b>{category.availableServiceCount}</b> 项</td><td><StatusTag>{category.status}</StatusTag></td><td>{category.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(category)}>编辑</button><button className={`table-action ${category.status === "启用" ? "danger-text" : ""}`} onClick={() => category.status === "启用" ? setConfirmTarget(category) : onToggle(category.id)}>{category.status === "启用" ? "停用" : "启用"}</button></td></tr>; })}
+        {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无符合条件的服务分类</div></td></tr>}
+      </tbody></table></div>
+      <div className="pagination"><span>当前展示 {rows.length} 条数据</span><button className="secondary-button service-empty-create" onClick={onCreate}><Plus size={15}/>新增分类</button></div>
+    </section>
+    {confirmTarget && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭停用确认" onClick={() => setConfirmTarget(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="停用服务分类"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>停用“{confirmTarget.name}”？</h3><p>停用后，该分类及其中的服务将不再出现在老人端和子女端的新预约入口中；已有预约和订单不受影响。</p><div><button className="secondary-button" onClick={() => setConfirmTarget(null)}>取消</button><button className="danger-button" onClick={() => { onToggle(confirmTarget.id); setConfirmTarget(null); }}>确认停用</button></div></section></div>}
+  </>;
+}
+
+function ServiceCategoryDrawer({ record, categories, communityName, onClose, onSave }) {
+  const [form, setForm] = useState(() => record ? { ...record } : { name: "", code: "", description: "", displayOrder: categories.length + 1, status: "启用", availableServiceCount: 0 });
+  const [errors, setErrors] = useState({});
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const save = () => {
+    const nextErrors = {};
+    const name = form.name.trim();
+    if (!name) nextErrors.name = "请输入分类名称";
+    const duplicated = categories.some((category) => category.id !== record?.id && category.status === "启用" && category.name.trim().toLowerCase() === name.toLowerCase());
+    if (duplicated) nextErrors.name = "当前社区已存在同名的启用分类";
+    if (!Number.isInteger(Number(form.displayOrder)) || Number(form.displayOrder) < 1) nextErrors.displayOrder = "展示顺序必须为大于 0 的整数";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    onSave({ ...form, name, description: form.description.trim(), displayOrder: Number(form.displayOrder) });
+  };
+  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer service-category-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑服务分类" : "新增服务分类"}>
+    <header><div><h2>{record ? "编辑服务分类" : "新增服务分类"}</h2><p>{communityName} · 分类仅在当前社区生效</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+    <div className="drawer-body"><div className="form-section"><h3>分类信息</h3><label><span>分类名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：陪伴服务"/>{errors.name && <small className="field-error">{errors.name}</small>}</label><label><span>分类标识</span><input value={record?.code || "保存后自动生成"} disabled/><small className="field-help">分类标识保存后不可修改，供老人端和子女端稳定识别。</small></label><label><span>分类说明</span><textarea rows="4" value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="说明该分类包含的服务范围"/></label><div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><label><span>分类状态</span><input value={form.status} disabled/></label></div>{record && <div className="form-tip"><div><b>当前可预约服务</b><p>{record.availableServiceCount} 项；修改名称后，新预约入口使用新名称，历史预约仍保留下单时的名称快照。</p></div></div>}</div></div>
+    <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存分类</button></footer>
+  </aside></div>;
 }
 
 function ServiceCatalogPanel({ services, onCreate, onEdit, onToggle }) {
@@ -1871,8 +2274,8 @@ function ServiceBookingDrawer({ booking, elderly, onClose, onUpdateStatus }) {
       <aside className="drawer service-booking-drawer" role="dialog" aria-modal="true" aria-label="预约服务详情">
         <header><div><h2>预约服务详情</h2><p>{booking.id} · 来自{booking.source}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
         <div className="drawer-body">
-          <div className="service-booking-hero"><span><ClipboardList size={20}/></span><div><small>{booking.category}</small><h3>{booking.serviceName}</h3><p>{booking.slotLabel}</p></div><StatusTag>{booking.status}</StatusTag></div>
-          <section className="detail-section"><h3>预约信息</h3><div className="info-grid"><div><span>预约老人</span><b>{elderly?.name || "老人档案已移除"}</b></div><div><span>联系电话</span><b>{elderly?.phone || "待补充"}</b></div><div><span>所属项目</span><b>{elderly?.project || "—"}</b></div><div><span>所属社区</span><b>{elderly?.community || "—"}</b></div><div className="full"><span>服务地址</span><b>{elderly?.address || "—"}</b></div><div className="full"><span>服务机构</span><b>{booking.provider}</b></div><div><span>提交时间</span><b>{booking.createdAt}</b></div><div><span>最近更新</span><b>{booking.updatedAt}</b></div></div></section>
+          <div className="service-booking-hero"><span><ClipboardList size={20}/></span><div><small>{booking.categoryNameSnapshot || booking.category}</small><h3>{booking.serviceName}</h3><p>{booking.slotLabel}</p></div><StatusTag>{booking.status}</StatusTag></div>
+          <section className="detail-section"><h3>预约信息</h3><div className="info-grid"><div><span>预约老人</span><b>{elderly?.name || "老人档案已移除"}</b></div><div><span>联系电话</span><b>{elderly?.phone || "待补充"}</b></div><div><span>服务分类快照</span><b>{booking.categoryNameSnapshot || booking.category}</b></div><div><span>所属社区</span><b>{elderly?.community || "—"}</b></div><div className="full"><span>服务地址</span><b>{elderly?.address || "—"}</b></div><div className="full"><span>服务机构</span><b>{booking.provider}</b></div><div><span>提交时间</span><b>{booking.createdAt}</b></div><div><span>最近更新</span><b>{booking.updatedAt}</b></div></div></section>
           <section className="detail-section"><h3>服务进度</h3>{booking.status === "已取消" ? <div className="service-cancelled-state"><StatusTag>已取消</StatusTag><p>该预约已取消，不再进入后续服务流程。</p></div> : <div className="service-status-flow">{statusSteps.map((status, index) => <div className={index <= currentStep ? "completed" : ""} key={status}><i>{index < currentStep ? "✓" : index + 1}</i><span>{status}</span></div>)}</div>}<div className="service-operation-meta"><span>最近操作人</span><b>{booking.operator || "尚未处理"}</b></div></section>
         </div>
         <footer>{canCancel && <button className="secondary-button danger-text" onClick={() => setCancelConfirm(true)}>取消预约</button>}<span/><button className="secondary-button" onClick={onClose}>关闭</button>{action && <button className="primary-button" onClick={() => onUpdateStatus(booking.id, action.status)}>{action.label}</button>}</footer>
@@ -1882,11 +2285,10 @@ function ServiceBookingDrawer({ booking, elderly, onClose, onUpdateStatus }) {
   );
 }
 
-function CommunityActivityPage({ records, registrations, onCreate, onEdit, onDelete, onViewRegistrations }) {
+function CommunityActivityPage({ records, registrations, communityName, onCreate, onView, onEdit, onStatusChange, onViewRegistrations }) {
   const initialFilters = { query: "", category: "全部分类", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const categories = ["全部分类", ...new Set(records.map((record) => record.category))];
   const rows = records.filter((record) => {
     const keyword = filters.query.trim().toLowerCase();
@@ -1899,21 +2301,137 @@ function CommunityActivityPage({ records, registrations, onCreate, onEdit, onDel
     setFilters(initialFilters);
   };
   return <>
-    <div className="page-heading"><div><h1>社区活动</h1><p>发布面向老人的社区活动，并维护活动时间、地点和报名状态</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>发布活动</button></div>
+    <div className="page-heading"><div><h1>社区活动</h1><p>管理{communityName}的活动安排、报名阶段和老人参加意向</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增活动</button></div>
     <section className="panel management-panel community-activity-panel">
-      <div className="filters community-activity-filters"><label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="活动名称、说明或地点"/></div></label><label><span>活动分类</span><select className="select-control filter-select" value={draftFilters.category} onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label><label><span>活动状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>已发布</option><option>报名中</option><option>已结束</option></select></label><div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div></div>
+      <div className="filters community-activity-filters"><label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="活动名称、说明或地点"/></div></label><label><span>活动分类</span><select className="select-control filter-select" value={draftFilters.category} onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label><label><span>活动状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>未发布</option><option>报名中</option><option>报名结束</option><option>进行中</option><option>已结束</option><option>已取消</option></select></label><div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div></div>
       <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 场活动</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
-      <div className="table-scroll"><table className="community-activity-table"><thead><tr><th>活动名称</th><th>活动分类</th><th>活动时间 / 地点</th><th>意向人数</th><th>状态</th><th>发布时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {rows.map((record) => { const registrationCount = registrations.filter((item) => item.activityId === record.id && item.status !== "已取消").length; return <tr key={record.id}><td><button className="activity-title-cell" onClick={() => onEdit(record)}><img src={record.cover || activityHealthCover} alt=""/><span><b>{record.title}</b><small>{record.description || "暂无活动说明"}</small></span></button></td><td><StatusTag>{record.category}</StatusTag></td><td><div className="stacked-cell"><b>{record.date} {record.time}</b><small>{record.location}</small></div></td><td><button className="registration-count-button" onClick={() => onViewRegistrations(record)}>{registrationCount} 人</button></td><td><StatusTag>{record.status}</StatusTag></td><td>{record.publishedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => onViewRegistrations(record)}>报名人员</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button><button className="table-action danger-text" onClick={() => setDeleteTarget(record)}>删除</button></td></tr>; })}
-        {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无符合条件的社区活动</div></td></tr>}
+      <div className="table-scroll"><table className="community-activity-table"><thead><tr><th>活动名称</th><th>时间 / 地点</th><th>适用对象</th><th>报名阶段</th><th>参加意向</th><th>活动状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {rows.map((record) => { const registrationCount = registrations.filter((item) => item.activityId === record.id && item.status === "想参加").length; return <tr key={record.id}><td><button className="activity-title-cell" onClick={() => onView(record)}><img src={record.cover || activityHealthCover} alt=""/><span><b>{record.title}</b><small>{record.category} · {record.description || "暂无活动说明"}</small></span></button></td><td><div className="stacked-cell"><b>{record.startAt.replace("T", " ")}</b><small>{record.location}</small></div></td><td>{record.audience}</td><td><div className="stacked-cell"><StatusTag>{record.status}</StatusTag><small>截止 {record.registrationEndAt.replace("T", " ")}</small></div></td><td><button className="registration-count-button" onClick={() => onViewRegistrations(record)}>{registrationCount} 人想参加</button></td><td><select aria-label={`${record.title}状态`} className="inline-status-select" value={record.status} onChange={(event) => onStatusChange(record.id, event.target.value)}><option>未发布</option><option>报名中</option><option>报名结束</option><option>进行中</option><option>已结束</option><option>已取消</option></select></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onViewRegistrations(record)}>参加意向</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button></td></tr>; })}
+        {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无符合条件的活动</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
     </section>
-    {deleteTarget && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭删除确认" onClick={() => setDeleteTarget(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="删除社区活动"><span className="confirm-icon danger"><Trash2 size={20}/></span><h3>确认删除“{deleteTarget.title}”？</h3><p>删除后，该活动会从社区活动列表和推荐策略的可选资源中移除，此操作无法撤销。</p><div><button className="secondary-button" onClick={() => setDeleteTarget(null)}>取消</button><button className="danger-button" onClick={() => { onDelete(deleteTarget.id); setDeleteTarget(null); }}>确认删除</button></div></section></div>}
   </>;
 }
 
-function CommunityActivityDrawer({ record, onClose, onSave }) {
-  const [form, setForm] = useState(() => record ? { ...record } : { title: "", category: "", date: "", time: "", location: "", description: "", cover: "", interestCount: 0, status: "已发布" });
+function compressUploadedImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.onload = () => {
+      const image = new window.Image();
+      image.onerror = () => reject(new Error("图片格式无法识别"));
+      image.onload = () => {
+        const maxSide = 1200;
+        const scale = Math.min(1, maxSide / image.width, maxSide / image.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve({ id: `IMG-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: file.name, url: canvas.toDataURL("image/jpeg", 0.78) });
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function escapeRichText(value = "") {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+function legacyContentToHtml(text = "", images = []) {
+  const paragraphs = String(text).split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeRichText(paragraph)}</p>`).join("");
+  const imageHtml = images.filter((image) => image?.url).map((image) => `<p><img src="${escapeRichText(image.url)}" alt="${escapeRichText(image.name || "正文图片")}" /></p>`).join("");
+  return paragraphs || imageHtml ? `${paragraphs}${imageHtml}` : "<p><br></p>";
+}
+
+function richTextToPlainText(html = "") {
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  return (container.textContent || "").replace(/\s+/g, " ").trim();
+}
+
+function RichTextEditor({ label, value, readOnly = false, error, onChange }) {
+  const editorRef = useRef(null);
+  const savedRangeRef = useRef(null);
+  const [uploadError, setUploadError] = useState("");
+  const [fontSize, setFontSize] = useState("3");
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) editorRef.current.innerHTML = value || "<p><br></p>";
+  }, [value]);
+
+  const rememberSelection = () => {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || !editorRef.current?.contains(selection.anchorNode)) return;
+    savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+  };
+  const restoreSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || !savedRangeRef.current) return;
+    selection.removeAllRanges();
+    selection.addRange(savedRangeRef.current);
+  };
+  const emitValue = () => {
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+  const runCommand = (command, commandValue = null) => {
+    editorRef.current?.focus();
+    restoreSelection();
+    document.execCommand(command, false, commandValue);
+    emitValue();
+    rememberSelection();
+  };
+  const insertImages = async (fileList) => {
+    const currentCount = editorRef.current?.querySelectorAll("img").length || 0;
+    const files = Array.from(fileList || []).slice(0, Math.max(0, 6 - currentCount));
+    if (!files.length) {
+      setUploadError(currentCount >= 6 ? "正文中最多插入 6 张图片" : "");
+      return;
+    }
+    try {
+      const images = await Promise.all(files.map(compressUploadedImage));
+      editorRef.current?.focus();
+      restoreSelection();
+      const html = images.map((image) => `<p><img src="${image.url}" alt="${escapeRichText(image.name)}" /></p>`).join("");
+      document.execCommand("insertHTML", false, `${html}<p><br></p>`);
+      emitValue();
+      rememberSelection();
+      setUploadError("");
+    } catch (imageError) {
+      setUploadError(imageError.message || "图片插入失败，请重试");
+    }
+  };
+
+  if (readOnly) return <div className="rich-text-field rich-text-readonly"><span>{label}</span><div className="rich-text-preview" dangerouslySetInnerHTML={{ __html: value || "<p>未填写内容</p>" }}/></div>;
+
+  return <div className="rich-text-field">
+    <span>{label}</span>
+    <div className="rich-text-editor-shell">
+      <div className="rich-text-toolbar">
+        <select aria-label="字体大小" value={fontSize} onMouseDown={rememberSelection} onChange={(event) => { setFontSize(event.target.value); runCommand("fontSize", event.target.value); }}><option value="2">小号</option><option value="3">正文</option><option value="5">大号</option></select>
+        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("bold")}><b>B</b> 加粗</button>
+        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("insertUnorderedList")}>项目符号</button>
+        <label>插入图片<input type="file" accept="image/*" multiple onClick={rememberSelection} onChange={(event) => { insertImages(event.target.files); event.target.value = ""; }}/></label>
+      </div>
+      <div ref={editorRef} className="rich-text-editor" contentEditable suppressContentEditableWarning data-placeholder="请输入文字，也可以在光标位置插入图片" onInput={emitValue} onMouseUp={rememberSelection} onKeyUp={rememberSelection} onBlur={rememberSelection} onPaste={(event) => { event.preventDefault(); document.execCommand("insertText", false, event.clipboardData.getData("text/plain")); emitValue(); }} onDrop={(event) => event.preventDefault()}/>
+    </div>
+    {(error || uploadError) && <small className="field-error">{error || uploadError}</small>}
+  </div>;
+}
+
+function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClose, onSave }) {
+  const readOnly = mode === "view";
+  const [form, setForm] = useState(() => {
+    if (record) {
+      const { contentImages = [], ...rest } = record;
+      return { ...rest, contentHtml: record.contentHtml || legacyContentToHtml(record.description, contentImages) };
+    }
+    return { projectId: currentProject?.id, title: "", category: "", description: "", contentHtml: "<p><br></p>", cover: "", startAt: "", endAt: "", location: "", audience: "当前社区全部老人", capacity: 30, registrationStartAt: "", registrationEndAt: "", status: "未发布", contact: "" };
+  });
   const [errors, setErrors] = useState({});
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const uploadCover = (file) => {
@@ -1926,19 +2444,22 @@ function CommunityActivityDrawer({ record, onClose, onSave }) {
     const nextErrors = {};
     if (!form.title.trim()) nextErrors.title = "请输入活动名称";
     if (!form.category) nextErrors.category = "请选择活动分类";
-    if (!form.date) nextErrors.date = "请选择活动日期";
-    if (!form.time) nextErrors.time = "请选择活动时间";
+    if (!form.startAt || !form.endAt) nextErrors.time = "请选择活动开始和结束时间";
+    if (form.startAt && form.endAt && form.startAt >= form.endAt) nextErrors.time = "结束时间必须晚于开始时间";
+    if (!form.registrationStartAt || !form.registrationEndAt) nextErrors.registration = "请选择报名开始和截止时间";
     if (!form.location.trim()) nextErrors.location = "请输入活动地点";
-    if (!form.description.trim()) nextErrors.description = "请输入活动说明";
+    if (!form.contact.trim()) nextErrors.contact = "请输入联系电话";
+    const plainContent = richTextToPlainText(form.contentHtml);
+    if (!plainContent) nextErrors.contentHtml = "请输入活动详情内容";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSave({ ...form, title: form.title.trim(), location: form.location.trim(), description: form.description.trim() });
+    onSave({ ...form, title: form.title.trim(), location: form.location.trim(), contact: form.contact.trim(), description: plainContent, contentHtml: form.contentHtml });
   };
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer community-activity-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑活动" : "发布活动"}>
-    <header><div><h2>{record ? "编辑活动" : "发布活动"}</h2><p>维护老人端展示的活动内容和报名信息</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
-    <div className="drawer-body"><div className="form-section"><h3>活动内容</h3><label><span>活动名称 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入活动名称"/>{errors.title && <small className="field-error">{errors.title}</small>}</label><div className="form-row"><label><span>活动分类 *</span><select className="select-control form-select-native" value={form.category} onChange={(event) => update("category", event.target.value)}><option value="">请选择活动分类</option><option>健康活动</option><option>安全讲座</option><option>兴趣活动</option><option>社区交流</option></select>{errors.category && <small className="field-error">{errors.category}</small>}</label><label><span>活动状态 *</span><select className="select-control form-select-native" value={form.status} onChange={(event) => update("status", event.target.value)}><option>已发布</option><option>报名中</option><option>已结束</option></select></label></div><label><span>活动说明 *</span><textarea rows="4" value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="请输入活动内容和参与说明"/>{errors.description && <small className="field-error">{errors.description}</small>}</label><div className="activity-cover-field"><span>活动封面</span><div className="activity-cover-upload">{form.cover ? <img src={form.cover} alt="活动封面预览"/> : <span><CalendarDays size={22}/></span>}<div><b>{form.cover ? "已选择活动封面" : "上传活动封面"}</b><small>建议横向图片，支持 JPG、PNG</small></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => uploadCover(event.target.files?.[0])}/></label></div></div></div>
-      <div className="form-section community-activity-time-section"><h3>时间与地点</h3><div className="form-row"><label><span>活动日期 *</span><input type="date" value={form.date} onChange={(event) => update("date", event.target.value)}/>{errors.date && <small className="field-error">{errors.date}</small>}</label><label><span>活动时间 *</span><input type="time" value={form.time} onChange={(event) => update("time", event.target.value)}/>{errors.time && <small className="field-error">{errors.time}</small>}</label></div><label><span>活动地点 *</span><input value={form.location} onChange={(event) => update("location", event.target.value)} placeholder="请输入活动地点"/>{errors.location && <small className="field-error">{errors.location}</small>}</label></div>
-    </div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存活动</button></footer>
+  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className={`drawer community-activity-drawer ${readOnly ? "drawer-readonly" : ""}`} role="dialog" aria-modal="true" aria-label={readOnly ? "活动详情" : record ? "编辑活动" : "新增活动"}>
+    <header><div><h2>{readOnly ? "活动详情" : record ? "编辑活动" : "新增活动"}</h2><p>{currentProject?.community} · 活动与内容数据相互独立</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+    <div className="drawer-body"><div className="form-section"><h3>活动内容</h3><label><span>活动名称 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入活动名称"/>{errors.title && <small className="field-error">{errors.title}</small>}</label><label><span>活动分类 *</span><select className="select-control form-select-native" value={form.category} onChange={(event) => update("category", event.target.value)}><option value="">请选择活动分类</option><option>健康活动</option><option>安全讲座</option><option>兴趣活动</option><option>社区交流</option></select>{errors.category && <small className="field-error">{errors.category}</small>}</label><RichTextEditor label="活动详情内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/><div className="activity-cover-field"><span>活动封面</span><div className="activity-cover-upload">{form.cover ? <img src={form.cover} alt="活动封面预览"/> : <span><CalendarDays size={22}/></span>}<div><b>{form.cover ? "已选择活动封面" : "上传活动封面"}</b><small>用于活动列表入口，与详情正文分开维护</small></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => uploadCover(event.target.files?.[0])}/></label></div></div></div>
+      <div className="form-section community-activity-time-section"><h3>时间、地点与报名</h3><div className="form-row"><label><span>开始时间 *</span><input type="datetime-local" value={form.startAt} onChange={(event) => update("startAt", event.target.value)}/></label><label><span>结束时间 *</span><input type="datetime-local" value={form.endAt} onChange={(event) => update("endAt", event.target.value)}/></label></div>{errors.time && <small className="field-error">{errors.time}</small>}<label><span>活动地点 *</span><input value={form.location} onChange={(event) => update("location", event.target.value)} placeholder="请输入活动地点"/>{errors.location && <small className="field-error">{errors.location}</small>}</label><div className="form-row"><label><span>报名开始 *</span><input type="datetime-local" value={form.registrationStartAt} onChange={(event) => update("registrationStartAt", event.target.value)}/></label><label><span>报名截止 *</span><input type="datetime-local" value={form.registrationEndAt} onChange={(event) => update("registrationEndAt", event.target.value)}/></label></div>{errors.registration && <small className="field-error">{errors.registration}</small>}<div className="form-row"><label><span>适用对象 *</span><input value={form.audience} onChange={(event) => update("audience", event.target.value)}/></label><label><span>名额</span><input type="number" min="1" value={form.capacity} onChange={(event) => update("capacity", Number(event.target.value))}/></label></div><label><span>联系电话 *</span><input type="tel" value={form.contact} onChange={(event) => update("contact", event.target.value)} placeholder="例如：+65 6273 2288"/>{errors.contact && <small className="field-error">{errors.contact}</small>}</label><label><span>活动状态 *</span><select className="select-control form-select-native" value={form.status} onChange={(event) => update("status", event.target.value)}><option>未发布</option><option>报名中</option><option>报名结束</option><option>进行中</option><option>已结束</option><option>已取消</option></select></label></div>
+    </div><footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={save}>保存活动</button>}</footer>
   </aside></div>;
 }
 
@@ -1951,40 +2472,72 @@ function ActivityRegistrationsModal({ activity, registrations, elderlyRecords, o
     return (!keyword || [registration.elderly?.name, registration.elderly?.phone, registration.elderly?.project, registration.elderly?.community].some((value) => `${value || ""}`.toLowerCase().includes(keyword)))
       && (filters.status === "全部状态" || registration.status === filters.status);
   });
-  const activeCount = registrations.filter((registration) => registration.activityId === activity.id && registration.status !== "已取消").length;
+  const activeCount = registrations.filter((registration) => registration.activityId === activity.id && registration.status === "想参加").length;
   const reset = () => {
     setDraftFilters(initialFilters);
     setFilters(initialFilters);
   };
-  return <div className="modal-layer activity-registration-layer"><button className="modal-backdrop" aria-label="关闭报名人员弹窗" onClick={onClose}/><section className="activity-registration-dialog" role="dialog" aria-modal="true" aria-label={`${activity.title}报名人员`}>
-    <header><div><h3>报名人员</h3><p>{activity.title} · {activity.date} {activity.time} · {activity.location}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></header>
-    <div className="activity-registration-summary"><div><span>当前报名</span><b>{activeCount}</b></div><p>人员信息来自老人档案，联系方式和项目归属会保持同步。</p></div>
-    <div className="activity-registration-filters"><label><span>搜索人员</span><div className="input-wrap"><Search size={16}/><input autoFocus value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="姓名、手机号、项目或社区"/></div></label><label><span>报名状态</span><select className="select-control form-select-native" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>已报名</option><option>已取消</option><option>已签到</option><option>未签到</option></select></label><div><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div></div>
-    <div className="activity-registration-table-wrap"><table className="activity-registration-table"><thead><tr><th>老人信息</th><th>联系电话</th><th>所属项目 / 社区</th><th>报名时间</th><th>报名状态</th></tr></thead><tbody>{rows.map((registration) => <tr key={registration.id}><td>{registration.elderly ? <div className="elderly-name-cell"><span className="person-avatar">{registration.elderly.name.slice(-1)}</span><span><b>{registration.elderly.name}</b><small>{registration.elderly.gender} · {registration.elderly.age} 岁</small></span></div> : "老人档案已移除"}</td><td>{registration.elderly?.phone || "电话待补充"}</td><td><div className="stacked-cell"><b>{registration.elderly?.project || "—"}</b><small>{registration.elderly?.community || "—"}</small></div></td><td>{registration.registeredAt}</td><td><StatusTag>{registration.status}</StatusTag></td></tr>)}{!rows.length && <tr><td colSpan="5"><div className="empty-table-state">暂无符合条件的报名人员</div></td></tr>}</tbody></table></div>
-    <footer><span>当前展示 {rows.length} 条报名记录</span><button className="secondary-button" onClick={onClose}>关闭</button></footer>
+  return <div className="modal-layer activity-registration-layer"><button className="modal-backdrop" aria-label="关闭参加意向弹窗" onClick={onClose}/><section className="activity-registration-dialog" role="dialog" aria-modal="true" aria-label={`${activity.title}参加意向`}>
+    <header><div><h3>老人参加意向</h3><p>{activity.title} · {activity.startAt.replace("T", " ")} · {activity.location}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></header>
+    <div className="activity-registration-summary"><div><span>有参加意向</span><b>{activeCount}</b></div><p>这里只记录老人端反馈结果，不代表社区已经确认报名名额。</p></div>
+    <div className="activity-registration-filters"><label><span>搜索老人</span><div className="input-wrap"><Search size={16}/><input autoFocus value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="姓名或手机号"/></div></label><label><span>意向结果</span><select className="select-control form-select-native" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>想参加</option><option>暂不参加</option></select></label><div><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div></div>
+    <div className="activity-registration-table-wrap"><table className="activity-registration-table"><thead><tr><th>老人信息</th><th>联系电话</th><th>提交时间</th><th>参加意向</th></tr></thead><tbody>{rows.map((registration) => <tr key={registration.id}><td>{registration.elderly ? <div className="elderly-name-cell"><span className="person-avatar">{registration.elderly.name.slice(-1)}</span><span><b>{registration.elderly.name}</b><small>{registration.elderly.gender} · {registration.elderly.age} 岁</small></span></div> : "老人档案已移除"}</td><td>{registration.elderly?.phone || "电话待补充"}</td><td>{registration.registeredAt}</td><td><StatusTag>{registration.status}</StatusTag></td></tr>)}{!rows.length && <tr><td colSpan="4"><div className="empty-table-state">暂无符合条件的参加意向</div></td></tr>}</tbody></table></div>
+    <footer><span>当前展示 {rows.length} 条意向记录</span><button className="secondary-button" onClick={onClose}>关闭</button></footer>
   </section></div>;
 }
 
-function SafetyNewsPage({ records, projects, onCreate, onEdit, onDelete }) {
-  const initialFilters = { query: "", category: "全部分类", project: "全部项目" };
+function CommunityTopicPanel({ records, contentRecords, onCreate, onView }) {
+  const initialFilters = { query: "", initiator: "全部来源", referenced: "全部", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const categories = ["全部分类", ...new Set(records.map((record) => record.category))];
-  const projectMap = Object.fromEntries(projects.map((project) => [project.id, project.name]));
+  const [demoState, setDemoState] = useState("normal");
+  const rows = records.filter((record) => {
+    const keyword = filters.query.trim().toLowerCase();
+    const matchesKeyword = !keyword || [record.title, record.body, record.initiatorName, record.referenceSnapshot?.title].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
+    return matchesKeyword
+      && (filters.initiator === "全部来源" || (filters.initiator === "老人发起" ? record.initiatorType === "elderly" : record.initiatorType === "admin"))
+      && (filters.referenced === "全部" || (filters.referenced === "已引用" ? Boolean(record.referenceContentId) : !record.referenceContentId))
+      && (filters.status === "全部状态" || (filters.status === "进行中" ? record.status === "open" : record.status === "closed"));
+  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const referenceStatus = (record) => {
+    if (!record.referenceContentId) return "";
+    const source = contentRecords.find((item) => item.id === record.referenceContentId);
+    return source && getCommunityContentStatus(source) === "已发布" && source.type === "生活资讯" ? "有效" : "已失效";
+  };
+  const reset = () => { setDraftFilters(initialFilters); setFilters(initialFilters); };
+  return <>
+    <div className="topic-filter-heading"><span>话题管理</span><label><span>演示状态</span><select className="select-control filter-select" value={demoState} onChange={(event) => setDemoState(event.target.value)}><option value="normal">正常</option><option value="failed">加载失败</option></select></label></div>
+    <div className="filters community-topic-filters">
+      <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="话题标题、发起人或引用资讯"/></div></label>
+      <label><span>发起来源</span><select className="select-control filter-select" value={draftFilters.initiator} onChange={(event) => setDraftFilters((current) => ({ ...current, initiator: event.target.value }))}><option>全部来源</option><option>后台发起</option><option>老人发起</option></select></label>
+      <label><span>引用资讯</span><select className="select-control filter-select" value={draftFilters.referenced} onChange={(event) => setDraftFilters((current) => ({ ...current, referenced: event.target.value }))}><option>全部</option><option>已引用</option><option>未引用</option></select></label>
+      <label><span>话题状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>进行中</option><option>已关闭</option></select></label>
+      <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
+    </div>
+    {demoState === "failed" ? <div className="topic-load-error"><AlertTriangle size={28}/><b>话题列表加载失败</b><span>Mock 请求未返回，已保留当前筛选条件。</span><button className="secondary-button" onClick={() => setDemoState("normal")}><RefreshCw size={15}/>重试</button></div> : <>
+      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个话题</span><span className="toolbar-note">老人发起的 Mock 话题会直接进入当前社区列表</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
+      <div className="table-scroll"><table className="community-topic-table"><thead><tr><th>话题标题</th><th>发起人</th><th>引用生活资讯</th><th>评论数</th><th>创建时间</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {rows.map((record) => <tr key={record.id}><td><button className="topic-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.body}</small></button></td><td><div className="stacked-cell"><StatusTag>{record.initiatorType === "elderly" ? "老人发起" : "后台发起"}</StatusTag><small>{record.initiatorName}</small></div></td><td>{record.referenceSnapshot ? <div className="stacked-cell"><b>{record.referenceSnapshot.title}</b><small className={referenceStatus(record) === "已失效" ? "danger-text" : ""}>{referenceStatus(record) === "已失效" ? "引用资讯已失效" : "引用快照已保存"}</small></div> : <span className="muted-text">未引用</span>}</td><td>{record.commentCount} 条</td><td>{record.createdAt}</td><td><StatusTag>{record.status === "open" ? "进行中" : "已关闭"}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button></td></tr>)}
+        {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无符合条件的社区话题</div></td></tr>}
+      </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
+    </>}
+  </>;
+}
+
+function SafetyNewsPage({ records, topics, communityName, onCreate, onView, onEdit, onStatusChange, onCreateTopic, onViewTopic }) {
+  const [activeView, setActiveView] = useState("content");
+  const initialFilters = { query: "", type: "全部类型", status: "全部状态" };
+  const [draftFilters, setDraftFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState(initialFilters);
+  const [confirmTarget, setConfirmTarget] = useState(null);
   const rows = records.filter((record) => {
     const keyword = filters.query.trim().toLowerCase();
     const matchesKeyword = !keyword || [record.title, record.description, record.content].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
-    const matchesCategory = filters.category === "全部分类" || record.category === filters.category;
-    const matchesProject = filters.project === "全部项目"
-      || record.scope === "all"
-      || record.projectIds.includes(filters.project);
-    return matchesKeyword && matchesCategory && matchesProject;
+    const derivedStatus = getCommunityContentStatus(record);
+    return matchesKeyword
+      && (filters.type === "全部类型" || record.type === filters.type)
+      && (filters.status === "全部状态" || derivedStatus === filters.status);
   });
-  const getScopeText = (record) => {
-    if (record.scope === "all") return "全部项目";
-    const names = record.projectIds.map((id) => projectMap[id]).filter(Boolean);
-    return names.length > 2 ? `${names.slice(0, 2).join("、")}等 ${names.length} 个项目` : names.join("、") || "未配置";
-  };
   const reset = () => {
     setDraftFilters(initialFilters);
     setFilters(initialFilters);
@@ -1992,104 +2545,152 @@ function SafetyNewsPage({ records, projects, onCreate, onEdit, onDelete }) {
 
   return (
     <>
-      <div className="page-heading"><div><h1>安全资讯</h1><p>维护面向老人端的安全内容，并按项目范围进行投放</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>发布资讯</button></div>
+      <div className="page-heading"><div><h1>社区内容</h1><p>管理{communityName}的资讯内容与社区话题互动</p></div><button className="primary-button" onClick={activeView === "content" ? onCreate : onCreateTopic}><Plus size={16}/>{activeView === "content" ? "新增内容" : "发起话题"}</button></div>
       <section className="panel management-panel safety-news-panel">
+        <div className="content-view-tabs"><button className={activeView === "content" ? "active" : ""} onClick={() => setActiveView("content")}><BookOpen size={16}/>资讯内容</button><button className={activeView === "topics" ? "active" : ""} onClick={() => setActiveView("topics")}><MessageSquareText size={16}/>社区话题 <span>{topics.length}</span></button></div>
+        {activeView === "topics" ? <CommunityTopicPanel records={topics} contentRecords={records} onCreate={onCreateTopic} onView={onViewTopic}/> : <>
         <div className="filters safety-news-filters">
-          <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="资讯标题、详情描述或正文内容"/></div></label>
-          <label><span>资讯分类</span><select className="select-control filter-select" value={draftFilters.category} onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
-          <label><span>投放项目</span><select className="select-control filter-select wide" value={draftFilters.project} onChange={(event) => setDraftFilters((current) => ({ ...current, project: event.target.value }))}><option value="全部项目">全部项目</option>{projects.filter((project) => project.status === "启用").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+          <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="内容标题、摘要或正文"/></div></label>
+          <label><span>内容类型</span><select className="select-control filter-select" value={draftFilters.type} onChange={(event) => setDraftFilters((current) => ({ ...current, type: event.target.value }))}><option>全部类型</option>{communityContentTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+          <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>未发布</option><option>已发布</option><option>已失效</option><option>已停用</option></select></label>
           <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
         </div>
-        <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 条资讯</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
+        <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 条内容</span><span className="toolbar-note">仅展示当前社区数据</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
         <div className="table-scroll">
           <table className="safety-news-table">
-            <thead><tr><th>资讯标题</th><th>资讯分类</th><th>项目投放范围</th><th>状态</th><th>更新时间</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>内容标题</th><th>内容类型</th><th>适用对象</th><th>生效 / 失效时间</th><th>展示顺序</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
-              {rows.map((record) => <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onEdit(record)}><b>{record.title}</b><small>{record.description || "未填写详情描述"}</small></button></td><td><StatusTag>{record.category}</StatusTag></td><td><span className="scope-text">{getScopeText(record)}</span></td><td><StatusTag>{record.status}</StatusTag></td><td>{record.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(record)}>编辑</button><button className="table-action danger-text" onClick={() => onDelete(record.id)}>删除</button></td></tr>)}
-              {!rows.length && <tr><td colSpan="6"><div className="empty-table-state">暂无符合条件的安全资讯</div></td></tr>}
+              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td><StatusTag>{record.type}</StatusTag></td><td>{record.audience}</td><td><div className="stacked-cell"><b>{record.publishAt}</b><small>至 {record.validUntil || "长期"}</small></div></td><td>{record.displayOrder}</td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button>{status !== "已失效" && <button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "发布"}</button>}</td></tr>; })}
+              {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无符合条件的内容</div></td></tr>}
             </tbody>
           </table>
         </div>
         <div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
+        </>}
       </section>
+      {confirmTarget && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭停用确认" onClick={() => setConfirmTarget(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="停用社区内容"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>停用“{confirmTarget.title}”？</h3><p>停用后内容不再进入老人端展示，也不会再出现在推荐策略的可选来源中。</p><div><button className="secondary-button" onClick={() => setConfirmTarget(null)}>取消</button><button className="danger-button" onClick={() => { onStatusChange(confirmTarget.id, "已停用"); setConfirmTarget(null); }}>确认停用</button></div></section></div>}
     </>
   );
 }
 
-function SafetyNewsDrawer({ record, projects, onClose, onSave }) {
-  const [form, setForm] = useState(() => record ? { ...record } : {
-    title: "",
-    category: "",
-    content: "",
-    description: "",
-    cover: "",
-    scope: "all",
-    projectIds: [],
+function SafetyNewsDrawer({ record, mode = "edit", currentProject, onClose, onSave }) {
+  const readOnly = mode === "view";
+  const [form, setForm] = useState(() => {
+    if (record) {
+      const { contentImages = [], ...rest } = record;
+      return { ...rest, contentHtml: record.contentHtml || legacyContentToHtml(record.content, contentImages) };
+    }
+    return {
+      projectId: currentProject?.id,
+      title: "",
+      type: "社区公告",
+      content: "",
+      contentHtml: "<p><br></p>",
+      description: "",
+      cover: "",
+      source: currentProject?.community || "",
+      audience: "当前社区全部老人",
+      publishAt: "2026-08-24 10:00",
+      validUntil: "2026-09-30 23:59",
+      displayOrder: 1,
+      status: "未发布",
+    };
   });
   const [errors, setErrors] = useState({});
-  const enabledProjects = projects.filter((project) => project.status === "启用");
   const update = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
-      if (field === "scope" && value === "all") delete next.projectIds;
-      return next;
-    });
-  };
-  const toggleProject = (projectId) => {
-    setForm((current) => ({
-      ...current,
-      projectIds: current.projectIds.includes(projectId)
-        ? current.projectIds.filter((id) => id !== projectId)
-        : [...current.projectIds, projectId],
-    }));
-    setErrors((current) => {
-      const next = { ...current };
-      delete next.projectIds;
       return next;
     });
   };
   const submit = () => {
     const nextErrors = {};
-    if (!form.title.trim()) nextErrors.title = "请输入资讯标题";
-    if (!form.category) nextErrors.category = "请选择资讯分类";
-    if (!form.content.trim()) nextErrors.content = "请输入正文内容";
-    if (form.scope === "projects" && !form.projectIds.length) nextErrors.projectIds = "请至少选择一个投放项目";
+    const plainContent = richTextToPlainText(form.contentHtml);
+    if (!form.title.trim()) nextErrors.title = "请输入内容标题";
+    if (!plainContent) nextErrors.contentHtml = "请输入正文内容";
+    if (!form.publishAt) nextErrors.publishAt = "请选择生效时间";
+    if (form.validUntil && form.publishAt >= form.validUntil) nextErrors.validUntil = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSave(form);
+    onSave({ ...form, title: form.title.trim(), content: plainContent, contentHtml: form.contentHtml, displayOrder: Number(form.displayOrder) });
   };
 
   return (
     <div className="drawer-layer" role="presentation">
       <button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/>
-      <aside className="drawer safety-news-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑安全资讯" : "发布安全资讯"}>
-        <header><div><h2>{record ? "编辑安全资讯" : "发布安全资讯"}</h2><p>带 * 的字段为必填项，保存后按投放范围展示</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
-        <div className="drawer-body">
+      <aside className={`drawer safety-news-drawer ${readOnly ? "drawer-readonly" : ""}`} role="dialog" aria-modal="true" aria-label={readOnly ? "社区内容详情" : record ? "编辑社区内容" : "新增社区内容"}>
+        <header><div><h2>{readOnly ? "社区内容详情" : record ? "编辑社区内容" : "新增社区内容"}</h2><p>{currentProject?.community} · 内容只在当前社区内维护</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+        <div className="drawer-body" inert={readOnly ? true : undefined}>
           <div className="form-section safety-content-section">
-            <h3>资讯内容</h3>
-            <label><span>资讯标题 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入资讯标题"/>{errors.title && <small className="field-error">{errors.title}</small>}</label>
-            <label><span>资讯分类 *</span><select className="form-select-native" value={form.category} onChange={(event) => update("category", event.target.value)}><option value="">请选择资讯分类</option><option>诈骗提醒</option><option>家居安全</option><option>生活安全</option><option>社区公告</option><option>健康安全</option></select>{errors.category && <small className="field-error">{errors.category}</small>}</label>
-            <label className="safety-body-field"><span>正文内容 *</span><textarea value={form.content} onChange={(event) => update("content", event.target.value)} placeholder="请输入完整资讯正文" rows="5"/>{errors.content && <small className="field-error">{errors.content}</small>}</label>
-            <label className="safety-description-field"><span>详情描述</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="请输入补充描述" rows="3"/></label>
-            <div className="cover-field"><span>封面图片</span><div className="cover-upload-control"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover || "上传封面图片"}</b><small>支持 JPG、PNG 格式</small></div></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => update("cover", event.target.files?.[0]?.name || "")}/></label></div></div>
+            <h3>内容信息</h3>
+            <label><span>内容标题 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入内容标题"/>{errors.title && <small className="field-error">{errors.title}</small>}</label>
+            <label><span>内容类型 *</span><select className="form-select-native" value={form.type} onChange={(event) => update("type", event.target.value)}>{communityContentTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+            <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/></label>
+            <RichTextEditor label="正文内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/>
+            <div className="cover-field"><span>封面图片</span><div className="cover-upload-control"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover || "上传封面图片"}</b><small>用于内容列表入口，与正文图片分开维护</small></div></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => update("cover", event.target.files?.[0]?.name || "")}/></label></div></div>
           </div>
           <div className="form-section safety-scope-section">
-            <h3>项目投放范围</h3>
-            <p className="safety-section-hint">选择这条资讯可以展示到哪些项目。</p>
-            <div className="scope-radio-group">
-              <label><input type="radio" name="safety-scope" checked={form.scope === "all"} onChange={() => update("scope", "all")}/><span><b>全部项目</b><small>所有项目下的老人均可看到</small></span></label>
-              <label><input type="radio" name="safety-scope" checked={form.scope === "projects"} onChange={() => update("scope", "projects")}/><span><b>指定项目</b><small>仅投放到勾选的项目</small></span></label>
-            </div>
-            {form.scope === "projects" && <div className="project-scope-list">{enabledProjects.map((project) => <label key={project.id}><input type="checkbox" checked={form.projectIds.includes(project.id)} onChange={() => toggleProject(project.id)}/><span><b>{project.name}</b><small>{project.community}</small></span></label>)}</div>}
-            {errors.projectIds && <small className="field-error scope-error">{errors.projectIds}</small>}
+            <h3>展示设置</h3>
+            <div className="form-row"><label><span>适用对象 *</span><input value={form.audience} onChange={(event) => update("audience", event.target.value)}/></label><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label></div>
+            <div className="form-row"><label><span>生效时间 *</span><input type="datetime-local" value={form.publishAt.replace(" ", "T")} onChange={(event) => update("publishAt", event.target.value.replace("T", " "))}/>{errors.publishAt && <small className="field-error">{errors.publishAt}</small>}</label><label><span>失效时间</span><input type="datetime-local" value={form.validUntil?.replace(" ", "T") || ""} onChange={(event) => update("validUntil", event.target.value.replace("T", " "))}/>{errors.validUntil && <small className="field-error">{errors.validUntil}</small>}</label></div>
+            <label><span>发布来源</span><input value={form.source} onChange={(event) => update("source", event.target.value)} placeholder="例如：社区运营组"/></label>
           </div>
         </div>
-        <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={submit}>保存资讯</button></footer>
+        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={submit}>保存内容</button>}</footer>
       </aside>
     </div>
   );
+}
+
+function CommunityTopicDrawer({ currentProject, contentRecords, onClose, onSave }) {
+  const [form, setForm] = useState({ title: "", bodyHtml: "<p><br></p>", referenceContentId: "" });
+  const [errors, setErrors] = useState({});
+  const availableReferences = contentRecords.filter((record) => record.type === "生活资讯" && getCommunityContentStatus(record) === "已发布");
+  const selectedReference = availableReferences.find((record) => record.id === form.referenceContentId);
+  const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setErrors((current) => ({ ...current, [field]: "" })); };
+  const submit = () => {
+    const nextErrors = {};
+    if (!form.title.trim()) nextErrors.title = "请输入话题标题";
+    if (!richTextToPlainText(form.bodyHtml)) nextErrors.bodyHtml = "请输入话题正文";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    onSave({
+      ...form,
+      title: form.title.trim(),
+      body: richTextToPlainText(form.bodyHtml),
+      projectId: currentProject.id,
+      communityId: communityLifeMock.communities.find((item) => item.projectId === currentProject.id)?.communityId || currentProject.id,
+      initiatorType: "admin",
+      initiatorId: "ADMIN-CURRENT",
+      initiatorName: "赵亚男",
+      referenceContentId: selectedReference?.id || null,
+      referenceSnapshot: selectedReference ? { title: selectedReference.title, summary: selectedReference.description, coverUrl: selectedReference.coverUrl || "" } : null,
+      commentCount: 0,
+      status: "open",
+    });
+  };
+  return <div className="drawer-layer" role="presentation"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer community-topic-drawer" role="dialog" aria-modal="true" aria-label="发起社区话题">
+    <header><div><h2>发起社区话题</h2><p>{currentProject?.community} · 由当前后台账号发起</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+    <div className="drawer-body"><div className="form-section"><h3>话题内容</h3><label><span>话题标题 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入清晰、可交流的话题标题"/>{errors.title && <small className="field-error">{errors.title}</small>}</label><RichTextEditor label="话题正文 *" value={form.bodyHtml} error={errors.bodyHtml} onChange={(html) => update("bodyHtml", html)}/></div>
+      <div className="form-section"><h3>引用生活资讯</h3><p className="section-helper">可选。仅能引用当前社区已发布且有效的生活资讯，保存时同步留存标题、摘要和封面快照。</p><label><span>选择资讯</span><select className="form-select-native" value={form.referenceContentId} onChange={(event) => update("referenceContentId", event.target.value)}><option value="">不引用资讯</option>{availableReferences.map((record) => <option key={record.id} value={record.id}>{record.title} · {record.updatedAt}</option>)}</select></label>{selectedReference && <div className="topic-reference-card"><span className="topic-reference-cover">{selectedReference.cover ? <img src={selectedReference.cover} alt=""/> : <BookOpen size={20}/>}</span><div><small>已选择生活资讯</small><b>{selectedReference.title}</b><p>{selectedReference.description}</p><span>更新于 {selectedReference.updatedAt}</span></div></div>}</div>
+    </div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={submit}>保存话题</button></footer>
+  </aside></div>;
+}
+
+function CommunityTopicDetailDrawer({ topic, comments, contentRecords, onClose, onCloseTopic }) {
+  const [confirmClose, setConfirmClose] = useState(false);
+  const referenceSource = contentRecords.find((record) => record.id === topic.referenceContentId);
+  const referenceExpired = topic.referenceContentId && (!referenceSource || referenceSource.type !== "生活资讯" || getCommunityContentStatus(referenceSource) !== "已发布");
+  return <><div className="drawer-layer" role="presentation"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer community-topic-drawer topic-detail-drawer" role="dialog" aria-modal="true" aria-label="社区话题详情">
+    <header><div><h2>话题详情</h2><p>{topic.status === "open" ? "进行中，老人端可继续提交评论" : "已关闭，保留正文和历史评论"}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+    <div className="drawer-body"><div className="topic-detail-heading"><div><StatusTag>{topic.initiatorType === "elderly" ? "老人发起" : "后台发起"}</StatusTag><StatusTag>{topic.status === "open" ? "进行中" : "已关闭"}</StatusTag></div><h3>{topic.title}</h3><p>{topic.initiatorName} · {topic.createdAt}</p></div>
+      <section className="topic-detail-section"><h3>话题正文</h3><div className="rich-text-preview" dangerouslySetInnerHTML={{ __html: topic.bodyHtml }}/></section>
+      {topic.referenceSnapshot && <section className="topic-detail-section"><div className="topic-section-heading"><h3>引用生活资讯</h3>{referenceExpired && <StatusTag>已失效</StatusTag>}</div><div className={`topic-reference-card ${referenceExpired ? "is-expired" : ""}`}><span className="topic-reference-cover"><BookOpen size={20}/></span><div><b>{topic.referenceSnapshot.title}</b><p>{topic.referenceSnapshot.summary}</p><span>{referenceExpired ? "原资讯已停用或失效，话题仍保留创建时快照" : "引用资讯当前有效"}</span></div></div></section>}
+      <section className="topic-detail-section topic-comment-section"><div className="topic-section-heading"><div><h3>一级评论</h3><p>后台仅查看，不提供回复或多级评论</p></div><span>{comments.length} 条</span></div><div className="topic-comment-list">{comments.map((comment) => <article key={comment.id}><span className="person-avatar">{comment.authorName.slice(-1)}</span><div><header><b>{comment.authorName}</b><StatusTag>{comment.authorType === "elderly" ? "老人" : "社区"}</StatusTag><time>{comment.createdAt}</time></header><p>{comment.content}</p></div></article>)}{!comments.length && <div className="topic-empty-comments"><MessageSquareText size={26}/><b>暂无评论</b><span>话题已发布，尚未收到老人留言。</span></div>}</div></section>
+    </div><footer><button className="secondary-button" onClick={onClose}>关闭</button>{topic.status === "open" && <button className="danger-button" onClick={() => setConfirmClose(true)}>关闭话题</button>}</footer>
+  </aside></div>{confirmClose && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消关闭话题" onClick={() => setConfirmClose(false)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="关闭社区话题"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>关闭“{topic.title}”？</h3><p>关闭后保留话题正文和历史评论，但老人端不能再提交新评论。</p><div><button className="secondary-button" onClick={() => setConfirmClose(false)}>取消</button><button className="danger-button" onClick={() => { onCloseTopic(topic.id); setConfirmClose(false); }}>确认关闭</button></div></section></div>}</>;
 }
 
 function ManagementPage({ page, onCreate }) {
@@ -2537,11 +3138,12 @@ function CreateDrawer({ page, onClose }) {
 }
 
 export function App() {
-  const [active, setActive] = useState("elderly");
+  const [platformMode, setPlatformMode] = useState("community");
+  const [active, setActive] = useState("overview");
+  const [overviewScenario, setOverviewScenario] = useState("normal");
+  const [acceptanceResetSignal, setAcceptanceResetSignal] = useState(0);
+  const [activationFailureSignal, setActivationFailureSignal] = useState({ id: 0, type: "" });
   const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => {
-    if (!availableMenuKeys.has(active)) setActive("elderly");
-  }, [active]);
   const [elderlyRecords, setElderlyRecords] = useState(() => {
     try {
       const savedRecords = window.localStorage.getItem("u2g-elderly-records");
@@ -2613,47 +3215,46 @@ export function App() {
   });
   const [recommendationStrategies, setRecommendationStrategies] = useState(() => {
     try {
-      const savedStrategies = window.localStorage.getItem("u2g-recommendation-strategies");
+      const savedStrategies = window.localStorage.getItem("u2g-right-recommendations-v12-community-life");
       if (!savedStrategies) return initialRecommendationStrategies;
-      return JSON.parse(savedStrategies).map((item) => {
-        if (item.resourceId && item.pool !== "entertainment") return item;
-        const preset = initialRecommendationStrategies.find((strategy) => strategy.id === item.id);
-        return preset ? { ...item, pool: preset.pool, resourceType: preset.resourceType, resourceId: preset.resourceId, resourceName: preset.resourceName, title: preset.title } : null;
-      }).filter(Boolean);
+      const mergedStrategies = JSON.parse(savedStrategies).map((item) => {
+        const preset = initialRecommendationStrategies.find((record) => record.id === item.id);
+        return preset ? { ...preset, ...item, sourceId: item.sourceId || preset.sourceId, sourceName: item.sourceName || preset.sourceName, sourceUpdatedAt: item.sourceUpdatedAt || preset.sourceUpdatedAt } : item;
+      });
+      const savedIds = new Set(mergedStrategies.map((item) => item.id));
+      return [...mergedStrategies, ...initialRecommendationStrategies.filter((item) => !savedIds.has(item.id))];
     } catch {
       return initialRecommendationStrategies;
     }
   });
-  const [recommendationPolicy, setRecommendationPolicy] = useState(() => {
-    try {
-      const savedPolicy = window.localStorage.getItem("u2g-recommendation-policy");
-      if (!savedPolicy) return initialRecommendationPolicy;
-      const parsedPolicy = JSON.parse(savedPolicy);
-      return {
-        ...initialRecommendationPolicy,
-        ...parsedPolicy,
-        wellnessStart: parsedPolicy.wellnessStart || parsedPolicy.morningStart || initialRecommendationPolicy.wellnessStart,
-        wellnessEnd: parsedPolicy.wellnessEnd || parsedPolicy.morningEnd || initialRecommendationPolicy.wellnessEnd,
-      };
-    } catch {
-      return initialRecommendationPolicy;
-    }
-  });
   const [safetyNews, setSafetyNews] = useState(() => {
     try {
-      const savedNews = window.localStorage.getItem("u2g-safety-news");
-      if (!savedNews) return initialSafetyNews;
-      return JSON.parse(savedNews).map((item) => {
-        const { source: _removedSource, summary: previousSummary, contact: _removedContact, ...news } = item;
-        return { ...news, description: item.description ?? previousSummary ?? "" };
-      });
+      const savedNews = window.localStorage.getItem("u2g-community-content-v22-topics-split");
+      return savedNews ? JSON.parse(savedNews) : initialSafetyNews;
     } catch {
       return initialSafetyNews;
     }
   });
+  const [communityTopics, setCommunityTopics] = useState(() => {
+    try {
+      const savedTopics = window.localStorage.getItem("u2g-community-topics-v11");
+      return savedTopics ? JSON.parse(savedTopics) : initialCommunityTopics;
+    } catch {
+      return initialCommunityTopics;
+    }
+  });
+  const [topicComments] = useState(initialTopicComments);
+  const [serviceCategories, setServiceCategories] = useState(() => {
+    try {
+      const savedCategories = window.localStorage.getItem("u2g-service-categories-v10-unified");
+      return savedCategories ? JSON.parse(savedCategories) : initialServiceCategories;
+    } catch {
+      return initialServiceCategories;
+    }
+  });
   const [serviceBookings, setServiceBookings] = useState(() => {
     try {
-      const savedBookings = window.localStorage.getItem("u2g-service-bookings");
+      const savedBookings = window.localStorage.getItem("u2g-service-bookings-v10-unified");
       return savedBookings ? JSON.parse(savedBookings) : initialServiceBookings;
     } catch {
       return initialServiceBookings;
@@ -2661,7 +3262,7 @@ export function App() {
   });
   const [serviceCatalog, setServiceCatalog] = useState(() => {
     try {
-      const savedServices = window.localStorage.getItem("u2g-service-catalog");
+      const savedServices = window.localStorage.getItem("u2g-service-catalog-v10-unified");
       return savedServices ? JSON.parse(savedServices) : initialServiceCatalog;
     } catch {
       return initialServiceCatalog;
@@ -2669,7 +3270,7 @@ export function App() {
   });
   const [communityActivities, setCommunityActivities] = useState(() => {
     try {
-      const savedActivities = window.localStorage.getItem("u2g-community-activities");
+      const savedActivities = window.localStorage.getItem("u2g-community-activities-v22-contact-phone");
       return savedActivities ? JSON.parse(savedActivities) : initialCommunityActivities;
     } catch {
       return initialCommunityActivities;
@@ -2748,10 +3349,95 @@ export function App() {
   const [spaceTarget, setSpaceTarget] = useState(null);
   const [globalRuleOpen, setGlobalRuleOpen] = useState(false);
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(true);
-  const activeLabel = useMemo(() => menuGroups.flatMap((group) => group.items.flatMap((item) => [item, ...(item.children || [])])).find((item) => item.key === active)?.label, [active]);
-  const elderlyDetailRecord = elderlyRecords.find((record) => record.id === elderlyDetailId);
-  const relativeDetailRecord = relativeAccounts.find((account) => account.id === relativeDetailId);
-  const communityActivityRecords = useMemo(() => communityActivities.map((activity) => ({ ...activity, interestCount: initialActivityRegistrations.filter((registration) => registration.activityId === activity.id && registration.status !== "已取消").length })), [communityActivities]);
+  const [overviewContext, setOverviewContext] = useState("");
+  const [currentProjectId, setCurrentProjectId] = useState("PRJ-001");
+  const [pendingProjectId, setPendingProjectId] = useState("");
+  const currentMenuGroups = platformMode === "platform" ? platformMenuGroups : communityMenuGroups;
+  const currentMenuKeys = useMemo(() => new Set(currentMenuGroups.flatMap((group) => group.items.flatMap((item) => [item.key, ...(item.children || []).map((child) => child.key)]))), [currentMenuGroups]);
+  const currentProject = projects.find((project) => project.id === currentProjectId) || projects.find((project) => project.status === "启用") || projects[0];
+  const authorizedProjects = projects.filter((project) => project.status === "启用");
+  const scopedElderlyRecords = useMemo(() => elderlyRecords.filter((record) => record.community === currentProject?.community), [elderlyRecords, currentProject?.community]);
+  const scopedElderlyIds = useMemo(() => new Set(scopedElderlyRecords.map((record) => record.id)), [scopedElderlyRecords]);
+  const scopedRelativeAccounts = useMemo(() => relativeAccounts.filter((account) => account.links.some((link) => scopedElderlyIds.has(link.elderlyId))), [scopedElderlyIds]);
+  const scopedTabletDevices = useMemo(() => tabletDevices.filter((device) => scopedElderlyIds.has(device.boundElderlyId)), [tabletDevices, scopedElderlyIds]);
+  const scopedSensorDevices = useMemo(() => sensorDevices.filter((device) => scopedElderlyIds.has(device.elderlyId)), [sensorDevices, scopedElderlyIds]);
+  const scopedReminderRecords = useMemo(() => reminderRecords.filter((record) => scopedElderlyIds.has(record.elderlyId)), [reminderRecords, scopedElderlyIds]);
+  const scopedEmergencyEvents = useMemo(() => emergencyHelpEvents.filter((event) => scopedElderlyIds.has(event.elderlyId)), [emergencyHelpEvents, scopedElderlyIds]);
+  const scopedAlbumBatches = useMemo(() => familyAlbumBatches.filter((batch) => scopedElderlyIds.has(batch.elderlyId)), [familyAlbumBatches, scopedElderlyIds]);
+  const scopedCommunityActivities = useMemo(() => communityActivities.filter((activity) => activity.projectId === currentProject?.id), [communityActivities, currentProject?.id]);
+  const scopedActivityIds = useMemo(() => new Set(scopedCommunityActivities.map((activity) => activity.id)), [scopedCommunityActivities]);
+  const scopedRegistrations = useMemo(() => initialActivityRegistrations.filter((registration) => scopedActivityIds.has(registration.activityId) && scopedElderlyIds.has(registration.elderlyId)), [scopedActivityIds, scopedElderlyIds]);
+  const scopedSafetyNews = useMemo(() => safetyNews.filter((record) => record.projectId === currentProject?.id), [safetyNews, currentProject?.id]);
+  const scopedCommunityTopics = useMemo(() => communityTopics.filter((record) => record.projectId === currentProject?.id), [communityTopics, currentProject?.id]);
+  const scopedTopicComments = useMemo(() => topicComments.filter((record) => record.projectId === currentProject?.id), [topicComments, currentProject?.id]);
+  const scopedServiceCategories = useMemo(() => serviceCategories.filter((category) => category.projectId === currentProject?.id), [serviceCategories, currentProject?.id]);
+  const scopedServiceBookings = useMemo(() => serviceBookings.filter((booking) => booking.projectId === currentProject?.id && scopedElderlyIds.has(booking.elderlyId)), [serviceBookings, currentProject?.id, scopedElderlyIds]);
+  const scopedServiceCatalog = useMemo(() => serviceCatalog.filter((service) => service.projectId === currentProject?.id), [serviceCatalog, currentProject?.id]);
+  const scopedRecommendationStrategies = useMemo(() => recommendationStrategies.filter((record) => (record.projectId || "PRJ-001") === currentProject?.id), [recommendationStrategies, currentProject?.id]);
+  const activeLabel = useMemo(() => allMenuGroups.flatMap((group) => group.items.flatMap((item) => [item, ...(item.children || [])])).find((item) => item.key === active)?.label, [active]);
+  const elderlyDetailRecord = scopedElderlyRecords.find((record) => record.id === elderlyDetailId);
+  const relativeDetailRecord = scopedRelativeAccounts.find((account) => account.id === relativeDetailId);
+  const communityActivityRecords = useMemo(() => scopedCommunityActivities.map((activity) => ({ ...activity, interestCount: scopedRegistrations.filter((registration) => registration.activityId === activity.id && registration.status === "想参加").length })), [scopedCommunityActivities, scopedRegistrations]);
+  const hasOpenEditor = Boolean(drawer || deviceDrawer || tabletTarget || spaceTarget || globalRuleOpen);
+  useEffect(() => {
+    if (!currentMenuKeys.has(active)) setActive(platformMode === "platform" ? "platformOverview" : "overview");
+  }, [active, currentMenuKeys, platformMode]);
+
+  const closeOpenEditors = () => {
+    setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setSpaceTarget(null); setGlobalRuleOpen(false);
+    setElderlyDetailId(null); setRelativeDetailId(null); setOverviewContext("");
+  };
+
+  const switchPlatformMode = (nextMode) => {
+    if (nextMode === platformMode) return;
+    closeOpenEditors();
+    setPlatformMode(nextMode);
+    setActive(nextMode === "platform" ? "platformOverview" : "overview");
+  };
+
+  const applyCommunitySwitch = (projectId) => {
+    setCurrentProjectId(projectId);
+    closeOpenEditors();
+    setActive("overview");
+    setPendingProjectId("");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  const requestCommunitySwitch = (projectId) => {
+    if (projectId === currentProjectId) return;
+    if (hasOpenEditor) setPendingProjectId(projectId);
+    else applyCommunitySwitch(projectId);
+  };
+
+  const enterCommunity = (projectId) => {
+    setPlatformMode("community");
+    applyCommunitySwitch(projectId);
+  };
+  const resetAcceptance = () => {
+    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
+    setElderlyDetailId(null); setRelativeDetailId(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext("");
+    setActivationFailureSignal({ id: 0, type: "" }); setAcceptanceResetSignal((value) => value + 1);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+  const navigateFromAcceptance = (moduleId) => {
+    if (!availableMenuKeys.has(moduleId)) return;
+    setPlatformMode("community"); setActive(moduleId); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext("");
+    if (moduleId !== "elderly") setElderlyDetailId(null);
+    if (moduleId !== "relations") setRelativeDetailId(null);
+    if (moduleId !== "overview") setOverviewScenario("normal");
+    setAcceptanceResetSignal((value) => value + 1);
+  };
+
+  const navigateFromOverview = ({ page, filter = "", drawer: nextDrawer } = {}) => {
+    if (!page) return;
+    setActive(page);
+    setOverviewContext(filter);
+    if (page === "elderly") setElderlyDetailId(null);
+    if (page === "relations") setRelativeDetailId(null);
+    if (!nextDrawer) return;
+    if (nextDrawer.kind === "sensorCreate") setDeviceDrawer(nextDrawer);
+    else setDrawer(nextDrawer);
+  };
 
   useEffect(() => {
     window.localStorage.setItem("u2g-elderly-records", JSON.stringify(elderlyRecords));
@@ -2778,28 +3464,32 @@ export function App() {
   }, [emergencyHelpEvents]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-recommendation-strategies", JSON.stringify(recommendationStrategies));
+    window.localStorage.setItem("u2g-right-recommendations-v12-community-life", JSON.stringify(recommendationStrategies));
   }, [recommendationStrategies]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-recommendation-policy", JSON.stringify(recommendationPolicy));
-  }, [recommendationPolicy]);
-
-  useEffect(() => {
-    window.localStorage.setItem("u2g-safety-news", JSON.stringify(safetyNews));
+    window.localStorage.setItem("u2g-community-content-v22-topics-split", JSON.stringify(safetyNews));
   }, [safetyNews]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-service-bookings", JSON.stringify(serviceBookings));
+    window.localStorage.setItem("u2g-community-topics-v11", JSON.stringify(communityTopics));
+  }, [communityTopics]);
+
+  useEffect(() => {
+    window.localStorage.setItem("u2g-community-activities-v22-contact-phone", JSON.stringify(communityActivities));
+  }, [communityActivities]);
+
+  useEffect(() => {
+    window.localStorage.setItem("u2g-service-categories-v10-unified", JSON.stringify(serviceCategories));
+  }, [serviceCategories]);
+
+  useEffect(() => {
+    window.localStorage.setItem("u2g-service-bookings-v10-unified", JSON.stringify(serviceBookings));
   }, [serviceBookings]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-service-catalog", JSON.stringify(serviceCatalog));
+    window.localStorage.setItem("u2g-service-catalog-v10-unified", JSON.stringify(serviceCatalog));
   }, [serviceCatalog]);
-
-  useEffect(() => {
-    window.localStorage.setItem("u2g-community-activities", JSON.stringify(communityActivities));
-  }, [communityActivities]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-album-categories-v12", JSON.stringify(albumCategories));
@@ -2996,13 +3686,19 @@ export function App() {
       setRecommendationStrategies((items) => items.map((item) => item.id === strategy.id ? { ...item, ...strategy } : item));
     } else {
       const nextNumber = Math.max(0, ...recommendationStrategies.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      setRecommendationStrategies((items) => [{ ...strategy, id: `STR-${String(nextNumber).padStart(3, "0")}`, pushCount: 0, lastPush: "" }, ...items]);
+      setRecommendationStrategies((items) => [{ ...strategy, id: `REC-${String(nextNumber).padStart(3, "0")}`, publishedAt: recommendationMockNow, todayShown: 0, cooldownUntil: "" }, ...items]);
     }
     setDrawer(null);
   };
 
   const toggleRecommendationStrategy = (id) => {
-    setRecommendationStrategies((items) => items.map((item) => item.id === id ? { ...item, status: item.status === "启用" ? "停用" : "启用" } : item));
+    setRecommendationStrategies((items) => items.map((item) => item.id === id ? { ...item, enabled: !item.enabled } : item));
+  };
+
+  const moveRecommendationStrategy = (id, offset) => {
+    setRecommendationStrategies((items) => items.map((item) => item.id === id
+      ? { ...item, displayOrder: Math.max(1, Number(item.displayOrder) + offset) }
+      : item));
   };
 
   const saveSafetyNews = (record) => {
@@ -3011,13 +3707,26 @@ export function App() {
       setSafetyNews((items) => items.map((item) => item.id === record.id ? { ...item, ...record, updatedAt } : item));
     } else {
       const nextNumber = Math.max(0, ...safetyNews.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      setSafetyNews((items) => [{ ...record, id: `SAF-${String(nextNumber).padStart(3, "0")}`, status: "已发布", updatedAt }, ...items]);
+      setSafetyNews((items) => [{ ...record, projectId: currentProject.id, id: `SAF-${String(nextNumber).padStart(3, "0")}`, status: record.status || "未发布", updatedAt }, ...items]);
     }
     setDrawer(null);
   };
 
-  const deleteSafetyNews = (id) => {
-    setSafetyNews((items) => items.filter((item) => item.id !== id));
+  const changeSafetyNewsStatus = (id, status) => {
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    setSafetyNews((items) => items.map((item) => item.id === id ? { ...item, status, publishAt: status === "已发布" && getCommunityContentStatus(item) === "未发布" ? communityContentMockNow : item.publishAt, updatedAt } : item));
+  };
+
+  const saveCommunityTopic = (topic) => {
+    const nextNumber = Math.max(0, ...communityTopics.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
+    const createdAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    setCommunityTopics((items) => [{ ...topic, id: `TOPIC-${String(nextNumber).padStart(3, "0")}`, createdAt }, ...items]);
+    setDrawer(null);
+  };
+
+  const closeCommunityTopic = (id) => {
+    setCommunityTopics((items) => items.map((item) => item.id === id ? { ...item, status: "closed" } : item));
+    setDrawer((current) => current?.kind === "communityTopicDetail" ? { ...current, topicId: id } : current);
   };
 
   const updateServiceBookingStatus = (id, status) => {
@@ -3026,6 +3735,49 @@ export function App() {
     setDrawer((current) => current?.kind === "serviceBooking" && current.record?.id === id
       ? { ...current, record: { ...current.record, status, operator: "赵亚男", updatedAt } }
       : current);
+  };
+
+  const saveServiceCategory = (category) => {
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    if (category.id) {
+      setServiceCategories((items) => items.map((item) => item.id === category.id ? { ...item, ...category, updatedAt } : item));
+      setServiceCatalog((items) => items.map((item) => item.projectId === category.projectId && item.categoryCode === category.code ? { ...item, category: category.name, categoryName: category.name, updatedAt } : item));
+    } else {
+      const customNumbers = serviceCategories.map((item) => Number(`${item.code}`.match(/^custom-(\d+)$/)?.[1]) || 0);
+      const nextNumber = Math.max(0, ...customNumbers) + 1;
+      const suffix = String(nextNumber).padStart(3, "0");
+      setServiceCategories((items) => [...items, {
+        ...category,
+        id: `SC-${currentProject.id}-CUSTOM-${suffix}`,
+        projectId: currentProject.id,
+        communityId: serviceCategoryMock.communities.find((item) => item.projectId === currentProject.id)?.communityId || currentProject.id,
+        code: `custom-${suffix}`,
+        status: "启用",
+        availableServiceCount: 0,
+        updatedAt,
+      }]);
+    }
+    setDrawer(null);
+  };
+
+  const moveServiceCategory = (id, direction) => {
+    const scoped = serviceCategories.filter((item) => item.projectId === currentProject.id).sort((a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
+    const currentIndex = scoped.findIndex((item) => item.id === id);
+    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= scoped.length) return;
+    const current = scoped[currentIndex];
+    const target = scoped[nextIndex];
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    setServiceCategories((items) => items.map((item) => item.id === current.id
+      ? { ...item, displayOrder: target.displayOrder, updatedAt }
+      : item.id === target.id
+        ? { ...item, displayOrder: current.displayOrder, updatedAt }
+        : item));
+  };
+
+  const toggleServiceCategory = (id) => {
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    setServiceCategories((items) => items.map((item) => item.id === id ? { ...item, status: item.status === "启用" ? "已停用" : "启用", updatedAt } : item));
   };
 
   const saveServiceCatalogItem = (service) => {
@@ -3050,14 +3802,13 @@ export function App() {
       setCommunityActivities((items) => items.map((item) => item.id === activity.id ? { ...item, ...activity, publishedAt } : item));
     } else {
       const nextNumber = Math.max(0, ...communityActivities.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      setCommunityActivities((items) => [{ ...activity, id: `ACT-${String(nextNumber).padStart(3, "0")}`, publishedAt }, ...items]);
+      setCommunityActivities((items) => [{ ...activity, projectId: currentProject.id, id: `ACT-${String(nextNumber).padStart(3, "0")}`, publishedAt }, ...items]);
     }
     setDrawer(null);
   };
 
-  const deleteCommunityActivity = (id) => {
-    setCommunityActivities((items) => items.filter((item) => item.id !== id));
-    setRecommendationStrategies((items) => items.filter((item) => !(item.resourceType === "activity" && item.resourceId === id)));
+  const changeCommunityActivityStatus = (id, status) => {
+    setCommunityActivities((items) => items.map((item) => item.id === id ? { ...item, status } : item));
   };
 
   const saveProject = (nextProject) => {
@@ -3154,83 +3905,102 @@ export function App() {
   };
 
   return (
-    <div className={`app-shell admin-style-theme ${collapsed ? "collapsed" : ""}`}>
+    <div className={`app-shell admin-style-theme ${collapsed ? "collapsed" : ""} ${platformMode === "platform" ? "platform-mode" : "community-mode"}`}>
       <aside className="sidebar">
-        <div className="brand"><div className="brand-mark"><HeartHandshake size={21}/></div><div className="brand-copy"><strong>U2G 乐龄服务平台</strong><span>运营管理后台</span></div></div>
-        <nav>{menuGroups.map((group) => <div className="menu-group" key={group.label}><div className="menu-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const childActive = item.children?.some((child) => child.key === active); return item.children ? <div className={`submenu-group ${childActive ? "has-active" : ""}`} key={item.key}><button title={item.label} className="submenu-parent" onClick={() => setDeviceMenuOpen((open) => !open)}><Icon size={18}/><span>{item.label}</span><ChevronDown className={`submenu-chevron ${deviceMenuOpen ? "open" : ""}`} size={14}/></button>{deviceMenuOpen && <div className="submenu">{item.children.map((child) => <button title={child.label} className={`submenu-button ${active === child.key ? "active" : ""}`} key={child.key} onClick={() => setActive(child.key)}><span>{child.label}</span>{active === child.key && <i/>}</button>)}</div>}</div> : <button title={item.label} className={active === item.key ? "active" : ""} key={item.key} onClick={() => { setActive(item.key); if (item.key === "elderly") setElderlyDetailId(null); if (item.key === "relations") setRelativeDetailId(null); }}><Icon size={18}/><span>{item.label}</span>{active === item.key && <i/>}</button>; })}</div>)}</nav>
+        <div className="brand"><div className="brand-mark"><HeartHandshake size={21}/></div><div className="brand-copy"><strong>U2G 乐龄服务平台</strong><span>{platformMode === "platform" ? "平台管理端" : "社区运营端"}</span></div></div>
+        <nav>{currentMenuGroups.map((group) => <div className="menu-group" key={group.label}><div className="menu-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const childActive = item.children?.some((child) => child.key === active); return item.children ? <div className={`submenu-group ${childActive ? "has-active" : ""}`} key={item.key}><button title={item.label} className="submenu-parent" onClick={() => setDeviceMenuOpen((open) => !open)}><Icon size={18}/><span>{item.label}</span><ChevronDown className={`submenu-chevron ${deviceMenuOpen ? "open" : ""}`} size={14}/></button>{deviceMenuOpen && <div className="submenu">{item.children.map((child) => <button title={child.label} className={`submenu-button ${active === child.key ? "active" : ""}`} key={child.key} onClick={() => { setActive(child.key); setOverviewContext(""); }}><span>{child.label}</span>{active === child.key && <i/>}</button>)}</div>}</div> : <button title={item.label} className={active === item.key ? "active" : ""} key={item.key} onClick={() => { setActive(item.key); setOverviewContext(""); if (item.key === "elderly") setElderlyDetailId(null); if (item.key === "relations") setRelativeDetailId(null); }}><Icon size={18}/><span>{item.label}</span>{active === item.key && <i/>}</button>; })}</div>)}</nav>
         <div className="sidebar-footer"><button onClick={() => setCollapsed(!collapsed)}><Menu size={18}/><span>收起菜单</span></button></div>
       </aside>
       <div className="main-shell">
-        <header className="topbar"><div className="breadcrumb"><Home size={15}/><span>首页</span><ChevronRight size={14}/><b>{activeLabel}</b></div><div className="top-actions"><button className="top-icon"><Bell size={18}/><i/></button><span className="divider"/><button className="profile"><span className="avatar">赵</span><span><b>赵亚男</b><small>超级管理员</small></span><ChevronDown size={14}/></button></div></header>
+        <header className="topbar">
+          <div className="breadcrumb"><Home size={15}/><span>{platformMode === "platform" ? "平台管理端" : currentProject?.community}</span><ChevronRight size={14}/><b>{activeLabel}</b></div>
+          <div className="top-actions">
+            <label className="top-context-select platform-context-select"><span>当前平台</span><select value={platformMode} onChange={(event) => switchPlatformMode(event.target.value)}><option value="community">社区运营端</option><option value="platform">平台管理端</option></select></label>
+            {platformMode === "community" && <label className="top-context-select community-context-select"><span>当前社区</span><select value={currentProject?.id || ""} onChange={(event) => requestCommunitySwitch(event.target.value)}>{authorizedProjects.map((project) => <option value={project.id} key={project.id}>{project.community}</option>)}</select></label>}
+            <button className="top-icon"><Bell size={18}/><i/></button><span className="divider"/><button className="profile"><span className="avatar">赵</span><span><b>赵亚男</b><small>{platformMode === "platform" ? "平台管理员" : "社区运营管理员"}</small></span><ChevronDown size={14}/></button>
+          </div>
+        </header>
         <main className="content">
-          {active === "overview"
-            ? <><div className="page-heading overview-heading"><div><h1>运营概览</h1><p>下午好，以下是 U2G 乐龄服务平台今日运营情况</p></div><span className="today">2026年7月17日 · 星期五</span></div><Overview onNavigate={setActive} inactivityRule={globalInactivityRule} inactivityStates={inactivityRules} onEditInactivityRule={() => setGlobalRuleOpen(true)}/></>
+          {active !== "overview" && overviewContext && <div className="overview-filter-context"><div><SlidersHorizontal size={16}/><span>来自运营概览</span><b>{overviewContext}</b></div><button type="button" onClick={() => setOverviewContext("")}>清除条件</button></div>}
+          {active === "platformOverview"
+            ? <PlatformOverview projects={projects} elderlyRecords={elderlyRecords} tablets={tabletDevices} sensors={sensorDevices} onEnterCommunity={enterCommunity}/>
+            : active === "overview"
+            ? <Overview onNavigate={navigateFromOverview} inactivityRule={globalInactivityRule} onEditInactivityRule={() => setGlobalRuleOpen(true)} scenario={overviewScenario} resetSignal={acceptanceResetSignal} scope={{ name: currentProject?.community || "未选择社区", project: currentProject?.name || "未选择项目" }} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} reminders={scopedReminderRecords}/>
             : active === "elderly"
               ? elderlyDetailRecord
                 ? <ElderlyDetailPage record={elderlyDetailRecord} project={projects.find((project) => project.name === elderlyDetailRecord.project)} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} activation={activationRecords.find((item) => item.elderlyId === elderlyDetailRecord.id && ["待使用", "激活失败"].includes(item.status))} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyInvitations={familyInvitations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onInvalidateInvite={invalidateFamilyInvitation} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...globalInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: globalInactivityRule.enabled, thresholdHours: globalInactivityRule.thresholdHours, startTime: globalInactivityRule.startTime, endTime: globalInactivityRule.endTime }} weatherLocation={weatherMockApi.getLocation(weatherLocations, "老人", elderlyDetailRecord.id)} weatherQuery={weatherMockApi.getWeatherQuery(weatherQueries, weatherMockApi.getLocation(weatherLocations, "老人", elderlyDetailRecord.id)?.id)} weatherAudits={weatherMockApi.getAudits(weatherAudits, "老人", elderlyDetailRecord.id)} onBack={() => setElderlyDetailId(null)} onEdit={() => setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord })} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>
-                : <ElderlyPage records={elderlyRecords} projects={projects} tabletDevices={tabletDevices} activationRecords={activationRecords} onOpen={(mode, record) => mode === "view" ? setElderlyDetailId(record.id) : setDrawer({ kind: "elderly", mode, record })}/>
+                : <ElderlyPage records={scopedElderlyRecords} tabletDevices={scopedTabletDevices} activationRecords={activationRecords.filter((item) => scopedElderlyIds.has(item.elderlyId))} onOpen={(mode, record) => mode === "view" ? setElderlyDetailId(record.id) : setDrawer({ kind: "elderly", mode, record })}/>
               : active === "relations"
                 ? relativeDetailRecord
                   ? <RelativeDetailPage account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} weatherQuery={weatherMockApi.getWeatherQuery(weatherQueries, weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)?.id)} weatherAudits={weatherMockApi.getAudits(weatherAudits, "亲属", relativeDetailRecord.id)} onBack={() => setRelativeDetailId(null)} onEditWeather={() => setDrawer({ kind: "relativeWeather", account: relativeDetailRecord })}/>
-                  : <RelativeArchivePage accounts={relativeAccounts} elderlyRecords={elderlyRecords} weatherLocations={weatherLocations} onOpen={(account) => setRelativeDetailId(account.id)}/>
+                  : <RelativeArchivePage accounts={scopedRelativeAccounts} elderlyRecords={scopedElderlyRecords} weatherLocations={weatherLocations} onOpen={(account) => setRelativeDetailId(account.id)}/>
               : active === "reminders"
-                ? <ReminderManagementPage reminders={reminderRecords} elderlyRecords={elderlyRecords} onCreate={() => setDrawer({ kind: "reminder" })} onEdit={(record) => setDrawer({ kind: "reminder", record })} onDelete={deleteReminder} onViewPlan={(record) => setDrawer({ kind: "reminderPlan", record })}/>
+                ? <ReminderManagementPage reminders={scopedReminderRecords} elderlyRecords={scopedElderlyRecords} onCreate={() => setDrawer({ kind: "reminder" })} onEdit={(record) => setDrawer({ kind: "reminder", record })} onDelete={deleteReminder} onViewPlan={(record) => setDrawer({ kind: "reminderPlan", record })}/>
               : active === "emergencyHelp"
-                ? <EmergencyHelpPage events={emergencyHelpEvents} elderlyRecords={elderlyRecords} onOpen={(event) => setDrawer({ kind: "emergencyHelp", eventId: event.id })}/>
+                ? <EmergencyHelpPage events={scopedEmergencyEvents} elderlyRecords={scopedElderlyRecords} onOpen={(event) => setDrawer({ kind: "emergencyHelp", eventId: event.id })}/>
               : active === "familyAlbums"
-                ? <FamilyAlbumBatchManagementPage categories={albumCategories} batches={familyAlbumBatches} elderlyRecords={elderlyRecords} relatives={relativeAccounts} onAddCategory={() => setDrawer({ kind: "albumCategory" })} onEditCategory={(record) => setDrawer({ kind: "albumCategory", record })} onToggleCategory={toggleAlbumCategory} onDeleteCategory={deleteAlbumCategory} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
+                ? <FamilyAlbumBatchManagementPage categories={albumCategories} batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onAddCategory={() => setDrawer({ kind: "albumCategory" })} onEditCategory={(record) => setDrawer({ kind: "albumCategory", record })} onToggleCategory={toggleAlbumCategory} onDeleteCategory={deleteAlbumCategory} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
               : active === "recommendations"
-                ? <RecommendationStrategyPage strategies={recommendationStrategies} policy={recommendationPolicy} onSavePolicy={setRecommendationPolicy} onCreate={() => setDrawer({ kind: "recommendation" })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy}/>
+                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "recommendation" })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
               : active === "activities"
-                ? <CommunityActivityPage records={communityActivityRecords} registrations={initialActivityRegistrations} onCreate={() => setDrawer({ kind: "activity" })} onEdit={(record) => setDrawer({ kind: "activity", record })} onDelete={deleteCommunityActivity} onViewRegistrations={(record) => setDrawer({ kind: "activityRegistrations", record })}/>
+                ? <CommunityActivityPage records={communityActivityRecords} registrations={scopedRegistrations} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "activity", mode: "edit" })} onView={(record) => setDrawer({ kind: "activity", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "activity", mode: "edit", record })} onStatusChange={changeCommunityActivityStatus} onViewRegistrations={(record) => setDrawer({ kind: "activityRegistrations", record })}/>
               : active === "safety"
-                ? <SafetyNewsPage records={safetyNews} projects={projects} onCreate={() => setDrawer({ kind: "safety" })} onEdit={(record) => setDrawer({ kind: "safety", record })} onDelete={deleteSafetyNews}/>
+                ? <SafetyNewsPage records={scopedSafetyNews} topics={scopedCommunityTopics} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "safety", mode: "edit" })} onView={(record) => setDrawer({ kind: "safety", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "safety", mode: "edit", record })} onStatusChange={changeSafetyNewsStatus} onCreateTopic={() => setDrawer({ kind: "communityTopicCreate" })} onViewTopic={(record) => setDrawer({ kind: "communityTopicDetail", topicId: record.id })}/>
               : active === "services"
-                ? <ServiceBookingPage bookings={serviceBookings} services={serviceCatalog} elderlyRecords={elderlyRecords} projects={projects} onOpen={(record) => setDrawer({ kind: "serviceBooking", record })} onCreateService={() => setDrawer({ kind: "serviceCatalog" })} onEditService={(record) => setDrawer({ kind: "serviceCatalog", record })} onToggleService={toggleServiceCatalogItem}/>
+                ? <ServiceBookingPage bookings={scopedServiceBookings} categories={scopedServiceCategories} elderlyRecords={scopedElderlyRecords} communityName={currentProject?.community || "当前社区"} onOpen={(record) => setDrawer({ kind: "serviceBooking", record })} onCreateCategory={() => setDrawer({ kind: "serviceCategory" })} onEditCategory={(record) => setDrawer({ kind: "serviceCategory", record })} onMoveCategory={moveServiceCategory} onToggleCategory={toggleServiceCategory}/>
               : active === "projects"
                 ? <ProjectPage projects={projects} elderlyRecords={elderlyRecords} onSave={saveProject} onToggle={toggleProject}/>
                 : active === "tabletDevices" || active === "sensorDevices"
-                  ? <DeviceManagementPage key={active} deviceType={active === "tabletDevices" ? "tablet" : "sensor"} tablets={tabletDevices} sensors={sensorDevices} elderlyRecords={elderlyRecords} onAddTablet={() => setDeviceDrawer({ kind: "tabletCreate" })} onViewTablet={(device) => setDeviceDrawer({ kind: "tabletView", device })} onManageTablet={setTabletTarget} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate" })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })}/>
+                  ? <DeviceManagementPage key={`${active}-${currentProjectId}`} deviceType={active === "tabletDevices" ? "tablet" : "sensor"} tablets={scopedTabletDevices} sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} onAddTablet={() => setDeviceDrawer({ kind: "tabletCreate" })} onViewTablet={(device) => setDeviceDrawer({ kind: "tabletView", device })} onManageTablet={setTabletTarget} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate" })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })}/>
                   : active === "activity"
-                    ? <RoomActivityPage sensors={sensorDevices} elderlyRecords={elderlyRecords}/>
+                    ? <RoomActivityPage sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords}/>
                     : active === "weatherLocations"
                       ? <WeatherLocationManagementPage integrations={initialWeatherRegionIntegrations} onView={(integration) => setDrawer({ kind: "weatherRegion", integration })}/>
                     : active === "careScripts"
                       ? <CareScriptManagementPage scripts={careScripts} onEdit={(condition, record) => setDrawer({ kind: "careScript", condition, record })} onToggle={toggleCareScript}/>
-                    : <ManagementPage page={active} onCreate={() => setDrawer({ kind: "generic" })}/>} 
+                    : <ManagementPage page={active} onCreate={() => setDrawer({ kind: "generic" })}/>}
         </main>
       </div>
-      {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={projects} tablet={tabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} activation={activationRecords.find((item) => item.elderlyId === drawer.record?.id && item.status === "待使用")} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>} 
-      {drawer?.kind === "reminder" && <ReminderDrawer key={drawer.record?.id || "new-reminder"} record={drawer.record} elderlyRecords={elderlyRecords} onClose={() => setDrawer(null)} onSave={saveReminder}/>} 
-      {drawer?.kind === "reminderPlan" && <ReminderPlanDrawer reminder={drawer.record} elderly={elderlyRecords.find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>} 
+      {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={currentProject ? [currentProject] : []} tablet={scopedTabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} activation={activationRecords.find((item) => item.elderlyId === drawer.record?.id && item.status === "待使用")} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>}
+      {drawer?.kind === "reminder" && <ReminderDrawer key={drawer.record?.id || "new-reminder"} record={drawer.record} elderlyRecords={scopedElderlyRecords} onClose={() => setDrawer(null)} onSave={saveReminder}/>}
+      {drawer?.kind === "reminderPlan" && <ReminderPlanDrawer reminder={drawer.record} elderly={scopedElderlyRecords.find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>}
       {drawer?.kind === "emergencyHelp" && (() => {
         const event = emergencyHelpEvents.find((item) => item.id === drawer.eventId);
         if (!event) return null;
-        return <EmergencyHelpDrawer event={event} elderly={elderlyRecords.find((item) => item.id === event.elderlyId)} onClose={() => setDrawer(null)} onRetry={retryEmergencyNotification} onEnd={endEmergencyEvent}/>;
+        return <EmergencyHelpDrawer event={event} elderly={scopedElderlyRecords.find((item) => item.id === event.elderlyId)} onClose={() => setDrawer(null)} onRetry={retryEmergencyNotification} onEnd={endEmergencyEvent}/>;
       })()}
-      {drawer?.kind === "albumCategory" && <AlbumCategoryDrawer key={drawer.record?.id || "new-album-category"} record={drawer.record} categories={albumCategories} onClose={() => setDrawer(null)} onSave={saveAlbumCategory}/>} 
+      {drawer?.kind === "albumCategory" && <AlbumCategoryDrawer key={drawer.record?.id || "new-album-category"} record={drawer.record} categories={albumCategories} onClose={() => setDrawer(null)} onSave={saveAlbumCategory}/>}
       {drawer?.kind === "familyAlbumBatch" && (() => {
         const batch = familyAlbumBatches.find((item) => item.id === drawer.batchId);
         if (!batch) return null;
-        return <FamilyAlbumBatchDetailDrawer batch={batch} elderly={elderlyRecords.find((item) => item.id === batch.elderlyId)} uploader={relativeAccounts.find((item) => item.id === batch.uploaderId)} category={albumCategories.find((item) => item.id === batch.categoryId)} onClose={() => setDrawer(null)}/>;
+        return <FamilyAlbumBatchDetailDrawer batch={batch} elderly={scopedElderlyRecords.find((item) => item.id === batch.elderlyId)} uploader={scopedRelativeAccounts.find((item) => item.id === batch.uploaderId)} category={albumCategories.find((item) => item.id === batch.categoryId)} onClose={() => setDrawer(null)}/>;
       })()}
-      {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || "new-recommendation"} record={drawer.record} safetyNews={safetyNews} activities={communityActivityRecords} services={serviceCatalog} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>} 
-      {drawer?.kind === "activity" && <CommunityActivityDrawer key={drawer.record?.id || "new-activity"} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCommunityActivity}/>} 
-      {drawer?.kind === "activityRegistrations" && <ActivityRegistrationsModal activity={drawer.record} registrations={initialActivityRegistrations} elderlyRecords={elderlyRecords} onClose={() => setDrawer(null)}/>} 
-      {drawer?.kind === "safety" && <SafetyNewsDrawer key={drawer.record?.id || "new-safety-news"} record={drawer.record} projects={projects} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>} 
-      {drawer?.kind === "serviceBooking" && <ServiceBookingDrawer booking={drawer.record} elderly={elderlyRecords.find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)} onUpdateStatus={updateServiceBookingStatus}/>} 
-      {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>} 
-      {drawer?.kind === "weatherRegion" && <WeatherRegionIntegrationDrawer integration={drawer.integration} onClose={() => setDrawer(null)}/>} 
-      {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>} 
-      {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.condition.code} condition={drawer.condition} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>} 
-      {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>} 
-      {deviceDrawer?.kind === "tabletCreate" && <TabletAssetDrawer devices={tabletDevices} onClose={() => setDeviceDrawer(null)} onSave={saveTabletDevice}/>} 
-      {deviceDrawer?.kind === "tabletView" && <TabletAssetDrawer device={deviceDrawer.device} devices={tabletDevices} onClose={() => setDeviceDrawer(null)} onSave={saveTabletDevice}/>} 
-      {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={sensorDevices} elderlyRecords={elderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>} 
-      {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={elderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>} 
-      {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>} 
-      {tabletTarget && <TabletBindingModal record={tabletTarget} project={projects.find((project) => project.name === tabletTarget.project)} devices={tabletDevices} activation={activationRecords.find((item) => item.elderlyId === tabletTarget.id && ["待使用", "激活失败"].includes(item.status))} onGenerate={generateTabletActivation} onFail={failTabletActivation} onActivate={(tabletId, activationId) => activateTablet(tabletTarget.id, tabletId, activationId)} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>} 
-      {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>} 
+      {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || "new-recommendation"} record={drawer.record} safetyNews={scopedSafetyNews} activities={communityActivityRecords} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>}
+      {drawer?.kind === "activity" && <CommunityActivityDrawer key={`${drawer.mode}-${drawer.record?.id || "new-activity"}`} mode={drawer.mode} currentProject={currentProject} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCommunityActivity}/>}
+      {drawer?.kind === "activityRegistrations" && <ActivityRegistrationsModal activity={drawer.record} registrations={scopedRegistrations} elderlyRecords={scopedElderlyRecords} onClose={() => setDrawer(null)}/>}
+      {drawer?.kind === "safety" && <SafetyNewsDrawer key={`${drawer.mode}-${drawer.record?.id || "new-community-content"}`} mode={drawer.mode} record={drawer.record} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>}
+      {drawer?.kind === "communityTopicCreate" && <CommunityTopicDrawer currentProject={currentProject} contentRecords={scopedSafetyNews} onClose={() => setDrawer(null)} onSave={saveCommunityTopic}/>}
+      {drawer?.kind === "communityTopicDetail" && (() => {
+        const topic = communityTopics.find((item) => item.id === drawer.topicId);
+        if (!topic) return null;
+        return <CommunityTopicDetailDrawer topic={topic} comments={scopedTopicComments.filter((comment) => comment.topicId === topic.id)} contentRecords={scopedSafetyNews} onClose={() => setDrawer(null)} onCloseTopic={closeCommunityTopic}/>;
+      })()}
+      {drawer?.kind === "serviceBooking" && <ServiceBookingDrawer booking={drawer.record} elderly={scopedElderlyRecords.find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)} onUpdateStatus={updateServiceBookingStatus}/>}
+      {drawer?.kind === "serviceCategory" && <ServiceCategoryDrawer key={drawer.record?.id || `new-service-category-${currentProjectId}`} record={drawer.record} categories={scopedServiceCategories} communityName={currentProject?.community || "当前社区"} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>}
+      {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>}
+      {drawer?.kind === "weatherRegion" && <WeatherRegionIntegrationDrawer integration={drawer.integration} onClose={() => setDrawer(null)}/>}
+      {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>}
+      {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.condition.code} condition={drawer.condition} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>}
+      {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>}
+      {deviceDrawer?.kind === "tabletCreate" && <TabletAssetDrawer devices={tabletDevices} onClose={() => setDeviceDrawer(null)} onSave={saveTabletDevice}/>}
+      {deviceDrawer?.kind === "tabletView" && <TabletAssetDrawer device={deviceDrawer.device} devices={tabletDevices} onClose={() => setDeviceDrawer(null)} onSave={saveTabletDevice}/>}
+      {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>}
+      {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
+      {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>}
+      {tabletTarget && <TabletBindingModal record={tabletTarget} project={projects.find((project) => project.name === tabletTarget.project)} devices={tabletDevices} activation={activationRecords.find((item) => item.elderlyId === tabletTarget.id && ["待使用", "激活失败"].includes(item.status))} failureSignal={activationFailureSignal} onGenerate={generateTabletActivation} onFail={failTabletActivation} onActivate={(tabletId, activationId) => activateTablet(tabletTarget.id, tabletId, activationId)} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
+      {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>}
+      {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.community}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
+      {import.meta.env.DEV && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onActivationFailure={(type) => setActivationFailureSignal((signal) => ({ id: signal.id + 1, type }))} onReset={resetAcceptance}/>}
     </div>
   );
 }

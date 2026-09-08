@@ -14,7 +14,8 @@
   height: 88px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 24px;
   padding: 0 36px;
   border-bottom: var(--rule-thin) solid var(--color-line);
   background: var(--color-canvas);

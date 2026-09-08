@@ -12,9 +12,6 @@ export type MockVoiceKey =
   | "album-mountain"
   | "heart-family"
   | "reply-received"
-  | "weather-care"
-  | "weather-sent"
-  | "weather-already"
   | "contact-switched"
   | "calling-family"
   | "missed-call"
@@ -65,9 +62,6 @@ const resolveVoiceKey = (content: string): MockVoiceKey => {
   const normalized = normalize(content);
   const exact = exactVoiceMap.get(normalized);
   if (exact) return exact;
-  if (normalized.includes("天气关怀") && normalized.includes("已经")) return "weather-already";
-  if (normalized.includes("发送天气关怀")) return "weather-sent";
-  if (normalized.includes("今天") && normalized.includes("天气")) return "weather-care";
   if (normalized.startsWith("已切换到")) return "contact-switched";
   if (normalized.startsWith("正在呼叫")) return "calling-family";
   if (normalized.includes("可能在忙")) return "missed-call";
@@ -151,7 +145,7 @@ export const speakText = (content: string, options: SpeakTextOptions = {}) => {
 
 const playFallback = (content: string, options: SpeakTextOptions) => {
   const voiceKey = options.fallbackKey ?? resolveVoiceKey(content);
-  const audio = new Audio(`/assets/voice/${voiceKey}.wav`);
+  const audio = new Audio(`./assets/voice/${voiceKey}.wav`);
   audio.preload = "auto";
   audio.volume = options.volume ?? 1;
   audio.onplay = () => options.onStart?.();

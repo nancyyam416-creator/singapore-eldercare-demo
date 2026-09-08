@@ -3,8 +3,6 @@ import {
   AlertTriangle,
   Baby,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Flower2,
   Heart,
   Images,
@@ -96,7 +94,7 @@ const initialPhotos: AlbumPhoto[] = [
   {
     id: "snowman-message",
     categoryId: "grandchildren",
-    url: "/assets/snowman-photo-message.jpg",
+    url: "./assets/snowman-photo-message.jpg",
     width: 2400,
     height: 1744,
     alt: "孩子们在雪地里一起堆雪人",
@@ -118,7 +116,7 @@ const initialPhotos: AlbumPhoto[] = [
     alt: "重孙女在幼儿园唱端午节儿歌的视频封面",
     caption: "悦悦在幼儿园唱了端午节儿歌，专门录给爷爷看。",
     type: "video",
-    videoUrl: "/assets/family-video-mock.mp4",
+    videoUrl: "./assets/family-video-mock.mp4",
     batchCaption: "幼儿园端午节活动的一段家庭视频。",
     senderName: "女儿小敏",
     senderRole: "女儿",
@@ -169,7 +167,7 @@ const initialPhotos: AlbumPhoto[] = [
     alt: "家人一起拆礼物的视频封面",
     caption: "孩子们一起准备了礼物，想让爷爷也看看当时有多热闹。",
     type: "video",
-    videoUrl: "/assets/family-video-mock.mp4",
+    videoUrl: "./assets/family-video-mock.mp4",
     batchCaption: "家庭聚会当天的一段欢乐视频。",
     senderName: "儿子小刚",
     senderRole: "儿子",
@@ -308,8 +306,6 @@ export default function FamilyAlbumPage({
     [scenarioPhotos, selectedCategoryId],
   );
 
-  const selectedCategory =
-    categories.find((category) => category.id === selectedCategoryId) ?? categories[0];
   const activePhoto = visiblePhotos[currentIndex] ?? visiblePhotos[0];
   const unreadCount = scenarioPhotos.filter((photo) => photo.unread).length;
 
@@ -501,11 +497,6 @@ export default function FamilyAlbumPage({
 
   const renderCategorySidebar = () => (
     <aside className="family-album-sidebar" aria-label="相册分类">
-      <div className="family-album-sidebar__heading">
-        <p>相册分类</p>
-        <strong>{scenarioPhotos.length} 项家庭影像</strong>
-      </div>
-
       <nav className="family-album-categories" aria-label="选择相册分类">
         {categories.map((category) => {
           const CategoryIcon = category.icon;
@@ -543,11 +534,6 @@ export default function FamilyAlbumPage({
       <div className="family-album-layout">
         {renderCategorySidebar()}
         <section className="family-album-stage">
-          <header className="family-album-stage__toolbar">
-            <div>
-              <h2>{selectedCategory.name}</h2>
-            </div>
-          </header>
           <div className="family-album-empty" role="status">
             <Images aria-hidden="true" />
             <strong>暂无家庭影像</strong>
@@ -577,35 +563,8 @@ export default function FamilyAlbumPage({
 
         <section
           className="family-album-stage"
-          aria-labelledby="active-album-title"
+          aria-label="家庭影像"
         >
-          <header className="family-album-stage__toolbar">
-            <div>
-              <h2 id="active-album-title">{selectedCategory.name}</h2>
-            </div>
-
-            <div className="family-album-paging" aria-label="家庭影像翻页">
-              <button
-                type="button"
-                onClick={showPreviousPhoto}
-                disabled={visiblePhotos.length <= 1}
-                aria-label="上一项家庭影像"
-              >
-                <ChevronLeft aria-hidden="true" />
-                上一项
-              </button>
-              <button
-                type="button"
-                onClick={showNextPhoto}
-                disabled={visiblePhotos.length <= 1}
-                aria-label="下一项家庭影像"
-              >
-                下一项
-                <ChevronRight aria-hidden="true" />
-              </button>
-            </div>
-          </header>
-
           <div
             className="family-album-photo"
             onPointerDown={handlePointerDown}
@@ -682,7 +641,8 @@ export default function FamilyAlbumPage({
             )}
 
             <div className="family-album-photo__position" aria-hidden="true">
-              {currentIndex + 1} / {visiblePhotos.length}
+              <Images aria-hidden="true" />
+              <span>家庭相册 · {currentIndex + 1} / {visiblePhotos.length}</span>
             </div>
 
             {heartBurstKey > 0 && (

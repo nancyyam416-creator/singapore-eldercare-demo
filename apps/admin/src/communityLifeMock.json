@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "1.1.0",
+  "deliveryLevel": "L2",
+  "mockNow": "2026-08-27T10:00:00+08:00",
+  "timezone": "Asia/Singapore",
+  "resourceTypes": ["announcement", "life_info", "topic", "alert", "activity"],
+  "contentStatus": ["unpublished", "published", "disabled"],
+  "activityStatus": ["not_started", "registration_open", "registration_closed", "in_progress", "ended", "cancelled"],
+  "participationStatus": ["interested", "not_interested"],
+  "communities": [
+    { "projectId": "PRJ-001", "communityId": "COM-001", "projectName": "红山社区养老计划", "communityName": "红山社区" },
+    { "projectId": "PRJ-002", "communityId": "COM-002", "projectName": "大巴窑关怀中心", "communityName": "大巴窑社区" }
+  ],
+  "communityContents": [
+    {
+      "id": "SAF-001", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "alert",
+      "title": "警惕冒充银行客服诈骗", "summary": "银行工作人员不会通过电话索取密码或验证码。",
+      "bodyHtml": "<p>近期出现冒充银行客服，以账户异常为由索取验证码的诈骗行为。</p><p><strong>请勿向陌生人提供银行卡信息、密码或短信验证码。</strong></p>",
+      "coverUrl": "/mock/community-life/covers/alert-bank-fraud.svg", "source": "红山社区服务站", "audience": "当前社区全部老人",
+      "publishAt": "2026-08-20T08:00:00+08:00", "validUntil": "2026-09-20T23:59:00+08:00", "displayOrder": 1, "publishStatus": "published", "updatedAt": "2026-08-20T08:00:00+08:00"
+    },
+    {
+      "id": "SAF-002", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "life_info",
+      "title": "雨季居家防滑注意事项", "summary": "及时清理积水，重点检查卫生间和玄关。",
+      "bodyHtml": "<p>雨季地面容易湿滑，请及时擦干玄关、厨房和卫生间积水。</p><ul><li>穿着防滑鞋</li><li>保持夜间照明充足</li></ul>",
+      "coverUrl": "/mock/community-life/covers/life-rain-safety.svg", "source": "红山社区健康组", "audience": "当前社区全部老人",
+      "publishAt": "2026-08-21T09:00:00+08:00", "validUntil": "2026-09-30T23:59:00+08:00", "displayOrder": 2, "publishStatus": "published", "updatedAt": "2026-08-21T09:00:00+08:00"
+    },
+    {
+      "id": "SAF-005", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "announcement",
+      "title": "周三公共区域清洁安排", "summary": "上午十点前完成走廊清洁，请注意避让作业区域。",
+      "bodyHtml": "<p>本周三上午将进行公共走廊和活动室清洁，作业期间部分区域临时封闭，请按照现场指引通行。</p>",
+      "coverUrl": "/mock/community-life/covers/announcement-cleaning.svg", "source": "红山社区运营组", "audience": "当前社区全部老人",
+      "publishAt": "2026-08-24T08:00:00+08:00", "validUntil": "2026-08-27T18:00:00+08:00", "displayOrder": 1, "publishStatus": "published", "updatedAt": "2026-08-23T16:30:00+08:00"
+    },
+    {
+      "id": "SAF-008", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "life_info",
+      "title": "午后补水小提示", "summary": "已停止继续展示的生活资讯示例。",
+      "bodyHtml": "<p>天气炎热时请少量多次饮水，如有身体不适请及时联系家人或社区人员。</p>",
+      "coverUrl": "/mock/community-life/covers/life-hydration.svg", "source": "红山社区健康组", "audience": "当前社区全部老人",
+      "publishAt": "2026-08-12T09:00:00+08:00", "validUntil": "2026-09-12T23:59:00+08:00", "displayOrder": 5, "publishStatus": "disabled", "updatedAt": "2026-08-22T15:10:00+08:00"
+    },
+    {
+      "id": "SAF-003", "projectId": "PRJ-002", "communityId": "COM-002", "resourceType": "announcement",
+      "title": "社区维修工程通知", "summary": "公共区域照明维护，请按现场指引绕行。",
+      "bodyHtml": "<p>大巴窑关怀中心公共区域将进行照明维护，施工期间请老人注意绕行。</p>",
+      "coverUrl": "/mock/community-life/covers/announcement-maintenance.svg", "source": "大巴窑社区运营组", "audience": "当前社区全部老人",
+      "publishAt": "2026-08-22T08:00:00+08:00", "validUntil": "2026-08-28T18:00:00+08:00", "displayOrder": 1, "publishStatus": "published", "updatedAt": "2026-08-22T08:00:00+08:00"
+    },
+    {
+      "id": "SAF-004", "projectId": "PRJ-002", "communityId": "COM-002", "resourceType": "alert",
+      "title": "陌生人上门服务核验指南", "summary": "无法核验身份时，不开门、不转账。",
+      "bodyHtml": "<p>如有陌生人自称维修、送货或社区工作人员上门，请先通过官方电话核验身份。</p>",
+      "coverUrl": "/mock/community-life/covers/alert-doorstep.svg", "source": "大巴窑社区服务站", "audience": "当前社区全部老人",
+      "publishAt": "2026-08-18T08:00:00+08:00", "validUntil": "2026-09-18T23:59:00+08:00", "displayOrder": 2, "publishStatus": "published", "updatedAt": "2026-08-18T08:00:00+08:00"
+    }
+  ],
+  "communityTopics": [
+    {
+      "id": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "title": "雨季居家防滑，您有哪些小妙招？",
+      "bodyHtml": "<p>雨季地面容易湿滑，欢迎大家分享自己在卫生间、玄关防滑的经验。</p>",
+      "initiatorType": "admin", "initiatorId": "ADMIN-001", "initiatorName": "红山社区健康组",
+      "referenceContentId": "SAF-002", "referenceSnapshot": { "title": "雨季居家防滑注意事项", "summary": "及时清理积水，重点检查卫生间和玄关。", "coverUrl": "/mock/community-life/covers/life-rain-safety.svg" },
+      "commentCount": 3, "createdAt": "2026-08-26T09:20:00+08:00", "status": "open"
+    },
+    {
+      "id": "TOPIC-002", "projectId": "PRJ-001", "communityId": "COM-001", "title": "您最怀念的邻里生活是什么样？",
+      "bodyHtml": "<p>我记得小时候邻居会互相分享饭菜，大家有没有类似的回忆？</p>",
+      "initiatorType": "elderly", "initiatorId": "SG-E-000128", "initiatorName": "陈美玲", "referenceContentId": null, "referenceSnapshot": null,
+      "commentCount": 2, "createdAt": "2026-08-26T14:08:00+08:00", "status": "open"
+    },
+    {
+      "id": "TOPIC-003", "projectId": "PRJ-001", "communityId": "COM-001", "title": "这个月想在社区学什么？",
+      "bodyHtml": "<p>欢迎说说您想参加的课程，我们会汇总大家的想法。</p>",
+      "initiatorType": "admin", "initiatorId": "ADMIN-002", "initiatorName": "红山社区活动组", "referenceContentId": null, "referenceSnapshot": null,
+      "commentCount": 0, "createdAt": "2026-08-25T11:30:00+08:00", "status": "open"
+    },
+    {
+      "id": "TOPIC-004", "projectId": "PRJ-001", "communityId": "COM-001", "title": "夏日补水方式分享",
+      "bodyHtml": "<p>大家平时如何提醒自己及时喝水？话题已结束，历史内容仍可查看。</p>",
+      "initiatorType": "admin", "initiatorId": "ADMIN-001", "initiatorName": "红山社区健康组",
+      "referenceContentId": "SAF-008", "referenceSnapshot": { "title": "午后补水小提示", "summary": "已停止继续展示的生活资讯示例。", "coverUrl": "/mock/community-life/covers/life-hydration.svg" },
+      "commentCount": 1, "createdAt": "2026-08-18T10:15:00+08:00", "status": "closed"
+    },
+    {
+      "id": "TOPIC-101", "projectId": "PRJ-002", "communityId": "COM-002", "title": "公共区域照明维修期间的出行建议",
+      "bodyHtml": "<p>请大家分享维修期间经常使用的安全通行路线。</p>",
+      "initiatorType": "elderly", "initiatorId": "SG-E-000127", "initiatorName": "黄国强", "referenceContentId": null, "referenceSnapshot": null,
+      "commentCount": 1, "createdAt": "2026-08-26T16:40:00+08:00", "status": "open"
+    }
+  ],
+  "topicComments": [
+    { "id": "COMMENT-001", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000128", "authorName": "陈美玲", "content": "我会在玄关放一块吸水垫，下雨后及时晒干。", "createdAt": "2026-08-26T10:05:00+08:00" },
+    { "id": "COMMENT-002", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000125", "authorName": "王德昌", "content": "卫生间夜里一定要开灯，我还加了防滑条。", "createdAt": "2026-08-26T10:28:00+08:00" },
+    { "id": "COMMENT-003", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "admin", "authorId": "ADMIN-001", "authorName": "红山社区健康组", "content": "已记录大家的经验，感谢分享。", "createdAt": "2026-08-26T11:10:00+08:00" },
+    { "id": "COMMENT-004", "topicId": "TOPIC-002", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000125", "authorName": "王德昌", "content": "以前邻居家包饺子，都会给我们送一盘。", "createdAt": "2026-08-26T15:02:00+08:00" },
+    { "id": "COMMENT-005", "topicId": "TOPIC-002", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000128", "authorName": "陈美玲", "content": "大家都认识，谁家需要帮忙都会去看看。", "createdAt": "2026-08-26T15:20:00+08:00" },
+    { "id": "COMMENT-006", "topicId": "TOPIC-004", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000128", "authorName": "陈美玲", "content": "我会把水杯放在沙发旁边，看到就喝几口。", "createdAt": "2026-08-18T11:00:00+08:00" },
+    { "id": "COMMENT-101", "topicId": "TOPIC-101", "projectId": "PRJ-002", "communityId": "COM-002", "authorType": "elderly", "authorId": "SG-E-000123", "authorName": "周阿顺", "content": "晚上可以从南侧通道走，那边照明比较好。", "createdAt": "2026-08-26T17:05:00+08:00" }
+  ],
+  "communityActivities": [
+    {
+      "id": "ACT-001", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "乐龄太极体验课", "category": "健康活动",
+      "summary": "专业老师带领适合长者的舒缓太极练习。", "bodyHtml": "<p>专业老师带领大家进行舒缓太极练习，请穿宽松衣物并提前 10 分钟到场。</p>",
+      "coverUrl": "/mock/community-life/covers/activity-taichi.svg", "startAt": "2026-08-28T09:00:00+08:00", "endAt": "2026-08-28T10:30:00+08:00", "location": "红山民众俱乐部", "audience": "当前社区全部老人", "capacity": 50,
+      "registrationStartAt": "2026-08-20T09:00:00+08:00", "registrationEndAt": "2026-08-27T18:00:00+08:00", "activityStatus": "registration_open", "contact": "+65 6273 2288", "publishAt": "2026-08-20T10:30:00+08:00", "updatedAt": "2026-08-20T10:30:00+08:00"
+    },
+    {
+      "id": "ACT-005", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "周末社区电影放映", "category": "兴趣活动",
+      "summary": "播放经典华语影片，现场提供字幕和志愿者协助。", "bodyHtml": "<p>周末社区电影放映，现场提供中文字幕、饮水和志愿者协助。</p>",
+      "coverUrl": "/mock/community-life/covers/activity-movie.svg", "startAt": "2026-08-30T15:00:00+08:00", "endAt": "2026-08-30T17:00:00+08:00", "location": "红山社区多功能厅", "audience": "当前社区全部老人", "capacity": 60,
+      "registrationStartAt": "2026-08-22T09:00:00+08:00", "registrationEndAt": "2026-08-29T17:00:00+08:00", "activityStatus": "registration_open", "contact": "+65 6273 2291", "publishAt": "2026-08-22T11:00:00+08:00", "updatedAt": "2026-08-22T11:00:00+08:00"
+    },
+    {
+      "id": "ACT-006", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "邻里健康咨询日", "category": "健康活动",
+      "summary": "提供日常饮食、慢病管理和居家运动咨询。", "bodyHtml": "<p>由社区健康顾问提供日常饮食、慢病管理和居家运动咨询。</p>",
+      "coverUrl": "/mock/community-life/covers/activity-health.svg", "startAt": "2026-08-25T10:00:00+08:00", "endAt": "2026-08-25T12:00:00+08:00", "location": "红山社区健康角", "audience": "高龄及慢病老人", "capacity": 30,
+      "registrationStartAt": "2026-08-18T09:00:00+08:00", "registrationEndAt": "2026-08-24T18:00:00+08:00", "activityStatus": "registration_closed", "contact": "+65 6273 2295", "publishAt": "2026-08-18T09:30:00+08:00", "updatedAt": "2026-08-18T09:30:00+08:00"
+    },
+    {
+      "id": "ACT-007", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "八月长者生日会", "category": "社区交流",
+      "summary": "为本月生日老人举办的社区交流活动。", "bodyHtml": "<p>社区为八月生日老人准备了生日茶点和交流活动。</p>",
+      "coverUrl": "/mock/community-life/covers/activity-birthday.svg", "startAt": "2026-08-24T14:00:00+08:00", "endAt": "2026-08-24T16:00:00+08:00", "location": "红山社区活动室", "audience": "八月生日老人", "capacity": 24,
+      "registrationStartAt": "2026-08-10T09:00:00+08:00", "registrationEndAt": "2026-08-22T18:00:00+08:00", "activityStatus": "in_progress", "contact": "+65 6273 2282", "publishAt": "2026-08-10T09:10:00+08:00", "updatedAt": "2026-08-10T09:10:00+08:00"
+    },
+    {
+      "id": "ACT-008", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "七月防诈骗分享会", "category": "安全讲座",
+      "summary": "结合常见案例讲解诈骗手法和核验方式。", "bodyHtml": "<p>社区工作人员结合真实案例讲解常见诈骗手法和核验方式。</p>",
+      "coverUrl": "/mock/community-life/covers/activity-safety.svg", "startAt": "2026-07-20T14:30:00+08:00", "endAt": "2026-07-20T16:00:00+08:00", "location": "红山社区活动室", "audience": "当前社区全部老人", "capacity": 40,
+      "registrationStartAt": "2026-07-10T09:00:00+08:00", "registrationEndAt": "2026-07-19T18:00:00+08:00", "activityStatus": "ended", "contact": "+65 6273 2288", "publishAt": "2026-07-10T15:20:00+08:00", "updatedAt": "2026-07-10T15:20:00+08:00"
+    },
+    {
+      "id": "ACT-002", "projectId": "PRJ-002", "communityId": "COM-002", "resourceType": "activity", "title": "大巴窑防诈骗分享会", "category": "安全讲座",
+      "summary": "结合近期案例讲解常见诈骗手法和核验方式。", "bodyHtml": "<p>结合近期案例讲解常见诈骗手法和核验方式。</p>",
+      "coverUrl": "/mock/community-life/covers/activity-safety.svg", "startAt": "2026-08-29T14:30:00+08:00", "endAt": "2026-08-29T16:00:00+08:00", "location": "大巴窑关怀中心", "audience": "当前社区全部老人", "capacity": 45,
+      "registrationStartAt": "2026-08-20T09:00:00+08:00", "registrationEndAt": "2026-08-28T18:00:00+08:00", "activityStatus": "registration_open", "contact": "+65 6259 1024", "publishAt": "2026-08-20T15:20:00+08:00", "updatedAt": "2026-08-20T15:20:00+08:00"
+    }
+  ],
+  "activityParticipationIntents": [
+    { "id": "REG-001", "projectId": "PRJ-001", "communityId": "COM-001", "activityId": "ACT-001", "elderlyId": "SG-E-000128", "submittedAt": "2026-08-21T11:05:00+08:00", "participationStatus": "interested" },
+    { "id": "REG-002", "projectId": "PRJ-001", "communityId": "COM-001", "activityId": "ACT-001", "elderlyId": "SG-E-000125", "submittedAt": "2026-08-21T13:18:00+08:00", "participationStatus": "interested" },
+    { "id": "REG-003", "projectId": "PRJ-001", "communityId": "COM-001", "activityId": "ACT-001", "elderlyId": "SG-E-000124", "submittedAt": "2026-08-22T08:42:00+08:00", "participationStatus": "not_interested" },
+    { "id": "REG-004", "projectId": "PRJ-001", "communityId": "COM-001", "activityId": "ACT-005", "elderlyId": "SG-E-000128", "submittedAt": "2026-08-23T09:16:00+08:00", "participationStatus": "interested" },
+    { "id": "REG-006", "projectId": "PRJ-001", "communityId": "COM-001", "activityId": "ACT-005", "elderlyId": "SG-E-000125", "submittedAt": "2026-08-22T14:22:00+08:00", "participationStatus": "not_interested" },
+    { "id": "REG-005", "projectId": "PRJ-002", "communityId": "COM-002", "activityId": "ACT-002", "elderlyId": "SG-E-000127", "submittedAt": "2026-08-21T16:08:00+08:00", "participationStatus": "interested" }
+  ]
+}

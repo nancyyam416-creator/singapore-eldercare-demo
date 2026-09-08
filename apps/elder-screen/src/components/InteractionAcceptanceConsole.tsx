@@ -12,15 +12,15 @@ import {
   Clock3,
   DatabaseBackup,
   Heart,
+  HandHeart,
   Image,
+  Landmark,
   MapPinOff,
-  MessageCircleHeart,
   PanelRightClose,
   PanelRightOpen,
   Pill,
   Play,
   RefreshCcw,
-  Send,
   ShieldAlert,
   Siren,
   Sparkles,
@@ -33,17 +33,10 @@ import {
 } from "lucide-react";
 import type { FamilyWeatherMockScenario } from "../weather/familyWeather";
 import type { EmergencyAcceptanceScenario } from "./EmergencyModal";
+import type { SpecialServicesAcceptanceScenario } from "./SpecialServicesPage";
 import "./interaction-acceptance-console.css";
 
-export type AcceptanceTaskScenario = "unfinished" | "overdue" | "all-done" | "no-p0";
 export type AcceptanceTaskContentScenario = "medicine" | "schedule";
-export type AcceptanceRecordScenario = "with-records" | "empty";
-export type AcceptanceCareRegion = "domestic" | "singapore";
-export type AcceptanceCareTime = "morning" | "noon" | "afternoon" | "evening" | "late-night";
-export type AcceptanceCareMode = "no-disaster" | "disaster";
-export type AcceptanceCareScenario = "daily" | "festival" | "seasonal";
-export type AcceptanceDisasterScenario = "typhoon" | "rainstorm" | "cold-wave" | "heat" | "haze" | "strong-wind";
-export type AcceptanceMessageScenario = "none" | "single" | "multiple" | "photo" | "photo-group" | "load-failure";
 export type AcceptanceAlbumScenario =
   | "default"
   | "notice-photo"
@@ -53,74 +46,94 @@ export type AcceptanceAlbumScenario =
   | "single"
   | "load-failure";
 export type AcceptanceHeartScenario = "not-liked" | "sending" | "liked" | "failure";
-export type AcceptanceReminderScenario = "default" | "due" | "not-yet" | "empty" | "all-completed" | "unconfirmed" | "action-failure";
+export type AcceptanceReminderScenario = "default" | "due-popup" | "due" | "not-yet" | "empty" | "all-completed" | "unconfirmed" | "action-failure";
+export type AcceptanceRightContentScenario =
+  | "default"
+  | "recommendations-only"
+  | "new-message"
+  | "new-album"
+  | "missed-call"
+  | "time-and-family"
+  | "p1-due"
+  | "recommendation-order"
+  | "recommendation-cooldown"
+  | "ai-fallback"
+  | "interaction-locked";
+export type AcceptanceCommunityScenario =
+  | "default"
+  | "empty"
+  | "load-failure"
+  | "topic-normal"
+  | "topic-elder"
+  | "topic-backend"
+  | "topic-standalone"
+  | "topic-reference"
+  | "topic-no-comments"
+  | "topic-multiple-comments"
+  | "topic-reference-expired"
+  | "topic-closed"
+  | "topic-publish-failure"
+  | "topic-comment-failure"
+  | "topic-empty"
+  | "topic-load-failure"
+  | "activity-ended-cancelled"
+  | "activity-submit-failure";
 export type AcceptanceHomeCommand =
   | "reset-home-overlays"
   | "previous-photo"
   | "next-photo"
   | "show-photo-controls"
-  | "expand-messages"
-  | "collapse-messages"
-  | "play-first-message"
-  | "play-message-chime"
-  | "open-weather"
-  | "open-weather-care";
+  | "open-weather";
 
 interface InteractionAcceptanceConsoleProps {
-  taskScenario: AcceptanceTaskScenario;
-  taskContentScenario: AcceptanceTaskContentScenario;
-  recordScenario: AcceptanceRecordScenario;
-  careRegion: AcceptanceCareRegion;
-  careTime: AcceptanceCareTime;
-  careMode: AcceptanceCareMode;
-  careScenario: AcceptanceCareScenario;
-  disasterScenario: AcceptanceDisasterScenario;
-  messageScenario: AcceptanceMessageScenario;
   weatherScenario: FamilyWeatherMockScenario;
   albumScenario: AcceptanceAlbumScenario;
   heartScenario: AcceptanceHeartScenario;
   reminderScenario: AcceptanceReminderScenario;
+  rightContentScenario: AcceptanceRightContentScenario;
+  communityScenario: AcceptanceCommunityScenario;
+  serviceScenario: SpecialServicesAcceptanceScenario;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
-  onSetTaskScenario: (scenario: AcceptanceTaskScenario) => void;
-  onSetTaskContentScenario: (scenario: AcceptanceTaskContentScenario) => void;
-  onSetRecordScenario: (scenario: AcceptanceRecordScenario) => void;
-  onSetCareRegion: (region: AcceptanceCareRegion) => void;
-  onSetCareTime: (time: AcceptanceCareTime) => void;
-  onSetCareMode: (mode: AcceptanceCareMode) => void;
-  onSetCareScenario: (scenario: AcceptanceCareScenario) => void;
-  onSetDisasterScenario: (scenario: AcceptanceDisasterScenario) => void;
-  onSetMessageScenario: (scenario: AcceptanceMessageScenario) => void;
+  onShowCommunity: () => void;
+  onShowServices: () => void;
   onSetWeatherScenario: (scenario: FamilyWeatherMockScenario) => void;
   onOpenWeatherScenario: (target: WeatherAcceptanceTarget) => void;
   onSetAlbumScenario: (scenario: AcceptanceAlbumScenario) => void;
   onSetHeartScenario: (scenario: AcceptanceHeartScenario) => void;
   onSetReminderScenario: (scenario: AcceptanceReminderScenario) => void;
-  onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario) => void;
+  onSetRightContentScenario: (scenario: AcceptanceRightContentScenario) => void;
+  onSetCommunityScenario: (scenario: AcceptanceCommunityScenario) => void;
+  onSetServiceScenario: (scenario: SpecialServicesAcceptanceScenario) => void;
+  onApplyRightContentUpdate: () => void;
+  onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario, minutesUntil?: number) => void;
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
   onOpenEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
   onOpenActivation: () => void;
   onReset: () => void;
 }
 
-type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "message" | "task-progress" | "reminders";
-type AcceptanceConsolePage = "home" | "family-album" | "reminders";
-type WeatherAcceptanceTarget = "home" | "detail" | "care";
+type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services";
+type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services";
+type WeatherAcceptanceTarget = "home" | "detail";
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
   { id: "weather", label: "家庭天气" },
   { id: "emergency", label: "紧急呼叫" },
   { id: "album", label: "家庭影像" },
-  { id: "message", label: "留言提醒" },
-  { id: "task-progress", label: "任务进度" },
+  { id: "task-progress", label: "首页右侧" },
   { id: "reminders", label: "今日提醒" },
+  { id: "community-life", label: "社区生活" },
+  { id: "special-services", label: "特约服务" },
 ];
 
 const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; sections: AcceptanceConsoleSection[] }> = [
-  { id: "home", label: "首页", sections: ["weather", "emergency", "album", "task-progress", "message"] },
+  { id: "home", label: "首页", sections: ["weather", "emergency", "album", "task-progress"] },
   { id: "family-album", label: "家庭相册", sections: ["album"] },
   { id: "reminders", label: "提醒事项", sections: ["reminders"] },
+  { id: "community-life", label: "社区生活", sections: ["community-life"] },
+  { id: "special-services", label: "特约服务", sections: ["special-services"] },
 ];
 
 interface AcceptanceConsoleDragState {
@@ -135,64 +148,20 @@ interface AcceptanceConsoleDragState {
   height: number;
 }
 
-const taskLabels: Record<AcceptanceTaskScenario, string> = {
-  unfinished: "有未完成 P0",
-  overdue: "存在逾期",
-  "all-done": "全部 P0 已完成",
-  "no-p0": "今日无 P0",
+const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label: string; description: string }> = {
+  default: { label: "默认单按钮", description: "合并时间提醒、家庭互动和内容推荐，只展示当前最高优先级内容。" },
+  "recommendations-only": { label: "只有推荐内容", description: "无时间提醒和家庭未读，按 Mock 后台顺序展示推荐。" },
+  "new-message": { label: "新留言立即到达", description: "新留言聚合数量并立即进入右侧，不弹窗、不主动播报。" },
+  "new-album": { label: "新家庭影像到达", description: "照片、视频或混合批次按家庭影像聚合后立即进入。" },
+  "missed-call": { label: "家人未接来电", description: "同类未接来电累计次数，查看通话记录前持续保留。" },
+  "time-and-family": { label: "时间与家庭同时产生", description: "两类内容同时进入候选，由同一个大按钮展示当前优先项。" },
+  "p1-due": { label: "到点 P1 产生", description: "用药到点后转为 P1 主内容，家庭互动业务状态保留。" },
+  "recommendation-order": { label: "后台顺序轮换", description: "按展示顺序、发布时间倒序和固定内容编号稳定轮换。" },
+  "recommendation-cooldown": { label: "推荐进入冷却", description: "演示计时缩短：达到展示上限后进入冷却并换下一条。" },
+  "ai-fallback": { label: "无推荐 AI 补位", description: "全部后台推荐不可用时，仅展示普通 AI 语音入口。" },
+  "interaction-locked": { label: "操作中暂不换位", description: "正在操作右侧内容时先记录新留言，结束后再应用新排序。" },
 };
 
-const taskContentLabels: Record<AcceptanceTaskContentScenario, string> = {
-  medicine: "用药提醒",
-  schedule: "日常提醒",
-};
-
-const recordLabels: Record<AcceptanceRecordScenario, string> = {
-  "with-records": "有履约记录",
-  empty: "暂无履约记录",
-};
-
-const careRegionLabels: Record<AcceptanceCareRegion, string> = {
-  domestic: "国内地区",
-  singapore: "新加坡/热带地区",
-};
-
-const careScenarioLabels: Record<AcceptanceCareScenario, string> = {
-  daily: "日常时段兜底",
-  festival: "传统文化节气",
-  seasonal: "季节/雨季养生",
-};
-
-const careTimeLabels: Record<AcceptanceCareTime, string> = {
-  morning: "早上 05:00–11:00",
-  noon: "中午 11:00–13:30",
-  afternoon: "下午 13:30–18:00",
-  evening: "晚上 18:00–22:00",
-  "late-night": "夜深 22:00–05:00",
-};
-
-const careModeLabels: Record<AcceptanceCareMode, string> = {
-  "no-disaster": "无灾害",
-  disaster: "有灾害/突变",
-};
-
-const disasterLabels: Record<AcceptanceDisasterScenario, string> = {
-  typhoon: "台风/强飓风",
-  rainstorm: "暴雨/雷阵雨",
-  "cold-wave": "剧烈降温/寒潮",
-  heat: "高温/酷暑",
-  haze: "大雾/霾天气",
-  "strong-wind": "大风/沙尘",
-};
-
-const messageLabels: Record<AcceptanceMessageScenario, string> = {
-  none: "无新留言",
-  single: "单条新留言",
-  multiple: "多条混合",
-  photo: "新单张照片",
-  "photo-group": "新照片组",
-  "load-failure": "留言加载失败",
-};
 
 const albumLabels: Record<AcceptanceAlbumScenario, string> = {
   default: "正常轮播",
@@ -216,12 +185,42 @@ const heartLabels: Record<AcceptanceHeartScenario, string> = {
 
 const reminderLabels: Record<AcceptanceReminderScenario, string> = {
   default: "正常提醒",
+  "due-popup": "到点弹窗提醒",
   due: "待完成",
   "not-yet": "未到时间",
   "all-completed": "已完成",
   unconfirmed: "未确认/已过期",
   "action-failure": "确认失败",
   empty: "空列表",
+};
+
+const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: string; description: string }> = {
+  default: { label: "五类正常内容", description: "公告、资讯、话题、活动和警惕事项均可进入。" },
+  empty: { label: "当前分类无内容", description: "展示温和空状态，不影响其他模块。" },
+  "load-failure": { label: "内容加载失败", description: "展示失败提示并支持重新加载。" },
+  "topic-normal": { label: "话题正常", description: "展示话题列表、引用摘要和评论数量。" },
+  "topic-elder": { label: "老人发起", description: "展示当前老人发起且可继续评论的话题。" },
+  "topic-backend": { label: "后台发起", description: "后台发布的话题同样支持查看和评论。" },
+  "topic-standalone": { label: "独立发起", description: "不引用资讯，填写标题和想说的话。" },
+  "topic-reference": { label: "引用资讯", description: "从生活资讯带入整篇资讯引用卡片。" },
+  "topic-no-comments": { label: "暂无评论", description: "详情显示温和空状态和评论输入。" },
+  "topic-multiple-comments": { label: "多条一级评论", description: "所有评论直接属于话题，不做楼中楼。" },
+  "topic-reference-expired": { label: "引用已失效", description: "保留资讯快照并说明原文不可查看。" },
+  "topic-closed": { label: "话题已关闭", description: "可读正文和历史评论，不可新增评论。" },
+  "topic-publish-failure": { label: "发布失败", description: "保留填写内容并支持重新提交。" },
+  "topic-comment-failure": { label: "评论失败", description: "保留评论内容并支持重试。" },
+  "topic-empty": { label: "话题空列表", description: "无话题时保留发起话题入口。" },
+  "topic-load-failure": { label: "话题加载失败", description: "话题列表失败并提供重试。" },
+  "activity-ended-cancelled": { label: "活动结束/取消", description: "不可再提交参加意向。" },
+  "activity-submit-failure": { label: "意向提交失败", description: "保留原选择并支持重新提交。" },
+};
+
+const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
+  default: { label: "五类正常服务", description: "五类服务均有可预约内容，可筛选并进入详情预约。" },
+  "no-services": { label: "暂无可预约服务", description: "全部服务都不可预约时展示统一空状态。" },
+  "filter-empty": { label: "当前筛选变为空", description: "保留当前分类并提示返回全部服务。" },
+  "category-load-failure": { label: "分类加载失败", description: "不虚构分类，展示失败提示与重新加载。" },
+  "category-disabled": { label: "分类已停用", description: "停用分类及其服务不进入老人端列表。" },
 };
 
 const weatherLabels: Record<FamilyWeatherMockScenario, string> = {
@@ -231,13 +230,11 @@ const weatherLabels: Record<FamilyWeatherMockScenario, string> = {
   "missing-location": "子女无位置",
   "elder-missing-location": "本人无位置",
   "relation-unbound": "关系解绑",
-  "send-failure": "发送失败",
-  "already-sent": "今日已发送",
 };
 
 interface WeatherAcceptanceScenarioDefinition {
   id: FamilyWeatherMockScenario;
-  group: "display" | "care";
+  group: "display";
   title: string;
   description: string;
   icon: LucideIcon;
@@ -281,7 +278,7 @@ const weatherScenarioDefinitions: WeatherAcceptanceScenarioDefinition[] = [
     id: "missing-location",
     group: "display",
     title: "子女没有位置",
-    description: "保留联系人卡片，提示完善位置并关闭天气关怀",
+    description: "保留联系人卡片并提示天气位置待完善",
     icon: MapPinOff,
     tone: "warning",
   },
@@ -297,25 +294,9 @@ const weatherScenarioDefinitions: WeatherAcceptanceScenarioDefinition[] = [
     id: "relation-unbound",
     group: "display",
     title: "家庭关系解绑",
-    description: "详情不再展示已解绑的女儿，也不能继续发送关怀",
+    description: "详情不再展示已解绑的家庭成员",
     icon: UserMinus,
     tone: "danger",
-  },
-  {
-    id: "send-failure",
-    group: "care",
-    title: "发送失败",
-    description: "统一覆盖发送前断网、发送中断网和服务发送失败；保留原话并支持原请求重试",
-    icon: Send,
-    tone: "danger",
-  },
-  {
-    id: "already-sent",
-    group: "care",
-    title: "今日已经发送",
-    description: "展示今日发送记录并阻止再次发送",
-    icon: CheckCircle2,
-    tone: "notice",
   },
 ];
 
@@ -334,13 +315,6 @@ const weatherAcceptanceTargets: WeatherAcceptanceTargetDefinition[] = [
     defaultTitle: "正常天气详情",
     defaultDescription: "详情展示全部绑定成员、跨国家位置和子女当地时间",
   },
-  {
-    id: "care",
-    label: "关怀发送",
-    scenarios: ["default", "send-failure", "already-sent"],
-    defaultTitle: "正常发送",
-    defaultDescription: "显示系统准备的固定话术，明确确认后发送并展示完成结果",
-  },
 ];
 
 function getWeatherScenarioPresentation(target: WeatherAcceptanceTargetDefinition, scenarioId: FamilyWeatherMockScenario) {
@@ -351,36 +325,27 @@ function getWeatherScenarioPresentation(target: WeatherAcceptanceTargetDefinitio
 }
 
 export default function InteractionAcceptanceConsole({
-  taskScenario,
-  taskContentScenario,
-  recordScenario,
-  careRegion,
-  careTime,
-  careMode,
-  careScenario,
-  disasterScenario,
-  messageScenario,
   weatherScenario,
   albumScenario,
   heartScenario,
   reminderScenario,
+  rightContentScenario,
+  communityScenario,
+  serviceScenario,
   onShowHome,
   onShowAlbum,
   onShowReminders,
-  onSetTaskScenario,
-  onSetTaskContentScenario,
-  onSetRecordScenario,
-  onSetCareRegion,
-  onSetCareTime,
-  onSetCareMode,
-  onSetCareScenario,
-  onSetDisasterScenario,
-  onSetMessageScenario,
+  onShowCommunity,
+  onShowServices,
   onSetWeatherScenario,
   onOpenWeatherScenario,
   onSetAlbumScenario,
   onSetHeartScenario,
   onSetReminderScenario,
+  onSetRightContentScenario,
+  onSetCommunityScenario,
+  onSetServiceScenario,
+  onApplyRightContentUpdate,
   onOpenHomeReminderAlert,
   onHomeCommand,
   onOpenEmergencyScenario,
@@ -529,25 +494,6 @@ export default function InteractionAcceptanceConsole({
           </section>
 
           <div className="interaction-acceptance-section">
-            {activeSection === "message" && <section>
-              <h2><MessageCircleHeart aria-hidden="true" />留言场景</h2>
-              <div className="interaction-acceptance-grid is-two-columns">
-                {(Object.keys(messageLabels) as AcceptanceMessageScenario[]).map((scenario) => (
-                  <button
-                    key={scenario}
-                    type="button"
-                    className={messageScenario === scenario ? "is-active" : ""}
-                    onClick={() => runAndClose(() => {
-                      onSetMessageScenario(scenario);
-                      onShowHome();
-                    })}
-                  >
-                    <MessageCircleHeart />{messageLabels[scenario]}
-                  </button>
-                ))}
-              </div>
-            </section>}
-
             {activeSection === "album" && <section>
               <h2><Image aria-hidden="true" />家庭影像场景</h2>
               <div className="interaction-acceptance-grid is-two-columns">
@@ -598,7 +544,11 @@ export default function InteractionAcceptanceConsole({
                     className={reminderScenario === scenario ? "is-active" : ""}
                     onClick={() => {
                       onSetReminderScenario(scenario);
-                      onShowReminders();
+                      if (scenario === "due-popup") {
+                        onOpenHomeReminderAlert("medicine", 0);
+                      } else {
+                        onShowReminders();
+                      }
                     }}
                   >
                     <BellRing />{reminderLabels[scenario]}
@@ -630,7 +580,7 @@ export default function InteractionAcceptanceConsole({
 
               <div className="interaction-acceptance-field">
                 <h2>模块状态</h2>
-                <p>{weatherAcceptanceTarget === "care" ? "选择后立即联动页面，底部按钮可重复执行" : "选择后通过底部动作查看页面状态"}</p>
+                <p>选择后通过底部动作查看页面状态</p>
                 <div className="weather-acceptance-status-grid" role="group" aria-label="选择天气模块状态">
                   {selectedWeatherTarget.scenarios.map((scenarioId) => {
                     const definition = getWeatherScenarioPresentation(selectedWeatherTarget, scenarioId);
@@ -641,10 +591,7 @@ export default function InteractionAcceptanceConsole({
                         key={scenarioId}
                         type="button"
                         className={weatherScenario === scenarioId ? "is-active" : ""}
-                        onClick={() => {
-                          onSetWeatherScenario(scenarioId);
-                          if (weatherAcceptanceTarget === "care") onOpenWeatherScenario("care");
-                        }}
+                        onClick={() => onSetWeatherScenario(scenarioId)}
                       >
                         <ScenarioIcon aria-hidden="true" />
                         <span>{definition.title}</span>
@@ -657,37 +604,16 @@ export default function InteractionAcceptanceConsole({
 
               <div className="interaction-acceptance-field">
                 <h2>交互动作</h2>
-                {weatherAcceptanceTarget === "care" && (
-                  <ol className="weather-acceptance-flow" aria-label="关怀发送验收步骤">
-                    <li><span>1</span><b>展示固定话术</b></li>
-                    <li><span>2</span><b>{weatherScenario === "send-failure" ? "发送失败" : weatherScenario === "already-sent" ? "识别今日记录" : "确认发送"}</b></li>
-                    <li><span>3</span><b>{weatherScenario === "send-failure" ? "恢复并重发成功" : weatherScenario === "already-sent" ? "阻止重复发送" : "完成并返回"}</b></li>
-                  </ol>
-                )}
                 <div className="weather-acceptance-actions">
                   <button type="button" onClick={() => onSetWeatherScenario("default")}>恢复正常</button>
                   <button type="button" className="is-primary" onClick={() => onOpenWeatherScenario(weatherAcceptanceTarget)}>
                     {weatherAcceptanceTarget === "home"
                       ? "查看首页天气"
-                      : weatherAcceptanceTarget === "detail"
-                        ? "打开天气详情"
-                        : weatherScenario === "send-failure"
-                          ? "开始异常恢复验收"
-                          : weatherScenario === "already-sent"
-                            ? "查看今日发送记录"
-                          : "开始正常发送验收"}
+                      : "打开天气详情"}
                   </button>
                 </div>
               </div>
-              <p className="interaction-acceptance-note">
-                {weatherAcceptanceTarget === "care" && weatherScenario === "send-failure"
-                  ? "发送失败统一覆盖断网和服务异常；保留原文，重新发送沿用同一请求且只产生一条消息。"
-                  : weatherAcceptanceTarget === "care" && weatherScenario === "already-sent"
-                    ? "直接展示今日发送记录，并阻止当天重复发送。"
-                  : weatherAcceptanceTarget === "care"
-                    ? "进入固定话术确认页，发送成功后点“完成并返回首页”结束验收。"
-                    : "先选择状态，再执行验收动作；验收台保持展开。"}
-              </p>
+              <p className="interaction-acceptance-note">先选择状态，再执行验收动作；验收台保持展开。</p>
             </section>}
 
             {activeSection === "emergency" && <section>
@@ -704,25 +630,26 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "task-progress" && <section>
               <div className="interaction-acceptance-field">
-                <h2><CheckCircle2 aria-hidden="true" />今日任务状态</h2>
-                <div className="interaction-acceptance-grid is-two-columns">
-                  {(Object.keys(taskLabels) as AcceptanceTaskScenario[]).map((scenario) => (
-                    <button key={scenario} type="button" className={taskScenario === scenario ? "is-active" : ""} onClick={() => onSetTaskScenario(scenario)}>
-                      <CheckCircle2 />{taskLabels[scenario]}
+                <h2><Sparkles aria-hidden="true" />右侧单按钮</h2>
+                <p>各类内容并行计算，首页只展示当前最高优先级的一项。</p>
+                <div className="interaction-acceptance-scenario-list">
+                  {(Object.keys(rightContentScenarioLabels) as AcceptanceRightContentScenario[]).map((scenario) => (
+                    <button
+                      key={scenario}
+                      type="button"
+                      className={rightContentScenario === scenario ? "is-active" : ""}
+                      onClick={() => onSetRightContentScenario(scenario)}
+                    >
+                      <span><Sparkles aria-hidden="true" /><strong>{rightContentScenarioLabels[scenario].label}</strong></span>
+                      <small>{rightContentScenarioLabels[scenario].description}</small>
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <div className="interaction-acceptance-field">
-                <h2><Sparkles aria-hidden="true" />当前核心内容</h2>
-                <div className="interaction-acceptance-grid is-two-columns">
-                  {(Object.keys(taskContentLabels) as AcceptanceTaskContentScenario[]).map((scenario) => (
-                    <button key={scenario} type="button" className={taskContentScenario === scenario ? "is-active" : ""} onClick={() => onSetTaskContentScenario(scenario)}>
-                      <Sparkles />{taskContentLabels[scenario]}
-                    </button>
-                  ))}
-                </div>
+                {rightContentScenario === "interaction-locked" && (
+                  <button type="button" className="interaction-acceptance-primary-action" onClick={onApplyRightContentUpdate}>
+                    <CheckCircle2 aria-hidden="true" />结束当前操作，应用新内容
+                  </button>
+                )}
               </div>
 
               <div className="interaction-acceptance-field">
@@ -737,61 +664,54 @@ export default function InteractionAcceptanceConsole({
                 </div>
               </div>
 
+            </section>}
+
+            {activeSection === "community-life" && <section>
               <div className="interaction-acceptance-field">
-                <h2><Clock3 aria-hidden="true" />履约记录</h2>
-                <div className="interaction-acceptance-grid is-two-columns">
-                  {(Object.keys(recordLabels) as AcceptanceRecordScenario[]).map((scenario) => (
-                    <button key={scenario} type="button" className={recordScenario === scenario ? "is-active" : ""} onClick={() => onSetRecordScenario(scenario)}>
-                      <Clock3 />{recordLabels[scenario]}
+                <h2><Landmark aria-hidden="true" />社区生活场景</h2>
+                <p>选择场景后直接打开对应页面，验收台保持展开。</p>
+                <div className="interaction-acceptance-scenario-list">
+                  {(Object.keys(communityScenarioLabels) as AcceptanceCommunityScenario[]).map((scenario) => (
+                    <button
+                      key={scenario}
+                      type="button"
+                      className={communityScenario === scenario ? "is-active" : ""}
+                      onClick={() => onSetCommunityScenario(scenario)}
+                    >
+                      <span><Landmark aria-hidden="true" /><strong>{communityScenarioLabels[scenario].label}</strong></span>
+                      <small>{communityScenarioLabels[scenario].description}</small>
                     </button>
                   ))}
                 </div>
+                <button type="button" className="interaction-acceptance-primary-action" onClick={onShowCommunity}>
+                  <ChevronRight aria-hidden="true" />打开当前社区生活场景
+                </button>
               </div>
+              <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向与“已确认参加”严格分开。</p>
+            </section>}
+
+            {activeSection === "special-services" && <section>
               <div className="interaction-acceptance-field">
-                <h2><Sparkles aria-hidden="true" />无 P0 关怀文案</h2>
-                <p>优先级：夜深问候 ＞ 灾害突变 ＞ 节气 ＞ 养生 ＞ 日常兜底</p>
-                <div className="interaction-acceptance-grid is-two-columns">
-                  {(Object.keys(careRegionLabels) as AcceptanceCareRegion[]).map((region) => (
-                    <button key={region} type="button" className={careRegion === region ? "is-active" : ""} onClick={() => onSetCareRegion(region)}>
-                      <MapPinOff />{careRegionLabels[region]}
+                <h2><HandHeart aria-hidden="true" />特约服务分类场景</h2>
+                <p>选择场景后直接打开现有特约服务页，验收台保持展开。</p>
+                <div className="interaction-acceptance-scenario-list">
+                  {(Object.keys(specialServicesScenarioLabels) as SpecialServicesAcceptanceScenario[]).map((scenario) => (
+                    <button
+                      key={scenario}
+                      type="button"
+                      className={serviceScenario === scenario ? "is-active" : ""}
+                      onClick={() => onSetServiceScenario(scenario)}
+                    >
+                      <span><HandHeart aria-hidden="true" /><strong>{specialServicesScenarioLabels[scenario].label}</strong></span>
+                      <small>{specialServicesScenarioLabels[scenario].description}</small>
                     </button>
                   ))}
                 </div>
-                <div className="interaction-acceptance-grid is-two-columns">
-                  {(Object.keys(careTimeLabels) as AcceptanceCareTime[]).map((time) => (
-                    <button key={time} type="button" className={careTime === time ? "is-active" : ""} onClick={() => onSetCareTime(time)}>
-                      <Clock3 />{careTimeLabels[time]}
-                    </button>
-                  ))}
-                </div>
-                {careTime !== "late-night" && <>
-                  <div className="interaction-acceptance-grid is-two-columns">
-                    {(Object.keys(careModeLabels) as AcceptanceCareMode[]).map((mode) => (
-                      <button key={mode} type="button" className={careMode === mode ? "is-active" : ""} onClick={() => onSetCareMode(mode)}>
-                        <ShieldAlert />{careModeLabels[mode]}
-                      </button>
-                    ))}
-                  </div>
-                  {careMode === "disaster" ? (
-                    <div className="interaction-acceptance-grid is-two-columns">
-                      {(Object.keys(disasterLabels) as AcceptanceDisasterScenario[]).map((scenario) => (
-                        <button key={scenario} type="button" className={disasterScenario === scenario ? "is-active" : ""} onClick={() => onSetDisasterScenario(scenario)}>
-                          <ShieldAlert />{disasterLabels[scenario]}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="interaction-acceptance-grid is-two-columns">
-                      {(Object.keys(careScenarioLabels) as AcceptanceCareScenario[]).map((scenario) => (
-                        <button key={scenario} type="button" className={careScenario === scenario ? "is-active" : ""} onClick={() => onSetCareScenario(scenario)}>
-                          <Sparkles />{careScenarioLabels[scenario]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>}
+                <button type="button" className="interaction-acceptance-primary-action" onClick={onShowServices}>
+                  <ChevronRight aria-hidden="true" />打开当前特约服务场景
+                </button>
               </div>
-              <p className="interaction-acceptance-note">选择后立即联动首页；具体时段、节日、天气和地区文案按 PRD 规则匹配，不逐条设置验收按钮。</p>
+              <p className="interaction-acceptance-note">分类只用于筛选服务；详情、预约确认、预约结果和服务记录继续复用现有流程。</p>
             </section>}
           </div>
 

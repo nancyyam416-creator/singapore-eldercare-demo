@@ -7,34 +7,26 @@ import MedicationCelebration from "./components/MedicationCelebration";
 import HomeReminderAlert from "./components/HomeReminderAlert";
 import ContactsPage from "./components/ContactsCommunicationPage";
 import FamilyAlbumPage from "./components/FamilyAlbumPage";
-import FamilyMessageBoxPage from "./components/FamilyMessageBoxPage";
 import SchedulePage from "./components/SchedulePage";
 import TodayOverviewPage from "./components/TodayOverviewPage";
 import MoreFunctionsDrawer from "./components/MoreFunctionsDrawer";
-import CommunityActivitiesPage from "./components/CommunityActivitiesPage";
+import CommunityActivitiesPage, { type CommunityActivityAcceptanceScenario } from "./components/CommunityActivitiesPage";
+import CommunityLifePage, { type CommunityLifeAcceptanceScenario } from "./components/CommunityLifePage";
 import SecurityInformationPage from "./components/SecurityInformationPage";
-import SpecialServicesPage from "./components/SpecialServicesPage";
+import SpecialServicesPage, { type SpecialServicesAcceptanceScenario } from "./components/SpecialServicesPage";
 import ActivationFlow from "./components/ActivationFlow";
 import InteractionAcceptanceConsole, {
   type AcceptanceAlbumScenario,
-  type AcceptanceCareMode,
-  type AcceptanceCareRegion,
-  type AcceptanceCareScenario,
-  type AcceptanceCareTime,
-  type AcceptanceDisasterScenario,
   type AcceptanceHomeCommand,
   type AcceptanceHeartScenario,
-  type AcceptanceMessageScenario,
-  type AcceptanceRecordScenario,
   type AcceptanceReminderScenario,
+  type AcceptanceRightContentScenario,
   type AcceptanceTaskContentScenario,
-  type AcceptanceTaskScenario,
+  type AcceptanceCommunityScenario,
 } from "./components/InteractionAcceptanceConsole";
 import {
   familyWeatherMockApi,
   type FamilyWeatherMockScenario,
-  type GenerateWeatherCareInput,
-  type SendWeatherCareInput,
 } from "./weather/familyWeather";
 import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord, SpecialServiceBooking } from "./types";
 import "./control-center.css";
@@ -111,7 +103,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     avatar: "https://picsum.photos/seed/xiaomin/120/120",
     type: "photo",
     content: "爸，这是昨天下雪拍的照片",
-    photoUrl: "/assets/snowman-photo-message.jpg",
+    photoUrl: "./assets/snowman-photo-message.jpg",
     duration: 7,
     timestamp: "刚刚",
     played: false,
@@ -196,15 +188,18 @@ export default function App() {
   // 1.9. Family Album Secondary Page State
   const [isAlbumPageOpen, setIsAlbumPageOpen] = useState(false);
   const [albumUnreadCount, setAlbumUnreadCount] = useState(2);
+  const [missedCallCount, setMissedCallCount] = useState(0);
   const [photoHeartStates, setPhotoHeartStates] = useState<Record<string, boolean>>({});
-
-  // 1.9.2. Family Message Box Secondary Page State
-  const [isMessageBoxOpen, setIsMessageBoxOpen] = useState(false);
 
   // 1.10. Reminders & Schedule Secondary Page State
   const [isSchedulePageOpen, setIsSchedulePageOpen] = useState(false);
+  const [isCommunityLifeOpen, setIsCommunityLifeOpen] = useState(false);
   const [isCommunityActivitiesOpen, setIsCommunityActivitiesOpen] = useState(false);
   const [isSecurityInformationOpen, setIsSecurityInformationOpen] = useState(false);
+  const [securityInformationMode, setSecurityInformationMode] = useState<"security" | "alert">("security");
+  const [returnToCommunityLife, setReturnToCommunityLife] = useState(false);
+  const [communityActivityInitialId, setCommunityActivityInitialId] = useState<string | null>(null);
+  const [communityAlertInitialId, setCommunityAlertInitialId] = useState<string | null>(null);
   const [autoPlaySafetyInformation, setAutoPlaySafetyInformation] = useState(false);
   const [safetyReadIds, setSafetyReadIds] = useState<string[]>(readStoredSafetyIds);
   const [isSpecialServicesOpen, setIsSpecialServicesOpen] = useState(false);
@@ -221,18 +216,15 @@ export default function App() {
 
   // Demo-only interaction acceptance controls. These states never enter the elderly-facing UI.
   const [acceptanceTimeOverride, setAcceptanceTimeOverride] = useState<string | null>(null);
-  const [acceptanceTaskScenario, setAcceptanceTaskScenario] = useState<AcceptanceTaskScenario>("unfinished");
-  const [acceptanceTaskContentScenario, setAcceptanceTaskContentScenario] = useState<AcceptanceTaskContentScenario>("medicine");
-  const [acceptanceRecordScenario, setAcceptanceRecordScenario] = useState<AcceptanceRecordScenario>("with-records");
-  const [acceptanceCareRegion, setAcceptanceCareRegion] = useState<AcceptanceCareRegion>("domestic");
-  const [acceptanceCareTime, setAcceptanceCareTime] = useState<AcceptanceCareTime>("morning");
-  const [acceptanceCareMode, setAcceptanceCareMode] = useState<AcceptanceCareMode>("no-disaster");
-  const [acceptanceCareScenario, setAcceptanceCareScenario] = useState<AcceptanceCareScenario>("daily");
-  const [acceptanceDisasterScenario, setAcceptanceDisasterScenario] = useState<AcceptanceDisasterScenario>("rainstorm");
-  const [acceptanceMessageScenario, setAcceptanceMessageScenario] = useState<AcceptanceMessageScenario>("multiple");
   const [acceptanceAlbumScenario, setAcceptanceAlbumScenario] = useState<AcceptanceAlbumScenario>("default");
   const [acceptanceHeartScenario, setAcceptanceHeartScenario] = useState<AcceptanceHeartScenario>("not-liked");
   const [acceptanceReminderScenario, setAcceptanceReminderScenario] = useState<AcceptanceReminderScenario>("default");
+  const [acceptanceRightContentScenario, setAcceptanceRightContentScenario] = useState<AcceptanceRightContentScenario>("default");
+  const [acceptanceCommunityScenario, setAcceptanceCommunityScenario] = useState<AcceptanceCommunityScenario>("default");
+  const [acceptanceSpecialServicesScenario, setAcceptanceSpecialServicesScenario] = useState<SpecialServicesAcceptanceScenario>("default");
+  const [communityLifeAcceptanceScenario, setCommunityLifeAcceptanceScenario] = useState<CommunityLifeAcceptanceScenario>("default");
+  const [communityActivityAcceptanceScenario, setCommunityActivityAcceptanceScenario] = useState<CommunityActivityAcceptanceScenario>("default");
+  const [acceptanceRightContentApplySignal, setAcceptanceRightContentApplySignal] = useState(0);
   const [acceptanceRevision, setAcceptanceRevision] = useState(0);
   const [acceptanceCommand, setAcceptanceCommand] = useState<{ id: number; type: AcceptanceHomeCommand } | null>(null);
   const [familyWeatherScenario, setFamilyWeatherScenario] = useState<FamilyWeatherMockScenario>("default");
@@ -317,7 +309,7 @@ export default function App() {
   const [photos] = useState<FamilyPhoto[]>([
     {
       id: "photo-snowman-message",
-      url: "/assets/snowman-photo-message.jpg",
+      url: "./assets/snowman-photo-message.jpg",
       caption: "爸，这是昨天下雪拍的照片",
       date: "刚刚 · 女儿小敏上传",
       type: "photo",
@@ -345,7 +337,7 @@ export default function App() {
       caption: "重孙女小悦悦在幼儿园给爷爷录制的端午节儿歌祝福视频，快点开看看吧！",
       date: "昨天 18:20 · 女儿小敏上传",
       type: "video",
-      videoUrl: "/assets/family-video-mock.mp4",
+      videoUrl: "./assets/family-video-mock.mp4",
       senderName: "女儿小敏",
       uploadTime: "昨天 18:20",
       categoryName: "孙辈成长",
@@ -370,7 +362,7 @@ export default function App() {
       caption: "外孙小杰参加学校钢琴大赛，弹奏《献给爱丽丝》获得了一等奖！",
       date: "上周五 19:45 · 儿子小刚上传",
       type: "video",
-      videoUrl: "/assets/family-video-mock.mp4",
+      videoUrl: "./assets/family-video-mock.mp4",
       senderName: "儿子小刚",
       uploadTime: "上周五 19:45",
       categoryName: "孙辈成长",
@@ -405,6 +397,11 @@ export default function App() {
       registered: false,
       tag: "手工活动",
       imageUrl: "https://loremflickr.com/720/480/paper-cutting,craft?lock=31",
+      description: "社区老师带大家完成一幅简单剪纸作品，材料由社区准备。",
+      audience: "社区长者，可由家属陪同",
+      contact: "010-6258 8890",
+      status: "registration",
+      requiresConfirmation: true,
     },
     {
       id: "act-2",
@@ -415,6 +412,11 @@ export default function App() {
       registered: false,
       tag: "安全科普",
       imageUrl: "https://loremflickr.com/720/480/senior,smartphone,class?lock=32",
+      description: "社区民警讲解常见养老诈骗，并演示手机来电识别和安全设置。",
+      audience: "社区长者",
+      contact: "010-6258 8890",
+      status: "registration",
+      requiresConfirmation: false,
     },
     {
       id: "act-3",
@@ -425,6 +427,11 @@ export default function App() {
       registered: false,
       tag: "健康膳食",
       imageUrl: "https://loremflickr.com/720/480/senior,healthy-food,class?lock=33",
+      description: "社区健康老师介绍夏季饮食搭配和常见食材选择。",
+      audience: "社区长者",
+      contact: "010-6258 8890",
+      status: "registration",
+      requiresConfirmation: true,
     },
   ]);
 
@@ -437,6 +444,7 @@ export default function App() {
       description: "近期有不法分子冒充公安、检察院或法院工作人员打电话，声称您的账户涉嫌洗钱、诈骗或其他违法行为，并要求您配合所谓的“资金核查”。\n\n请您记住，公安、检察院和法院不会通过电话要求群众转账，也没有所谓的“安全账户”。如果对方要求提供银行卡、身份证、短信验证码，或者要求您把钱转到指定账户，请立即挂断电话。\n\n挂断后，请使用平时保存的电话号码联系家人核实。确实存在资金损失或对方持续骚扰时，可以拨打 110 寻求帮助。不要拨打陌生人提供的任何联系电话。",
       category: "反诈防骗",
       source: "公安反诈中心",
+      coverUrl: "https://loremflickr.com/720/480/phone,security?lock=51",
       contactLabel: "联系家人核实",
     },
     {
@@ -446,6 +454,7 @@ export default function App() {
       description: "一些商家会以免费赠送鸡蛋、大米、小家电或者免费体检为由，邀请长者参加所谓的健康讲座。讲座中可能夸大产品功效，宣称某种保健品能够治疗多种疾病，并催促现场付款。\n\n保健食品不能代替药物，也不能治疗疾病。遇到需要支付大额费用、办理会员或者购买多年疗程的情况，请不要当场付款，不要签署自己没有看懂的文件。\n\n可以先把产品名称、宣传单和商家联系方式带回家，与家人、医生或社区工作人员商量后再决定。",
       category: "消费安全",
       source: "社区民警",
+      coverUrl: "https://loremflickr.com/720/480/senior,seminar?lock=52",
       contactLabel: "联系家人商量",
     },
     {
@@ -455,6 +464,7 @@ export default function App() {
       description: "如果突然收到自称儿女、孙辈或其他亲属的信息，对方说手机损坏、发生车祸、住院或者被拘留，并要求您立即向陌生账户转账，请先停下来核实。\n\n不要按照信息中的要求保持保密，也不要拨打对方临时提供的新号码。请直接拨打家人平时使用的电话号码，或者联系其他亲属确认情况。\n\n如果暂时联系不上家人，可以请社区工作人员协助。在确认对方真实身份之前，不要进行任何转账操作。",
       category: "亲情诈骗",
       source: "社区民警",
+      coverUrl: "https://loremflickr.com/720/480/phone,message?lock=53",
       contactLabel: "联系家人核实",
     },
   ]);
@@ -478,7 +488,8 @@ export default function App() {
     }, ...current]);
   };
 
-  const openSafetyInformation = (autoPlay = false) => {
+  const openSafetyInformation = (autoPlay = false, mode: "security" | "alert" = "security") => {
+    setSecurityInformationMode(mode);
     setAutoPlaySafetyInformation(autoPlay);
     setIsSecurityInformationOpen(true);
   };
@@ -507,8 +518,9 @@ export default function App() {
     window.localStorage.setItem(SERVICE_BOOKINGS_STORAGE_KEY, JSON.stringify(nextBookings));
   };
 
-  const handleCompleteReminder = (id: string) => {
-    const item = reminders.find((r) => r.id === id || r.name === id || id.includes(r.name) || r.name.includes(id));
+  const handleCompleteReminder = (id: string, fallbackReminder?: MedicationReminder) => {
+    const item = reminders.find((r) => r.id === id || r.name === id || id.includes(r.name) || r.name.includes(id))
+      ?? fallbackReminder;
     if (!item || item.status === "completed") return;
 
     const finishedReminder = {
@@ -529,30 +541,8 @@ export default function App() {
     });
   };
 
-  const handleQuickCompleteReminder = (id: string) => {
-    handleCompleteReminder(id);
-  };
-
-  const handlePlayMessage = (id: string) => {
-    const message = messages.find((item) => item.id === id);
-    if (message && !message.played && message.sender !== "您 (我)") {
-      const sender = message.sender.includes("女儿") ? "女儿" : message.sender.includes("儿子") ? "儿子" : message.sender;
-      appendFulfillmentRecord({ kind: "message", title: `收听了${sender}语音留言` });
-    }
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, played: true } : m)));
-  };
-
-  const handleQuickReply = (recipient: string, content: string) => {
-    setMessages((currentMessages) => [...currentMessages, {
-      id: `home-quick-reply-${Date.now()}`,
-      sender: "您 (我)",
-      recipient,
-      avatar: "https://picsum.photos/seed/grandfather/120/120",
-      type: "text",
-      content,
-      timestamp: "刚刚",
-      played: true,
-    }]);
+  const handleQuickCompleteReminder = (id: string, fallbackReminder?: MedicationReminder) => {
+    handleCompleteReminder(id, fallbackReminder);
   };
 
   const handleRegisterActivity = (id: string) => {
@@ -619,8 +609,8 @@ export default function App() {
     setIsAssistantOpen(false);
     setIsCelebrationOpen(false);
     setIsAlbumPageOpen(false);
-    setIsMessageBoxOpen(false);
     setIsSchedulePageOpen(false);
+    setIsCommunityLifeOpen(false);
     setIsCommunityActivitiesOpen(false);
     setIsSecurityInformationOpen(false);
     setIsSpecialServicesOpen(false);
@@ -628,65 +618,11 @@ export default function App() {
     setIsMoreModulesOpen(false);
     setHomeReminderAlert(null);
     setOverviewRecommendationKind(null);
+    setReturnToCommunityLife(false);
     sendAcceptanceCommand("reset-home-overlays");
   };
 
-  const applyAcceptanceTaskState = (
-    scenario: AcceptanceTaskScenario,
-    contentScenario: AcceptanceTaskContentScenario,
-  ) => {
-    const defaults = createDefaultReminders();
-    setAcceptanceTaskScenario(scenario);
-    setAcceptanceTaskContentScenario(contentScenario);
-
-    if (scenario === "overdue") {
-      setAcceptanceTimeOverride("14:15");
-      setReminders(defaults.map((item) => item.id === "med-2" ? { ...item, status: "expired" as const } : item));
-    } else if (scenario === "all-done") {
-      setAcceptanceTimeOverride("13:00");
-      setReminders(defaults.map((item) => ({ ...item, status: "completed" as const, takenAt: item.takenAt ?? "已完成" })));
-    } else if (scenario === "no-p0") {
-      setAcceptanceTimeOverride("13:00");
-      setReminders(defaults.map((item) => ({ ...item, priority: "P1" as const })));
-    } else if (contentScenario === "schedule") {
-      setAcceptanceTimeOverride("15:00");
-      setReminders([
-        ...defaults.map((item) => ({ ...item, priority: "P1" as const })),
-        {
-          id: "acceptance-schedule",
-          time: "15:00",
-          name: "下午测量血压",
-          dosage: "使用家里的血压计测量并记录",
-          status: "pending",
-          priority: "P0",
-          category: "schedule",
-          ctaTitle: "该测量血压啦",
-        },
-      ]);
-    } else {
-      setAcceptanceTimeOverride("13:00");
-      setReminders(defaults);
-    }
-    setAcceptanceRevision((revision) => revision + 1);
-    showHomeForAcceptance();
-  };
-
-  const handleAcceptanceTaskScenario = (scenario: AcceptanceTaskScenario) => {
-    const compatibleContent = scenario === "overdue" ? "medicine" : acceptanceTaskContentScenario;
-    applyAcceptanceTaskState(scenario, compatibleContent);
-  };
-
-  const handleAcceptanceTaskContentScenario = (scenario: AcceptanceTaskContentScenario) => {
-    applyAcceptanceTaskState("unfinished", scenario);
-  };
-
-  const handleAcceptanceRecordScenario = (scenario: AcceptanceRecordScenario) => {
-    setAcceptanceRecordScenario(scenario);
-    setFulfillmentRecords(scenario === "empty" ? [] : createInitialFulfillmentRecords());
-    showHomeForAcceptance();
-  };
-
-  const openAcceptanceHomeReminderAlert = (category: AcceptanceTaskContentScenario) => {
+  const openAcceptanceHomeReminderAlert = (category: AcceptanceTaskContentScenario, minutesUntil = 5) => {
     const targetId = category === "schedule" ? "schedule-self-walk" : "med-2";
     showHomeForAcceptance();
     setReminders((current) => current.map((reminder) => (
@@ -696,92 +632,9 @@ export default function App() {
     )));
     setHomeReminderAlert({
       reminderId: targetId,
-      minutesUntil: 5,
+      minutesUntil,
       source: "acceptance",
     });
-  };
-
-  const showAcceptanceCareCopy = (next: {
-    region?: AcceptanceCareRegion;
-    time?: AcceptanceCareTime;
-    mode?: AcceptanceCareMode;
-    scenario?: AcceptanceCareScenario;
-    disaster?: AcceptanceDisasterScenario;
-  }) => {
-    const region = next.region ?? acceptanceCareRegion;
-    const time = next.time ?? acceptanceCareTime;
-    const mode = next.mode ?? acceptanceCareMode;
-    const scenario = next.scenario ?? acceptanceCareScenario;
-    const disaster = next.disaster ?? acceptanceDisasterScenario;
-    setAcceptanceCareRegion(region);
-    setAcceptanceCareTime(time);
-    setAcceptanceCareMode(mode);
-    setAcceptanceCareScenario(scenario);
-    setAcceptanceDisasterScenario(disaster);
-    applyAcceptanceTaskState("no-p0", acceptanceTaskContentScenario);
-    const careTimes: Record<AcceptanceCareTime, string> = {
-      morning: "08:00",
-      noon: "12:00",
-      afternoon: "15:00",
-      evening: "19:00",
-      "late-night": "23:00",
-    };
-    setAcceptanceTimeOverride(careTimes[time]);
-  };
-
-  const handleAcceptanceMessageScenario = (scenario: AcceptanceMessageScenario) => {
-    const defaults = createDefaultMessages();
-    const markAllRead = defaults.map((message) => ({ ...message, played: true }));
-    setAcceptanceMessageScenario(scenario);
-
-    if (scenario === "none") {
-      setMessages(markAllRead);
-    } else if (scenario === "single") {
-      setMessages(markAllRead.map((message) => message.id === "msg-voice-3" ? { ...message, played: false } : message));
-    } else if (scenario === "multiple") {
-      const unreadIds = new Set(["msg-photo-snowman", "msg-voice-3", "msg-voice-2"]);
-      setMessages(markAllRead.map((message) => unreadIds.has(message.id) ? { ...message, played: false } : message));
-    } else if (scenario === "photo") {
-      setMessages([
-        {
-          ...defaults[0],
-          id: `acceptance-photo-${Date.now()}`,
-          timestamp: "刚刚",
-          played: false,
-        },
-        ...markAllRead.slice(1),
-      ]);
-    } else if (scenario === "photo-group") {
-      setMessages([
-        {
-          ...defaults[0],
-          id: `acceptance-photo-group-${Date.now()}`,
-          content: "爸，这是我们周末一起拍的一组照片",
-          photoUrls: [
-            "/assets/snowman-photo-message.jpg",
-            "/assets/family-dashboard-source.png",
-            "/assets/snowman-photo-message.jpg?group=3",
-          ],
-          timestamp: "刚刚",
-          played: false,
-        },
-        ...markAllRead.slice(1),
-      ]);
-    } else if (scenario === "load-failure") {
-      setMessages([
-        {
-          ...defaults[1],
-          id: `acceptance-message-failure-${Date.now()}`,
-          content: "留言内容暂时无法加载",
-          timestamp: "刚刚",
-          played: false,
-          loadFailed: true,
-        },
-        ...markAllRead.filter((message) => message.id !== defaults[1].id),
-      ]);
-    }
-
-    setAcceptanceRevision((revision) => revision + 1);
   };
 
   const handleAcceptanceWeatherScenario = (scenario: FamilyWeatherMockScenario) => {
@@ -790,13 +643,13 @@ export default function App() {
     setFamilyWeather(familyWeatherMockApi.getSnapshot(scenario));
   };
 
-  const openAcceptanceWeatherScenario = (target: "home" | "detail" | "care") => {
+  const openAcceptanceWeatherScenario = (target: "home" | "detail") => {
     showHomeForAcceptance();
     if (target === "home") {
       sendAcceptanceCommand("reset-home-overlays");
       return;
     }
-    sendAcceptanceCommand(target === "care" ? "open-weather-care" : "open-weather");
+    sendAcceptanceCommand("open-weather");
   };
 
   const openAcceptanceEmergencyScenario = (scenario: EmergencyAcceptanceScenario) => {
@@ -811,22 +664,83 @@ export default function App() {
     showHomeForAcceptance();
   };
 
+  const handleAcceptanceRightContentScenario = (scenario: AcceptanceRightContentScenario) => {
+    const defaults = createDefaultReminders();
+    const markMessagesRead = createDefaultMessages().map((message) => ({ ...message, played: true }));
+    setAcceptanceRightContentScenario(scenario);
+    setAcceptanceRightContentApplySignal(0);
+    setMissedCallCount(scenario === "missed-call" ? 2 : 0);
+    setAlbumUnreadCount(scenario === "new-album" ? 2 : scenario === "time-and-family" ? 1 : 0);
+    setMessages(
+      scenario === "new-message" || scenario === "interaction-locked"
+        ? createDefaultMessages().map((message, index) => ({ ...message, played: index > 2 }))
+        : scenario === "time-and-family"
+          ? createDefaultMessages().map((message, index) => ({ ...message, played: index > 0 }))
+          : markMessagesRead,
+    );
+
+    if (scenario === "p1-due") {
+      setAcceptanceTimeOverride("13:00");
+      setReminders(defaults);
+    } else if (scenario === "time-and-family") {
+      setAcceptanceTimeOverride("12:40");
+      setReminders(defaults);
+    } else {
+      setAcceptanceTimeOverride("10:00");
+      setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
+    }
+    setAcceptanceRevision((revision) => revision + 1);
+    showHomeForAcceptance();
+  };
+
+  const openAcceptanceCommunityScenario = (scenario: AcceptanceCommunityScenario) => {
+    showHomeForAcceptance();
+    setAcceptanceCommunityScenario(scenario);
+    setHomeRecommendationKind(null);
+    setReturnToCommunityLife(false);
+
+    if (scenario === "activity-ended-cancelled" || scenario === "activity-submit-failure") {
+      setCommunityActivityAcceptanceScenario(
+        scenario === "activity-ended-cancelled" ? "ended-cancelled" : "submission-failure",
+      );
+      setIsCommunityActivitiesOpen(true);
+      return;
+    }
+
+    setCommunityActivityAcceptanceScenario("default");
+    setCommunityLifeAcceptanceScenario(
+      scenario === "empty"
+        ? "empty"
+        : scenario === "load-failure"
+          ? "load-failure"
+          : scenario.startsWith("topic-")
+            ? scenario
+            : "default",
+    );
+    setIsCommunityLifeOpen(true);
+  };
+
+  const openAcceptanceSpecialServicesScenario = (scenario: SpecialServicesAcceptanceScenario) => {
+    showHomeForAcceptance();
+    setAcceptanceSpecialServicesScenario(scenario);
+    setHomeRecommendationKind(null);
+    setIsSpecialServicesOpen(true);
+  };
+
   const resetAcceptanceState = () => {
     showHomeForAcceptance();
     setAcceptanceTimeOverride(null);
-    setAcceptanceTaskScenario("unfinished");
-    setAcceptanceTaskContentScenario("medicine");
-    setAcceptanceRecordScenario("with-records");
-    setAcceptanceCareRegion("domestic");
-    setAcceptanceCareTime("morning");
-    setAcceptanceCareMode("no-disaster");
-    setAcceptanceCareScenario("daily");
-    setAcceptanceDisasterScenario("rainstorm");
-    setAcceptanceMessageScenario("multiple");
     setAcceptanceAlbumScenario("default");
     setAlbumUnreadCount(2);
     setAcceptanceHeartScenario("not-liked");
     setAcceptanceReminderScenario("default");
+    setAcceptanceRightContentScenario("default");
+    setAcceptanceCommunityScenario("default");
+    setAcceptanceSpecialServicesScenario("default");
+    setCommunityLifeAcceptanceScenario("default");
+    setCommunityActivityAcceptanceScenario("default");
+    setAcceptanceRightContentApplySignal(0);
+    setMissedCallCount(0);
     setPhotoHeartStates({});
     setReminders(createDefaultReminders());
     setMessages(createDefaultMessages());
@@ -837,20 +751,14 @@ export default function App() {
     setAcceptanceRevision((revision) => revision + 1);
   };
 
-  const generateWeatherCareDraft = (input: GenerateWeatherCareInput) => familyWeatherMockApi.generateDraft(input);
-
-  const sendWeatherCare = async (input: SendWeatherCareInput) => {
-    return familyWeatherMockApi.sendCareMessage(input);
-  };
-
   const isHomeSurfaceActive = isDeviceActivated
     && !isSOSOpen
     && !isContactsOpen
     && !isAssistantOpen
     && !isCelebrationOpen
     && !isAlbumPageOpen
-    && !isMessageBoxOpen
     && !isSchedulePageOpen
+    && !isCommunityLifeOpen
     && !isCommunityActivitiesOpen
     && !isSecurityInformationOpen
     && !isSpecialServicesOpen
@@ -936,9 +844,9 @@ export default function App() {
             reminders={reminders}
             messages={messages}
             albumPhotos={photos.slice(0, 30)}
-            fulfillmentRecords={fulfillmentRecords}
+            albumUnreadCount={albumUnreadCount}
+            missedCallCount={missedCallCount}
             photoHeartStates={photoHeartStates}
-            securityUnreadCount={Math.max(0, scamTips.length - safetyReadIds.length)}
             onTogglePhotoHeart={(photoKey, liked) => {
               setPhotoHeartStates((current) => ({
                 ...current,
@@ -948,10 +856,8 @@ export default function App() {
             }}
             onVideoViewed={() => setAlbumUnreadCount((count) => Math.max(0, count - 1))}
             onCompleteReminder={handleQuickCompleteReminder}
-            onPlayMessage={handlePlayMessage}
-            onQuickReply={handleQuickReply}
             onOpenAlbum={() => setIsAlbumPageOpen(true)}
-            onOpenMessageBox={() => setIsMessageBoxOpen(true)}
+            onOpenMessages={() => setIsContactsOpen(true)}
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
             onOpenTodayOverview={() => {
               setHomeRecommendationKind(null);
@@ -959,15 +865,15 @@ export default function App() {
             }}
             onOpenCommunity={() => {
               setHomeRecommendationKind(null);
+              setReturnToCommunityLife(false);
+              setCommunityActivityAcceptanceScenario("default");
               setIsCommunityActivitiesOpen(true);
-            }}
-            onOpenSpecialServices={() => {
-              setHomeRecommendationKind(null);
-              setIsSpecialServicesOpen(true);
             }}
             onOpenRecommendation={(kind) => {
               setHomeRecommendationKind(kind);
               if (kind === "community") {
+                setReturnToCommunityLife(false);
+                setCommunityActivityAcceptanceScenario("default");
                 setIsCommunityActivitiesOpen(true);
                 return;
               }
@@ -989,16 +895,11 @@ export default function App() {
             acceptanceTimeOverride={acceptanceTimeOverride}
             acceptanceAlbumScenario={acceptanceAlbumScenario}
             acceptanceHeartScenario={acceptanceHeartScenario}
-            acceptanceCareRegion={acceptanceCareRegion}
-            acceptanceCareTime={acceptanceCareTime}
-            acceptanceCareMode={acceptanceCareMode}
-            acceptanceCareScenario={acceptanceCareScenario}
-            acceptanceDisasterScenario={acceptanceDisasterScenario}
+            acceptanceRightContentScenario={acceptanceRightContentScenario}
+            acceptanceRightContentApplySignal={acceptanceRightContentApplySignal}
             acceptanceRevision={acceptanceRevision}
             acceptanceCommand={acceptanceCommand}
             familyWeather={familyWeather}
-            onGenerateWeatherCareDraft={generateWeatherCareDraft}
-            onSendWeatherCare={sendWeatherCare}
           />
 
         {activeHomeReminder && homeReminderAlert && (
@@ -1026,8 +927,13 @@ export default function App() {
           onClose={() => setIsContactsOpen(false)}
           hasBoundFamily={hasBoundFamily}
           messages={messages}
+          missedCallCount={missedCallCount}
           onAddMessage={(newMessage) => setMessages((currentMessages) => [...currentMessages, newMessage])}
           onMarkRead={(messageId) => setMessages((currentMessages) => currentMessages.map((message) => message.id === messageId ? { ...message, played: true } : message))}
+          onClearMissedCalls={() => {
+            setMissedCallCount(0);
+            if (acceptanceRightContentScenario === "missed-call") setAcceptanceRightContentScenario("default");
+          }}
         />
 
         {/* FAMILY ALBUM SECONDARY FULL SCREEN PAGE */}
@@ -1047,22 +953,6 @@ export default function App() {
           }}
         />
 
-        {/* FAMILY MESSAGE BOX SECONDARY FULL SCREEN PAGE */}
-        <FamilyMessageBoxPage
-          isOpen={isMessageBoxOpen}
-          onClose={() => setIsMessageBoxOpen(false)}
-          backLabel={isContactsOpen ? "返回通讯录" : "返回首页"}
-          messages={messages}
-          onAddMessage={(newMsg) => setMessages((prev) => [...prev, newMsg])}
-          onMarkRead={(messageId) => setMessages((currentMessages) => currentMessages.map((message) => message.id === messageId ? { ...message, played: true } : message))}
-          onStartCall={(name) => {
-            setIsMessageBoxOpen(false);
-            setIsContactsOpen(false);
-            setActiveRightPanel('family');
-            setExternalCallContact(name);
-          }}
-        />
-
         {/* REMINDERS & SCHEDULE SECONDARY FULL SCREEN PAGE */}
         <SchedulePage
           isOpen={isSchedulePageOpen}
@@ -1078,12 +968,40 @@ export default function App() {
           }}
         />
 
+        <CommunityLifePage
+          isOpen={isCommunityLifeOpen}
+          acceptanceScenario={communityLifeAcceptanceScenario}
+          activities={activities}
+          alerts={scamTips}
+          alertReadIds={safetyReadIds}
+          onClose={() => setIsCommunityLifeOpen(false)}
+          onOpenActivity={(activityId) => {
+            setIsCommunityLifeOpen(false);
+            setReturnToCommunityLife(true);
+            setCommunityActivityAcceptanceScenario("default");
+            setCommunityActivityInitialId(activityId);
+            setIsCommunityActivitiesOpen(true);
+          }}
+          onOpenAlert={(alertId) => {
+            setIsCommunityLifeOpen(false);
+            setReturnToCommunityLife(true);
+            setCommunityAlertInitialId(alertId);
+            openSafetyInformation(false, "alert");
+          }}
+        />
+
         <CommunityActivitiesPage
           isOpen={isCommunityActivitiesOpen}
-          initialActivityId={homeRecommendationKind === "community" ? "act-1" : null}
+          initialActivityId={communityActivityInitialId ?? (homeRecommendationKind === "community" ? "act-1" : null)}
+          acceptanceScenario={communityActivityAcceptanceScenario}
           onClose={() => {
             setIsCommunityActivitiesOpen(false);
-            if (homeRecommendationKind === "community") setHomeRecommendationKind(null);
+            setCommunityActivityAcceptanceScenario("default");
+            setCommunityActivityInitialId(null);
+            if (returnToCommunityLife) {
+              setReturnToCommunityLife(false);
+              setIsCommunityLifeOpen(true);
+            } else if (homeRecommendationKind === "community") setHomeRecommendationKind(null);
           }}
           activities={activities}
           onRegister={handleRegisterActivity}
@@ -1091,19 +1009,27 @@ export default function App() {
 
         <SecurityInformationPage
           isOpen={isSecurityInformationOpen}
+          pageTitle={securityInformationMode === "alert" ? "警惕事项" : "安全资讯"}
           autoPlayFeatured={autoPlaySafetyInformation}
-          initialTipId={homeRecommendationKind === "security" ? "tip-1" : null}
+          initialTipId={communityAlertInitialId ?? (homeRecommendationKind === "security" ? "tip-1" : null)}
           tips={scamTips}
           readIds={safetyReadIds}
           onRead={handleReadSafetyTip}
           onClose={() => {
             setIsSecurityInformationOpen(false);
             setAutoPlaySafetyInformation(false);
-            if (homeRecommendationKind === "security") setHomeRecommendationKind(null);
+            setSecurityInformationMode("security");
+            setCommunityAlertInitialId(null);
+            if (returnToCommunityLife) {
+              setReturnToCommunityLife(false);
+              setIsCommunityLifeOpen(true);
+            } else if (homeRecommendationKind === "security") setHomeRecommendationKind(null);
           }}
           onContactFamily={() => {
             setIsSecurityInformationOpen(false);
             setAutoPlaySafetyInformation(false);
+            setReturnToCommunityLife(false);
+            setSecurityInformationMode("security");
             setIsContactsOpen(true);
           }}
         />
@@ -1111,6 +1037,7 @@ export default function App() {
         <SpecialServicesPage
           isOpen={isSpecialServicesOpen}
           initialServiceId={homeRecommendationKind === "service" ? "cleaning" : null}
+          acceptanceScenario={acceptanceSpecialServicesScenario}
           bookings={serviceBookings}
           onClose={() => {
             setIsSpecialServicesOpen(false);
@@ -1181,15 +1108,12 @@ export default function App() {
           onOpenReminders={() => setIsSchedulePageOpen(true)}
           onOpenCommunity={() => {
             setHomeRecommendationKind(null);
-            setIsCommunityActivitiesOpen(true);
+            setCommunityLifeAcceptanceScenario("default");
+            setIsCommunityLifeOpen(true);
           }}
           onOpenSpecialServices={() => {
             setHomeRecommendationKind(null);
             setIsSpecialServicesOpen(true);
-          }}
-          onOpenInformation={() => {
-            setHomeRecommendationKind(null);
-            openSafetyInformation(false);
           }}
           onOpenEntertainment={() => {
             setHomeRecommendationKind(null);
@@ -1201,19 +1125,13 @@ export default function App() {
         </div>
       </TabletSimulator>
       <InteractionAcceptanceConsole
-        taskScenario={acceptanceTaskScenario}
-        taskContentScenario={acceptanceTaskContentScenario}
-        recordScenario={acceptanceRecordScenario}
-        careRegion={acceptanceCareRegion}
-        careTime={acceptanceCareTime}
-        careMode={acceptanceCareMode}
-        careScenario={acceptanceCareScenario}
-        disasterScenario={acceptanceDisasterScenario}
-        messageScenario={acceptanceMessageScenario}
         weatherScenario={familyWeatherScenario}
         albumScenario={acceptanceAlbumScenario}
         heartScenario={acceptanceHeartScenario}
         reminderScenario={acceptanceReminderScenario}
+        rightContentScenario={acceptanceRightContentScenario}
+        communityScenario={acceptanceCommunityScenario}
+        serviceScenario={acceptanceSpecialServicesScenario}
         onShowHome={showHomeForAcceptance}
         onShowAlbum={() => {
           showHomeForAcceptance();
@@ -1223,20 +1141,17 @@ export default function App() {
           showHomeForAcceptance();
           setIsSchedulePageOpen(true);
         }}
-        onSetTaskScenario={handleAcceptanceTaskScenario}
-        onSetTaskContentScenario={handleAcceptanceTaskContentScenario}
-        onSetRecordScenario={handleAcceptanceRecordScenario}
-        onSetCareRegion={(region) => showAcceptanceCareCopy({ region })}
-        onSetCareTime={(time) => showAcceptanceCareCopy({ time })}
-        onSetCareMode={(mode) => showAcceptanceCareCopy({ mode })}
-        onSetCareScenario={(scenario) => showAcceptanceCareCopy({ scenario })}
-        onSetDisasterScenario={(disaster) => showAcceptanceCareCopy({ disaster })}
-        onSetMessageScenario={handleAcceptanceMessageScenario}
+        onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
+        onShowServices={() => openAcceptanceSpecialServicesScenario(acceptanceSpecialServicesScenario)}
         onSetWeatherScenario={handleAcceptanceWeatherScenario}
         onOpenWeatherScenario={openAcceptanceWeatherScenario}
         onSetAlbumScenario={handleAcceptanceAlbumScenario}
         onSetHeartScenario={setAcceptanceHeartScenario}
         onSetReminderScenario={setAcceptanceReminderScenario}
+        onSetRightContentScenario={handleAcceptanceRightContentScenario}
+        onSetCommunityScenario={openAcceptanceCommunityScenario}
+        onSetServiceScenario={openAcceptanceSpecialServicesScenario}
+        onApplyRightContentUpdate={() => setAcceptanceRightContentApplySignal((signal) => signal + 1)}
         onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
         onHomeCommand={sendAcceptanceCommand}
         onOpenEmergencyScenario={openAcceptanceEmergencyScenario}

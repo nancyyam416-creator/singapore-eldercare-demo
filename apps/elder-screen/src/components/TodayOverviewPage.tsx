@@ -113,6 +113,9 @@ const recommendations: OverviewRecommendation[] = [
   },
 ];
 
+export const TODAY_OVERVIEW_SCHEDULES = defaultSchedules;
+export const TODAY_OVERVIEW_RECOMMENDATIONS = recommendations;
+
 function readStoredStatuses() {
   try {
     const stored = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
@@ -247,14 +250,14 @@ export default function TodayOverviewPage({
   return (
     <main className="today-overview-page" aria-label="今日全览">
       <header className="today-overview-header">
-        <div>
-          <CalendarCheck2 aria-hidden="true" />
-          <h1>今日全览</h1>
-        </div>
         <button type="button" onClick={onClose}>
           <ArrowLeft aria-hidden="true" />
           <span>返回首页</span>
         </button>
+        <div>
+          <CalendarCheck2 aria-hidden="true" />
+          <h1>今日全览</h1>
+        </div>
       </header>
 
       <div className="today-overview-layout">

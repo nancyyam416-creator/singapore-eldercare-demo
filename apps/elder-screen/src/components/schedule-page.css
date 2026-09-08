@@ -110,7 +110,13 @@
   color: var(--color-text);
 }
 
+.schedule-calendar__days {
+  grid-auto-rows: minmax(52px, 1fr);
+  align-content: stretch;
+}
+
 .schedule-calendar-day {
+  height: 100%;
   color: var(--color-text-soft);
   border-color: transparent;
   background: var(--color-panel-raised);

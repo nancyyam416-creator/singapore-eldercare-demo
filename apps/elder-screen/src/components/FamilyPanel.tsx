@@ -10,7 +10,6 @@ interface FamilyPanelProps {
   onClearExternalCall?: () => void;
   externalOpenAlbum?: any;
   onClearExternalOpenAlbum?: any;
-  onOpenMessageBox?: () => void;
 }
 
 export default function FamilyPanel({ 
@@ -21,7 +20,6 @@ export default function FamilyPanel({
   onClearExternalCall,
   externalOpenAlbum,
   onClearExternalOpenAlbum,
-  onOpenMessageBox
 }: FamilyPanelProps) {
   const [currentIdx, setCurrentIdx] = useState(1); // Default to index 1 (the video "女儿小敏上传" to match the mockup!)
   const [videoPlaying, setVideoPlaying] = useState(false);

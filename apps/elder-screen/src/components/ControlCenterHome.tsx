@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Lottie from "lottie-react";
-import voiceWaveAnimation from "../animations/voiceWave";
-import { speakText, stopSpeech } from "../audio/speech";
+import { speakText } from "../audio/speech";
 import {
   AlertTriangle,
   CalendarDays,
@@ -9,7 +7,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   CircleEllipsis,
   Heart,
   Image,
@@ -26,24 +23,18 @@ import {
   Sun,
   CloudRain,
   CloudSun,
-  Video,
-  Volume2,
   WifiOff,
   X,
 } from "lucide-react";
-import type { FulfillmentRecord } from "../types";
 import HomeTaskRail from "./HomeTaskRail";
-import type { AcceptanceAlbumScenario, AcceptanceCareMode, AcceptanceCareRegion, AcceptanceCareScenario, AcceptanceCareTime, AcceptanceDisasterScenario, AcceptanceHeartScenario, AcceptanceHomeCommand } from "./InteractionAcceptanceConsole";
+import NewFamilyMediaOverlay from "./NewFamilyMediaOverlay";
+import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
+import type { MedicationReminder } from "../types";
 import {
   formatWeatherLocalTime,
   formatWeatherUpdatedAt,
-  getWeatherLocalDate,
   type FamilyWeatherMember,
   type FamilyWeatherSnapshot,
-  type GenerateWeatherCareInput,
-  type SendWeatherCareInput,
-  type SendWeatherCareResult,
-  type WeatherCareDraft,
   type WeatherConditionCode,
 } from "../weather/familyWeather";
 
@@ -85,27 +76,29 @@ interface AlbumPhotoItem {
 }
 
 type HomeVideoState = "cover" | "playing" | "ended" | "failed";
+type WeatherCareStage = "idle" | "confirm" | "sending" | "success" | "failure";
 
-type WeatherReminderStage = "idle" | "generating" | "reading" | "confirm" | "sending" | "success" | "failure" | "blocked";
+interface WeatherCareDraft {
+  recipientId: string;
+  requestId: string;
+  text: string;
+}
 
 interface ControlCenterHomeProps {
   reminders: ReminderItem[];
   messages: MessageItem[];
   albumPhotos: AlbumPhotoItem[];
-  fulfillmentRecords: FulfillmentRecord[];
+  albumUnreadCount: number;
+  missedCallCount: number;
   photoHeartStates: Record<string, boolean>;
-  securityUnreadCount: number;
   onTogglePhotoHeart: (photoKey: string, liked: boolean) => void;
   onVideoViewed: (videoId: string) => void;
-  onCompleteReminder: (id: string) => void;
-  onPlayMessage: (id: string) => void;
-  onQuickReply: (recipient: string, content: string) => void;
+  onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
   onOpenAlbum: () => void;
-  onOpenMessageBox: () => void;
+  onOpenMessages: () => void;
   onOpenSchedule: () => void;
   onOpenTodayOverview: () => void;
   onOpenCommunity: () => void;
-  onOpenSpecialServices: () => void;
   onOpenRecommendation: (kind: "security" | "community" | "service" | "entertainment") => void;
   onOpenContacts: () => void;
   onOpenAssistant: () => void;
@@ -114,16 +107,11 @@ interface ControlCenterHomeProps {
   acceptanceTimeOverride?: string | null;
   acceptanceAlbumScenario?: AcceptanceAlbumScenario;
   acceptanceHeartScenario?: AcceptanceHeartScenario;
-  acceptanceCareRegion?: AcceptanceCareRegion;
-  acceptanceCareTime?: AcceptanceCareTime;
-  acceptanceCareMode?: AcceptanceCareMode;
-  acceptanceCareScenario?: AcceptanceCareScenario;
-  acceptanceDisasterScenario?: AcceptanceDisasterScenario;
+  acceptanceRightContentScenario?: AcceptanceRightContentScenario;
+  acceptanceRightContentApplySignal?: number;
   acceptanceRevision?: number;
   acceptanceCommand?: { id: number; type: AcceptanceHomeCommand } | null;
   familyWeather: FamilyWeatherSnapshot;
-  onGenerateWeatherCareDraft: (input: GenerateWeatherCareInput) => Promise<WeatherCareDraft>;
-  onSendWeatherCare: (input: SendWeatherCareInput) => Promise<SendWeatherCareResult>;
 }
 
 const HOME_ALBUM_MAX_ITEMS = 30;
@@ -154,24 +142,35 @@ const weatherUnavailableText = (member: FamilyWeatherMember) => {
   return member.weather?.statusMessage ?? "天气暂时无法获取，请稍后再试";
 };
 
+const createWeatherCareMessage = (member: FamilyWeatherMember) => {
+  const timeZone = member.location?.timeZone ?? "Asia/Shanghai";
+  const localHour = Number(new Intl.DateTimeFormat("zh-CN", {
+    timeZone,
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date()));
+  const greeting = localHour < 11 ? "早上好" : localHour < 14 ? "中午好" : localHour < 18 ? "下午好" : "晚上好";
+  const city = member.location?.cityName ?? "你那里";
+  const condition = member.weather?.conditionText ?? "天气有变化";
+  const temperature = typeof member.weather?.temperatureC === "number" ? `，${member.weather.temperatureC}度` : "";
+  return `${member.relationship}，${greeting}。${city}今天${condition}${temperature}，照顾好自己，有空给家里回句话。`;
+};
+
 export default function ControlCenterHome({
   reminders,
   messages,
   albumPhotos,
-  fulfillmentRecords,
+  albumUnreadCount,
+  missedCallCount,
   photoHeartStates,
-  securityUnreadCount,
   onTogglePhotoHeart,
   onVideoViewed,
   onCompleteReminder,
-  onPlayMessage,
-  onQuickReply,
   onOpenAlbum,
-  onOpenMessageBox,
+  onOpenMessages,
   onOpenSchedule,
   onOpenTodayOverview,
   onOpenCommunity,
-  onOpenSpecialServices,
   onOpenRecommendation,
   onOpenContacts,
   onOpenAssistant,
@@ -180,16 +179,11 @@ export default function ControlCenterHome({
   acceptanceTimeOverride = null,
   acceptanceAlbumScenario = "default",
   acceptanceHeartScenario = "not-liked",
-  acceptanceCareRegion = "domestic",
-  acceptanceCareTime = "morning",
-  acceptanceCareMode = "no-disaster",
-  acceptanceCareScenario = "daily",
-  acceptanceDisasterScenario = "rainstorm",
+  acceptanceRightContentScenario = "default",
+  acceptanceRightContentApplySignal = 0,
   acceptanceRevision = 0,
   acceptanceCommand = null,
   familyWeather,
-  onGenerateWeatherCareDraft,
-  onSendWeatherCare,
 }: ControlCenterHomeProps) {
   const [now, setNow] = useState(new Date());
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -201,60 +195,27 @@ export default function ControlCenterHome({
   const [photoLoadFailedId, setPhotoLoadFailedId] = useState<string | null>(null);
   const [homeVideoState, setHomeVideoState] = useState<HomeVideoState>("cover");
   const [viewedVideoIds, setViewedVideoIds] = useState<string[]>([]);
-  const [activePhotoMessageId, setActivePhotoMessageId] = useState<string | null>(null);
-  const [activePhotoGroupIndex, setActivePhotoGroupIndex] = useState(0);
-  const [retriedMessageIds, setRetriedMessageIds] = useState<string[]>([]);
-  const [isPhotoCaptionExiting, setIsPhotoCaptionExiting] = useState(false);
   const [confirmSOS, setConfirmSOS] = useState(false);
-  const [isMessageStackExpanded, setIsMessageStackExpanded] = useState(true);
-  const [visibleMessageIds, setVisibleMessageIds] = useState<string[]>(() =>
-    messages.filter((item) => !item.played && item.sender !== "您 (我)" && (item.type === "voice" || item.type === "photo")).map((item) => item.id)
-  );
-  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
-  const [replyingMessageId, setReplyingMessageId] = useState<string | null>(null);
-  const [exitingMessageIds, setExitingMessageIds] = useState<string[]>([]);
-  const [isChimePlaying, setIsChimePlaying] = useState(false);
   const [isWeatherOpen, setIsWeatherOpen] = useState(false);
+  const [isNewFamilyMediaOpen, setIsNewFamilyMediaOpen] = useState(false);
   const [selectedWeatherId, setSelectedWeatherId] = useState("");
-  const [weatherReminderStage, setWeatherReminderStage] = useState<WeatherReminderStage>("idle");
-  const [weatherProgress, setWeatherProgress] = useState(0);
-  const [weatherDraft, setWeatherDraft] = useState<WeatherCareDraft | null>(null);
-  const [weatherSendRequestId, setWeatherSendRequestId] = useState<string | null>(null);
-  const [weatherError, setWeatherError] = useState("");
-  const [weatherCareRecords, setWeatherCareRecords] = useState(() => new Map(
-    familyWeather.children.flatMap((member) => member.dailyCare ? [[member.id, member.dailyCare] as const] : [])
-  ));
   const [isWeatherOnline, setIsWeatherOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [weatherCareStage, setWeatherCareStage] = useState<WeatherCareStage>("idle");
+  const [weatherCareDraft, setWeatherCareDraft] = useState<WeatherCareDraft | null>(null);
+  const [weatherCareError, setWeatherCareError] = useState("");
+  const [weatherCareSent, setWeatherCareSent] = useState<Record<string, string>>({});
   const homeVideoRef = useRef<HTMLVideoElement | null>(null);
-  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
-  const playbackTimerRef = useRef<number | null>(null);
-  const replySpeechTimerRef = useRef<number | null>(null);
-  const replyExitTimerRef = useRef<number | null>(null);
   const photoControlsTimerRef = useRef<number | null>(null);
   const heartFeedbackTimerRef = useRef<number | null>(null);
   const heartFailureToastTimerRef = useRef<number | null>(null);
-  const photoMessageTimerRef = useRef<number | null>(null);
-  const photoMessageExitTimerRef = useRef<number | null>(null);
-  const weatherProgressTimerRef = useRef<number | null>(null);
-  const weatherSpeechFallbackRef = useRef<number | null>(null);
-  const weatherSendInFlightRef = useRef(false);
+  const weatherCareTimerRef = useRef<number | null>(null);
   const swipeStartXRef = useRef<number | null>(null);
-  const swipeStartTimeRef = useRef<number | null>(null);
   const swipePointerIdRef = useRef<number | null>(null);
-  const activeMessageRef = useRef<MessageItem | null>(null);
-  const acceptanceMessagesRef = useRef(messages);
-  acceptanceMessagesRef.current = messages;
-  const previousUnreadIdsRef = useRef(
-    messages.filter((item) => !item.played && item.sender !== "您 (我)" && (item.type === "voice" || item.type === "photo")).map((item) => item.id)
-  );
-  const replyConfirmationActiveRef = useRef(false);
-  const isVoicePlaybackActive = playingMessageId !== null;
   const homePhotoPool = useMemo(() => {
     let photos = [
       {
         id: "home-featured-family",
-        url: "/assets/family-dashboard-source.png",
+        url: "./assets/family-dashboard-source.png",
         caption: "家人团聚合照",
         type: "photo" as const,
         senderName: "全家",
@@ -276,11 +237,11 @@ export default function ControlCenterHome({
     }
     if (acceptanceAlbumScenario === "single") return photos.slice(0, 1);
     if (acceptanceAlbumScenario === "load-failure") {
-      return [{ ...photos[0], url: "/assets/acceptance-missing-photo.jpg" }];
+      return [{ ...photos[0], url: "./assets/acceptance-missing-photo.jpg" }];
     }
     if (acceptanceAlbumScenario === "video-failure") {
       return photos.map((photo, index) => index === 0 && photo.type === "video"
-        ? { ...photo, videoUrl: "/assets/acceptance-missing-family-video.mp4" }
+        ? { ...photo, videoUrl: "./assets/acceptance-missing-family-video.mp4" }
         : photo);
     }
     return photos;
@@ -289,7 +250,6 @@ export default function ControlCenterHome({
   const isAcceptanceVideoScenario = acceptanceAlbumScenario === "video-failure";
   const currentPhoto = homePhotoPool[photoIndex] ?? homePhotoPool[0];
   const isCurrentVideo = currentPhoto?.type === "video";
-  const currentVideoViewed = Boolean(currentPhoto && viewedVideoIds.includes(currentPhoto.id));
   const pauseHomeVideo = () => {
     homeVideoRef.current?.pause();
     setHomeVideoState((state) => state === "playing" ? "cover" : state);
@@ -317,45 +277,25 @@ export default function ControlCenterHome({
     pauseHomeVideo();
     onOpenAlbum();
   };
+  const openNewFamilyMedia = () => {
+    pauseHomeVideo();
+    setIsNewFamilyMediaOpen(true);
+  };
   const currentPhotoLiked = acceptanceHeartScenario === "liked"
     || (acceptanceHeartScenario !== "not-liked" && Boolean(photoHeartStates[currentPhoto.url]));
-  const unreadPhotoMessage = messages.find((item) => item.type === "photo" && !item.played && item.sender !== "您 (我)" && item.photoUrl);
-  const currentPhotoMessage = messages.find((item) => item.type === "photo" && item.sender !== "您 (我)" && item.photoUrl === currentPhoto.url);
-  const activePhotoMessage = messages.find((item) => item.id === activePhotoMessageId && item.type === "photo" && item.photoUrl);
-  const activePhotoUrls = activePhotoMessage?.photoUrls?.length
-    ? activePhotoMessage.photoUrls
-    : activePhotoMessage?.photoUrl
-      ? [activePhotoMessage.photoUrl]
-      : [];
-  const activePhotoUrl = activePhotoUrls[activePhotoGroupIndex] ?? activePhotoUrls[0];
   const boundWeatherChildren = useMemo(() => familyWeather.children
     .filter((member) => member.relationStatus === "active")
     .sort((first, second) => second.priority - first.priority
       || new Date(second.recentInteractionAt).getTime() - new Date(first.recentInteractionAt).getTime()
       || first.displayName.localeCompare(second.displayName, "zh-CN")), [familyWeather.children]);
-  const usableWeatherChildren = useMemo(() => boundWeatherChildren.filter((member) => (
-    member.location?.status === "valid"
-    && member.weather
-    && (member.weather.queryState === "success" || member.weather.queryState === "cached")
-  )), [boundWeatherChildren]);
-  const homeWeatherChildren = usableWeatherChildren.slice(0, 2);
-  const selectedWeather = boundWeatherChildren.find((item) => item.id === selectedWeatherId) ?? boundWeatherChildren[0];
   const elderLocation = familyWeather.elder.location;
   const elderWeather = familyWeather.elder.weather;
   const elderWeatherAvailable = familyWeather.elder.location?.status === "valid"
     && familyWeather.elder.weather
     && (familyWeather.elder.weather.queryState === "success" || familyWeather.elder.weather.queryState === "cached");
-  const selectedWeatherAvailable = selectedWeather ? hasUsableWeather(selectedWeather) : false;
-  const selectedWeatherCareRecord = selectedWeather
-    ? weatherCareRecords.get(selectedWeather.id) ?? selectedWeather.dailyCare
-    : undefined;
-  const selectedWeatherHasCareToday = Boolean(
-    selectedWeather
-    && selectedWeather.location
-    && selectedWeatherCareRecord
-    && selectedWeatherCareRecord.locationId === selectedWeather.location.id
-    && selectedWeatherCareRecord.targetLocalDate === getWeatherLocalDate(selectedWeather.location.timeZone)
-  );
+  const selectedWeatherMember = boundWeatherChildren.find((member) => member.id === selectedWeatherId) ?? null;
+  const selectedWeatherAvailable = selectedWeatherMember ? hasUsableWeather(selectedWeatherMember) : false;
+  const selectedWeatherSentText = selectedWeatherMember ? weatherCareSent[selectedWeatherMember.id] : undefined;
 
   useEffect(() => {
     if (acceptanceTimeOverride) {
@@ -383,27 +323,22 @@ export default function ControlCenterHome({
   }, []);
 
   useEffect(() => {
-    const initialRecords = new Map(
-      familyWeather.children.flatMap((member) => member.dailyCare ? [[member.id, member.dailyCare] as const] : [])
-    );
-    setWeatherCareRecords(initialRecords);
     const firstMember = familyWeather.children
       .filter((member) => member.relationStatus === "active")
       .sort((first, second) => second.priority - first.priority)[0];
     setSelectedWeatherId(firstMember?.id ?? "");
-    setWeatherReminderStage(firstMember?.dailyCare ? "blocked" : "idle");
-    setWeatherDraft(null);
-    setWeatherSendRequestId(null);
-    setWeatherError("");
+    setWeatherCareStage("idle");
+    setWeatherCareDraft(null);
+    setWeatherCareError("");
   }, [familyWeather.loadedAt, familyWeather.scenario]);
 
   useEffect(() => {
-    if (isAlbumEmpty || isAcceptanceVideoScenario || isVoicePlaybackActive || isPhotoHeld || isWeatherOpen || activePhotoMessageId !== null || homeVideoState === "playing" || homePhotoPool.length <= 1) return;
+    if (isAlbumEmpty || isAcceptanceVideoScenario || isPhotoHeld || isWeatherOpen || homeVideoState === "playing" || homePhotoPool.length <= 1) return;
     const timer = window.setTimeout(() => {
       setPhotoIndex((current) => (current + 1) % homePhotoPool.length);
     }, 8000);
     return () => window.clearTimeout(timer);
-  }, [isAlbumEmpty, isAcceptanceVideoScenario, isVoicePlaybackActive, isPhotoHeld, isWeatherOpen, activePhotoMessageId, homeVideoState, photoIndex, homePhotoPool.length]);
+  }, [isAlbumEmpty, isAcceptanceVideoScenario, isPhotoHeld, isWeatherOpen, homeVideoState, photoIndex, homePhotoPool.length]);
 
   useEffect(() => {
     setPhotoIndex(0);
@@ -422,63 +357,8 @@ export default function ControlCenterHome({
   useEffect(() => () => homeVideoRef.current?.pause(), []);
 
   useEffect(() => {
-    if (acceptanceAlbumScenario === "video-failure") return;
-    if (!unreadPhotoMessage?.photoUrl) return;
-    const incomingPhotoIndex = homePhotoPool.findIndex((photo) => photo.url === unreadPhotoMessage.photoUrl);
-    if (incomingPhotoIndex >= 0) setPhotoIndex(incomingPhotoIndex);
-  }, [acceptanceAlbumScenario, unreadPhotoMessage?.id, unreadPhotoMessage?.photoUrl, homePhotoPool.length]);
-
-  useEffect(() => {
     if (photoIndex >= homePhotoPool.length) setPhotoIndex(0);
   }, [homePhotoPool.length, photoIndex]);
-
-  useEffect(() => {
-    const newUnreadIds = messages
-      .filter((item) => !item.played && item.sender !== "您 (我)" && (item.type === "voice" || item.type === "photo"))
-      .map((item) => item.id);
-    const hasNewMessage = newUnreadIds.some((id) => !previousUnreadIdsRef.current.includes(id));
-    setVisibleMessageIds((currentIds) => {
-      const missingIds = messages
-        .filter((item) => newUnreadIds.includes(item.id) && (item.type === "voice" || item.type === "photo") && !currentIds.includes(item.id))
-        .map((item) => item.id);
-      return missingIds.length > 0 ? [...missingIds, ...currentIds] : currentIds;
-    });
-    previousUnreadIdsRef.current = newUnreadIds;
-    if (hasNewMessage) playMessageChime();
-  }, [messages]);
-
-  useEffect(() => {
-    if (isMessageStackExpanded) return;
-    setVisibleMessageIds((currentIds) => {
-      const nextIds = currentIds.filter((id) => {
-        const message = messages.find((item) => item.id === id);
-        const isActive = id === playingMessageId || id === replyingMessageId || exitingMessageIds.includes(id);
-        return !message?.played || isActive;
-      });
-      return nextIds.length === currentIds.length ? currentIds : nextIds;
-    });
-  }, [isMessageStackExpanded, messages, playingMessageId, replyingMessageId, exitingMessageIds]);
-
-  useEffect(() => {
-    if (acceptanceRevision === 0) return;
-    audioRef.current?.pause();
-    stopSpeech();
-    if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
-    activeMessageRef.current = null;
-    playbackTimerRef.current = null;
-    setPlayingMessageId(null);
-    setReplyingMessageId(null);
-    setExitingMessageIds([]);
-    setActivePhotoMessageId(null);
-    setActivePhotoGroupIndex(0);
-    setRetriedMessageIds([]);
-    setIsPhotoCaptionExiting(false);
-    setVisibleMessageIds(
-      acceptanceMessagesRef.current
-        .filter((item) => !item.played && item.sender !== "您 (我)" && (item.type === "voice" || item.type === "photo"))
-        .map((item) => item.id)
-    );
-  }, [acceptanceRevision]);
 
   useEffect(() => {
     if (heartFailureToastTimerRef.current) window.clearTimeout(heartFailureToastTimerRef.current);
@@ -495,24 +375,13 @@ export default function ControlCenterHome({
 
   useEffect(() => {
     return () => {
-      audioRef.current?.pause();
-      stopSpeech();
-      if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
-      if (replySpeechTimerRef.current) window.clearTimeout(replySpeechTimerRef.current);
-      if (replyExitTimerRef.current) window.clearTimeout(replyExitTimerRef.current);
       if (photoControlsTimerRef.current) window.clearTimeout(photoControlsTimerRef.current);
       if (heartFeedbackTimerRef.current) window.clearTimeout(heartFeedbackTimerRef.current);
       if (heartFailureToastTimerRef.current) window.clearTimeout(heartFailureToastTimerRef.current);
-      if (photoMessageTimerRef.current) window.clearTimeout(photoMessageTimerRef.current);
-      if (photoMessageExitTimerRef.current) window.clearTimeout(photoMessageExitTimerRef.current);
-      if (weatherProgressTimerRef.current) window.clearInterval(weatherProgressTimerRef.current);
-      if (weatherSpeechFallbackRef.current) window.clearTimeout(weatherSpeechFallbackRef.current);
-      replyConfirmationActiveRef.current = false;
+      if (weatherCareTimerRef.current) window.clearTimeout(weatherCareTimerRef.current);
     };
   }, []);
 
-  const visibleMessages = messages.filter((item) => visibleMessageIds.includes(item.id));
-  const visibleUnreadCount = visibleMessages.filter((item) => !item.played).length;
   const unreadCount = messages.filter((item) => !item.played && item.sender !== "您 (我)").length;
 
   const dateText = useMemo(() => {
@@ -523,299 +392,62 @@ export default function ControlCenterHome({
     return new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(now);
   }, [now]);
 
-  function playMessageChime() {
-    const chime = notificationAudioRef.current;
-    if (!chime) return;
-    chime.currentTime = 0;
-    chime.volume = 0.72;
-    setIsChimePlaying(true);
-    void chime.play().catch(() => setIsChimePlaying(false));
-  }
-
-  function clearWeatherSpeechTimers() {
-    if (weatherProgressTimerRef.current) {
-      window.clearInterval(weatherProgressTimerRef.current);
-      weatherProgressTimerRef.current = null;
-    }
-    if (weatherSpeechFallbackRef.current) {
-      window.clearTimeout(weatherSpeechFallbackRef.current);
-      weatherSpeechFallbackRef.current = null;
-    }
-  }
-
-  function finishWeatherReading() {
-    clearWeatherSpeechTimers();
-    setWeatherProgress(100);
-    setWeatherReminderStage("confirm");
-  }
-
-  function readWeatherDraft(draft = weatherDraft) {
-    if (!draft) return;
-    stopSpeech();
-    clearWeatherSpeechTimers();
-    setWeatherProgress(8);
-    setWeatherReminderStage("reading");
-
-    weatherProgressTimerRef.current = window.setInterval(() => {
-      setWeatherProgress((current) => Math.min(current + 9, 92));
-    }, 360);
-
-    const estimatedDuration = Math.max(4200, Math.min(7600, draft.text.length * 150));
-    weatherSpeechFallbackRef.current = window.setTimeout(finishWeatherReading, estimatedDuration);
-    speakText(draft.text, {
-      fallbackKey: "weather-care",
-      rate: 0.84,
-      onEnd: finishWeatherReading,
-      onError: finishWeatherReading,
-    });
-  }
-
-  async function generateWeatherReminder() {
-    if (!selectedWeather || selectedWeatherHasCareToday) {
-      setWeatherReminderStage("blocked");
-      return;
-    }
-    const hasWeatherContext = selectedWeather.location?.status === "valid"
-      && selectedWeather.weather
-      && (selectedWeather.weather.queryState === "success" || selectedWeather.weather.queryState === "cached");
-    if (!hasWeatherContext) return;
-
-    stopSpeech();
-    clearWeatherSpeechTimers();
-    setWeatherError("");
-    setWeatherReminderStage("generating");
-    try {
-      const draft = await onGenerateWeatherCareDraft({
-        elderId: familyWeather.elder.userId,
-        elderName: familyWeather.elder.displayName,
-        recipient: selectedWeather,
-        direction: "daily",
-        variant: 0,
-      });
-      setWeatherDraft(draft);
-      setWeatherSendRequestId(null);
-      readWeatherDraft(draft);
-    } catch {
-      setWeatherError("关怀内容暂时无法生成，请稍后再试");
-      setWeatherReminderStage("failure");
-    }
-  }
-
-  function cancelWeatherReminder(clearDraft = true) {
-    stopSpeech();
-    clearWeatherSpeechTimers();
-    setWeatherProgress(0);
-    setWeatherError("");
-    setWeatherSendRequestId(null);
-    if (clearDraft) setWeatherDraft(null);
-    setWeatherReminderStage("idle");
-  }
-
-  async function confirmWeatherReminder() {
-    if (!selectedWeather || !weatherDraft || weatherReminderStage === "sending" || weatherSendInFlightRef.current) return;
-    stopSpeech();
-    clearWeatherSpeechTimers();
-    const requestId = weatherSendRequestId ?? `weather-care-${selectedWeather.id}-${Date.now()}`;
-    if (!isWeatherOnline) {
-      setWeatherSendRequestId(requestId);
-      setWeatherError("网络异常，连接网络后可以重新发送");
-      setWeatherReminderStage("failure");
-      return;
-    }
-
-    setWeatherSendRequestId(requestId);
-    setWeatherError("");
-    setWeatherReminderStage("sending");
-    weatherSendInFlightRef.current = true;
-    let result: SendWeatherCareResult;
-    try {
-      result = await onSendWeatherCare({ requestId, draft: weatherDraft, scenario: familyWeather.scenario });
-    } finally {
-      weatherSendInFlightRef.current = false;
-    }
-
-    if (result.status === "failed") {
-      setWeatherError(result.message);
-      setWeatherReminderStage("failure");
-      return;
-    }
-
-    setWeatherCareRecords((records) => new Map(records).set(selectedWeather.id, result.record));
-    setWeatherReminderStage(result.status === "already-sent" ? "blocked" : "success");
-    if (result.status === "success") onQuickReply(selectedWeather.displayName, weatherDraft.text);
-
-    const confirmationText = result.status === "already-sent"
-      ? `今天已经给${selectedWeather.relationship}发送过天气关怀了`
-      : `已给${selectedWeather.relationship}发送天气关怀`;
-    speakText(confirmationText, {
-      fallbackKey: result.status === "already-sent" ? "weather-already" : "weather-sent",
-      rate: 0.88,
-    });
-  }
-
   function selectWeatherRecipient(weather: FamilyWeatherMember) {
-    stopSpeech();
-    clearWeatherSpeechTimers();
+    if (weatherCareTimerRef.current) window.clearTimeout(weatherCareTimerRef.current);
     setSelectedWeatherId(weather.id);
-    setWeatherProgress(0);
-    setWeatherDraft(null);
-    setWeatherSendRequestId(null);
-    setWeatherError("");
-    const record = weatherCareRecords.get(weather.id) ?? weather.dailyCare;
-    const hasCareToday = Boolean(
-      weather.location
-      && record
-      && record.locationId === weather.location.id
-      && record.targetLocalDate === getWeatherLocalDate(weather.location.timeZone)
-    );
-    setWeatherReminderStage(hasCareToday ? "blocked" : "idle");
+    setWeatherCareError("");
+    const sentText = weatherCareSent[weather.id];
+    setWeatherCareDraft(sentText ? { recipientId: weather.id, requestId: `sent-${weather.id}`, text: sentText } : null);
+    setWeatherCareStage(sentText ? "success" : "idle");
   }
 
   function closeWeatherOverview() {
-    if (weatherReminderStage === "reading") cancelWeatherReminder();
+    if (weatherCareTimerRef.current) {
+      window.clearTimeout(weatherCareTimerRef.current);
+      weatherCareTimerRef.current = null;
+    }
+    if (weatherCareStage === "sending") {
+      setWeatherCareDraft(null);
+      setWeatherCareStage("idle");
+    }
     setIsWeatherOpen(false);
   }
 
-  function showPhotoMessageAsBackground(message: MessageItem) {
-    if (!message.photoUrl) return;
-    const incomingPhotoIndex = homePhotoPool.findIndex((photo) => photo.url === message.photoUrl);
-    if (incomingPhotoIndex >= 0) setPhotoIndex(incomingPhotoIndex);
+  function prepareWeatherCare() {
+    if (!selectedWeatherMember || !selectedWeatherAvailable) return;
+    const draft = {
+      recipientId: selectedWeatherMember.id,
+      requestId: `weather-care-${selectedWeatherMember.id}-${Date.now()}`,
+      text: createWeatherCareMessage(selectedWeatherMember),
+    };
+    setWeatherCareDraft(draft);
+    setWeatherCareError("");
+    setWeatherCareStage("confirm");
   }
 
-  function schedulePhotoMessageReturn(message: MessageItem) {
-    if (photoMessageTimerRef.current) window.clearTimeout(photoMessageTimerRef.current);
-    if (photoMessageExitTimerRef.current) window.clearTimeout(photoMessageExitTimerRef.current);
-    showPhotoMessageAsBackground(message);
-    setIsPhotoCaptionExiting(false);
-    photoMessageTimerRef.current = window.setTimeout(() => {
-      setIsPhotoCaptionExiting(true);
-      photoMessageExitTimerRef.current = window.setTimeout(() => {
-        setActivePhotoMessageId(null);
-        setIsPhotoCaptionExiting(false);
-        photoMessageTimerRef.current = null;
-        photoMessageExitTimerRef.current = null;
-      }, 300);
-    }, 8000);
+  function cancelWeatherCare() {
+    setWeatherCareDraft(null);
+    setWeatherCareError("");
+    setWeatherCareStage("idle");
   }
 
-  function dismissMessageCard(messageId: string) {
-    if (replyExitTimerRef.current) window.clearTimeout(replyExitTimerRef.current);
-    setExitingMessageIds((currentIds) => currentIds.includes(messageId) ? currentIds : [...currentIds, messageId]);
-    replyExitTimerRef.current = window.setTimeout(() => {
-      setVisibleMessageIds((currentIds) => currentIds.filter((id) => id !== messageId));
-      setExitingMessageIds((currentIds) => currentIds.filter((id) => id !== messageId));
-      replyExitTimerRef.current = null;
-    }, 300);
-  }
-
-  function finishMessagePlayback() {
-    const playedMessage = activeMessageRef.current;
-    if (!playedMessage) return;
-
-    activeMessageRef.current = null;
-    if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
-    playbackTimerRef.current = null;
-    setPlayingMessageId(null);
-    onPlayMessage(playedMessage.id);
-    if (playedMessage.type === "photo") {
-      dismissMessageCard(playedMessage.id);
-      schedulePhotoMessageReturn(playedMessage);
-    }
-  }
-
-  function playWithDeviceVoice(content: string) {
-    const estimatedDuration = Math.max(6000, Math.min(10000, content.length * 220));
-    speakText(content, {
-      rate: 0.86,
-      onEnd: finishMessagePlayback,
-    });
-    playbackTimerRef.current = window.setTimeout(finishMessagePlayback, estimatedDuration);
-  }
-
-  function handlePlayMessage(message: MessageItem) {
-    if (playingMessageId || replyingMessageId) return;
-    if (message.type === "photo") {
-      if (photoMessageTimerRef.current) window.clearTimeout(photoMessageTimerRef.current);
-      if (photoMessageExitTimerRef.current) window.clearTimeout(photoMessageExitTimerRef.current);
-      photoMessageTimerRef.current = null;
-      photoMessageExitTimerRef.current = null;
-      setIsPhotoCaptionExiting(false);
-    }
-    activeMessageRef.current = message;
-    setPlayingMessageId(message.id);
-
-    if (message.audioUrl) {
-      const audio = new Audio(message.audioUrl);
-      let fallbackStarted = false;
-      const fallbackToDeviceVoice = () => {
-        if (fallbackStarted) return;
-        fallbackStarted = true;
-        playWithDeviceVoice(message.content);
-      };
-      audioRef.current = audio;
-      audio.onended = finishMessagePlayback;
-      audio.onerror = fallbackToDeviceVoice;
-      audio.play().catch(fallbackToDeviceVoice);
+  function confirmWeatherCare() {
+    if (!selectedWeatherMember || !weatherCareDraft) return;
+    if (weatherCareTimerRef.current) window.clearTimeout(weatherCareTimerRef.current);
+    if (!isWeatherOnline) {
+      setWeatherCareError("网络异常，暂时没有发送成功。连接网络后可以重新发送。");
+      setWeatherCareStage("failure");
       return;
     }
-
-    playWithDeviceVoice(message.content);
+    setWeatherCareError("");
+    setWeatherCareStage("sending");
+    weatherCareTimerRef.current = window.setTimeout(() => {
+      setWeatherCareSent((records) => ({ ...records, [weatherCareDraft.recipientId]: weatherCareDraft.text }));
+      setWeatherCareStage("success");
+      weatherCareTimerRef.current = null;
+      speakText(`已给${selectedWeatherMember.relationship}发送关怀消息`, { fallbackKey: "generic-feedback", rate: 0.9 });
+    }, 900);
   }
-
-  const handleQuickReply = (message: MessageItem) => {
-    if (playingMessageId || replyingMessageId) return;
-    onPlayMessage(message.id);
-    onQuickReply(message.sender, "我收到了");
-    setReplyingMessageId(message.id);
-    replyConfirmationActiveRef.current = true;
-    if (message.type === "photo" && activePhotoMessageId === message.id) schedulePhotoMessageReturn(message);
-
-    const finishConfirmation = () => {
-      if (!replyConfirmationActiveRef.current) return;
-      replyConfirmationActiveRef.current = false;
-      if (replySpeechTimerRef.current) window.clearTimeout(replySpeechTimerRef.current);
-      replySpeechTimerRef.current = null;
-      setReplyingMessageId(null);
-      dismissMessageCard(message.id);
-    };
-
-    const relation = message.sender.includes("女儿") ? "女儿" : message.sender;
-    speakText(`已告诉${relation}我收到了`, {
-      fallbackKey: "reply-received",
-      rate: 0.88,
-      onEnd: finishConfirmation,
-    });
-    replySpeechTimerRef.current = window.setTimeout(finishConfirmation, 2800);
-  };
-
-  const openPhotoMessage = (message: MessageItem) => {
-    if (!message.photoUrl) return;
-    if (photoMessageTimerRef.current) window.clearTimeout(photoMessageTimerRef.current);
-    if (photoMessageExitTimerRef.current) window.clearTimeout(photoMessageExitTimerRef.current);
-    showPhotoMessageAsBackground(message);
-    setIsPhotoCaptionExiting(false);
-    setActivePhotoGroupIndex(0);
-    setActivePhotoMessageId(message.id);
-    window.setTimeout(() => handlePlayMessage(message), 0);
-  };
-
-  const closePhotoMessage = () => {
-    if (photoMessageTimerRef.current) window.clearTimeout(photoMessageTimerRef.current);
-    if (photoMessageExitTimerRef.current) window.clearTimeout(photoMessageExitTimerRef.current);
-    photoMessageTimerRef.current = null;
-    photoMessageExitTimerRef.current = null;
-    if (activeMessageRef.current?.id === activePhotoMessageId) {
-      audioRef.current?.pause();
-      stopSpeech();
-      if (playbackTimerRef.current) window.clearTimeout(playbackTimerRef.current);
-      playbackTimerRef.current = null;
-      activeMessageRef.current = null;
-      setPlayingMessageId(null);
-    }
-    if (activePhotoMessage && !isAcceptanceVideoScenario) showPhotoMessageAsBackground(activePhotoMessage);
-    setIsPhotoCaptionExiting(false);
-    setActivePhotoMessageId(null);
-  };
 
   const stepPhoto = (direction: number) => {
     pauseHomeVideo();
@@ -855,16 +487,13 @@ export default function ControlCenterHome({
       heartFeedbackTimerRef.current = null;
     }, 1800);
 
-    if (!isVoicePlaybackActive && !replyingMessageId) {
-      speakText("已告诉家人您喜欢这张照片", { fallbackKey: "heart-family", rate: 0.9 });
-    }
+    speakText("已告诉家人您喜欢这张照片", { fallbackKey: "heart-family", rate: 0.9 });
   };
 
   const handlePhotoPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     revealPhotoControls();
     swipeStartXRef.current = event.clientX;
-    swipeStartTimeRef.current = performance.now();
     swipePointerIdRef.current = event.pointerId;
     setIsPhotoHeld(true);
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -873,27 +502,20 @@ export default function ControlCenterHome({
   const handlePhotoPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     if (swipeStartXRef.current === null) return;
     const deltaX = event.clientX - swipeStartXRef.current;
-    const pressDuration = performance.now() - (swipeStartTimeRef.current ?? performance.now());
     const swipeThreshold = window.innerWidth / 5;
     if (Math.abs(deltaX) >= swipeThreshold) stepPhoto(deltaX < 0 ? 1 : -1);
-    const shouldOpenPhotoMessage = Math.abs(deltaX) < 12
-      && pressDuration < 600
-      && currentPhotoMessage?.photoUrl === currentPhoto.url;
 
     swipeStartXRef.current = null;
-    swipeStartTimeRef.current = null;
     swipePointerIdRef.current = null;
     setIsPhotoHeld(false);
     schedulePhotoControlsHide();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (shouldOpenPhotoMessage && currentPhotoMessage) openPhotoMessage(currentPhotoMessage);
   };
 
   const cancelPhotoInteraction = () => {
     swipeStartXRef.current = null;
-    swipeStartTimeRef.current = null;
     swipePointerIdRef.current = null;
     setIsPhotoHeld(false);
     schedulePhotoControlsHide();
@@ -905,7 +527,7 @@ export default function ControlCenterHome({
     if (acceptanceCommand.type === "reset-home-overlays") {
       setConfirmSOS(false);
       setIsWeatherOpen(false);
-      closePhotoMessage();
+      setIsNewFamilyMediaOpen(false);
       return;
     }
     if (acceptanceCommand.type === "previous-photo") {
@@ -925,32 +547,9 @@ export default function ControlCenterHome({
       schedulePhotoControlsHide();
       return;
     }
-    if (acceptanceCommand.type === "expand-messages") {
-      setIsMessageStackExpanded(true);
-      return;
-    }
-    if (acceptanceCommand.type === "collapse-messages") {
-      setIsMessageStackExpanded(false);
-      return;
-    }
-    if (acceptanceCommand.type === "play-message-chime") {
-      playMessageChime();
-      return;
-    }
     if (acceptanceCommand.type === "open-weather") {
       setIsWeatherOpen(true);
       return;
-    }
-    if (acceptanceCommand.type === "open-weather-care") {
-      setIsWeatherOpen(true);
-      void generateWeatherReminder();
-      return;
-    }
-    if (acceptanceCommand.type === "play-first-message") {
-      const firstMessage = visibleMessages.find((message) => !message.played) ?? visibleMessages[0];
-      if (!firstMessage) return;
-      if (firstMessage.type === "photo") openPhotoMessage(firstMessage);
-      else handlePlayMessage(firstMessage);
     }
   }, [acceptanceCommand?.id]);
 
@@ -959,24 +558,7 @@ export default function ControlCenterHome({
       className="control-center"
       aria-label="高龄智慧中控屏首页"
     >
-      <audio
-        ref={notificationAudioRef}
-        src="/assets/message-chime.wav"
-        preload="auto"
-        onEnded={() => setIsChimePlaying(false)}
-        onError={() => setIsChimePlaying(false)}
-      />
       <header className="control-header">
-        <div className="clock-block" aria-label="当前时间">
-          <time className="clock-time">
-            {now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}
-          </time>
-          <div className="clock-date">
-            <strong>{weekText}</strong>
-            <span>{dateText}</span>
-          </div>
-        </div>
-
         <button
           className={`weather-card ${elderWeatherAvailable ? "" : "has-no-weather"}`}
           type="button"
@@ -991,7 +573,6 @@ export default function ControlCenterHome({
               <span className="weather-main">
                 <span><strong>{elderWeather.temperatureC}°C</strong><b>{elderWeather.conditionText}</b></span>
                 <small>{elderLocation.cityName} · 最高{elderWeather.highC}° / 最低{elderWeather.lowC}°</small>
-                <i>更新 {formatWeatherUpdatedAt(elderWeather.lastSuccessAt, elderLocation.timeZone)}</i>
               </span>
             </span>
           ) : (
@@ -1000,24 +581,18 @@ export default function ControlCenterHome({
               <span className="weather-main"><b>天气暂时无法显示</b><small>请联系家人或服务人员完善地址</small></span>
             </span>
           )}
-          <span className="weather-divider" />
-          <span className="family-weather-list">
-            {homeWeatherChildren.length > 0 ? homeWeatherChildren.map((member) => (
-              <span className="family-weather" key={member.id}>
-                <span className="family-weather-temperature">
-                  <span aria-hidden="true">{weatherIcon(member.weather?.conditionCode)}</span>
-                  <b>{member.weather?.temperatureC}°C</b>
-                  {member.weather?.riskText && <em>{member.weather.conditionText}</em>}
-                </span>
-                <span className="family-weather-meta">
-                  <small>{member.location?.cityName} · {member.relationship}</small>
-                  <i>当地 {member.location ? formatWeatherLocalTime(member.location.timeZone) : "--"}</i>
-                </span>
-              </span>
-            )) : <span className="family-weather-empty">暂无可用的子女天气</span>}
-          </span>
           <span className="weather-details">家庭天气<ChevronDown aria-hidden="true" /></span>
         </button>
+
+        <div className="clock-block" aria-label="当前时间">
+          <time className="clock-time">
+            {now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}
+          </time>
+          <div className="clock-date">
+            <strong>{weekText}</strong>
+            <span>{dateText}</span>
+          </div>
+        </div>
 
         <button className="sos-button" type="button" onClick={() => setConfirmSOS(true)}>
           <Phone aria-hidden="true" />
@@ -1026,7 +601,7 @@ export default function ControlCenterHome({
       </header>
 
       <section className="control-workspace">
-        <div className={`family-stage ${visibleMessages.length > 0 && isMessageStackExpanded ? "has-expanded-messages" : ""} ${arePhotoControlsVisible ? "show-photo-controls" : ""}`}>
+        <div className={`family-stage ${arePhotoControlsVisible ? "show-photo-controls" : ""}`}>
           {!isAlbumEmpty && <div
             className={`photo-crop ${currentPhoto.cropClass} ${isPhotoHeld ? "is-held" : ""}`}
             aria-label={`家庭相册${isCurrentVideo ? "视频封面" : "照片"}，按住暂停，左右滑动切换`}
@@ -1056,9 +631,6 @@ export default function ControlCenterHome({
                   onPause={() => setHomeVideoState((state) => state === "playing" ? "cover" : state)}
                   onEnded={() => setHomeVideoState("ended")}
                 />
-                {homeVideoState !== "failed" && (
-                  <span className="home-video-badge"><Video aria-hidden="true" />家庭视频{currentVideoViewed ? " · 已查看" : " · 未查看"}</span>
-                )}
                 {homeVideoState === "failed" ? (
                   <div className="home-video-failure" role="alert">
                     <AlertTriangle aria-hidden="true" />
@@ -1111,122 +683,8 @@ export default function ControlCenterHome({
             <ChevronRight />
           </button>}
 
-          {visibleMessages.length > 0 && (
-            <section className={`message-stack ${isMessageStackExpanded ? "" : "is-collapsed"}`} aria-label={`${visibleUnreadCount}条未读家庭留言`} aria-live="polite">
-              <header className="message-stack__header">
-                <span className="message-stack__icon"><Heart fill="currentColor" aria-hidden="true" /></span>
-                <span className="message-stack__title">
-                  <strong>
-                    {visibleUnreadCount > 0
-                      ? `${visibleMessages[0].sender.includes("女儿") ? "女儿" : visibleMessages[0].sender}发来 ${visibleUnreadCount} 条新留言`
-                      : "留言均已收听"}
-                  </strong>
-                  <small>
-                    {playingMessageId ? "正在播放留言..." : replyingMessageId ? "正在发送回复..." : isMessageStackExpanded ? "逐条播放，逐条回复" : "按一下展开查看"}
-                  </small>
-                </span>
-                {isMessageStackExpanded && (
-                  <button
-                    type="button"
-                    className="message-stack__sound"
-                    onClick={playMessageChime}
-                    disabled={isChimePlaying}
-                    aria-label="试听留言提示音"
-                  >
-                    <Volume2 aria-hidden="true" />
-                    <span>{isChimePlaying ? "播放中" : "试听"}</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="message-stack__toggle"
-                  onClick={() => setIsMessageStackExpanded((expanded) => !expanded)}
-                  aria-expanded={isMessageStackExpanded}
-                >
-                  {isMessageStackExpanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
-                  <span>{isMessageStackExpanded ? "收起" : "展开"}</span>
-                </button>
-              </header>
-
-              {isMessageStackExpanded && <div className="message-stack__list">
-                {visibleMessages.map((message) => {
-                  const isPlaying = playingMessageId === message.id;
-                  const isReplying = replyingMessageId === message.id;
-                  const isExiting = exitingMessageIds.includes(message.id);
-                  const isBusy = playingMessageId !== null || replyingMessageId !== null;
-                  const isPhotoMessage = message.type === "photo" && Boolean(message.photoUrl);
-                  const photoCount = message.photoUrls?.length ?? (message.photoUrl ? 1 : 0);
-                  const isPhotoGroup = isPhotoMessage && photoCount > 1;
-                  const isLoadFailed = Boolean(message.loadFailed) && !retriedMessageIds.includes(message.id);
-                  const relation = message.sender.includes("女儿") ? "女儿" : message.sender;
-
-                  return (
-                    <article key={message.id} className={`message-card ${isPhotoMessage ? "is-photo" : ""} ${isPlaying ? "is-playing" : ""} ${isReplying ? "is-replying" : ""} ${isExiting ? "is-exiting" : ""}`}>
-                      <div className="message-card__meta">
-                        <span className="message-card__sender">{relation}的{isPhotoGroup ? "照片组留言" : isPhotoMessage ? "照片留言" : "留言"}</span>
-                        <span className="message-card__time">{message.timestamp ?? "刚刚"}</span>
-                        <span className={`message-card__status ${message.played ? "is-read" : ""}`}>
-                          {isPlaying ? "正在播放" : isReplying ? "已回复" : message.played ? "已收听" : "新留言"}
-                        </span>
-                      </div>
-                      {isPhotoMessage && !isLoadFailed && (
-                        <button
-                          type="button"
-                          className="message-card__photo-preview"
-                          onClick={() => openPhotoMessage(message)}
-                          disabled={isBusy}
-                          aria-label={`查看${relation}发来的${isPhotoGroup ? `${photoCount}张照片` : "照片"}并收听留言`}
-                        >
-                          <img src={message.photoUrl} alt="孩子们在雪地里堆雪人" />
-                          {isPhotoGroup && <strong className="message-card__photo-count">共 {photoCount} 张</strong>}
-                          <span><Image aria-hidden="true" />{isPhotoGroup ? "按一下查看这组照片" : "按一下查看大图并收听"}</span>
-                        </button>
-                      )}
-                      {isLoadFailed ? (
-                        <div className="message-card__load-failed">
-                          <WifiOff aria-hidden="true" />
-                          <div><strong>留言暂时无法加载</strong><span>请检查网络后重新加载</span></div>
-                          <button type="button" onClick={() => setRetriedMessageIds((ids) => [...ids, message.id])}><RefreshCw aria-hidden="true" />重新加载</button>
-                        </div>
-                      ) : <p>{message.content}</p>}
-                      {!isLoadFailed && (
-                      <div className="message-card__actions">
-                        <button
-                          type="button"
-                          className="message-play-button"
-                          onClick={() => isPhotoMessage ? openPhotoMessage(message) : handlePlayMessage(message)}
-                          disabled={isBusy}
-                        >
-                          {isPhotoMessage ? (
-                            <Image aria-hidden="true" />
-                          ) : isPlaying ? (
-                            <Lottie
-                              animationData={voiceWaveAnimation}
-                              autoplay={!window.matchMedia("(prefers-reduced-motion: reduce)").matches}
-                              loop
-                              aria-hidden="true"
-                              className="message-card__lottie"
-                            />
-                          ) : (
-                            <Volume2 aria-hidden="true" />
-                          )}
-                          <span>{isPhotoGroup ? "查看这组照片" : isPhotoMessage ? "查看照片" : isPlaying ? "正在播放" : message.played ? "再听一次" : "播放留言"}</span>
-                        </button>
-                        <button type="button" className="message-reply-button" onClick={() => handleQuickReply(message)} disabled={isBusy}>
-                          {isReplying ? <CheckCircle2 aria-hidden="true" /> : <MessageCircleHeart aria-hidden="true" />}
-                          <span>{isReplying ? "已回复：我收到了" : "回复“我收到了”"}</span>
-                        </button>
-                      </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>}
-            </section>
-          )}
-
           <div className="home-album-actions">
-            <button className="album-label" type="button" onClick={openAlbumFromHome}>
+            <button className={`album-label${isAlbumEmpty ? "" : " is-subtle"}`} type="button" onClick={openAlbumFromHome}>
               <Image aria-hidden="true" />
               <span>{isAlbumEmpty ? "进入家庭相册" : `家庭相册 · ${photoIndex + 1} / ${homePhotoPool.length}`}</span>
             </button>
@@ -1260,27 +718,28 @@ export default function ControlCenterHome({
         <HomeTaskRail
           now={now}
           reminders={reminders}
-          records={fulfillmentRecords}
-          securityUnreadCount={securityUnreadCount}
+          messages={messages}
+          albumUnreadCount={albumUnreadCount}
+          missedCallCount={missedCallCount}
           onCompleteReminder={onCompleteReminder}
           onOpenTodayOverview={onOpenTodayOverview}
           onOpenSchedule={onOpenSchedule}
-          onOpenMessageBox={onOpenMessageBox}
+          onOpenMessages={onOpenMessages}
           onOpenCommunity={onOpenCommunity}
-          onOpenSpecialServices={onOpenSpecialServices}
+          onOpenContacts={onOpenContacts}
+          onOpenAlbum={openNewFamilyMedia}
+          onOpenAssistant={onOpenAssistant}
           onOpenRecommendation={onOpenRecommendation}
-          acceptanceCareRegion={acceptanceCareRegion}
-          acceptanceCareTime={acceptanceCareTime}
-          acceptanceCareMode={acceptanceCareMode}
-          acceptanceCareScenario={acceptanceCareScenario}
-          acceptanceDisasterScenario={acceptanceDisasterScenario}
+          acceptanceRightContentScenario={acceptanceRightContentScenario}
+          acceptanceRightContentApplySignal={acceptanceRightContentApplySignal}
+          acceptanceRevision={acceptanceRevision}
         />
       </section>
 
       <nav className="control-dock" aria-label="常用功能">
         <div className="dock-group">
           <button type="button" onClick={openAlbumFromHome}><span className="dock-icon"><Image /></span><strong>家庭相册</strong></button>
-          <button type="button" onClick={onOpenContacts} className="has-badge"><span className="dock-icon"><MessageCircleHeart /></span><strong>通讯录</strong>{unreadCount > 0 && <i>{unreadCount}</i>}</button>
+          <button type="button" onClick={onOpenContacts} className="has-badge"><span className="dock-icon"><MessageCircleHeart /></span><strong>通讯录</strong>{unreadCount + missedCallCount > 0 && <i>{unreadCount + missedCallCount}</i>}</button>
         </div>
         <button type="button" className="assistant-entry" onClick={onOpenAssistant}>
           <span className="sound-wave"><i /><i /><i /><i /><i /></span>
@@ -1292,6 +751,16 @@ export default function ControlCenterHome({
           <button type="button" onClick={onOpenMore}><span className="dock-icon"><CircleEllipsis /></span><strong>更多功能</strong></button>
         </div>
       </nav>
+
+      <NewFamilyMediaOverlay
+        isOpen={isNewFamilyMediaOpen}
+        items={albumPhotos}
+        unreadCount={albumUnreadCount}
+        heartStates={photoHeartStates}
+        onToggleHeart={onTogglePhotoHeart}
+        onViewed={onVideoViewed}
+        onClose={() => setIsNewFamilyMediaOpen(false)}
+      />
 
       {isWeatherOpen && (
         <div className="weather-overview-overlay">
@@ -1348,7 +817,7 @@ export default function ControlCenterHome({
                     key={member.id}
                     type="button"
                     className={`weather-city-card ${member.weather?.riskText ? "has-warning" : ""} ${isSelected ? "is-selected" : ""} ${isAvailable ? "" : "is-unavailable"}`}
-                    aria-label={`查看${member.displayName}的天气${isAvailable ? "并送句关心" : "状态"}`}
+                    aria-label={`查看${member.displayName}的天气状态`}
                     aria-pressed={isSelected}
                     onClick={() => selectWeatherRecipient(member)}
                   >
@@ -1358,157 +827,74 @@ export default function ControlCenterHome({
               })}
             </div>
 
-            <section className={`weather-reminder-panel is-${weatherReminderStage}`} aria-live="polite">
-              {!selectedWeather && <div className="weather-reminder-unavailable"><p>暂无已绑定的子女天气</p></div>}
-
-              {selectedWeather && !selectedWeatherAvailable && (
-                <div className="weather-reminder-unavailable">
+            <section className={`weather-care-panel is-${weatherCareStage}`} aria-live="polite">
+              {!selectedWeatherMember ? (
+                <div className="weather-care-panel__message">
                   <AlertTriangle aria-hidden="true" />
-                  <div><strong>{weatherUnavailableText(selectedWeather)}</strong><span>天气异常不会影响相册、提醒事项、通讯录等其他功能。</span></div>
-                  <button type="button" onClick={() => { closeWeatherOverview(); onOpenContacts(); }}>去通讯录留言</button>
+                  <span>请选择一位家人查看天气。</span>
                 </div>
-              )}
-
-              {selectedWeather && selectedWeatherAvailable && weatherReminderStage === "idle" && (
-                <div className="weather-reminder-intro">
-                  <span><AlertTriangle aria-hidden="true" /></span>
-                  <p><strong>{selectedWeather.location?.cityName}{selectedWeather.weather?.conditionText}，{selectedWeather.weather?.temperatureC}℃。</strong>按一下，先听听准备发给{selectedWeather.relationship}的关怀内容。</p>
-                  <button type="button" onClick={() => generateWeatherReminder()}><Send aria-hidden="true" />送句关心</button>
-                </div>
-              )}
-
-              {selectedWeather && selectedWeatherAvailable && weatherReminderStage === "generating" && (
-                <div className="weather-reminder-loading"><RefreshCw aria-hidden="true" /><strong>正在准备关怀内容…</strong></div>
-              )}
-
-              {selectedWeather && selectedWeatherAvailable && weatherReminderStage === "reading" && weatherDraft && (
-                <div className="weather-reminder-reading">
-                  <div><Volume2 aria-hidden="true" /><strong>正在朗读发送内容…</strong></div>
-                  <blockquote>“{weatherDraft.text}”</blockquote>
-                  <div className="weather-reading-progress" role="progressbar" aria-label="语音朗读进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={weatherProgress}>
-                    <span style={{ width: `${weatherProgress}%` }} />
-                  </div>
-                </div>
-              )}
-
-              {selectedWeather && selectedWeatherAvailable && weatherReminderStage === "confirm" && weatherDraft && (
-                <div className="weather-reminder-confirm">
-                  <header>
-                    <span>发送给：{selectedWeather.displayName}</span>
-                    <b>{formatMemberLocation(selectedWeather, familyWeather.elder.location?.countryCode)} · {selectedWeather.weather?.conditionText} {selectedWeather.weather?.temperatureC}℃</b>
-                  </header>
-                  <blockquote>“{weatherDraft.text}”</blockquote>
-                  <div className="weather-reminder-primary-actions">
-                    <button type="button" onClick={confirmWeatherReminder}><CheckCircle2 aria-hidden="true" />确认发送给{selectedWeather.relationship}</button>
-                    <button type="button" onClick={() => cancelWeatherReminder()}>取消</button>
-                  </div>
-                </div>
-              )}
-
-              {selectedWeather && weatherReminderStage === "sending" && (
-                <div className="weather-reminder-loading"><RefreshCw aria-hidden="true" /><strong>正在发送给{selectedWeather.relationship}…</strong><span>请不要重复点击</span></div>
-              )}
-
-              {selectedWeather && weatherReminderStage === "success" && weatherDraft && (
-                <div className="weather-reminder-sent">
-                  <CheckCircle2 aria-hidden="true" />
-                  <div>
-                    <strong>已发送给{selectedWeather.relationship}</strong>
-                    <span>对方会在家庭留言中收到这句关怀。</span>
-                    <blockquote>“{weatherDraft.text}”</blockquote>
-                    <button type="button" className="weather-reminder-complete" onClick={closeWeatherOverview}><CheckCircle2 aria-hidden="true" />完成并返回首页</button>
-                  </div>
-                </div>
-              )}
-
-              {selectedWeather && weatherReminderStage === "failure" && (
-                <div className="weather-reminder-failed">
+              ) : !selectedWeatherAvailable ? (
+                <div className="weather-care-panel__message is-muted">
                   <AlertTriangle aria-hidden="true" />
-                  <div>
-                    <strong>没有发送成功</strong>
-                    <span>{weatherError || "请稍后再试"}</span>
-                    {weatherDraft && <blockquote>原发送内容：“{weatherDraft.text}”</blockquote>}
+                  <span>暂时没有{selectedWeatherMember.displayName}的天气，无法发送天气关怀。</span>
+                </div>
+              ) : weatherCareStage === "idle" ? (
+                <>
+                  <div className="weather-care-panel__copy">
+                    <span>发送给：{selectedWeatherMember.displayName}</span>
+                    <strong>“{createWeatherCareMessage(selectedWeatherMember)}”</strong>
                   </div>
-                  <button type="button" onClick={() => weatherDraft ? confirmWeatherReminder() : generateWeatherReminder()}><RefreshCw aria-hidden="true" />重新发送</button>
-                  <button type="button" onClick={() => cancelWeatherReminder()}>取消</button>
+                  <button type="button" className="weather-care-panel__primary" onClick={prepareWeatherCare}>
+                    <Send aria-hidden="true" />送句关心
+                  </button>
+                </>
+              ) : weatherCareStage === "confirm" && weatherCareDraft ? (
+                <>
+                  <div className="weather-care-panel__copy">
+                    <span>确认发送给：{selectedWeatherMember.displayName}</span>
+                    <strong>“{weatherCareDraft.text}”</strong>
+                  </div>
+                  <div className="weather-care-panel__actions">
+                    <button type="button" className="weather-care-panel__secondary" onClick={cancelWeatherCare}>取消</button>
+                    <button type="button" className="weather-care-panel__primary" onClick={confirmWeatherCare}>
+                      <Send aria-hidden="true" />确认发送
+                    </button>
+                  </div>
+                </>
+              ) : weatherCareStage === "sending" ? (
+                <div className="weather-care-panel__status">
+                  <RefreshCw className="is-spinning" aria-hidden="true" />
+                  <div><strong>正在发送给{selectedWeatherMember.relationship}…</strong><span>请稍候，不需要重复点击</span></div>
                 </div>
-              )}
-
-              {selectedWeather && weatherReminderStage === "blocked" && selectedWeatherCareRecord && (
-                <div className="weather-reminder-sent is-already-sent">
-                  <CheckCircle2 aria-hidden="true" />
-                  <div><strong>今天已经给{selectedWeather.relationship}发送过天气关怀了</strong><span>按{selectedWeather.location?.cityName}当地日期 {selectedWeatherCareRecord.targetLocalDate} 计算，每天一次。</span><blockquote>“{selectedWeatherCareRecord.text}”</blockquote></div>
-                </div>
+              ) : weatherCareStage === "success" ? (
+                <>
+                  <div className="weather-care-panel__status is-success">
+                    <CheckCircle2 aria-hidden="true" />
+                    <div>
+                      <strong>已发送给{selectedWeatherMember.relationship}</strong>
+                      <span>“{selectedWeatherSentText ?? weatherCareDraft?.text}”</span>
+                    </div>
+                  </div>
+                  <button type="button" className="weather-care-panel__primary" onClick={closeWeatherOverview}>完成</button>
+                </>
+              ) : (
+                <>
+                  <div className="weather-care-panel__status is-failure">
+                    <AlertTriangle aria-hidden="true" />
+                    <div><strong>发送失败</strong><span>{weatherCareError}</span></div>
+                  </div>
+                  <div className="weather-care-panel__actions">
+                    <button type="button" className="weather-care-panel__secondary" onClick={cancelWeatherCare}>取消</button>
+                    <button type="button" className="weather-care-panel__primary" onClick={confirmWeatherCare}>
+                      <RefreshCw aria-hidden="true" />重新发送
+                    </button>
+                  </div>
+                </>
               )}
             </section>
+
           </section>
         </div>
-      )}
-
-      {activePhotoMessage && (
-        <section className="photo-message-viewer" role="dialog" aria-modal="true" aria-label="查看女儿发来的照片留言">
-          <img className="photo-message-viewer__image" src={activePhotoUrl} alt={`照片组第 ${activePhotoGroupIndex + 1} 张`} />
-          <div className="photo-message-viewer__shade" aria-hidden="true" />
-          <button type="button" className="photo-message-viewer__close" onClick={closePhotoMessage}>
-            <X aria-hidden="true" />
-            <span>收起</span>
-          </button>
-          {activePhotoUrls.length > 1 && (
-            <>
-              <button type="button" className="photo-message-viewer__nav is-previous" onClick={() => setActivePhotoGroupIndex((index) => (index - 1 + activePhotoUrls.length) % activePhotoUrls.length)} aria-label="上一张照片"><ChevronLeft aria-hidden="true" /></button>
-              <span className="photo-message-viewer__count">{activePhotoGroupIndex + 1} / {activePhotoUrls.length}</span>
-              <button type="button" className="photo-message-viewer__nav is-next" onClick={() => setActivePhotoGroupIndex((index) => (index + 1) % activePhotoUrls.length)} aria-label="下一张照片"><ChevronRight aria-hidden="true" /></button>
-            </>
-          )}
-
-          <section className={`photo-message-viewer__card ${isPhotoCaptionExiting ? "is-exiting" : ""}`} aria-live="polite">
-            <div className="photo-message-viewer__message">
-              <MessageCircleHeart aria-hidden="true" />
-              <p>“{activePhotoMessage.content}”</p>
-            </div>
-            <div className="photo-message-viewer__status">
-              {playingMessageId === activePhotoMessage.id ? (
-                <Lottie
-                  animationData={voiceWaveAnimation}
-                  autoplay={!window.matchMedia("(prefers-reduced-motion: reduce)").matches}
-                  loop
-                  aria-hidden="true"
-                  className="photo-message-viewer__wave"
-                />
-              ) : replyingMessageId === activePhotoMessage.id ? (
-                <CheckCircle2 aria-hidden="true" />
-              ) : (
-                <Volume2 aria-hidden="true" />
-              )}
-              <span>
-                {playingMessageId === activePhotoMessage.id
-                  ? "正在播报女儿的留言..."
-                  : replyingMessageId === activePhotoMessage.id
-                    ? "已告诉女儿我收到了"
-                    : "留言已播报"}
-              </span>
-            </div>
-            <div className="photo-message-viewer__actions">
-              <button
-                type="button"
-                onClick={() => handlePlayMessage(activePhotoMessage)}
-                disabled={playingMessageId !== null || replyingMessageId !== null}
-              >
-                <Volume2 aria-hidden="true" />
-                <span>{playingMessageId === activePhotoMessage.id ? "正在播放" : "重新播放"}</span>
-              </button>
-              <button
-                type="button"
-                className="photo-message-viewer__reply"
-                onClick={() => handleQuickReply(activePhotoMessage)}
-                disabled={playingMessageId !== null || replyingMessageId !== null}
-              >
-                <MessageCircleHeart aria-hidden="true" />
-                <span>{replyingMessageId === activePhotoMessage.id ? "已回复：我收到了" : "回复“我收到了”"}</span>
-              </button>
-            </div>
-          </section>
-        </section>
       )}
 
       {confirmSOS && (

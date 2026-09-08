@@ -47,7 +47,8 @@ import {
   BoundElder,
   ElderBindingScenario,
   ReminderScenario,
-  ChildLoginScenario
+  ChildLoginScenario,
+  StoreCategoryScenario
 } from '../types';
 import { initialBoundElders, initialChildResidenceAddress, initialFamilyConversations, initialFamilyMessages, initialPublishedPhotoBatches } from '../data/mockData';
 import { H5MonitorTab } from './H5MonitorTab';
@@ -100,6 +101,8 @@ interface H5AppFrameProps {
   reminderScenario: ReminderScenario;
   previewOpenRemindersSignal: number;
   previewOpenLoginSignal: number;
+  storeCategoryScenario: StoreCategoryScenario;
+  previewOpenStoreSignal: number;
   loginScenario: ChildLoginScenario;
   elderBindingScenario: ElderBindingScenario;
   onPreviewContextChange?: (
@@ -150,6 +153,8 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   reminderScenario,
   previewOpenRemindersSignal,
   previewOpenLoginSignal,
+  storeCategoryScenario,
+  previewOpenStoreSignal,
   loginScenario,
   elderBindingScenario,
   onPreviewContextChange
@@ -227,6 +232,10 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   useEffect(() => {
     if (previewOpenRemindersSignal > 0) setActiveTab('orders');
   }, [previewOpenRemindersSignal]);
+
+  useEffect(() => {
+    if (previewOpenStoreSignal > 0) setActiveTab('orders');
+  }, [previewOpenStoreSignal]);
 
   const handleBindElder = (elder: BoundElder) => {
     if (boundElders.some(item => item.id === elder.id)) return false;
@@ -349,7 +358,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
         
         {/* Mock OS Status Bar */}
         <div className="hidden sm:flex h-10 bg-white items-center justify-between px-6 shrink-0 z-40">
-          <span className="text-2xs font-bold text-slate-800">{homeCareScenario === 'medication_overdue' ? '22:10' : '18:26'}</span>
+          <span className="text-2xs font-bold text-slate-800">{homeCareScenario === 'medication_expired' ? '23:59' : homeCareScenario === 'medication_overdue' ? '22:10' : '18:26'}</span>
           <div className="flex items-center gap-1.5 text-slate-800">
             <Signal size={12} />
             <span className="text-4xs font-bold font-mono">5G</span>
@@ -501,6 +510,9 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               elderId={currentBoundElder?.id ?? 'elder-1'}
               reminderScenario={reminderScenario}
               openReminderSignal={previewOpenRemindersSignal}
+              storeCategoryScenario={storeCategoryScenario}
+              openStoreSignal={previewOpenStoreSignal}
+              elderProject={currentBoundElder?.project ?? '静安社区'}
             />
           )}
 

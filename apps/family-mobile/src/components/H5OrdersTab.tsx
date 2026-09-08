@@ -18,10 +18,13 @@ import {
   CheckCircle2,
   PlayCircle,
   HelpCircle,
-  AlertCircle
+  AlertCircle,
+  ShoppingBag
 } from 'lucide-react';
-import { Order, ActivityLog, ReminderScenario } from '../types';
+import { Order, ActivityLog, ReminderScenario, StoreCategoryScenario } from '../types';
 import { H5ReminderManager } from './H5ReminderManager';
+import { H5StoreTab } from './H5StoreTab';
+import { initialParentProfile } from '../data/mockData';
 
 interface H5OrdersTabProps {
   orders: Order[];
@@ -32,6 +35,9 @@ interface H5OrdersTabProps {
   elderId: string;
   reminderScenario: ReminderScenario;
   openReminderSignal: number;
+  storeCategoryScenario: StoreCategoryScenario;
+  openStoreSignal: number;
+  elderProject: string;
 }
 
 export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
@@ -42,13 +48,20 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
   elderName,
   elderId,
   reminderScenario,
-  openReminderSignal
+  openReminderSignal,
+  storeCategoryScenario,
+  openStoreSignal,
+  elderProject
 }) => {
-  const [section, setSection] = useState<'reminders' | 'services'>('reminders');
+  const [section, setSection] = useState<'reminders' | 'store' | 'services'>('reminders');
 
   useEffect(() => {
     if (openReminderSignal > 0) setSection('reminders');
   }, [openReminderSignal]);
+
+  useEffect(() => {
+    if (openStoreSignal > 0) setSection('store');
+  }, [openStoreSignal]);
 
   const addActivity = (content: string, type: ActivityLog['type']) => {
     const now = new Date();
@@ -133,13 +146,16 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
 
   return (
     <div className="p-4 space-y-4 pb-6" id="h5-orders-tab">
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-200/70 p-1">
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200/70 p-1">
         <button type="button" onClick={() => setSection('reminders')} aria-pressed={section === 'reminders'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'reminders' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><BellRing size={14} />提醒事项</button>
+        <button type="button" onClick={() => setSection('store')} aria-pressed={section === 'store'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'store' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ShoppingBag size={14} />特约服务</button>
         <button type="button" onClick={() => setSection('services')} aria-pressed={section === 'services'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'services' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ClipboardList size={14} />服务记录</button>
       </div>
 
       {section === 'reminders' ? (
         <H5ReminderManager elderName={elderName} elderId={elderId} scenario={reminderScenario} />
+      ) : section === 'store' ? (
+        <div className="-mx-4 -mt-2"><H5StoreTab parentProfile={initialParentProfile} elderName={elderName} elderProject={elderProject} scenario={storeCategoryScenario} onAddOrder={order => setOrders(current => [order, ...current])} onSwitchToOrders={() => setSection('services')} /></div>
       ) : (
         <>
       {/* Tab intro */}
@@ -182,6 +198,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
                 {/* 2. Main Order info */}
                 <div className="p-4 space-y-3">
                   <div>
+                    <span className="mb-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[8px] font-bold text-blue-700">{ord.categoryNameSnapshot}</span>
                     <h4 className="font-extrabold text-xs text-slate-800 tracking-tight leading-tight">{ord.serviceName}</h4>
                     <p className="text-xs text-blue-600 font-black mt-1">付款实付: ￥{ord.price}</p>
                   </div>
