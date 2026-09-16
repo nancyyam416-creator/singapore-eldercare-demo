@@ -1,10 +1,13 @@
+import { getEntertainmentContentById } from "./entertainment-content";
+
 export type HomeRecommendationKind = "security" | "community" | "service" | "entertainment";
 
 export interface HomeRecommendationConfig {
   contentId: string;
   kind: HomeRecommendationKind;
   title: string;
-  subtitle: string;
+  subtitle?: string;
+  targetUrl?: string;
   applicableAudiences: string[];
   effectiveAt: string;
   expiresAt: string;
@@ -12,15 +15,13 @@ export interface HomeRecommendationConfig {
   displayOrder: number;
   publishedAt: string;
   displayDurationMs: number;
-  displayLimit: number;
-  cooldownMs: number;
 }
 
 export interface RecommendationRuntimeState {
-  exposureCount: number;
-  lastShownAt: number | null;
-  cooldownUntil: number | null;
+  viewed: boolean;
 }
+
+const entertainmentRecommendationContent = getEntertainmentContentById("ENT-002");
 
 export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
   {
@@ -35,8 +36,6 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
     displayOrder: 10,
     publishedAt: "2026-08-18T09:30:00+08:00",
     displayDurationMs: 8_000,
-    displayLimit: 2,
-    cooldownMs: 12_000,
   },
   {
     contentId: "REC-ACTIVITY-003",
@@ -47,17 +46,15 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
     effectiveAt: "2026-01-01T00:00:00+08:00",
     expiresAt: "2027-12-31T23:59:59+08:00",
     enabled: true,
-    displayOrder: 20,
+    displayOrder: 3,
     publishedAt: "2026-08-19T08:00:00+08:00",
     displayDurationMs: 8_000,
-    displayLimit: 2,
-    cooldownMs: 12_000,
   },
   {
-    contentId: "REC-ENT-009",
+    contentId: "REC-010",
     kind: "entertainment",
-    title: "经典京剧《女起解》",
-    subtitle: "按一下听戏",
+    title: entertainmentRecommendationContent?.name ?? "经典华语金曲",
+    targetUrl: entertainmentRecommendationContent?.targetUrl,
     applicableAudiences: ["elder"],
     effectiveAt: "2026-01-01T00:00:00+08:00",
     expiresAt: "2027-12-31T23:59:59+08:00",
@@ -65,14 +62,12 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
     displayOrder: 20,
     publishedAt: "2026-08-17T19:00:00+08:00",
     displayDurationMs: 8_000,
-    displayLimit: 2,
-    cooldownMs: 12_000,
   },
 ];
 
 export const sortRecommendationConfigs = (configs: HomeRecommendationConfig[]) => [...configs].sort((first, second) => {
   if (first.displayOrder !== second.displayOrder) return first.displayOrder - second.displayOrder;
-  const publishDifference = new Date(second.publishedAt).getTime() - new Date(first.publishedAt).getTime();
+  const publishDifference = new Date(first.publishedAt).getTime() - new Date(second.publishedAt).getTime();
   if (publishDifference !== 0) return publishDifference;
   return first.contentId.localeCompare(second.contentId);
 });
@@ -89,14 +84,11 @@ export const getEligibleRecommendationConfigs = (
     && config.applicableAudiences.includes(audience)
     && new Date(config.effectiveAt).getTime() <= nowTime
     && new Date(config.expiresAt).getTime() >= nowTime
-    && (!state?.cooldownUntil || state.cooldownUntil <= nowTime)
-    && (!state || state.exposureCount < config.displayLimit);
+    && !state?.viewed;
 }));
 
 export const createRecommendationRuntime = (): Record<string, RecommendationRuntimeState> => Object.fromEntries(
   HOME_RECOMMENDATION_CONFIGS.map((config) => [config.contentId, {
-    exposureCount: 0,
-    lastShownAt: null,
-    cooldownUntil: null,
+    viewed: false,
   }]),
 );

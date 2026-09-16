@@ -561,13 +561,22 @@ export default function CommunityLifePage({
           ) : (
             <div className="community-life-info-list">
               {selectedCategory === "activity" ? activities.map((activity) => {
-                const statusLabel = activity.registered
-                  ? "已确认参加"
-                  : activity.status === "cancelled"
+                const statusLabel = activity.status === "cancelled"
                     ? "已取消"
                     : activity.status === "ended"
                       ? "已结束"
-                  : "可查看";
+                      : activity.status === "ongoing"
+                        ? "活动进行中"
+                        : "可查看";
+                const liveLabel = activity.liveEnabled
+                  ? activity.liveStatus === "live"
+                    ? "直播中"
+                    : activity.liveStatus === "ended"
+                      ? "直播已结束"
+                      : activity.scheduledLiveStartAt
+                        ? `预计${activity.scheduledLiveStartAt}开播`
+                        : "直播未开始"
+                  : null;
                 return (
                   <button key={activity.id} type="button" onClick={() => onOpenActivity(activity.id)}>
                     <span className={`community-life-info-list__media${activity.imageUrl ? " has-cover" : ""}`}>
@@ -575,7 +584,7 @@ export default function CommunityLifePage({
                       {activity.imageUrl && <img src={activity.imageUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} />}
                     </span>
                     <span className="community-life-info-list__copy">
-                      <span><small>{activity.tag}</small><em>{statusLabel}</em></span>
+                      <span><small>{activity.tag}</small><span className="community-life-info-list__activity-statuses"><em className={activity.status === "cancelled" || activity.status === "ended" ? "is-unavailable" : ""}>{statusLabel}</em>{liveLabel && <em className="is-live">{liveLabel}</em>}</span></span>
                       <strong>{activity.title}</strong>
                       <p>{activity.description ?? "查看活动介绍与参加方式。"}</p>
                       <small>{activity.time} · {activity.location}</small>

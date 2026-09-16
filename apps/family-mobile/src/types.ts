@@ -35,7 +35,7 @@ export interface HealthStats {
   controlScreenStatus?: 'online' | 'offline';
 }
 
-export type HomeCareScenario = 'normal' | 'medication_overdue' | 'medication_expired' | 'inactivity';
+export type HomeCareScenario = 'normal' | 'medication_on_track' | 'medication_overdue' | 'medication_expired' | 'inactivity';
 
 export type ElderStatusCardScenario = 'normal' | 'device_offline' | 'location_empty';
 
@@ -259,6 +259,16 @@ export interface FamilyConversation {
   relationLabel: string;
   avatar: string;
   relationshipStatus: 'active' | 'invalid';
+}
+
+export interface FamilyNotification {
+  id: string;
+  type: 'family_message' | 'photo_feedback' | 'missed_call' | 'service_booking';
+  title: string;
+  summary: string;
+  occurredAt: string;
+  read: boolean;
+  targetId?: string;
 }
 
 export interface PublishedPhotoBatch {

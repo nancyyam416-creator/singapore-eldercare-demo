@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Medication, HealthStats, ServiceProduct, ActivityLog, Order, FamilyConversation, FamilyMessage, PublishedPhotoBatch, BoundElder } from '../types';
+import { Medication, HealthStats, ServiceProduct, ActivityLog, Order, FamilyConversation, FamilyMessage, FamilyNotification, PublishedPhotoBatch, BoundElder } from '../types';
 
 export const initialParentProfile = {
   name: "张健康",
@@ -119,6 +119,43 @@ export const initialFamilyMessages: FamilyMessage[] = [
     sentAtUtc: '2026-07-28T07:50:00+08:00',
     status: 'delivered',
     type: 'text'
+  }
+];
+
+export const initialFamilyNotifications: FamilyNotification[] = [
+  {
+    id: 'notice-family-message',
+    type: 'family_message',
+    title: '爸爸发来了新留言',
+    summary: '语音 18秒：“我今天去听讲座啦，挺好的。”',
+    occurredAt: '2026-07-28T08:42:00+08:00',
+    read: false,
+    targetId: 'conversation-father'
+  },
+  {
+    id: 'notice-photo-liked',
+    type: 'photo_feedback',
+    title: '爸爸喜欢了你分享的家庭影像',
+    summary: '家庭聚会 · 3张照片和1段视频',
+    occurredAt: '2026-07-28T08:08:00+08:00',
+    read: false,
+    targetId: 'photo-batch-family-dinner'
+  },
+  {
+    id: 'notice-missed-call',
+    type: 'missed_call',
+    title: '未接通爸爸的语音通话',
+    summary: '今天 14:20 · 可以稍后再次联系',
+    occurredAt: '2026-07-28T06:20:00+08:00',
+    read: false
+  },
+  {
+    id: 'notice-service-booking',
+    type: 'service_booking',
+    title: '上门理疗服务预约成功',
+    summary: '7月30日 10:00 · 服务人员将按约上门',
+    occurredAt: '2026-07-27T09:30:00+08:00',
+    read: true
   }
 ];
 

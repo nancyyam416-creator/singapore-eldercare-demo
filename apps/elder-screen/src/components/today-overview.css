@@ -173,6 +173,14 @@
 .recommendation-detail.is-community { border-color: color-mix(in oklch, #c871ff, transparent 48%); }
 .recommendation-detail.is-service { border-color: color-mix(in oklch, #9b79ff, transparent 48%); }
 .recommendation-detail.is-entertainment { border-color: color-mix(in oklch, #ff5f8f, transparent 48%); }
+.recommendation-detail-failure { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.recommendation-detail-failure > svg { width: 72px; height: 72px; color: var(--color-amber); }
+.recommendation-detail-failure h2 { margin: 0; }
+.recommendation-detail-failure p { margin: 0; }
+.recommendation-detail-failure > div { display: flex; gap: 16px; margin-top: 18px; }
+.recommendation-detail-failure button { min-width: 180px; height: 60px; border: var(--rule-thin) solid var(--color-line); border-radius: 16px; color: var(--color-text); background: var(--color-panel-raised); font-size: 21px; font-weight: 900; cursor: pointer; }
+.recommendation-detail-failure button:first-child { border-color: color-mix(in oklch, var(--color-green), transparent 30%); background: var(--color-green-dark); }
+.recommendation-detail-failure button:disabled { opacity: 0.62; cursor: wait; }
 
 @media (prefers-reduced-motion: reduce) {
   .today-overview-page * { transition-duration: 1ms !important; }

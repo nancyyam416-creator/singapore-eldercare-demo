@@ -12,6 +12,7 @@ import {
   Wifi,
   X,
 } from "lucide-react";
+import { elderProfileMock } from "../elder-profile";
 
 type ActivationStep = "code" | "identity" | "syncing" | "success";
 type ActivationError = "invalid" | "used" | "revoked" | "deviceMismatch" | "network" | "alreadyBound" | "identity" | null;
@@ -21,10 +22,10 @@ interface ActivationFlowProps {
 }
 
 const elderProfile = {
-  name: "王建国",
-  community: "清华园社区养老服务项目",
-  address: "清华园社区 · 12号楼 · **01室",
-  avatar: "王",
+  name: elderProfileMock.name,
+  community: elderProfileMock.projectCommunity ?? "未完善",
+  address: elderProfileMock.address ?? "未完善",
+  avatar: elderProfileMock.name.slice(0, 1),
 };
 
 const currentDeviceId = "U2G-TAB-2026-031";

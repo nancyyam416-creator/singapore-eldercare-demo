@@ -1,11 +1,13 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.4.0",
   "deliveryLevel": "L2",
   "mockNow": "2026-08-27T10:00:00+08:00",
   "timezone": "Asia/Singapore",
   "resourceTypes": ["announcement", "life_info", "topic", "alert", "activity"],
   "contentStatus": ["unpublished", "published", "disabled"],
-  "activityStatus": ["not_started", "registration_open", "registration_closed", "in_progress", "ended", "cancelled"],
+  "activityStatus": ["not_started", "in_progress", "ended", "offline"],
+  "registrationPhase": ["not_started", "open", "closed"],
+  "liveStatus": ["not_started", "live", "ended"],
   "participationStatus": ["interested", "not_interested"],
   "communities": [
     { "projectId": "PRJ-001", "communityId": "COM-001", "projectName": "红山社区养老计划", "communityName": "红山社区" },
@@ -102,38 +104,50 @@
     {
       "id": "ACT-001", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "乐龄太极体验课", "category": "健康活动",
       "summary": "专业老师带领适合长者的舒缓太极练习。", "bodyHtml": "<p>专业老师带领大家进行舒缓太极练习，请穿宽松衣物并提前 10 分钟到场。</p>",
-      "coverUrl": "/mock/community-life/covers/activity-taichi.svg", "startAt": "2026-08-28T09:00:00+08:00", "endAt": "2026-08-28T10:30:00+08:00", "location": "红山民众俱乐部", "audience": "当前社区全部老人", "capacity": 50,
-      "registrationStartAt": "2026-08-20T09:00:00+08:00", "registrationEndAt": "2026-08-27T18:00:00+08:00", "activityStatus": "registration_open", "contact": "+65 6273 2288", "publishAt": "2026-08-20T10:30:00+08:00", "updatedAt": "2026-08-20T10:30:00+08:00"
+      "coverUrl": "/mock/community-life/covers/activity-taichi.svg", "startAt": "2026-08-28T09:00:00+08:00", "endAt": "2026-08-28T10:30:00+08:00", "location": "红山民众俱乐部", "capacity": 50,
+      "registrationStartAt": "2026-08-20T09:00:00+08:00", "registrationEndAt": "2026-08-27T18:00:00+08:00", "isOffline": false, "contact": "+65 6273 2288",
+      "liveEnabled": true, "liveStatus": "not_started", "scheduledLiveStartAt": "2026-08-28T08:50:00+08:00", "zoomMeetingId": "856 2011 4028", "zoomMeetingPassword": "taichi28", "zoomJoinUrl": "https://zoom.us/j/85620114028", "liveMockState": "normal",
+      "publishAt": "2026-08-20T10:30:00+08:00", "updatedAt": "2026-08-20T10:30:00+08:00"
     },
     {
       "id": "ACT-005", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "周末社区电影放映", "category": "兴趣活动",
       "summary": "播放经典华语影片，现场提供字幕和志愿者协助。", "bodyHtml": "<p>周末社区电影放映，现场提供中文字幕、饮水和志愿者协助。</p>",
-      "coverUrl": "/mock/community-life/covers/activity-movie.svg", "startAt": "2026-08-30T15:00:00+08:00", "endAt": "2026-08-30T17:00:00+08:00", "location": "红山社区多功能厅", "audience": "当前社区全部老人", "capacity": 60,
-      "registrationStartAt": "2026-08-22T09:00:00+08:00", "registrationEndAt": "2026-08-29T17:00:00+08:00", "activityStatus": "registration_open", "contact": "+65 6273 2291", "publishAt": "2026-08-22T11:00:00+08:00", "updatedAt": "2026-08-22T11:00:00+08:00"
+      "coverUrl": "/mock/community-life/covers/activity-movie.svg", "startAt": "2026-08-30T15:00:00+08:00", "endAt": "2026-08-30T17:00:00+08:00", "location": "红山社区多功能厅", "capacity": 60,
+      "registrationStartAt": "2026-08-22T09:00:00+08:00", "registrationEndAt": "2026-08-29T17:00:00+08:00", "isOffline": false, "contact": "+65 6273 2291",
+      "liveEnabled": true, "liveStatus": "live", "scheduledLiveStartAt": "2026-08-30T14:50:00+08:00", "zoomMeetingId": "823 4901 2567", "zoomMeetingPassword": "movie30", "zoomJoinUrl": "https://zoom.us/j/82349012567", "liveMockState": "normal",
+      "publishAt": "2026-08-22T11:00:00+08:00", "updatedAt": "2026-08-22T11:00:00+08:00"
     },
     {
       "id": "ACT-006", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "邻里健康咨询日", "category": "健康活动",
       "summary": "提供日常饮食、慢病管理和居家运动咨询。", "bodyHtml": "<p>由社区健康顾问提供日常饮食、慢病管理和居家运动咨询。</p>",
-      "coverUrl": "/mock/community-life/covers/activity-health.svg", "startAt": "2026-08-25T10:00:00+08:00", "endAt": "2026-08-25T12:00:00+08:00", "location": "红山社区健康角", "audience": "高龄及慢病老人", "capacity": 30,
-      "registrationStartAt": "2026-08-18T09:00:00+08:00", "registrationEndAt": "2026-08-24T18:00:00+08:00", "activityStatus": "registration_closed", "contact": "+65 6273 2295", "publishAt": "2026-08-18T09:30:00+08:00", "updatedAt": "2026-08-18T09:30:00+08:00"
+      "coverUrl": "/mock/community-life/covers/activity-health.svg", "startAt": "2026-08-25T10:00:00+08:00", "endAt": "2026-08-25T12:00:00+08:00", "location": "红山社区健康角", "capacity": 30,
+      "registrationStartAt": "2026-08-18T09:00:00+08:00", "registrationEndAt": "2026-08-24T14:00:00+08:00", "isOffline": false, "contact": "+65 6273 2295",
+      "liveEnabled": true, "liveStatus": "ended", "scheduledLiveStartAt": "2026-08-25T09:50:00+08:00", "zoomMeetingId": "812 6074 3395", "zoomMeetingPassword": "health25", "zoomJoinUrl": "https://zoom.us/j/81260743395", "liveMockState": "normal",
+      "publishAt": "2026-08-18T09:30:00+08:00", "updatedAt": "2026-08-18T09:30:00+08:00"
     },
     {
       "id": "ACT-007", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "八月长者生日会", "category": "社区交流",
       "summary": "为本月生日老人举办的社区交流活动。", "bodyHtml": "<p>社区为八月生日老人准备了生日茶点和交流活动。</p>",
-      "coverUrl": "/mock/community-life/covers/activity-birthday.svg", "startAt": "2026-08-24T14:00:00+08:00", "endAt": "2026-08-24T16:00:00+08:00", "location": "红山社区活动室", "audience": "八月生日老人", "capacity": 24,
-      "registrationStartAt": "2026-08-10T09:00:00+08:00", "registrationEndAt": "2026-08-22T18:00:00+08:00", "activityStatus": "in_progress", "contact": "+65 6273 2282", "publishAt": "2026-08-10T09:10:00+08:00", "updatedAt": "2026-08-10T09:10:00+08:00"
+      "coverUrl": "/mock/community-life/covers/activity-birthday.svg", "startAt": "2026-08-24T14:00:00+08:00", "endAt": "2026-08-24T16:00:00+08:00", "location": "红山社区活动室", "capacity": 24,
+      "registrationStartAt": "2026-08-10T09:00:00+08:00", "registrationEndAt": "2026-08-22T18:00:00+08:00", "isOffline": false, "contact": "+65 6273 2282",
+      "liveEnabled": false, "liveStatus": "live", "scheduledLiveStartAt": "2026-08-24T13:50:00+08:00", "zoomMeetingId": "894 5530 1172", "zoomMeetingPassword": "birthday", "zoomJoinUrl": "https://zoom.us/j/89455301172", "liveMockState": "normal",
+      "publishAt": "2026-08-10T09:10:00+08:00", "updatedAt": "2026-08-10T09:10:00+08:00"
     },
     {
       "id": "ACT-008", "projectId": "PRJ-001", "communityId": "COM-001", "resourceType": "activity", "title": "七月防诈骗分享会", "category": "安全讲座",
       "summary": "结合常见案例讲解诈骗手法和核验方式。", "bodyHtml": "<p>社区工作人员结合真实案例讲解常见诈骗手法和核验方式。</p>",
-      "coverUrl": "/mock/community-life/covers/activity-safety.svg", "startAt": "2026-07-20T14:30:00+08:00", "endAt": "2026-07-20T16:00:00+08:00", "location": "红山社区活动室", "audience": "当前社区全部老人", "capacity": 40,
-      "registrationStartAt": "2026-07-10T09:00:00+08:00", "registrationEndAt": "2026-07-19T18:00:00+08:00", "activityStatus": "ended", "contact": "+65 6273 2288", "publishAt": "2026-07-10T15:20:00+08:00", "updatedAt": "2026-07-10T15:20:00+08:00"
+      "coverUrl": "/mock/community-life/covers/activity-safety.svg", "startAt": "2026-07-20T14:30:00+08:00", "endAt": "2026-07-20T16:00:00+08:00", "location": "红山社区活动室", "capacity": 40,
+      "registrationStartAt": "2026-07-10T09:00:00+08:00", "registrationEndAt": "2026-07-19T18:00:00+08:00", "isOffline": true, "contact": "+65 6273 2288",
+      "liveEnabled": false, "liveStatus": "not_started", "scheduledLiveStartAt": "", "zoomMeetingId": "", "zoomMeetingPassword": "", "zoomJoinUrl": "", "liveMockState": "normal",
+      "publishAt": "2026-07-10T15:20:00+08:00", "updatedAt": "2026-07-10T15:20:00+08:00"
     },
     {
       "id": "ACT-002", "projectId": "PRJ-002", "communityId": "COM-002", "resourceType": "activity", "title": "大巴窑防诈骗分享会", "category": "安全讲座",
       "summary": "结合近期案例讲解常见诈骗手法和核验方式。", "bodyHtml": "<p>结合近期案例讲解常见诈骗手法和核验方式。</p>",
-      "coverUrl": "/mock/community-life/covers/activity-safety.svg", "startAt": "2026-08-29T14:30:00+08:00", "endAt": "2026-08-29T16:00:00+08:00", "location": "大巴窑关怀中心", "audience": "当前社区全部老人", "capacity": 45,
-      "registrationStartAt": "2026-08-20T09:00:00+08:00", "registrationEndAt": "2026-08-28T18:00:00+08:00", "activityStatus": "registration_open", "contact": "+65 6259 1024", "publishAt": "2026-08-20T15:20:00+08:00", "updatedAt": "2026-08-20T15:20:00+08:00"
+      "coverUrl": "/mock/community-life/covers/activity-safety.svg", "startAt": "2026-08-29T14:30:00+08:00", "endAt": "2026-08-29T16:00:00+08:00", "location": "大巴窑关怀中心", "capacity": 45,
+      "registrationStartAt": "2026-08-20T09:00:00+08:00", "registrationEndAt": "2026-08-28T18:00:00+08:00", "isOffline": false, "contact": "+65 6259 1024",
+      "liveEnabled": true, "liveStatus": "not_started", "scheduledLiveStartAt": "2026-08-29T14:20:00+08:00", "zoomMeetingId": "876 4208 9315", "zoomMeetingPassword": "safety29", "zoomJoinUrl": "", "liveMockState": "load_failed",
+      "publishAt": "2026-08-20T15:20:00+08:00", "updatedAt": "2026-08-20T15:20:00+08:00"
     }
   ],
   "activityParticipationIntents": [

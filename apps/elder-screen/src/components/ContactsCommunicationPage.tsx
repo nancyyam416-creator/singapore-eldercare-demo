@@ -23,6 +23,7 @@ import {
 import voiceWaveAnimation from "../animations/voiceWave";
 import { speakText, stopSpeech } from "../audio/speech";
 import type { FamilyMessage } from "../types";
+import { getActiveFamilyRelationships } from "../elder-profile";
 import {
   familyWeatherMockApi,
   type FamilyWeatherMember,
@@ -56,22 +57,14 @@ type RecorderState = "idle" | "recording" | "sent";
 type CallState = "idle" | "dialing" | "fallback";
 
 const CONTACTS: CommunicationContact[] = [
-  {
-    id: "daughter",
-    name: "女儿小敏",
-    relation: "女儿",
-    avatar: "https://picsum.photos/seed/xiaomin/240/240",
-    group: "family",
-    weatherUserId: "daughter-xiaomin",
-  },
-  {
-    id: "son",
-    name: "儿子小刚",
-    relation: "儿子",
-    avatar: "https://picsum.photos/seed/xiaogang/240/240",
-    group: "family",
-    weatherUserId: "son-xiaogang",
-  },
+  ...getActiveFamilyRelationships().map((relationship) => ({
+    id: relationship.id,
+    name: relationship.displayName,
+    relation: relationship.relationship,
+    avatar: relationship.avatar,
+    group: "family" as const,
+    weatherUserId: relationship.weatherUserId,
+  })),
   {
     id: "nurse",
     name: "专属健康管家",
@@ -357,12 +350,6 @@ export default function ContactsCommunicationPage({
         title="通讯录"
         icon={<Users aria-hidden="true" />}
         onBack={onClose}
-        actions={(
-          <button type="button" className="communication-invite-family" onClick={() => setIsFamilyInvitationOpen(true)}>
-            <UserPlus aria-hidden="true" />
-            邀请家人
-          </button>
-        )}
       />
 
       <div className="contacts-communication__workspace">
@@ -372,8 +359,12 @@ export default function ContactsCommunicationPage({
             <div>
               {familyContacts.length > 0
                 ? familyContacts.map(renderContact)
-                : <div className="communication-family-empty"><UserPlus aria-hidden="true" /><strong>暂无已绑定家人</strong><span>点击右上角“邀请家人”开始绑定</span></div>}
+                : <div className="communication-family-empty"><UserPlus aria-hidden="true" /><strong>暂无已绑定家人</strong><span>可通过下方入口邀请家人</span></div>}
             </div>
+            <button type="button" className="communication-invite-family" onClick={() => setIsFamilyInvitationOpen(true)}>
+              <UserPlus aria-hidden="true" />
+              邀请家人
+            </button>
           </section>
           <section className="communication-contact-group--service">
             <h3>服务保障</h3>

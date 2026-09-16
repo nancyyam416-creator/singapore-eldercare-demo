@@ -99,7 +99,7 @@ interface ControlCenterHomeProps {
   onOpenSchedule: () => void;
   onOpenTodayOverview: () => void;
   onOpenCommunity: () => void;
-  onOpenRecommendation: (kind: "security" | "community" | "service" | "entertainment") => void;
+  onOpenRecommendation: (kind: "security" | "community" | "service" | "entertainment", contentId?: string) => void;
   onOpenContacts: () => void;
   onOpenAssistant: () => void;
   onOpenMore: () => void;
@@ -299,9 +299,13 @@ export default function ControlCenterHome({
 
   useEffect(() => {
     if (acceptanceTimeOverride) {
-      const [hours, minutes] = acceptanceTimeOverride.split(":").map(Number);
-      const acceptanceNow = new Date();
-      acceptanceNow.setHours(hours, minutes, 0, 0);
+      const acceptanceNow = acceptanceTimeOverride.includes("T")
+        ? new Date(acceptanceTimeOverride)
+        : new Date();
+      if (!acceptanceTimeOverride.includes("T")) {
+        const [hours, minutes] = acceptanceTimeOverride.split(":").map(Number);
+        acceptanceNow.setHours(hours, minutes, 0, 0);
+      }
       setNow(acceptanceNow);
       return;
     }
@@ -723,12 +727,10 @@ export default function ControlCenterHome({
           missedCallCount={missedCallCount}
           onCompleteReminder={onCompleteReminder}
           onOpenTodayOverview={onOpenTodayOverview}
-          onOpenSchedule={onOpenSchedule}
           onOpenMessages={onOpenMessages}
           onOpenCommunity={onOpenCommunity}
           onOpenContacts={onOpenContacts}
           onOpenAlbum={openNewFamilyMedia}
-          onOpenAssistant={onOpenAssistant}
           onOpenRecommendation={onOpenRecommendation}
           acceptanceRightContentScenario={acceptanceRightContentScenario}
           acceptanceRightContentApplySignal={acceptanceRightContentApplySignal}

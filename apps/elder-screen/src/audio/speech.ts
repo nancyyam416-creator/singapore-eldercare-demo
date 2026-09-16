@@ -24,7 +24,6 @@ export type MockVoiceKey =
   | "all-complete"
   | "reminder-added"
   | "speech-guide"
-  | "activity-registered"
   | "service-booked"
   | "security-reading"
   | "generic-feedback";
@@ -76,7 +75,6 @@ const resolveVoiceKey = (content: string): MockVoiceKey => {
   if (normalized.includes("全部完成")) return "all-complete";
   if (normalized.includes("提醒已经添加")) return "reminder-added";
   if (normalized.includes("开始说话") || normalized.includes("用说话添加提醒")) return "speech-guide";
-  if (normalized.includes("报名成功")) return "activity-registered";
   if (normalized.includes("预约成功")) return "service-booked";
   if (normalized.includes("安全资讯") || normalized.includes("诈骗")) return "security-reading";
   return "generic-feedback";

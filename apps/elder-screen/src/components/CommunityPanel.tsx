@@ -41,7 +41,6 @@ import { CommunityActivity, AntiScamTip } from "../types";
 interface CommunityPanelProps {
   activities: CommunityActivity[];
   scamTips: AntiScamTip[];
-  onRegisterActivity: (id: string) => void;
   activeTab?: 'activity' | 'services' | 'scam';
   setActiveTab?: (val: 'activity' | 'services' | 'scam') => void;
   selectedModule?: 'courses' | 'services' | 'scam' | null;
@@ -58,7 +57,6 @@ interface CommunityPanelProps {
 export default function CommunityPanel({
   activities,
   scamTips,
-  onRegisterActivity,
   activeTab: propActiveTab,
   setActiveTab: propSetActiveTab,
   selectedModule: propSelectedModule,
@@ -101,6 +99,7 @@ export default function CommunityPanel({
 
   // Secondary module states
   const [selectedActivity, setSelectedActivity] = useState<CommunityActivity | null>(null);
+  const [activityIntentions, setActivityIntentions] = useState<Record<string, "interested" | "not_interested">>({});
   const [selectedService, setSelectedService] = useState<string | null>(null); // 'meal' | 'clean' | 'repair'
   const [selectedScamTip, setSelectedScamTip] = useState<AntiScamTip | null>(null);
 
@@ -321,7 +320,7 @@ export default function CommunityPanel({
   };
 
   const getCourseDetails = (id: string) => {
-    const detailsMap: Record<string, { syllabus: string[]; instructor: string; audience: string; attendees: string[] }> = {
+    const detailsMap: Record<string, { syllabus: string[]; instructor: string; attendees: string[] }> = {
       "act-1": {
         syllabus: [
           "第一节：太极剑入门基本步法与握剑姿势 (15分钟)",
@@ -330,7 +329,6 @@ export default function CommunityPanel({
           "第四节：自由交流，资深太极大师现场一句话对动作纠错 (15分钟)"
         ],
         instructor: "张建国 (市武术协会常务理事、太极拳国家六段)",
-        audience: "55岁以上，有无太极基础皆可，请穿宽松运动鞋服",
         attendees: ["刘大爷 (1号楼)", "张阿姨 (5号楼)", "周叔叔 (12号楼)", "王奶奶 (3号楼)"]
       },
       "act-2": {
@@ -341,7 +339,6 @@ export default function CommunityPanel({
           "第四节：社区网格员现场答疑与手机安全功能检测 (15分钟)"
         ],
         instructor: "王警官 (海淀分局反诈支队一级警司、社区网警)",
-        audience: "全体社区长者居民，建议携带平日高频使用的智能手机",
         attendees: ["马阿姨 (3号楼)", "赵大爷 (7号楼)", "李奶奶 (9号楼)"]
       },
       "act-3": {
@@ -352,14 +349,12 @@ export default function CommunityPanel({
           "第四节：主任医师舌苔简易问诊与夏日居家养生指导意见 (15分钟)"
         ],
         instructor: "李国华 (省中医院老年内科主任医师、客座教授)",
-        audience: "注重日常脾胃调理、关注膳食养生的长者及家属",
         attendees: ["钱阿姨 (4号楼)", "孙大爷 (6号楼)", "杨叔叔 (2号楼)"]
       }
     };
     return detailsMap[id] || {
       syllabus: ["第一节：基础入门讲解 (30分钟)", "第二节：实操演示与提问 (40分钟)"],
       instructor: "社区志愿者骨干",
-      audience: "全体社区老年居民",
       attendees: ["王阿姨", "李大爷"]
     };
   };
@@ -597,10 +592,10 @@ export default function CommunityPanel({
                           {act.location}
                         </span>
                         
-                        {act.registered ? (
+                        {activityIntentions[act.id] ? (
                           <div className="flex items-center gap-2 text-[#256f4f] bg-[#EAF6EF] border border-[#C3E6D2] px-5 py-2.5 rounded-xl text-[16px] font-black select-none">
                             <ShieldCheck className="w-5 h-5" />
-                            <span>已成功预约</span>
+                            <span>{activityIntentions[act.id] === "interested" ? "已选择：我想参加" : "已选择：暂不参加"}</span>
                           </div>
                         ) : (
                           <span className="text-[16px] font-black text-brand-green bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">
@@ -788,17 +783,9 @@ export default function CommunityPanel({
                   </div>
                 </div>
 
-                {/* Suitable Group */}
-                <div>
-                  <h4 className="text-[20px] font-black text-[#1C2C24]">🎯 适合对象与提示：</h4>
-                  <p className="text-base text-gray-600 font-bold mt-1.5 bg-stone-50 p-3 rounded-lg border border-[#EBE6DD]/60">
-                    {getCourseDetails(selectedActivity.id).audience}
-                  </p>
-                </div>
-
                 {/* Other Registered Neighbors */}
                 <div>
-                  <h4 className="text-[20px] font-black text-[#1C2C24] mb-2">👥 社区已报名邻居 ({getCourseDetails(selectedActivity.id).attendees.length}人)：</h4>
+                  <h4 className="text-[20px] font-black text-[#1C2C24] mb-2">👥 也想参加的邻居 ({getCourseDetails(selectedActivity.id).attendees.length}人)：</h4>
                   <div className="flex flex-wrap gap-2">
                     {getCourseDetails(selectedActivity.id).attendees.map((name, i) => (
                       <span key={i} className="px-3.5 py-1.5 bg-gray-100 text-gray-700 text-sm font-bold rounded-lg border border-gray-200">
@@ -811,27 +798,34 @@ export default function CommunityPanel({
 
               {/* Action bar */}
               <div className="border-t border-[#EBE6DD] pt-4 mt-4 shrink-0 flex gap-4">
-                {selectedActivity.registered ? (
+                {activityIntentions[selectedActivity.id] ? (
                   <div className="flex-1 flex items-center justify-center gap-2 bg-[#EAF6EF] border border-[#C3E6D2] rounded-xl py-4.5 text-[22px] font-black text-[#256f4f] shadow-inner">
                     <ShieldCheck className="w-7 h-7" />
-                    <span>您已经预约成功 (提前预留专属座位)</span>
+                    <span>{activityIntentions[selectedActivity.id] === "interested" ? "已选择：我想参加" : "已选择：暂不参加"}</span>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => {
-                      onRegisterActivity(selectedActivity.id);
-                      const updated = { ...selectedActivity, registered: true };
-                      setSelectedActivity(updated);
-                      // Trigger audio confirm message
-                      speakText(`报名成功。您已成功预约：${selectedActivity.title}，我们将提前为您预留教室座位。`, {
-                        fallbackKey: "activity-registered",
-                      });
-                    }}
-                    className="flex-1 py-4.5 bg-brand-green hover:bg-brand-green-hover text-white text-[22px] font-black rounded-xl shadow-lg border border-emerald-700/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Check className="w-6.5 h-6.5" />
-                    <span>一键锁定座位 (余位 {selectedActivity.spotsLeft} 个)</span>
-                  </button>
+                  <div className="flex-1 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setActivityIntentions((current) => ({ ...current, [selectedActivity.id]: "interested" }));
+                        speakText("已选择：我想参加", { fallbackKey: "generic-feedback" });
+                      }}
+                      className="py-4.5 bg-brand-green hover:bg-brand-green-hover text-white text-[22px] font-black rounded-xl shadow-lg border border-emerald-700/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Check className="w-6.5 h-6.5" />
+                      <span>我想参加</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActivityIntentions((current) => ({ ...current, [selectedActivity.id]: "not_interested" }));
+                        speakText("已选择：暂不参加", { fallbackKey: "generic-feedback" });
+                      }}
+                      className="py-4.5 bg-white text-gray-700 text-[22px] font-black rounded-xl border-2 border-gray-200 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <X className="w-6.5 h-6.5" />
+                      <span>暂不参加</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </motion.div>

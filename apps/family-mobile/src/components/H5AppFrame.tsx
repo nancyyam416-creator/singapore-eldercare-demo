@@ -44,13 +44,14 @@ import {
   ElderProfileDataScenario,
   ElderProfileDeviceScenario,
   PublishedPhotoBatch,
+  FamilyNotification,
   BoundElder,
   ElderBindingScenario,
   ReminderScenario,
   ChildLoginScenario,
   StoreCategoryScenario
 } from '../types';
-import { initialBoundElders, initialChildResidenceAddress, initialFamilyConversations, initialFamilyMessages, initialPublishedPhotoBatches } from '../data/mockData';
+import { initialBoundElders, initialChildResidenceAddress, initialFamilyConversations, initialFamilyMessages, initialFamilyNotifications, initialPublishedPhotoBatches } from '../data/mockData';
 import { H5MonitorTab } from './H5MonitorTab';
 import { FamilySection, H5FamilyTab } from './H5FamilyTab';
 import { H5PhotoShareSheet } from './H5PhotoShareSheet';
@@ -91,6 +92,7 @@ interface H5AppFrameProps {
   previewOpenFamilyReceiptsSignal: number;
   previewOpenFamilyMessagesSignal: number;
   previewOpenFamilyPhotosSignal: number;
+  previewOpenFamilyNotificationsSignal: number;
   previewOpenHomeSignal: number;
   previewCloseFamilyReceiptsSignal: number;
   previewFamilyReceiptFilter: FamilyReceiptFilter;
@@ -107,7 +109,7 @@ interface H5AppFrameProps {
   elderBindingScenario: ElderBindingScenario;
   onPreviewContextChange?: (
     page: 'login' | 'home' | 'family' | 'care' | 'profile',
-    familyModule?: 'family_messages' | 'family_photos'
+    familyModule?: 'family_messages' | 'family_photos' | 'family_notifications'
   ) => void;
 }
 
@@ -143,6 +145,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   previewOpenFamilyReceiptsSignal,
   previewOpenFamilyMessagesSignal,
   previewOpenFamilyPhotosSignal,
+  previewOpenFamilyNotificationsSignal,
   previewOpenHomeSignal,
   previewCloseFamilyReceiptsSignal,
   previewFamilyReceiptFilter,
@@ -165,9 +168,10 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const [showElderProfile, setShowElderProfile] = useState(false);
   const [residenceAddress, setResidenceAddress] = useState(initialChildResidenceAddress);
   const [familyMessages, setFamilyMessages] = useState(initialFamilyMessages);
+  const [familyNotifications, setFamilyNotifications] = useState<FamilyNotification[]>(initialFamilyNotifications);
   const [showPhotoShare, setShowPhotoShare] = useState(false);
   const [photoShareMounted, setPhotoShareMounted] = useState(false);
-  const [familySection, setFamilySection] = useState<FamilySection>('messages');
+  const [familySection, setFamilySection] = useState<FamilySection>('photos');
   const [boundElders, setBoundElders] = useState<BoundElder[]>(initialBoundElders);
   const [currentElderId, setCurrentElderId] = useState<string | null>(initialBoundElders[0]?.id ?? null);
   const [initialFamilyConversationId, setInitialFamilyConversationId] = useState<string | null>(null);
@@ -190,7 +194,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const scopedFamilyMessages = familyMessageScenario === 'multi_elder'
     ? familyMessages
     : familyMessages.filter(message => message.conversationId === initialFamilyConversations[0]?.id);
-  const unreadFamilyCount = scopedFamilyMessages.filter(message => message.sender === 'elder' && message.status === 'delivered').length;
+  const unreadFamilyNotificationCount = familyNotifications.filter(notification => !notification.read).length;
   const currentBoundElder = boundElders.find(elder => elder.id === currentElderId) ?? boundElders[0];
   const currentParentProfile = currentBoundElder
     ? { ...parentProfile, name: currentBoundElder.name, age: currentBoundElder.age, avatar: currentBoundElder.avatar }
@@ -208,7 +212,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
     } else if (activeTab === 'store') {
       onPreviewContextChange?.(
         'family',
-        familySection === 'messages' ? 'family_messages' : 'family_photos'
+        familySection === 'messages' ? 'family_messages' : familySection === 'notifications' ? 'family_notifications' : 'family_photos'
       );
     } else if (activeTab === 'orders') {
       onPreviewContextChange?.('care');
@@ -266,6 +270,8 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   useEffect(() => {
     if (previewResetSignal > 0) {
       setActiveTab('monitor');
+      setFamilySection('photos');
+      setFamilyNotifications(initialFamilyNotifications);
       setShowElderProfile(false);
       setShowPhotoShare(false);
       setPhotoShareMounted(false);
@@ -290,6 +296,13 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
       setShowPhotoShare(shouldOpenComposer);
     }
   }, [previewOpenFamilyPhotosSignal, familyPhotoScenario]);
+
+  useEffect(() => {
+    if (previewOpenFamilyNotificationsSignal > 0) {
+      setFamilySection('notifications');
+      setActiveTab('store');
+    }
+  }, [previewOpenFamilyNotificationsSignal]);
 
   const openPhotoShare = () => {
     setPhotoShareMounted(true);
@@ -489,6 +502,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               conversations={initialFamilyConversations}
               messages={scopedFamilyMessages}
               photoBatches={photoBatches}
+              notifications={familyNotifications}
               activeSection={familySection}
               messageScenario={familyMessageScenario}
               photoScenario={familyPhotoScenario}
@@ -496,6 +510,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               onSectionChange={setFamilySection}
               onOpenPhotoShare={openPhotoShare}
               onMessagesChange={setFamilyMessages}
+              onNotificationsChange={setFamilyNotifications}
               onContactElder={handleMockCall}
             />
           )}
@@ -590,7 +605,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             disabled={!isLoggedIn}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="relative"><AudioWaveform size={18} className={activeTab === 'store' ? 'stroke-[2.5]' : ''} />{unreadFamilyCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyCount}</span>}</span>
+            <span className="relative"><AudioWaveform size={18} className={activeTab === 'store' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
             <span className="text-5xs font-extrabold tracking-tight">亲情连</span>
           </button>
 

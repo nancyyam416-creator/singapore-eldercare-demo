@@ -29,6 +29,7 @@ import {
   Pause,
   Heart,
   Mic2,
+  PersonStanding,
   CircleHelp,
   X
 } from 'lucide-react';
@@ -105,6 +106,8 @@ const toMinutes = (value: string) => {
   const [hours, minutes] = value.split(':').map(Number);
   return hours * 60 + minutes;
 };
+
+const SHOW_REASSURANCE_SCORE_CARD = false;
 
 interface ScoreEmotionRingProps {
   score: number | null;
@@ -427,7 +430,6 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         ? todayFamilyReceipts
         : [];
   const todayVisibleFamilyReceipts = familyReceipts.filter(item => item.dayLabel === '今天');
-  const todayFamilyMessageCount = todayVisibleFamilyReceipts.filter(item => item.type === 'message').length;
   const todayFamilyPhotoLikeCount = todayVisibleFamilyReceipts.filter(item => item.type === 'photo_like').length;
   const familyMessageCount = familyReceipts.filter(item => item.type === 'message').length;
   const familyPhotoLikeCount = familyReceipts.filter(item => item.type === 'photo_like').length;
@@ -439,6 +441,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         : `${latestPhotoFeedback.elderName}给${latestPhotoFeedback.photoCount}张照片点了爱心`
     : `妈妈给${todayFamilyPhotoLikeCount}张照片点了爱心`;
   const unviewedFamilyReceiptCount = familyReceipts.filter(item => !viewedFamilyReceiptIds.has(item.id)).length;
+  const hasUnviewedPhotoFeedback = familyReceipts.some(item => item.type === 'photo_like' && !viewedFamilyReceiptIds.has(item.id));
   const familyReceiptMessages = familyReceipts.filter(item => item.type === 'message');
   const featuredFamilyMessage = familyReceiptMessages.find(item => !viewedFamilyReceiptIds.has(item.id)) ?? familyReceiptMessages[0];
   const featuredMessageViewed = featuredFamilyMessage ? viewedFamilyReceiptIds.has(featuredFamilyMessage.id) : false;
@@ -952,17 +955,22 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   };
 
   // Compute stats
-  const takenCount = medications.filter(m => m.status === 'taken').length;
-  const totalMeds = medications.length;
-  const pendingMedications = medications.filter(m => m.status === 'untaken');
-  const missedMedications = medications.filter(m => m.status === 'missed');
+  const medicationRowsSource: Medication[] = effectiveScenario === 'medication_on_track'
+    ? medications.map(medication => medication.id === 'med-overdue'
+      ? { ...medication, status: 'taken', takenTime: '17:40', consecutiveUnconfirmedDays: undefined, lastUnconfirmedAt: undefined }
+      : medication)
+    : medications;
+  const takenCount = medicationRowsSource.filter(m => m.status === 'taken').length;
+  const totalMeds = medicationRowsSource.length;
+  const pendingMedications = medicationRowsSource.filter(m => m.status === 'untaken');
+  const missedMedications = medicationRowsSource.filter(m => m.status === 'missed');
   const scheduledMedications = pendingMedications
     .filter(medication => toMinutes(medication.timeStr) > currentTimeMinutes)
     .sort((a, b) => toMinutes(a.timeStr) - toMinutes(b.timeStr));
   const overdueMedications = pendingMedications.filter(medication => toMinutes(medication.timeStr) <= currentTimeMinutes);
   const medicationExceptions = [...missedMedications, ...overdueMedications];
   const nextScheduledMedication = scheduledMedications[0];
-  const todayMedicationRows = [...medications]
+  const todayMedicationRows = [...medicationRowsSource]
     .sort((a, b) => toMinutes(a.timeStr) - toMinutes(b.timeStr))
     .map(medication => {
       const isTaken = medication.status === 'taken';
@@ -989,7 +997,18 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   const outstandingMedicationRows = todayMedicationRows
     .filter(medication => !medication.isTaken)
     .sort((left, right) => Number(right.isExpired) - Number(left.isExpired) || Number(right.isOverdue) - Number(left.isOverdue) || toMinutes(left.timeStr) - toMinutes(right.timeStr));
-  const takenMedicationRows = todayMedicationRows.filter(medication => medication.isTaken);
+  const primaryMedicationException = outstandingMedicationRows.find(medication => medication.isExpired)
+    ?? outstandingMedicationRows.find(medication => medication.isOverdue);
+  const nextMedicationGroup = nextScheduledMedication
+    ? scheduledMedications.filter(medication => medication.timeStr === nextScheduledMedication.timeStr)
+    : [];
+  const formatOverdueDuration = (plannedTime: string) => {
+    const overdueMinutes = Math.max(0, currentTimeMinutes - toMinutes(plannedTime));
+    if (overdueMinutes < 60) return `${overdueMinutes} 分钟`;
+    const hours = Math.floor(overdueMinutes / 60);
+    const minutes = overdueMinutes % 60;
+    return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+  };
   const selectedMedication = todayMedicationRows.find(medication => medication.id === selectedMedicationId) ?? outstandingMedicationRows[0] ?? todayMedicationRows[0];
   const selectedMedicationExpired = selectedMedication?.isExpired ?? false;
   const latestFamilyReply = [...familyMessages].reverse().find(message => message.status === 'replied');
@@ -1594,49 +1613,25 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
       case 'single_room_day3':
         return { label: '异常预警', className: 'bg-rose-50 text-rose-700', opensProfile: false };
       default:
-        return null;
+        return { label: '设备在线', className: 'bg-emerald-50 text-emerald-700', opensProfile: false };
     }
   })();
-  const activityHeadline = (() => {
-    if (selectedActivityDay) return `${selectedActivityDay}的活动记录`;
-    switch (effectiveActivityScenario) {
-      case 'partial_offline':
-        return '现在在客厅';
-      case 'all_offline':
-        return '最后记录在客厅';
-      case 'no_activity':
-        return '今天暂未检测到活动';
-      case 'single_room_day2':
-      case 'single_room_day3':
-        return '主要在卧室';
-      default:
-        return `现在在${healthStats.location}`;
-    }
-  })();
-  const activityUpdatedAt = selectedActivityDay
-    ? '全天记录'
-    : effectiveActivityScenario === 'all_offline'
-      ? '截至 15:40'
-      : effectiveActivityScenario === 'no_activity'
-        ? '截至 18:26'
-        : `截至 ${currentTimeLabel}`;
-
   const todaySpaceSegments = (() => {
     switch (effectiveActivityScenario) {
       case 'partial_offline':
         return [
-          { label: '卧室', width: 29.2, color: 'bg-indigo-400' },
-          { label: '洗手间', width: 6.2, color: 'bg-teal-400' },
+          { label: '卧室', width: 29.2, color: 'bg-[#7667F5]' },
+          { label: '洗手间', width: 6.2, color: 'bg-[#24B8C7]' },
           { label: '记录缺失', width: 10.5, color: 'bg-slate-200' },
-          { label: '厨房', width: 6.3, color: 'bg-orange-300' },
-          { label: '客厅', width: 24.6, color: 'bg-amber-300' },
+          { label: '厨房', width: 6.3, color: 'bg-[#F59E58]' },
+          { label: '客厅', width: 24.6, color: 'bg-[#F4B740]' },
           { label: '未来时间', width: 23.2, color: 'bg-slate-100' }
         ];
       case 'all_offline':
         return [
-          { label: '卧室', width: 29.2, color: 'bg-indigo-400' },
-          { label: '洗手间', width: 6.2, color: 'bg-teal-400' },
-          { label: '客厅', width: 29.6, color: 'bg-amber-300' },
+          { label: '卧室', width: 29.2, color: 'bg-[#7667F5]' },
+          { label: '洗手间', width: 6.2, color: 'bg-[#24B8C7]' },
+          { label: '客厅', width: 29.6, color: 'bg-[#F4B740]' },
           { label: '设备离线后暂无记录', width: 35, color: 'bg-slate-200' }
         ];
       case 'no_activity':
@@ -1644,54 +1639,22 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
       case 'single_room_day2':
       case 'single_room_day3':
         return [
-          { label: '卧室', width: 76.8, color: 'bg-indigo-400' },
+          { label: '卧室', width: 76.8, color: 'bg-[#7667F5]' },
           { label: '未来时间', width: 23.2, color: 'bg-slate-100' }
         ];
       default:
         return [
-          { label: '卧室', width: 29.2, color: 'bg-indigo-400' },
-          { label: '洗手间', width: 6.2, color: 'bg-teal-400' },
-          { label: '客厅', width: 12.5, color: 'bg-amber-300' },
-          { label: '厨房', width: 6.3, color: 'bg-orange-300' },
-          { label: '卧室', width: 8.3, color: 'bg-indigo-400' },
+          { label: '卧室', width: 29.2, color: 'bg-[#7667F5]' },
+          { label: '洗手间', width: 6.2, color: 'bg-[#24B8C7]' },
+          { label: '客厅', width: 12.5, color: 'bg-[#F4B740]' },
+          { label: '厨房', width: 6.3, color: 'bg-[#F59E58]' },
+          { label: '卧室', width: 8.3, color: 'bg-[#7667F5]' },
           { label: '未检测到室内活动', width: 12.5, color: 'bg-slate-200' },
-          { label: '客厅', width: effectiveScenario === 'medication_overdue' ? 17.4 : 1.8, color: 'bg-amber-300' },
+          { label: '客厅', width: effectiveScenario === 'medication_overdue' ? 17.4 : 1.8, color: 'bg-[#F4B740]' },
           { label: '未来时间', width: effectiveScenario === 'medication_overdue' ? 7.6 : 23.2, color: 'bg-slate-100' }
         ];
     }
   })();
-
-  const standardWeeklyRows = [
-    { day: '周四', segments: [30, 8, 16, 10, 20, 16], warning: false, empty: false },
-    { day: '周五', segments: [29, 7, 18, 9, 21, 16], warning: false, empty: false },
-    { day: '周六', segments: [31, 6, 14, 10, 20, 19], warning: false, empty: false },
-    { day: '周日', segments: [30, 7, 17, 9, 19, 18], warning: false, empty: false },
-    { day: '周一', segments: [35, 6, 13, 9, 17, 20], warning: false, empty: false },
-    { day: '周二', segments: [34, 7, 14, 8, 18, 19], warning: false, empty: false },
-    { day: '今天', segments: [29, 6, 19, 8, 20, 18], warning: false, empty: false }
-  ];
-  const weeklySpaceRows = effectiveActivityScenario === 'insufficient_history'
-    ? standardWeeklyRows.map((row, index) => index < 5
-      ? { ...row, segments: [0, 0, 0, 0, 0, 100], empty: true }
-      : row)
-    : standardWeeklyRows.map((row, index) => {
-        if (effectiveActivityScenario === 'single_room_day2' && index >= 5) {
-          return { ...row, segments: [82, 0, 0, 0, 0, 18], warning: true };
-        }
-        if (effectiveActivityScenario === 'single_room_day3' && index >= 4) {
-          return { ...row, segments: [82, 0, 0, 0, 0, 18], warning: true };
-        }
-        if (effectiveActivityScenario === 'partial_offline' && index === 6) {
-          return { ...row, segments: [29, 6, 0, 8, 20, 37], warning: true };
-        }
-        if (effectiveActivityScenario === 'all_offline' && index === 6) {
-          return { ...row, segments: [29, 6, 30, 0, 0, 35], warning: true };
-        }
-        if (effectiveActivityScenario === 'no_activity' && index === 6) {
-          return { ...row, segments: [0, 0, 0, 0, 0, 100], warning: true, empty: true };
-        }
-        return row;
-      });
 
   const activityTrendCopy = (() => {
     switch (effectiveActivityScenario) {
@@ -1714,7 +1677,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
       case 'single_room_day3':
         return '已连续4天主要在卧室形成记录，最近一次其他房间记录为7月22日18:26，建议尽快确认长辈近况。';
       default:
-        return '近7天房间活动时间整体稳定。';
+        return '近7天室内作息规律，房间切换频次正常，无异常单室久坐滞留。';
     }
   })();
   let activitySegmentOffset = 0;
@@ -1725,10 +1688,51 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
     const formatMinutes = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
     return {
       ...segment,
+      startMinutes,
+      endMinutes: Math.min(endMinutes, activityDataCutoffMinutes),
       timeRange: `${formatMinutes(startMinutes)}–${formatMinutes(Math.min(endMinutes, 1440))}`,
       duration: `${Math.max(1, Math.round((endMinutes - startMinutes) / 60 * 10) / 10)}小时`
     };
   });
+
+  const activityRoomColumns = [
+    { label: '卧室', x: 62, color: '#7B7BFF' },
+    { label: '客厅', x: 119, color: '#FFB04C' },
+    { label: '厨房', x: 176, color: '#FF7D00' },
+    { label: '洗手间', x: 233, color: '#00B5D8' },
+    { label: '未感知', x: 290, color: '#C9CDD4' }
+  ];
+  const resolveActivityRoom = (label: string) => {
+    if (label === '卧室') return activityRoomColumns[0];
+    if (label === '客厅') return activityRoomColumns[1];
+    if (label === '厨房') return activityRoomColumns[2];
+    if (label === '洗手间') return activityRoomColumns[3];
+    return activityRoomColumns[4];
+  };
+  const activityChartTop = 24;
+  const activityChartBottom = 180;
+  const activityTimeToY = (minutes: number) => activityChartTop + (Math.min(minutes, activityDataCutoffMinutes) / activityDataCutoffMinutes) * (activityChartBottom - activityChartTop);
+  const visibleActivitySegments = activityTimelineSegments.filter(segment => segment.label !== '未来时间' && segment.startMinutes < activityDataCutoffMinutes);
+  const activityTimeTicks = [0, 240, 480, 720, 960, activityDataCutoffMinutes]
+    .filter((value, index, values) => index === 0 || value > values[index - 1] + 30);
+  const latestActivitySegment = visibleActivitySegments.at(-1);
+  const activityStepPath = visibleActivitySegments.reduce((path, segment, index) => {
+    const room = resolveActivityRoom(segment.label);
+    const nextSegment = visibleActivitySegments[index + 1];
+    const yStart = activityTimeToY(segment.startMinutes);
+    const yEnd = activityTimeToY(segment.endMinutes);
+    const nextRoom = nextSegment ? resolveActivityRoom(nextSegment.label) : null;
+    const startCommand = index === 0 ? `M ${room.x} ${yStart}` : '';
+    return `${path} ${startCommand} V ${yEnd}${nextRoom ? ` H ${nextRoom.x}` : ''}`;
+  }, '').trim();
+
+  const weeklyActivityComparison = {
+    thisWeekTotal: 47.6,
+    lastWeekTotal: 49.7,
+    difference: -2.1
+  };
+  const weeklyActivityRatio = weeklyActivityComparison.thisWeekTotal / weeklyActivityComparison.lastWeekTotal;
+  const weeklyActivityMarkerPosition = Math.min(94, Math.max(6, ((weeklyActivityRatio - 0.8) / 0.4) * 100));
 
   const resolvedCareFeedScenario: CareFeedScenario = effectiveScenario === 'medication_overdue'
     ? 'medication_overdue'
@@ -1773,7 +1777,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         }}
         aria-haspopup="dialog"
         aria-label={`查看今日安心分明细，${scoreUnavailable ? '暂无评分' : `${reassuranceScore}分`}，${scoreScenarioConfig.status}`}
-        className={`w-full rounded-3xl border bg-white p-4 text-left text-slate-900 shadow-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+        className={`${SHOW_REASSURANCE_SCORE_CARD ? '' : 'hidden'} w-full rounded-3xl border bg-white p-4 text-left text-slate-900 shadow-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
           scoreScenarioConfig.tone === 'critical'
             ? 'border-rose-200 hover:border-rose-300 hover:bg-rose-50/30'
             : scoreIsAttention
@@ -1821,7 +1825,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         </div>
       </button>
 
-      {showScoreDetails && (
+      {SHOW_REASSURANCE_SCORE_CARD && showScoreDetails && (
         <div className="absolute inset-0 z-50 flex items-end bg-slate-950/35">
           <button
             type="button"
@@ -1967,158 +1971,130 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         </section>
       )}
 
-      <section data-testid="today-medication-card" className={`overflow-hidden rounded-3xl border bg-white shadow-xs ${expiredMedicationCount > 0 ? 'border-rose-200' : overdueMedicationCount > 0 ? 'border-amber-200' : 'border-slate-200'}`}>
-        <div className="flex items-start justify-between gap-3 px-4 py-3.5">
-          <div className="flex min-w-0 items-start gap-2.5">
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${expiredMedicationCount > 0 ? 'bg-rose-50 text-rose-700' : overdueMedicationCount > 0 ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'}`}>
-              <Pill size={18} />
-            </span>
-            <div className="min-w-0">
-              <h4 className="text-sm font-extrabold text-slate-900">今日应服药物</h4>
-              <p className="mt-0.5 text-[10px] text-slate-500">优先展示尚未服用的药物</p>
-            </div>
+      <section data-testid="today-medication-card" className={`overflow-hidden rounded-[20px] border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${primaryMedicationException ? 'border-rose-100' : 'border-slate-200'}`}>
+        <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><Pill size={15} /></span>
+            <h4 className="text-base font-extrabold text-slate-900">今日用药</h4>
           </div>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${expiredMedicationCount > 0 ? 'bg-rose-100 text-rose-700' : overdueMedicationCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>
-            {totalMeds === 0
-              ? '今日无用药'
-              : expiredMedicationCount > 0
-                ? `${expiredMedicationCount} 项已过期`
-                : overdueMedicationCount > 0
-                ? `${overdueMedicationCount} 项未服用`
-                : outstandingMedicationRows.length > 0
-                  ? `${outstandingMedicationRows.length} 项待服用`
-                  : '今日均已服用'}
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold ${primaryMedicationException ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+            {totalMeds === 0 ? '今日无用药' : expiredMedicationCount > 0 ? `${expiredMedicationCount}次过期未服` : primaryMedicationException ? `${overdueMedicationCount}次超时未服` : outstandingMedicationRows.length > 0 ? `已服 ${takenCount}/${totalMeds} 次` : '正常服用'}
           </span>
         </div>
 
         {todayMedicationRows.length === 0 ? (
-          <div className="border-t border-slate-100 px-4 py-5 text-center">
-            <strong className="text-xs text-slate-700">今天没有应服药物</strong>
+          <div className="border-t border-slate-100 px-5 py-6 text-center">
+            <strong className="text-xs text-slate-700">今天没有用药计划</strong>
             <p className="mt-1 text-[10px] text-slate-400">新增用药提醒后会在这里展示</p>
           </div>
         ) : (
-          <div className="border-t border-slate-100">
-            {outstandingMedicationRows.length === 0 && (
-              <div className="flex items-center gap-2.5 px-4 py-3.5 text-emerald-700">
-                <CheckCircle size={17} className="shrink-0" />
-                <div>
-                  <strong className="block text-xs">今天应服药物均已服用</strong>
-                  <span className="mt-0.5 block text-[10px] text-emerald-600">如需核对时间，可展开已服用记录</span>
-                </div>
+          <>
+            <div className="overflow-x-auto px-5 pb-4 pt-2">
+              <div className="grid min-w-full" style={{ gridTemplateColumns: `repeat(${todayMedicationRows.length}, minmax(68px, 1fr))`, width: `${Math.max(100, todayMedicationRows.length * 24)}%` }} aria-label="今日用药时间轴">
+                {todayMedicationRows.map((medication, index) => {
+                  const nextMedication = todayMedicationRows[index + 1];
+                  const isAlert = medication.isExpired || medication.isOverdue;
+                  const lineCompleted = medication.isTaken && nextMedication?.isTaken;
+                  const timelineStatus = medication.isTaken ? '已服' : isAlert ? '未服' : '待服';
+                  return (
+                    <div key={medication.id} className="relative flex min-w-0 flex-col items-center text-center">
+                      {index < todayMedicationRows.length - 1 && <span className={`absolute left-1/2 top-3 h-px w-full ${lineCompleted ? 'bg-emerald-500' : 'border-t border-dashed border-slate-200'}`} aria-hidden="true" />}
+                      <button
+                        type="button"
+                        disabled={!isAlert}
+                        onClick={() => { setMedicationContactStarted(false); setSelectedMedicationId(medication.id); setShowMedicationAttentionDetails(true); }}
+                        aria-label={`${medication.timeStr} ${medication.name} ${timelineStatus}`}
+                        className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-transform ${medication.isTaken ? 'border-emerald-500 bg-emerald-500 text-white' : isAlert ? 'border-rose-500 bg-rose-500 text-white shadow-[0_0_0_5px_rgba(245,63,63,0.10)] hover:scale-105' : 'border-slate-300 bg-white text-slate-400'} disabled:cursor-default`}
+                      >
+                        {medication.isTaken ? <Check size={13} strokeWidth={3} /> : isAlert ? <span className="text-[12px] font-black leading-none">!</span> : <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />}
+                      </button>
+                      <strong className={`mt-2 text-[10px] ${isAlert ? 'text-rose-600' : 'text-slate-600'}`}>{medication.timeStr}</strong>
+                      <span className={`mt-0.5 text-[9px] font-bold ${medication.isTaken ? 'text-emerald-600' : isAlert ? 'text-rose-600' : 'text-slate-400'}`}>{timelineStatus}</span>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-
-            <div className="divide-y divide-slate-100 px-4">
-            {outstandingMedicationRows.map(medication => {
-              const content = (
-                <>
-                  <span className={`flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-xl font-mono ${medication.isExpired ? 'bg-rose-50 text-rose-700' : medication.isOverdue ? 'bg-amber-50 text-amber-800' : medication.isTaken ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                    <strong className="text-[11px] leading-none">{medication.timeStr}</strong>
-                    <span className="mt-1 text-[8px] font-bold">计划</span>
-                  </span>
-                  <span className="min-w-0 flex-1 text-left">
-                    <strong className={`block truncate text-xs ${medication.isExpired ? 'text-rose-950' : medication.isOverdue ? 'text-amber-950' : 'text-slate-900'}`}>{medication.name}</strong>
-                    <span className="mt-1 block truncate text-[10px] text-slate-500">{medication.dosage}</span>
-                    {(medication.consecutiveUnconfirmedDays ?? 0) >= 2 && (
-                      <span className="mt-1 block text-[9px] font-bold text-amber-700">已连续{medication.consecutiveUnconfirmedDays}天未确认服用</span>
-                    )}
-                  </span>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${medication.isExpired ? 'bg-rose-100 text-rose-700' : medication.isOverdue ? 'bg-amber-100 text-amber-800' : medication.isTaken ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {medication.statusLabel}
-                  </span>
-                  {medication.isOverdue && <ChevronRight size={14} className={`shrink-0 ${medication.isExpired ? 'text-rose-400' : 'text-amber-400'}`} />}
-                </>
-              );
-              return medication.isOverdue ? (
-                <button
-                  key={medication.id}
-                  type="button"
-                  onClick={() => {
-                    setMedicationContactStarted(false);
-                    setSelectedMedicationId(medication.id);
-                    setShowMedicationAttentionDetails(true);
-                  }}
-                  aria-label={`查看${medication.timeStr}${medication.name}${medication.statusLabel}详情`}
-                  className={`flex w-full items-center gap-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${medication.isExpired ? 'hover:bg-rose-50/50' : 'hover:bg-amber-50/50'}`}
-                >
-                  {content}
-                </button>
-              ) : (
-                <div key={medication.id} className="flex items-center gap-3 py-3">{content}</div>
-              );
-            })}
             </div>
 
-            {showTakenMedications && takenMedicationRows.length > 0 && (
-              <div className="border-t border-slate-100 bg-slate-50/60">
-                <div className="px-4 pb-1 pt-3 text-[10px] font-bold text-slate-500">已服用（{takenMedicationRows.length}）</div>
-                <div className="divide-y divide-slate-200/70 px-4">
-                  {takenMedicationRows.map(medication => (
+            <div className="mx-5 border-t border-slate-100 pt-3">
+              {primaryMedicationException ? (
+                <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5">
+                  <AlertCircle size={17} className="shrink-0 text-rose-500" />
+                  <div className="min-w-0 flex-1">
+                    <strong className="block truncate text-[11px] text-rose-600">{primaryMedicationException.timeStr} 已{primaryMedicationException.isExpired ? '过期' : `超时 ${formatOverdueDuration(primaryMedicationException.timeStr)}`} · {primaryMedicationException.name}</strong>
+                    {(primaryMedicationException.consecutiveUnconfirmedDays ?? 0) >= 2 && <span className="mt-0.5 block text-[9px] font-bold text-rose-500">已连续{primaryMedicationException.consecutiveUnconfirmedDays}个用药日未确认</span>}
+                  </div>
+                  <button type="button" onClick={() => { setMedicationContactStarted(false); setSelectedMedicationId(primaryMedicationException.id); setShowMedicationAttentionDetails(true); }} className="shrink-0 rounded-full bg-rose-500 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600">电话确认</button>
+                </div>
+              ) : nextScheduledMedication ? (
+                <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5">
+                  <Bell size={16} className="shrink-0 text-blue-600" />
+                  <strong className="min-w-0 flex-1 truncate text-[11px] text-slate-600">下一顿：{nextScheduledMedication.timeStr} · {nextMedicationGroup.length > 1 ? `${nextMedicationGroup.length} 种药物` : nextScheduledMedication.name}</strong>
+                </div>
+              ) : (
+                <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-emerald-50 px-3 py-2.5 text-emerald-700"><CheckCircle size={16} className="shrink-0" /><strong className="text-[11px]">今天的用药计划已全部完成</strong></div>
+              )}
+            </div>
+
+            {showTakenMedications && (
+              <div className="border-t border-slate-100 bg-slate-50/60 px-5">
+                <div className="divide-y divide-slate-200/70">
+                  {todayMedicationRows.map(medication => (
                     <div key={medication.id} className="flex items-center gap-3 py-3">
-                      <span className="flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-emerald-50 font-mono text-emerald-700">
-                        <strong className="text-[11px] leading-none">{medication.timeStr}</strong>
-                        <span className="mt-1 text-[8px] font-bold">计划</span>
-                      </span>
-                      <span className="min-w-0 flex-1 text-left">
-                        <strong className="block truncate text-xs text-slate-700">{medication.name}</strong>
-                        <span className="mt-1 block truncate text-[10px] text-slate-500">{medication.dosage}</span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">
-                        {medication.statusLabel}
-                      </span>
+                      <span className={`flex h-8 w-10 shrink-0 items-center justify-center rounded-lg font-mono text-[10px] font-bold ${medication.isTaken ? 'bg-emerald-50 text-emerald-700' : medication.isOverdue ? 'bg-rose-50 text-rose-700' : 'bg-white text-slate-500'}`}>{medication.timeStr}</span>
+                      <span className="min-w-0 flex-1 text-left"><strong className="block truncate text-[11px] text-slate-800">{medication.name}</strong><span className="mt-0.5 block truncate text-[9px] text-slate-500">{medication.dosage}</span></span>
+                      <span className={`shrink-0 text-[9px] font-bold ${medication.isTaken ? 'text-emerald-600' : medication.isOverdue ? 'text-rose-600' : 'text-slate-400'}`}>{medication.statusLabel}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {takenMedicationRows.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowTakenMedications(current => !current)}
-                aria-expanded={showTakenMedications}
-                className="flex w-full items-center justify-center gap-1.5 border-t border-slate-100 px-4 py-2.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-              >
-                {showTakenMedications ? '收起已服用' : `查看已服用 ${takenMedicationRows.length} 项`}
-                <ChevronDown size={13} className={`transition-transform ${showTakenMedications ? 'rotate-180' : ''}`} />
-              </button>
-            )}
-          </div>
+            <button type="button" onClick={() => setShowTakenMedications(current => !current)} aria-expanded={showTakenMedications} className="flex w-full items-center justify-center gap-1.5 border-t border-slate-100 px-5 py-2.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+              {showTakenMedications ? '收起用药明细' : `查看全部 ${todayMedicationRows.length} 项`}
+              <ChevronDown size={13} className={`transition-transform ${showTakenMedications ? 'rotate-180' : ''}`} />
+            </button>
+          </>
         )}
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
-        <div className="flex items-center justify-between px-4 py-3.5">
-          <div>
-            <h4 className="flex items-center gap-1.5 text-sm font-extrabold text-slate-900"><Home size={16} className="text-blue-600" />居家活动</h4>
-            <p className="mt-0.5 text-[10px] text-slate-500">查看长辈今天及近7天的活动记录</p>
+        <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><Home size={15} /></span>
+            <h4 className="text-base font-extrabold text-slate-900">居家活动</h4>
           </div>
-          <div className="flex rounded-lg bg-slate-100 p-1">
-            {(['day', 'week'] as const).map(view => (
-              <button
-                key={view}
-                type="button"
-                onClick={() => {
-                  setSpaceView(view);
-                  if (view === 'day') setSelectedActivityDay(null);
-                  setSelectedActivitySegment(null);
-                }}
-                className={`rounded-md px-3 py-1 text-[10px] font-bold ${spaceView === view ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}
-              >
-                {view === 'day' ? '今日' : '7天'}
-              </button>
-            ))}
+          <div className="flex shrink-0 items-center gap-2">
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${activityStatusCopy?.className ?? 'bg-emerald-50 text-emerald-700'}`}>
+              {activityStatusCopy?.label ?? '设备在线'}
+            </span>
+            <div className="flex rounded-lg bg-slate-100 p-0.5">
+              {(['day', 'week'] as const).map(view => (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => {
+                    setSpaceView(view);
+                    if (view === 'day') setSelectedActivityDay(null);
+                    setSelectedActivitySegment(null);
+                  }}
+                  className={`rounded-md px-2.5 py-1 text-[10px] font-bold ${spaceView === view ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}
+                >
+                  {view === 'day' ? '今日' : '7天'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {effectiveActivityScenario === 'loading' ? (
-          <div className="animate-pulse space-y-3 border-t border-slate-100 px-4 py-5" aria-label="居家活动记录加载中">
+          <div className="animate-pulse space-y-3 px-4 py-5" aria-label="居家活动记录加载中">
             <div className="h-4 w-32 rounded bg-slate-200" />
             <div className="h-8 rounded-xl bg-slate-100" />
             <div className="h-3 w-48 rounded bg-slate-100" />
           </div>
         ) : effectiveActivityScenario === 'data_error' ? (
-          <div className="border-t border-slate-100 px-4 py-6 text-center">
+          <div className="px-4 py-6 text-center">
             <AlertCircle size={24} className="mx-auto text-slate-400" />
             <strong className="mt-2 block text-xs text-slate-700">活动记录暂时无法读取</strong>
             <p className="mt-1 text-[10px] text-slate-400">已有记录不会被清除，请稍后重新加载</p>
@@ -2133,7 +2109,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
             {selectedActivitySegment && <p className="mt-2 text-[9px] text-blue-600">{selectedActivitySegment}</p>}
           </div>
         ) : effectiveActivityScenario === 'no_devices' ? (
-          <div className="border-t border-slate-100 px-4 py-6 text-center">
+          <div className="px-4 py-6 text-center">
             <Home size={24} className="mx-auto text-slate-300" />
             <strong className="mt-2 block text-xs text-slate-700">尚未配置居家活动设备</strong>
             <p className="mt-1 text-[10px] text-slate-400">配置房间设备后可查看活动时间带</p>
@@ -2142,81 +2118,164 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
             </button>
           </div>
         ) : spaceView === 'day' ? (
-          <div className="border-t border-slate-100 px-4 py-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <strong className="text-sm text-slate-900">{activityHeadline}</strong>
-                <span className="ml-2 text-[10px] text-slate-400">{activityUpdatedAt}</span>
-              </div>
-              {activityStatusCopy && (
-                <button
-                  type="button"
-                  onClick={activityStatusCopy.opensProfile ? onOpenElderProfile : undefined}
-                  className={`rounded-full px-2 py-1 text-[9px] font-bold ${activityStatusCopy.className} ${activityStatusCopy.opensProfile ? 'cursor-pointer' : 'cursor-default'}`}
-                >
-                  {activityStatusCopy.label}
-                </button>
-              )}
+          <div className="px-4 pb-3 pt-2.5">
+            <div className="ml-9 grid grid-cols-5 text-center text-[9px] font-bold text-slate-500">
+              {activityRoomColumns.map(room => <span key={room.label}>{room.label}</span>)}
             </div>
-            <div className="mt-4 flex h-8 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-              {activityTimelineSegments.map((segment, index) => (
-                <button
-                  type="button"
-                  key={`${segment.label}-${index}`}
-                  title={`${segment.label} ${segment.timeRange}`}
-                  onClick={() => setSelectedActivitySegment(`${segment.label} · ${segment.timeRange} · 约${segment.duration}`)}
-                  className={`${segment.color} flex h-full items-center justify-center overflow-hidden border-r border-white/60 last:border-r-0`}
-                  style={{ width: `${segment.width}%` }}
-                >
-                  {segment.width >= 8 && <span className={`truncate px-1 text-[8px] font-bold ${segment.color === 'bg-slate-100' ? 'text-slate-400' : 'text-slate-800'}`}>{segment.label}</span>}
-                </button>
+
+            <svg viewBox="0 0 320 196" className="mt-0.5 block w-full" role="img" aria-label="今日房间流转与停留时长轨迹图">
+              <defs>
+                <pattern id="unperceived-lane-pattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(135)">
+                  <rect width="6" height="6" fill="#F4F5F6" />
+                  <line x1="0" y1="0" x2="0" y2="6" stroke="#D9DCE1" strokeWidth="1" />
+                </pattern>
+              </defs>
+              {activityRoomColumns.map((room, index) => {
+                const laneLeft = index === 0 ? 42 : (activityRoomColumns[index - 1].x + room.x) / 2;
+                const laneRight = index === activityRoomColumns.length - 1 ? 318 : (room.x + activityRoomColumns[index + 1].x) / 2;
+                return (
+                  <rect
+                    key={`${room.label}-lane`}
+                    x={laneLeft}
+                    y={activityChartTop - 8}
+                    width={laneRight - laneLeft}
+                    height={activityChartBottom - activityChartTop + 16}
+                    fill={room.label === '未感知' ? 'url(#unperceived-lane-pattern)' : index % 2 === 0 ? '#FFFFFF' : '#F8F9FA'}
+                  />
+                );
+              })}
+              {activityRoomColumns.map(room => (
+                <line key={room.label} x1={room.x} x2={room.x} y1={activityChartTop - 8} y2={activityChartBottom + 8} stroke="#ECEEF1" strokeWidth="1" />
               ))}
-            </div>
-            <div className="mt-1.5 flex justify-between text-[8px] font-mono text-slate-400"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
-            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-500">
-              <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-indigo-400" />卧室</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-300" />客厅</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-300" />厨房</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-teal-400" />洗手间</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-slate-200" />暂无记录</span>
-            </div>
+              {activityTimeTicks.map(minutes => {
+                const y = activityTimeToY(minutes);
+                const label = minutes === activityDataCutoffMinutes
+                  ? currentTimeLabel
+                  : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:00`;
+                return (
+                  <g key={minutes}>
+                    <line x1="42" x2="304" y1={y} y2={y} stroke="#F2F3F5" strokeWidth="1" />
+                    <text x="36" y={y + 3} textAnchor="end" fontSize="8" fill="#86909C">{label}</text>
+                  </g>
+                );
+              })}
+
+              {activityStepPath && <path d={activityStepPath} fill="none" stroke="#D0D3D6" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />}
+
+              {visibleActivitySegments.map(segment => {
+                const room = resolveActivityRoom(segment.label);
+                const yStart = activityTimeToY(segment.startMinutes);
+                const yEnd = activityTimeToY(segment.endMinutes);
+                return (
+                  <g
+                    key={`${segment.label}-${segment.startMinutes}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${room.label} ${segment.timeRange} 约${segment.duration}`}
+                    onClick={() => setSelectedActivitySegment(`${room.label} · ${segment.timeRange} · 约${segment.duration}`)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') setSelectedActivitySegment(`${room.label} · ${segment.timeRange} · 约${segment.duration}`);
+                    }}
+                    className="cursor-pointer outline-none"
+                  >
+                    <line x1={room.x} x2={room.x} y1={yStart} y2={yEnd} stroke={room.color} strokeWidth="3.5" strokeLinecap="round" />
+                    <line x1={room.x} x2={room.x} y1={yStart} y2={yEnd} stroke="transparent" strokeWidth="14" />
+                    <circle cx={room.x} cy={yStart} r="4.5" fill={room.color} stroke="white" strokeWidth="2" />
+                  </g>
+                );
+              })}
+
+              {latestActivitySegment && (() => {
+                const latestRoom = resolveActivityRoom(latestActivitySegment.label);
+                const latestY = activityTimeToY(latestActivitySegment.endMinutes);
+                const tooltipOnLeft = latestRoom.x > 235;
+                const tooltipX = tooltipOnLeft ? latestRoom.x - 62 : latestRoom.x + 14;
+                const tooltipY = latestY - 31;
+                return (
+                  <g>
+                    <circle cx={latestRoom.x} cy={latestY} r="14" fill="none" stroke={latestRoom.color} strokeWidth="1.5" opacity="0.18" />
+                    <circle cx={latestRoom.x} cy={latestY} r="11" fill={latestRoom.color} opacity="0.14" className="animate-ping" />
+                    <circle cx={latestRoom.x} cy={latestY} r="9" fill={latestRoom.color} stroke="white" strokeWidth="2" />
+                    <PersonStanding x={latestRoom.x - 6} y={latestY - 6} width="12" height="12" color="white" strokeWidth={2.2} aria-hidden="true" />
+                    <path
+                      d={tooltipOnLeft
+                        ? `M ${tooltipX + 48} ${tooltipY + 10} L ${latestRoom.x - 7} ${latestY - 7} L ${tooltipX + 48} ${tooltipY + 14} Z`
+                        : `M ${tooltipX} ${tooltipY + 10} L ${latestRoom.x + 7} ${latestY - 7} L ${tooltipX} ${tooltipY + 14} Z`}
+                      fill="#1856EE"
+                    />
+                    <rect x={tooltipX} y={tooltipY} width="48" height="20" rx="10" fill="#1856EE" />
+                    <text x={tooltipX + 24} y={tooltipY + 13} textAnchor="middle" fontSize="8" fontWeight="700" fill="white">当前位置</text>
+                  </g>
+                );
+              })()}
+            </svg>
+
             {selectedActivitySegment && (
-              <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-[10px] text-slate-600">
-                {selectedActivitySegment}
-              </div>
+              <div className="mt-2.5 rounded-xl bg-slate-50 px-3 py-2 text-[10px] text-slate-600">{selectedActivitySegment}</div>
             )}
           </div>
         ) : (
-          <div className="space-y-2 border-t border-slate-100 px-4 py-3.5">
-            {weeklySpaceRows.map(row => (
-              <button
-                key={row.day}
-                type="button"
-                disabled={row.empty}
-                aria-label={row.empty ? `${row.day}暂无有效活动记录` : `查看${row.day}活动记录`}
-                onClick={() => {
-                  if (row.empty) return;
-                  setSelectedActivityDay(row.day === '今天' ? null : row.day);
-                  setSpaceView('day');
-                  setSelectedActivitySegment(null);
-                }}
-                className={`flex w-full items-center gap-2 text-left ${row.empty ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-              >
-                <span className={`w-8 shrink-0 text-[9px] font-bold ${row.day === '今天' ? 'text-blue-600' : 'text-slate-400'}`}>{row.day}</span>
-                <span className="flex h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
-                  {row.segments.map((width, index) => width > 0 && <i key={index} className={['bg-indigo-400','bg-teal-400','bg-amber-300','bg-orange-300','bg-emerald-400','bg-slate-100'][index]} style={{width:`${width}%`}} />)}
-                </span>
-                <span className={`w-3 text-[10px] ${row.warning ? 'text-amber-600' : row.empty ? 'text-slate-300' : 'text-emerald-500'}`}>{row.warning ? '!' : row.empty ? '–' : '✓'}</span>
-              </button>
-            ))}
-            <p className="pt-1 text-[9px] text-slate-400">点击任意一天查看当日活动时间带</p>
+          <div className="px-4 pb-4 pt-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <strong className="block text-sm text-slate-900">
+                  {effectiveActivityScenario === 'insufficient_history' ? '近7天数据不足' : '本周活动对比'}
+                </strong>
+                {effectiveActivityScenario === 'insufficient_history' && (
+                  <span className="mt-1 block text-[10px] text-slate-500">有效记录少于5天，暂不比较</span>
+                )}
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold ${effectiveActivityScenario === 'normal' ? 'bg-amber-50 text-amber-700' : activityStatusCopy?.className ?? 'bg-slate-100 text-slate-600'}`}>
+                {effectiveActivityScenario === 'normal' ? `较上周少 ${Math.abs(weeklyActivityComparison.difference)}小时` : activityStatusCopy?.label ?? '趋势参考'}
+              </span>
+            </div>
+
+            <div className={effectiveActivityScenario === 'insufficient_history' ? 'mt-4' : 'mt-3'} aria-label="本周与上周整体活跃时长区间对比">
+              <div className="mb-2 flex justify-between px-0.5 text-[9px] font-medium text-slate-500">
+                <span>较少</span>
+                <span>接近日常</span>
+                <span>较多</span>
+              </div>
+              <div className="relative pt-4">
+                {effectiveActivityScenario !== 'insufficient_history' && (
+                  <div
+                    className="absolute top-0 -translate-x-1/2 text-center"
+                    style={{ left: `${weeklyActivityMarkerPosition}%` }}
+                  >
+                    <span className="block whitespace-nowrap rounded-full bg-blue-600 px-2 py-0.5 text-[8px] font-bold text-white shadow-sm">本周</span>
+                    <span className="mx-auto block h-0 w-0 border-x-[4px] border-t-[5px] border-x-transparent border-t-blue-600" />
+                  </div>
+                )}
+                <div className="flex h-3 overflow-hidden rounded-full ring-1 ring-inset ring-slate-100">
+                  <div className="w-1/3 bg-amber-300" />
+                  <div className="w-1/3 bg-emerald-500" />
+                  <div className="w-1/3 bg-blue-200" />
+                </div>
+                <div className="absolute bottom-0 left-1/2 h-5 w-px -translate-x-1/2 bg-slate-700" aria-hidden="true" />
+              </div>
+              <div className="relative mt-1.5 h-4 text-[8px] text-slate-400">
+                <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">上周基准</span>
+              </div>
+
+              <div className="mt-2 grid grid-cols-2 divide-x divide-slate-100 rounded-xl bg-slate-50 py-2.5 text-center">
+                <div>
+                  <span className="block text-[9px] text-slate-400">本周</span>
+                  <strong className="mt-0.5 block text-xs text-blue-700">{effectiveActivityScenario === 'insufficient_history' ? '--' : `${weeklyActivityComparison.thisWeekTotal}小时`}</strong>
+                </div>
+                <div>
+                  <span className="block text-[9px] text-slate-400">上周</span>
+                  <strong className="mt-0.5 block text-xs text-slate-700">{weeklyActivityComparison.lastWeekTotal}小时</strong>
+                </div>
+              </div>
+            </div>
+
+            {effectiveActivityScenario !== 'normal' && effectiveActivityScenario !== 'insufficient_history' && (
+              <div className={`mt-3 rounded-xl px-3 py-2.5 text-[10px] leading-relaxed ${effectiveActivityScenario === 'single_room_day3' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-900'}`}>
+                <strong className="mr-1">活动趋势：</strong>{activityTrendCopy}
+              </div>
+            )}
           </div>
         )}
-        <div className={`mx-4 mb-4 rounded-xl px-3 py-2.5 text-[11px] leading-relaxed ${
-          effectiveActivityScenario === 'single_room_day3'
-            ? 'bg-rose-50 text-rose-700'
-            : effectiveActivityScenario === 'normal'
-              ? 'bg-blue-50 text-blue-800'
-              : 'bg-amber-50 text-amber-900'
-        }`}>
-          <strong className="mr-1">活动趋势：</strong>{activityTrendCopy}
-        </div>
       </section>
 
       {exceptionConfig && effectiveScenario === 'inactivity' && showResolutionOptions && (
@@ -2239,22 +2298,15 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
       )}
 
       <section className="overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-xs">
-        <div className="flex items-center justify-between bg-orange-50/70 px-4 py-3">
-          <div>
-            <h4 className="text-sm font-extrabold text-slate-900">亲情互动</h4>
-            <p className="mt-0.5 text-[10px] text-slate-500">
-              {familyReceiptScenario === 'loading'
-                ? '正在读取今天的互动记录'
-                : familyReceiptScenario === 'data_error'
-                  ? '互动记录暂时无法读取'
-                  : familyReceipts.length === 0
-                    ? '今天暂无新的留言或影像反馈'
-                    : unviewedFamilyReceiptCount > 0
-                      ? `今日${todayVisibleFamilyReceipts.length}条 · ${unviewedFamilyReceiptCount}条未查看`
-                      : '今日互动已全部查看'}
-            </p>
+        <div className="flex items-center justify-between gap-4 px-5 pb-4 pt-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-600"><MessageSquare size={16} /></span>
+            <div className="min-w-0">
+              <h4 className="text-base font-extrabold text-slate-900">亲情互动</h4>
+              <p className={`mt-1 text-[10px] ${unviewedFamilyReceiptCount > 0 ? 'font-bold text-rose-500' : 'text-slate-400'}`}>{unviewedFamilyReceiptCount > 0 ? `${unviewedFamilyReceiptCount}条新互动待查看` : '今日互动已查看'}</p>
+            </div>
           </div>
-          {familyReceipts.length > 0 && <button type="button" onClick={() => openFamilyReceipts('all')} className="flex items-center gap-0.5 text-[10px] font-bold text-orange-700">查看记录<ChevronRight size={13} /></button>}
+          {familyReceipts.length > 0 && <button type="button" onClick={() => openFamilyReceipts('all')} className="flex shrink-0 items-center gap-1 rounded-full bg-orange-50 px-3 py-2 text-[10px] font-bold text-orange-700">查看记录<ChevronRight size={13} /></button>}
         </div>
 
         {familyReceiptScenario === 'loading' ? (
@@ -2263,14 +2315,16 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
           <div className="px-4 py-5 text-center"><AlertCircle size={22} className="mx-auto text-slate-300" /><p className="mt-2 text-[10px] text-slate-500">请稍后重新加载</p></div>
         ) : familyReceipts.length === 0 ? (
           <div className="px-4 py-5 text-center"><MessageSquare size={22} className="mx-auto text-slate-300" /><p className="mt-2 text-[10px] text-slate-500">有新互动后会在这里展示</p></div>
-        ) : <div className="divide-y divide-orange-100">
-          {todayFamilyMessageCount > 0 && featuredFamilyMessage && <div className="px-4 py-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Mic2 size={17} /></span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2"><strong className="truncate text-xs text-slate-900">妈妈今天发来{todayFamilyMessageCount}条留言</strong><button type="button" onClick={onOpenFamilyMessages} className="shrink-0 rounded-full bg-orange-50 px-1.5 py-0.5 text-[8px] font-bold text-orange-700">查看消息</button></div>
-                <p className="mt-0.5 text-[10px] text-slate-400">{featuredMessageViewed ? '最新' : '优先查看'}：{featuredFamilyMessage.dayLabel} {featuredFamilyMessage.time} · 语音{featuredFamilyMessage.durationSeconds}秒</p>
-              </div>
+        ) : <div className="divide-y divide-slate-100 px-5 pb-1">
+          {featuredFamilyMessage && <div className="flex items-center gap-3.5 py-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Mic2 size={18} /></span>
+              <button type="button" onClick={onOpenFamilyMessages} className="min-w-0 flex-1 text-left">
+                <span className="flex items-center gap-1.5">
+                  <strong className="truncate text-xs text-slate-900">{featuredFamilyMessage.title}</strong>
+                  {!featuredMessageViewed && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" aria-label="未查看" />}
+                </span>
+                <span className="mt-1.5 block truncate text-[10px] text-slate-500">“{featuredFamilyMessage.detail}” · {featuredFamilyMessage.dayLabel}{featuredFamilyMessage.time} · {featuredFamilyMessage.durationSeconds}秒</span>
+              </button>
               <button
                 type="button"
                 onClick={() => handleVoicePlayback(featuredFamilyMessage.id)}
@@ -2279,24 +2333,19 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
               >
                 {featuredVoicePlaybackState === 'playing' ? <Pause size={16} /> : featuredVoiceCompleted ? <RefreshCw size={15} /> : <Play size={16} className="ml-0.5" />}
               </button>
-            </div>
-            <div className={`mt-2.5 rounded-xl px-3 py-2 ${featuredVoiceCompleted ? 'bg-emerald-50' : featuredVoicePlaybackState === 'paused' ? 'bg-slate-50' : 'bg-orange-50/60'}`}>
-              <span className={`flex min-w-0 items-center gap-1.5 truncate text-[10px] ${featuredVoiceCompleted ? 'font-bold text-emerald-700' : featuredVoicePlaybackState === 'paused' ? 'text-slate-600' : 'text-orange-900'}`}>
-                {featuredVoiceCompleted && <Check size={12} className="shrink-0" />}
-                {featuredVoicePlaybackState === 'playing' ? '正在播放语音…' : featuredVoicePlaybackState === 'paused' ? '已暂停 · 点击继续播放' : featuredVoiceCompleted ? `已播放 · ${featuredFamilyMessage.durationSeconds}秒` : `“${featuredFamilyMessage.detail}”`}
-              </span>
-            </div>
           </div>}
 
-          {todayFamilyPhotoLikeCount > 0 && <button type="button" onClick={onOpenFamilyPhotos} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-rose-50/40">
-            <span className="relative h-12 w-14 shrink-0" aria-hidden="true">
-              <span className="absolute left-3 top-1 flex h-10 w-10 rotate-6 items-center justify-center rounded-xl border-2 border-white bg-rose-100 text-rose-400"><Images size={16} /></span>
-              <span className="absolute left-0 top-0 flex h-10 w-10 -rotate-6 items-center justify-center rounded-xl border-2 border-white bg-orange-50 text-orange-500 shadow-sm"><Images size={17} /></span>
-              <span className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm"><Heart size={11} className="fill-rose-500 text-rose-500" /></span>
+          {todayFamilyPhotoLikeCount > 0 && <button type="button" onClick={onOpenFamilyPhotos} className="flex w-full items-center gap-3.5 py-5 text-left hover:bg-rose-50/40">
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-500" aria-hidden="true">
+              <Images size={18} />
+              <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm"><Heart size={9} className="fill-rose-500 text-rose-500" /></span>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2"><strong className="line-clamp-2 text-xs text-slate-900">{latestMediaFeedbackTitle}</strong><span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[8px] font-bold text-rose-700">新反馈</span></span>
-              <span className="mt-1 block truncate text-[10px] text-slate-500">最新：{latestPhotoFeedback?.category || '周末全家福'} · 今天 16:08</span>
+              <span className="flex items-center gap-1.5">
+                <strong className="truncate text-xs text-slate-900">{latestMediaFeedbackTitle}</strong>
+                {hasUnviewedPhotoFeedback && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" aria-label="未查看" />}
+              </span>
+              <span className="mt-1.5 block truncate text-[10px] text-slate-500">{latestPhotoFeedback?.category || '周末全家福'} · 今天16:08</span>
             </span>
             <ChevronRight size={15} className="shrink-0 text-slate-300" />
           </button>}
@@ -2385,21 +2434,13 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
       )}
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
-        <div className="px-4 py-3.5">
-          <h4 className="text-sm font-extrabold text-slate-900">今日动态</h4>
-          <p className="mt-0.5 text-[10px] text-slate-500">
-            {resolvedCareFeedScenario === 'loading'
-              ? '正在读取今天的照护与互动记录'
-              : resolvedCareFeedScenario === 'data_error'
-                ? '动态记录暂时无法读取'
-                : resolvedCareFeedScenario === 'no_records'
-                  ? '有新记录后会在这里展示'
-                  : resolvedCareFeedScenario === 'pending_only'
-                    ? '今天尚无记录，以下计划还未开始'
-                    : '按时间查看今天的照护与互动'}
-          </p>
+        <div className="flex items-center gap-2 px-5 pb-3 pt-4">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <History size={15} />
+          </span>
+          <h4 className="text-base font-extrabold text-slate-900">今日动态</h4>
         </div>
-        <div className="border-t border-slate-100 px-4 py-1">
+        <div className="px-4 py-1">
           {resolvedCareFeedScenario === 'loading' ? (
             <div className="space-y-3 py-4" aria-label="今日动态加载中">
               {[0, 1, 2].map(item => <div key={item} className="flex animate-pulse items-center gap-3"><span className="h-3 w-10 rounded bg-slate-100" /><span className="h-2.5 w-2.5 rounded-full bg-slate-100" /><span className="h-8 flex-1 rounded-lg bg-slate-100" /></div>)}

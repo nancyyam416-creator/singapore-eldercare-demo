@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BellRing, CalendarDays, CheckCircle2, Clock3, Pill } from "lucide-react";
 import { speakText, stopSpeech } from "../audio/speech";
 import type { MedicationReminder } from "../types";
@@ -8,21 +8,49 @@ interface HomeReminderAlertProps {
   minutesUntil: number;
   onComplete: () => void;
   onDismiss: () => void;
+  currentTime?: Date;
+  autoDismissMs?: number;
 }
+
+const spokenReminderKeys = new Set<string>();
+
+export const resetHomeReminderSpeechTracking = () => spokenReminderKeys.clear();
 
 export default function HomeReminderAlert({
   reminder,
   minutesUntil,
   onComplete,
   onDismiss,
+  currentTime = new Date(),
+  autoDismissMs = 60_000,
 }: HomeReminderAlertProps) {
   const isDailyReminder = reminder.category === "schedule";
   const title = isDailyReminder ? "马上有一件日常事项" : "马上到服药时间了";
   const actionLabel = isDailyReminder ? "我已完成" : "我已服药";
   const remainingLabel = minutesUntil > 0 ? `还有 ${minutesUntil} 分钟` : "提醒时间到了";
   const ReminderIcon = isDailyReminder ? CalendarDays : Pill;
+  const dismissRef = useRef(onDismiss);
 
   useEffect(() => {
+    dismissRef.current = onDismiss;
+  }, [onDismiss]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => dismissRef.current(), autoDismissMs);
+    return () => window.clearTimeout(timer);
+  }, [autoDismissMs, reminder.id]);
+
+  useEffect(() => {
+    const hour = currentTime.getHours();
+    const isQuietHours = hour >= 22 || hour < 7;
+    const dayKey = [
+      currentTime.getFullYear(),
+      String(currentTime.getMonth() + 1).padStart(2, "0"),
+      String(currentTime.getDate()).padStart(2, "0"),
+    ].join("-");
+    const speechKey = `${dayKey}:${reminder.id}`;
+    if (isQuietHours || spokenReminderKeys.has(speechKey)) return;
+    spokenReminderKeys.add(speechKey);
     speakText(
       isDailyReminder
         ? `马上有一件日常事项，${reminder.name}。${reminder.dosage}`
@@ -33,7 +61,7 @@ export default function HomeReminderAlert({
       },
     );
     return stopSpeech;
-  }, [isDailyReminder, reminder.dosage, reminder.id, reminder.name]);
+  }, [currentTime, isDailyReminder, reminder.dosage, reminder.id, reminder.name]);
 
   return (
     <div className="home-reminder-alert" role="presentation">
@@ -47,7 +75,7 @@ export default function HomeReminderAlert({
         <header className="home-reminder-alert__header">
           <span className="home-reminder-alert__badge">
             <BellRing aria-hidden="true" />
-            提前 5 分钟提醒
+            {minutesUntil > 0 ? "提前 5 分钟提醒" : "到点提醒"}
           </span>
           <span className="home-reminder-alert__remaining">
             <Clock3 aria-hidden="true" />

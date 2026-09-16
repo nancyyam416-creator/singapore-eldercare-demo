@@ -4,7 +4,7 @@ import ControlCenterHome from "./components/ControlCenterHome";
 import EmergencyModal, { type EmergencyAcceptanceScenario } from "./components/EmergencyModal";
 import SmartAssistantModal from "./components/SmartAssistantModal";
 import MedicationCelebration from "./components/MedicationCelebration";
-import HomeReminderAlert from "./components/HomeReminderAlert";
+import HomeReminderAlert, { resetHomeReminderSpeechTracking } from "./components/HomeReminderAlert";
 import ContactsPage from "./components/ContactsCommunicationPage";
 import FamilyAlbumPage from "./components/FamilyAlbumPage";
 import SchedulePage from "./components/SchedulePage";
@@ -14,6 +14,8 @@ import CommunityActivitiesPage, { type CommunityActivityAcceptanceScenario } fro
 import CommunityLifePage, { type CommunityLifeAcceptanceScenario } from "./components/CommunityLifePage";
 import SecurityInformationPage from "./components/SecurityInformationPage";
 import SpecialServicesPage, { type SpecialServicesAcceptanceScenario } from "./components/SpecialServicesPage";
+import PersonalProfilePage from "./components/PersonalProfilePage";
+import EntertainmentHubPage from "./components/EntertainmentHubPage";
 import ActivationFlow from "./components/ActivationFlow";
 import InteractionAcceptanceConsole, {
   type AcceptanceAlbumScenario,
@@ -29,6 +31,7 @@ import {
   type FamilyWeatherMockScenario,
 } from "./weather/familyWeather";
 import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord, SpecialServiceBooking } from "./types";
+import { elderProfileMock, getActiveFamilyRelationshipCount } from "./elder-profile";
 import "./control-center.css";
 
 const createInitialFulfillmentRecords = (): FulfillmentRecord[] => {
@@ -153,9 +156,8 @@ export default function App() {
   const [isDeviceActivated, setIsDeviceActivated] = useState(() => {
     return window.localStorage.getItem("u2g-tablet-activated-v1") === "true";
   });
-  const [hasBoundFamily, setHasBoundFamily] = useState(() => {
-    return window.localStorage.getItem("u2g-tablet-activated-v1") === "true";
-  });
+  const activeFamilyRelationshipCount = getActiveFamilyRelationshipCount();
+  const hasBoundFamily = activeFamilyRelationshipCount > 0;
 
   // 1. SOS Emergency State
   const [isSOSOpen, setIsSOSOpen] = useState(false);
@@ -174,6 +176,7 @@ export default function App() {
     reminderId: string;
     minutesUntil: number;
     source: "automatic" | "acceptance";
+    autoDismissMs?: number;
   } | null>(null);
   const dismissedHomeReminderAlertsRef = useRef(new Set<string>());
 
@@ -205,8 +208,11 @@ export default function App() {
   const [isSpecialServicesOpen, setIsSpecialServicesOpen] = useState(false);
   const [serviceBookings, setServiceBookings] = useState<SpecialServiceBooking[]>(readStoredServiceBookings);
   const [isTodayOverviewOpen, setIsTodayOverviewOpen] = useState(false);
+  const [isPersonalProfileOpen, setIsPersonalProfileOpen] = useState(false);
+  const [isEntertainmentHubOpen, setIsEntertainmentHubOpen] = useState(false);
   const [overviewRecommendationKind, setOverviewRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
   const [homeRecommendationKind, setHomeRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
+  const [homeRecommendationContentId, setHomeRecommendationContentId] = useState<string | null>(null);
   const [fulfillmentRecords, setFulfillmentRecords] = useState<FulfillmentRecord[]>(createInitialFulfillmentRecords);
 
   // 1.11. More Modules bottom drawer popup state
@@ -252,6 +258,7 @@ export default function App() {
       if (nextDay === currentDayRef.current) return;
       currentDayRef.current = nextDay;
       dismissedHomeReminderAlertsRef.current.clear();
+      resetHomeReminderSpeechTracking();
       setHomeReminderAlert(null);
       setReminders((current) => current.map((reminder) => ({ ...reminder, status: "pending", takenAt: undefined })));
     };
@@ -387,21 +394,20 @@ export default function App() {
   const [messages, setMessages] = useState<FamilyMessage[]>(createDefaultMessages);
 
   // 7. Community physical Activities list state
-  const [activities, setActivities] = useState<CommunityActivity[]>([
+  const [activities] = useState<CommunityActivity[]>([
     {
       id: "act-1",
       title: "社区剪纸活动",
       time: "明天上午 10:00 - 11:30",
       location: "社区多功能活动室",
       spotsLeft: 3,
-      registered: false,
       tag: "手工活动",
       imageUrl: "https://loremflickr.com/720/480/paper-cutting,craft?lock=31",
       description: "社区老师带大家完成一幅简单剪纸作品，材料由社区准备。",
-      audience: "社区长者，可由家属陪同",
       contact: "010-6258 8890",
       status: "registration",
-      requiresConfirmation: true,
+      liveEnabled: false,
+      liveStatus: "not_started",
     },
     {
       id: "act-2",
@@ -409,29 +415,30 @@ export default function App() {
       time: "明天下午 14:30 - 15:30",
       location: "居委会大楼二楼会议室",
       spotsLeft: 12,
-      registered: false,
       tag: "安全科普",
       imageUrl: "https://loremflickr.com/720/480/senior,smartphone,class?lock=32",
       description: "社区民警讲解常见养老诈骗，并演示手机来电识别和安全设置。",
-      audience: "社区长者",
       contact: "010-6258 8890",
       status: "registration",
-      requiresConfirmation: false,
+      liveEnabled: false,
+      liveStatus: "not_started",
     },
     {
       id: "act-3",
       title: "夏季中医老年膳食养生调理座谈",
-      time: "周四上午 09:30 - 11:00",
-      location: "社区多功能助老俱乐部",
+      time: "今天上午 10:00 - 11:00",
+      location: "社区多功能助老俱乐部（同步直播）",
       spotsLeft: 7,
-      registered: false,
       tag: "健康膳食",
       imageUrl: "https://loremflickr.com/720/480/senior,healthy-food,class?lock=33",
       description: "社区健康老师介绍夏季饮食搭配和常见食材选择。",
-      audience: "社区长者",
       contact: "010-6258 8890",
-      status: "registration",
-      requiresConfirmation: true,
+      status: "ongoing",
+      liveEnabled: true,
+      liveStatus: "live",
+      scheduledLiveStartAt: "今天上午 10:00",
+      liveAccessType: "url",
+      playbackUrl: "https://live.example.test/community/act-3",
     },
   ]);
 
@@ -545,22 +552,6 @@ export default function App() {
     handleCompleteReminder(id, fallbackReminder);
   };
 
-  const handleRegisterActivity = (id: string) => {
-    const activity = activities.find((item) => item.id === id);
-    if (activity && !activity.registered) appendFulfillmentRecord({ kind: "activity", title: `已报名${activity.title}` });
-    setActivities((prev) =>
-      prev.map((act) =>
-        act.id === id
-          ? {
-              ...act,
-              registered: true,
-              spotsLeft: Math.max(0, act.spotsLeft - 1),
-            }
-          : act
-      )
-    );
-  };
-
   const handleSendMessage = async (text: string) => {
     const timestamp = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
     const userMsg: ChatMessage = { sender: "user", text, timestamp };
@@ -615,6 +606,7 @@ export default function App() {
     setIsSecurityInformationOpen(false);
     setIsSpecialServicesOpen(false);
     setIsTodayOverviewOpen(false);
+    setIsEntertainmentHubOpen(false);
     setIsMoreModulesOpen(false);
     setHomeReminderAlert(null);
     setOverviewRecommendationKind(null);
@@ -622,18 +614,32 @@ export default function App() {
     sendAcceptanceCommand("reset-home-overlays");
   };
 
-  const openAcceptanceHomeReminderAlert = (category: AcceptanceTaskContentScenario, minutesUntil = 5) => {
+  const openAcceptanceHomeReminderAlert = (
+    category: AcceptanceTaskContentScenario,
+    minutesUntil = 0,
+    autoDismissMs?: number,
+  ) => {
     const targetId = category === "schedule" ? "schedule-self-walk" : "med-2";
     showHomeForAcceptance();
+    const acceptanceReminderTime = acceptanceTimeOverride?.match(/^\d{2}:\d{2}$/)
+      ? acceptanceTimeOverride
+      : undefined;
     setReminders((current) => current.map((reminder) => (
       reminder.id === targetId
-        ? { ...reminder, status: "pending" as const, takenAt: undefined }
+        ? {
+            ...reminder,
+            time: acceptanceReminderTime ?? reminder.time,
+            status: "pending" as const,
+            takenAt: undefined,
+            priority: "P0" as const,
+          }
         : reminder
     )));
     setHomeReminderAlert({
       reminderId: targetId,
       minutesUntil,
       source: "acceptance",
+      autoDismissMs,
     });
   };
 
@@ -682,6 +688,33 @@ export default function App() {
     if (scenario === "p1-due") {
       setAcceptanceTimeOverride("13:00");
       setReminders(defaults);
+    } else if (scenario === "medication-upcoming") {
+      setAcceptanceTimeOverride("12:40");
+      setReminders(defaults);
+    } else if (scenario === "schedule-due") {
+      setAcceptanceTimeOverride("17:00");
+      setReminders(defaults);
+    } else if (scenario === "schedule-upcoming") {
+      setAcceptanceTimeOverride("16:40");
+      setReminders(defaults);
+    } else if (scenario === "activity-started") {
+      setAcceptanceTimeOverride("13:10");
+      setReminders(defaults);
+    } else if (scenario === "activity-upcoming") {
+      setAcceptanceTimeOverride("12:40");
+      setReminders(defaults);
+    } else if (scenario === "activity-updated" || scenario === "activity-cancelled") {
+      setAcceptanceTimeOverride("13:10");
+      setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
+    } else if (scenario === "reminder-daytime") {
+      setAcceptanceTimeOverride("14:00");
+      setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
+    } else if (scenario === "reminder-nighttime") {
+      setAcceptanceTimeOverride("22:30");
+      setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
+    } else if (scenario === "next-day-exit") {
+      setAcceptanceTimeOverride("2026-09-16T00:00:00+08:00");
+      setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
     } else if (scenario === "time-and-family") {
       setAcceptanceTimeOverride("12:40");
       setReminders(defaults);
@@ -699,10 +732,22 @@ export default function App() {
     setHomeRecommendationKind(null);
     setReturnToCommunityLife(false);
 
-    if (scenario === "activity-ended-cancelled" || scenario === "activity-submit-failure") {
-      setCommunityActivityAcceptanceScenario(
-        scenario === "activity-ended-cancelled" ? "ended-cancelled" : "submission-failure",
-      );
+    const activityScenarioMap: Partial<Record<AcceptanceCommunityScenario, CommunityActivityAcceptanceScenario>> = {
+      "activity-ended-cancelled": "ended-cancelled",
+      "activity-submit-failure": "submission-failure",
+      "activity-live-unconfigured": "live-unconfigured",
+      "activity-live-not-started": "live-not-started",
+      "activity-live-active": "live-active",
+      "activity-live-ended": "live-ended",
+      "activity-live-cancelled-conflict": "live-cancelled-conflict",
+      "activity-live-invalid-access": "live-invalid-access",
+      "activity-live-load-failure": "live-load-failure",
+      "activity-live-interrupted": "live-interrupted",
+    };
+    const activityScenario = activityScenarioMap[scenario];
+
+    if (activityScenario) {
+      setCommunityActivityAcceptanceScenario(activityScenario);
       setIsCommunityActivitiesOpen(true);
       return;
     }
@@ -745,6 +790,7 @@ export default function App() {
     setReminders(createDefaultReminders());
     setMessages(createDefaultMessages());
     setFulfillmentRecords(createInitialFulfillmentRecords());
+    resetHomeReminderSpeechTracking();
     familyWeatherMockApi.reset();
     setFamilyWeatherScenario("default");
     setFamilyWeather(familyWeatherMockApi.getSnapshot("default"));
@@ -763,6 +809,7 @@ export default function App() {
     && !isSecurityInformationOpen
     && !isSpecialServicesOpen
     && !isTodayOverviewOpen
+    && !isEntertainmentHubOpen
     && !isMoreModulesOpen;
 
   useEffect(() => {
@@ -828,7 +875,6 @@ export default function App() {
         <ActivationFlow
           onComplete={() => {
             window.localStorage.setItem("u2g-tablet-activated-v1", "true");
-            setHasBoundFamily(false);
             setIsDeviceActivated(true);
           }}
         />
@@ -861,6 +907,8 @@ export default function App() {
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
             onOpenTodayOverview={() => {
               setHomeRecommendationKind(null);
+              setHomeRecommendationContentId(null);
+              setOverviewRecommendationKind(null);
               setIsTodayOverviewOpen(true);
             }}
             onOpenCommunity={() => {
@@ -869,8 +917,9 @@ export default function App() {
               setCommunityActivityAcceptanceScenario("default");
               setIsCommunityActivitiesOpen(true);
             }}
-            onOpenRecommendation={(kind) => {
+            onOpenRecommendation={(kind, contentId) => {
               setHomeRecommendationKind(kind);
+              setHomeRecommendationContentId(contentId ?? null);
               if (kind === "community") {
                 setReturnToCommunityLife(false);
                 setCommunityActivityAcceptanceScenario("default");
@@ -908,6 +957,15 @@ export default function App() {
             minutesUntil={homeReminderAlert.minutesUntil}
             onComplete={() => handleCompleteReminder(activeHomeReminder.id)}
             onDismiss={dismissHomeReminderAlert}
+            currentTime={(() => {
+              if (!acceptanceTimeOverride) return new Date();
+              if (acceptanceTimeOverride.includes("T")) return new Date(acceptanceTimeOverride);
+              const currentTime = new Date();
+              const [hours, minutes] = acceptanceTimeOverride.split(":").map(Number);
+              currentTime.setHours(hours, minutes, 0, 0);
+              return currentTime;
+            })()}
+            autoDismissMs={homeReminderAlert.autoDismissMs}
           />
         )}
 
@@ -1004,7 +1062,6 @@ export default function App() {
             } else if (homeRecommendationKind === "community") setHomeRecommendationKind(null);
           }}
           activities={activities}
-          onRegister={handleRegisterActivity}
         />
 
         <SecurityInformationPage
@@ -1050,13 +1107,15 @@ export default function App() {
         <TodayOverviewPage
           isOpen={isTodayOverviewOpen}
           initialRecommendationKind={overviewRecommendationKind}
-          directRecommendation={homeRecommendationKind === "entertainment"}
+          initialRecommendationId={homeRecommendationContentId}
+          entertainmentOpenShouldFail={acceptanceRightContentScenario === "third-party-entertainment-failure"}
           onFulfillment={appendFulfillmentRecord}
           isSecurityRead={safetyReadIds.includes("tip-1")}
           onOpenSecurity={() => {
             setIsTodayOverviewOpen(false);
             setOverviewRecommendationKind(null);
             setHomeRecommendationKind(null);
+            setHomeRecommendationContentId(null);
             openSafetyInformation(false);
           }}
           isServiceBooked={serviceBookings.some((booking) => booking.status !== "cancelled")}
@@ -1064,13 +1123,28 @@ export default function App() {
             setIsTodayOverviewOpen(false);
             setOverviewRecommendationKind(null);
             setHomeRecommendationKind(null);
+            setHomeRecommendationContentId(null);
             setIsSpecialServicesOpen(true);
           }}
           onClose={() => {
             setIsTodayOverviewOpen(false);
             setOverviewRecommendationKind(null);
             if (homeRecommendationKind === "entertainment") setHomeRecommendationKind(null);
+            setHomeRecommendationContentId(null);
           }}
+        />
+
+        <EntertainmentHubPage
+          isOpen={isEntertainmentHubOpen}
+          onClose={() => setIsEntertainmentHubOpen(false)}
+          forceEmpty={acceptanceRightContentScenario === "no-content"}
+        />
+
+        <PersonalProfilePage
+          isOpen={isPersonalProfileOpen}
+          onClose={() => setIsPersonalProfileOpen(false)}
+          profile={elderProfileMock}
+          boundFamilyCount={activeFamilyRelationshipCount}
         />
 
         {/* SMART ASSISTANT INTERACTIVE VOICE DIALOG LAYER */}
@@ -1117,9 +1191,11 @@ export default function App() {
           }}
           onOpenEntertainment={() => {
             setHomeRecommendationKind(null);
-            setOverviewRecommendationKind("entertainment");
-            setIsTodayOverviewOpen(true);
+            setHomeRecommendationContentId(null);
+            setOverviewRecommendationKind(null);
+            setIsEntertainmentHubOpen(true);
           }}
+          onOpenProfile={() => setIsPersonalProfileOpen(true)}
         />
 
         </div>
@@ -1157,7 +1233,6 @@ export default function App() {
         onOpenEmergencyScenario={openAcceptanceEmergencyScenario}
         onOpenActivation={() => {
           window.localStorage.removeItem("u2g-tablet-activated-v1");
-          setHasBoundFamily(false);
           setIsDeviceActivated(false);
         }}
         onReset={resetAcceptanceState}

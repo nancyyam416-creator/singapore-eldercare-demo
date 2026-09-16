@@ -31,12 +31,12 @@ import {
 type ElderAcceptanceTarget = 'card' | 'profile';
 type FamilyPhotoAcceptanceTarget = 'list' | 'publish';
 type AcceptancePage = 'login' | 'home' | 'family' | 'care' | 'profile';
-type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_photos' | 'reminders' | 'service_store' | 'elder_binding';
+type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding';
 type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
   activePreviewPage: AcceptancePage;
-  activePreviewFamilyModule: 'family_messages' | 'family_photos';
+  activePreviewFamilyModule: 'family_messages' | 'family_photos' | 'family_notifications';
   homeCareScenario: HomeCareScenario;
   homeActivityScenario: HomeActivityScenario;
   familyReceiptScenario: FamilyReceiptScenario;
@@ -60,6 +60,7 @@ interface H5InteractionWorkbenchProps {
   onFamilyPhotoScenarioChange: (scenario: FamilyPhotoScenario) => void;
   onOpenFamilyMessages: () => void;
   onOpenFamilyPhotos: () => void;
+  onOpenFamilyNotifications: () => void;
   onOpenHome: () => void;
   onOpenElderBinding: () => void;
   onCareFeedScenarioChange: (scenario: CareFeedScenario) => void;
@@ -107,9 +108,10 @@ const homeActivityScenarios: Array<{ value: HomeActivityScenario; label: string;
 ];
 
 const medicationScenarios: Array<{ value: HomeCareScenario; label: string; description: string; status: string }> = [
-  { value: 'normal', label: '连续未确认与待服', description: '超时药物展示连续2天未确认，另有1项尚未到时间', status: '2 项待处理' },
-  { value: 'medication_overdue', label: '超时未服用', description: '已超过计划时间，但仍处于当天可确认时段', status: '需留意' },
-  { value: 'medication_expired', label: '已过期未服用', description: '当天有效时段已结束，仍未形成服用记录', status: '已过期' }
+  { value: 'medication_on_track', label: '按计划服用', description: '已服节点使用绿色，下一次待服在底部信息区展示', status: '正常' },
+  { value: 'normal', label: '全天用药时间轴', description: '已服、超时未服和待服节点集中展示，异常行动区优先', status: '4 次计划' },
+  { value: 'medication_overdue', label: '超时未服用', description: '红色节点标出未服时间，行动区可进入电话确认', status: '需确认' },
+  { value: 'medication_expired', label: '已过期未服用', description: '当天确认时段结束后保留未服记录和完整明细', status: '已过期' }
 ];
 
 const familyMessageScenarios: Array<{ value: FamilyMessageScenario; label: string; description: string; status: string }> = [
@@ -133,7 +135,7 @@ const familyReceiptScenarios: Array<{ value: FamilyReceiptScenario; label: strin
 ];
 
 const familyPhotoListScenarios: Array<{ value: FamilyPhotoScenario; label: string; description: string; status: string }> = [
-  { value: 'list_default', label: '家庭影像列表', description: '展示照片、视频和混合批次，支持分类筛选与回看。', status: '正常' },
+  { value: 'list_default', label: '家庭影像列表', description: '照片与视频按日期倒序展开，点击单项进入全屏相册预览。', status: '正常' },
   { value: 'list_empty', label: '影像列表为空', description: '没有发布记录时展示空页面和发布入口。', status: '空状态' },
   { value: 'list_offline_cached', label: '无网络 · 有缓存', description: '保留上次加载的影像，并提示反馈状态可能不是最新。', status: '离线可查看' },
   { value: 'list_offline_empty', label: '无网络 · 无缓存', description: '展示网络异常页面和重新加载操作。', status: '加载失败' }
@@ -207,7 +209,8 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
   ],
   family: [
     { value: 'family_messages', label: '家庭留言' },
-    { value: 'family_photos', label: '家庭影像' }
+    { value: 'family_photos', label: '家庭影像' },
+    { value: 'family_notifications', label: '消息' }
   ],
   care: [
     { value: 'reminders', label: '提醒事项' },
@@ -316,6 +319,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   onFamilyPhotoScenarioChange,
   onOpenFamilyMessages,
   onOpenFamilyPhotos,
+  onOpenFamilyNotifications,
   onOpenHome,
   onOpenElderBinding,
   onCareFeedScenarioChange,
@@ -362,7 +366,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
           ? 'elder_binding'
           : activePreviewFamilyModule === 'family_messages'
             ? 'family_messages'
-            : 'family_photos'
+            : activePreviewFamilyModule === 'family_notifications'
+              ? 'family_notifications'
+              : 'family_photos'
     );
   }, [activePreviewFamilyModule, activePreviewPage]);
 
@@ -386,7 +392,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
         ? 'reminders'
       : page === 'profile'
         ? 'elder_binding'
-        : 'family_messages';
+        : 'family_photos';
     setAcceptanceModule(nextModule);
     onCloseElderProfile();
     onCloseScoreDetails();
@@ -395,7 +401,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     else if (page === 'home') onOpenHome();
     else if (page === 'care') onOpenReminders();
     else if (page === 'profile') onOpenElderBinding();
-    else onOpenFamilyMessages();
+    else onOpenFamilyPhotos();
   };
 
   const changeScoreCategory = (category: ScoreScenarioCategory) => {
@@ -471,6 +477,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   if (nextModule === 'reminders') onOpenReminders();
                   if (nextModule === 'service_store') onOpenStore();
                   if (nextModule === 'family_messages') onOpenFamilyMessages();
+                  if (nextModule === 'family_notifications') onOpenFamilyNotifications();
                   if (nextModule === 'family_photos') {
                     setFamilyPhotoTarget('list');
                     onFamilyPhotoScenarioChange('list_default');
@@ -517,7 +524,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   ? '代管家验证提醒事项、特约服务与服务记录。'
                 : acceptancePage === 'profile'
                   ? '我的页面验证老人绑定、切换与异常状态。'
-                  : '亲情连验证完整会话与家庭影像业务。'}
+                  : '亲情连以家庭留言和家庭影像为主入口；消息仅聚合各类通知。'}
             </p>
         </section>
 
@@ -868,7 +875,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             {acceptanceModule === 'family_messages' && (
               <>
                 <section aria-label="家庭留言状态">
-                  <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">模块状态</h3><p className="mt-0.5 text-[10px] text-slate-400">会话、发送、语音与家庭关系状态</p></div>
+                  <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">模块状态</h3><p className="mt-0.5 text-[10px] text-slate-400">独立验证留言会话、发送、语音与家庭关系状态</p></div>
                   <div className="space-y-1.5">
                     {familyMessageScenarios.map(option => {
                       const selected = familyMessageScenario === option.value;
@@ -877,6 +884,16 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   </div>
                 </section>
                 <section aria-label="家庭留言交互"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3><button type="button" onClick={onOpenFamilyMessages} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开家庭留言</button></section>
+              </>
+            )}
+
+            {acceptanceModule === 'family_notifications' && (
+              <>
+                <section aria-label="消息列表验收状态">
+                  <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">验收场景</h3><p className="mt-0.5 text-[10px] text-slate-400">多类通知的默认聚合列表</p></div>
+                  <div className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2.5"><span className="flex items-start justify-between gap-2"><strong className="text-[11px] text-slate-800">综合消息</strong><span className="rounded-full bg-white px-2 py-0.5 text-[8px] font-bold text-blue-700">4类通知</span></span><span className="mt-1 block text-[9px] leading-snug text-slate-500">展示家庭留言、影像反馈、语音未接和服务预约。</span></div>
+                </section>
+                <section aria-label="消息列表交互"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3><button type="button" onClick={onOpenFamilyNotifications} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开消息</button></section>
               </>
             )}
 

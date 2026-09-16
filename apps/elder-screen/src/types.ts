@@ -72,14 +72,18 @@ export interface CommunityActivity {
   time: string;
   location: string;
   spotsLeft: number;
-  registered: boolean;
   tag: string;
   imageUrl: string;
   description?: string;
-  audience?: string;
   contact?: string;
   status?: 'registration' | 'ongoing' | 'ended' | 'cancelled';
-  requiresConfirmation?: boolean;
+  liveEnabled: boolean;
+  liveStatus: 'not_started' | 'live' | 'ended';
+  scheduledLiveStartAt?: string;
+  liveAccessType?: 'url' | 'third_party_id';
+  playbackUrl?: string;
+  liveProvider?: string;
+  externalLiveId?: string;
 }
 
 export interface AntiScamTip {

@@ -6,7 +6,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  CalendarCheck,
   CheckCheck,
+  ChevronLeft,
   ChevronRight,
   CircleAlert,
   Eye,
@@ -17,26 +19,29 @@ import {
   Mic,
   Pause,
   Phone,
+  PhoneMissed,
   Play,
   RefreshCw,
   Send,
   Square,
   X
 } from 'lucide-react';
-import { FamilyConversation, FamilyMessage, FamilyMessageScenario, FamilyPhotoScenario, PublishedPhotoBatch } from '../types';
+import { FamilyConversation, FamilyMessage, FamilyMessageScenario, FamilyNotification, FamilyPhotoScenario, PublishedPhotoBatch } from '../types';
 
-export type FamilySection = 'messages' | 'photos';
+export type FamilySection = 'messages' | 'photos' | 'notifications';
 
 interface H5FamilyTabProps {
   conversations: FamilyConversation[];
   messages: FamilyMessage[];
   photoBatches: PublishedPhotoBatch[];
+  notifications: FamilyNotification[];
   activeSection: FamilySection;
   messageScenario: FamilyMessageScenario;
   photoScenario: FamilyPhotoScenario;
   initialConversationId?: string | null;
   onSectionChange: (section: FamilySection) => void;
   onMessagesChange: React.Dispatch<React.SetStateAction<FamilyMessage[]>>;
+  onNotificationsChange: React.Dispatch<React.SetStateAction<FamilyNotification[]>>;
   onOpenPhotoShare: () => void;
   onContactElder: () => void;
 }
@@ -65,12 +70,6 @@ const feedbackMeta = {
   liked: { label: '已查看并点赞', className: 'bg-rose-50 text-rose-700', icon: Heart }
 } as const;
 
-const describeMediaCount = (batch: PublishedPhotoBatch) => {
-  const photoCount = batch.items.filter(item => item.type === 'photo').length;
-  const videoCount = batch.items.length - photoCount;
-  return [photoCount ? `${photoCount}张` : '', videoCount ? `${videoCount}段视频` : ''].filter(Boolean).join(' · ');
-};
-
 const deliveryLabel = (message: FamilyMessage) => {
   if (message.status === 'sending') return '发送中…';
   if (message.status === 'failed') return '发送失败';
@@ -83,17 +82,20 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
   conversations,
   messages,
   photoBatches,
+  notifications,
   activeSection,
   messageScenario,
   photoScenario,
   initialConversationId,
   onSectionChange,
   onMessagesChange,
+  onNotificationsChange,
   onOpenPhotoShare,
   onContactElder
 }) => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversations[0]?.id ?? null);
-  const [selectedPhotoBatch, setSelectedPhotoBatch] = useState<PublishedPhotoBatch | null>(null);
+  const [selectedSystemNotice, setSelectedSystemNotice] = useState<FamilyNotification | null>(null);
+  const [selectedPhotoItemId, setSelectedPhotoItemId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('全部');
   const [photoListRetryRecovered, setPhotoListRetryRecovered] = useState(false);
   const [draft, setDraft] = useState('');
@@ -110,7 +112,9 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
   }, [conversations, messageScenario]);
 
   useEffect(() => {
-    if (initialConversationId) setSelectedConversationId(initialConversationId);
+    if (initialConversationId) {
+      setSelectedConversationId(initialConversationId);
+    }
   }, [initialConversationId]);
 
   useEffect(() => {
@@ -122,6 +126,10 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
   }, [messageScenario, conversations]);
 
   useEffect(() => setPhotoListRetryRecovered(false), [photoScenario]);
+
+  useEffect(() => {
+    if (activeSection === 'photos') setSelectedCategory('全部');
+  }, [activeSection]);
 
   useEffect(() => {
     if (!recording) return;
@@ -145,18 +153,17 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
       .sort((left, right) => new Date(left.sentAtUtc).getTime() - new Date(right.sentAtUtc).getTime());
   }, [messages, messageScenario, selectedConversationId]);
 
-  const unreadCount = messages.filter(isIncomingUnread).length;
   const selectedConversation = conversations.find(item => item.id === selectedConversationId) ?? null;
   const relationshipInvalid = messageScenario === 'relationship_invalid' || selectedConversation?.relationshipStatus === 'invalid';
 
   useEffect(() => {
-    if (!selectedConversationId) return;
+    if (!selectedConversationId || activeSection !== 'messages') return;
     onMessagesChange(current => current.map(message =>
       message.conversationId === selectedConversationId && message.sender === 'elder' && message.type === 'text' && message.status === 'delivered'
         ? { ...message, status: 'viewed' }
         : message
     ));
-  }, [selectedConversationId, onMessagesChange]);
+  }, [activeSection, selectedConversationId, onMessagesChange]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'nearest' });
@@ -169,6 +176,32 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
   const effectivePhotoScenario = photoListRetryRecovered ? 'list_default' : photoScenario;
   const displayedPhotoBatches = effectivePhotoScenario === 'list_empty' || effectivePhotoScenario === 'list_offline_empty' ? [] : photoBatches;
   const visiblePhotoBatches = selectedCategory === '全部' ? displayedPhotoBatches : displayedPhotoBatches.filter(batch => batch.category === selectedCategory);
+  const photoDateGroups = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+    const groups = new Map<string, { label: string; entries: Array<{ batch: PublishedPhotoBatch; item: PublishedPhotoBatch['items'][number] }> }>();
+    [...visiblePhotoBatches]
+      .sort((left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime())
+      .forEach(batch => {
+        const dateKey = batch.publishedAt.slice(0, 10);
+        const group = groups.get(dateKey) ?? { label: formatter.format(new Date(batch.publishedAt)), entries: [] };
+        batch.items.forEach(item => group.entries.push({ batch, item }));
+        groups.set(dateKey, group);
+      });
+    return Array.from(groups.entries()).map(([dateKey, group]) => ({ dateKey, ...group }));
+  }, [visiblePhotoBatches]);
+  const allPhotoEntries = useMemo(() => [...photoBatches]
+    .sort((left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime())
+    .flatMap(batch => batch.items.map(item => ({ batch, item }))), [photoBatches]);
+  const visiblePhotoEntries = useMemo(() => photoDateGroups.flatMap(group => group.entries), [photoDateGroups]);
+  const selectedPhotoEntry = allPhotoEntries.find(entry => entry.item.id === selectedPhotoItemId) ?? null;
+  const previewEntries = activeSection === 'photos' && visiblePhotoEntries.some(entry => entry.item.id === selectedPhotoItemId)
+    ? visiblePhotoEntries
+    : allPhotoEntries;
+  const selectedPhotoIndex = previewEntries.findIndex(entry => entry.item.id === selectedPhotoItemId);
+
+  useEffect(() => {
+    setSelectedPhotoItemId(null);
+  }, [activeSection, selectedCategory, effectivePhotoScenario]);
 
   const sendMessage = (type: 'text' | 'voice', durationSeconds?: number) => {
     if (!selectedConversation || relationshipInvalid) return;
@@ -274,7 +307,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
     return (
       <div className="-mx-4 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-slate-200 bg-slate-100/70">
         <header className="z-10 flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-          {messageScenario === 'multi_elder' && <button type="button" onClick={() => setSelectedConversationId(null)} aria-label="返回会话列表" className="rounded-full bg-slate-100 p-2 text-slate-600"><ArrowLeft size={16} /></button>}
+          {messageScenario === 'multi_elder' && <button type="button" onClick={() => setSelectedConversationId(null)} aria-label="返回留言会话列表" className="rounded-full bg-slate-100 p-2 text-slate-600"><ArrowLeft size={16} /></button>}
           <img src={selectedConversation.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
           <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{selectedConversation.elderName}</strong><span className="text-[9px] text-emerald-600">14寸中控屏在线</span></div>
           <button type="button" onClick={onContactElder} disabled={relationshipInvalid} className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-700 disabled:bg-slate-100 disabled:text-slate-400"><Phone size={13} />联系老人</button>
@@ -335,24 +368,156 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
     );
   };
 
+  const unreadNotificationCount = notifications.filter(item => !item.read).length;
+  const sortedNotifications = [...notifications].sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
+
+  const openNotification = (notification: FamilyNotification) => {
+    onNotificationsChange(current => current.map(item => item.id === notification.id ? { ...item, read: true } : item));
+    if (notification.type === 'family_message') {
+      setSelectedConversationId(messageScenario === 'multi_elder' ? null : (notification.targetId ?? conversations[0]?.id ?? null));
+      onSectionChange('messages');
+      return;
+    }
+    if (notification.type === 'photo_feedback') {
+      const batch = photoBatches.find(item => item.id === notification.targetId);
+      if (batch?.items[0]) setSelectedPhotoItemId(batch.items[0].id);
+      return;
+    }
+    setSelectedSystemNotice(notification);
+  };
+
+  const renderNotificationCenter = () => (
+    <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+      <div className="mb-3 flex items-end justify-between px-1">
+        <div>
+          <h3 className="text-base font-extrabold text-slate-900">消息</h3>
+          <p className="mt-0.5 text-[10px] text-slate-500">留言、影像反馈、通话与服务通知</p>
+        </div>
+        {unreadNotificationCount > 0 && <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-bold text-rose-600">{unreadNotificationCount}条未读</span>}
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        {sortedNotifications.map(notification => {
+          const iconMeta = notification.type === 'family_message'
+            ? { Icon: MessageCircle, iconClass: 'bg-blue-50 text-blue-600', label: '家庭留言' }
+            : notification.type === 'photo_feedback'
+              ? { Icon: Heart, iconClass: 'bg-rose-50 text-rose-600', label: '影像反馈' }
+              : notification.type === 'missed_call'
+                ? { Icon: PhoneMissed, iconClass: 'bg-orange-50 text-orange-600', label: '语音未接' }
+                : { Icon: CalendarCheck, iconClass: 'bg-violet-50 text-violet-600', label: '服务预约' };
+          const { Icon } = iconMeta;
+          return (
+            <button key={notification.id} type="button" onClick={() => openNotification(notification)} className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-left last:border-b-0 hover:bg-slate-50">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconMeta.iconClass}`}><Icon size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5"><span className="text-[9px] font-bold text-slate-400">{iconMeta.label}</span>{!notification.read && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}</span>
+                <strong className="mt-0.5 block truncate text-xs text-slate-900">{notification.title}</strong>
+                <span className="mt-1 block truncate text-[10px] text-slate-500">{notification.summary}</span>
+              </span>
+              <span className="flex shrink-0 flex-col items-end gap-2"><span className="text-[9px] text-slate-400">{formatTime(notification.occurredAt)}</span><ChevronRight size={14} className="text-slate-300" /></span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
-    <div className={activeSection === 'messages' ? 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 p-4 pb-0' : 'min-h-full bg-slate-50 p-4 pb-8'} id="h5-family-tab">
-      <div className="grid shrink-0 grid-cols-2 rounded-xl bg-slate-200/70 p-1">
-        <button type="button" onClick={() => onSectionChange('messages')} className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition ${activeSection === 'messages' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>家庭留言{unreadCount > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadCount}</span>}</button>
-        <button type="button" onClick={() => onSectionChange('photos')} className={`rounded-lg py-2 text-xs font-bold transition ${activeSection === 'photos' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>家庭影像</button>
+    <div className={activeSection === 'photos' ? 'min-h-full bg-slate-50 p-4 pb-8' : 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 p-4 pb-0'} id="h5-family-tab">
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="grid min-w-0 flex-1 grid-cols-2 rounded-xl bg-slate-200/70 p-1">
+          <button type="button" onClick={() => onSectionChange('messages')} className={`rounded-lg py-2 text-xs font-bold transition ${activeSection === 'messages' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>家庭留言</button>
+          <button type="button" onClick={() => onSectionChange('photos')} className={`rounded-lg py-2 text-xs font-bold transition ${activeSection === 'photos' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>家庭影像</button>
+        </div>
+        <button type="button" onClick={() => onSectionChange('notifications')} aria-label={`消息，${unreadNotificationCount}条未读`} className={`relative flex h-10 shrink-0 items-center gap-1 rounded-xl border px-2.5 text-[10px] font-bold transition ${activeSection === 'notifications' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}><MessageCircle size={14} />消息{unreadNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadNotificationCount}</span>}</button>
       </div>
 
       {activeSection === 'messages' ? (
-        <>{messageScenario === 'multi_elder' && !selectedConversation && <div className="mt-5"><h3 className="text-sm font-extrabold text-slate-900">家庭留言</h3><p className="mt-1 text-[10px] text-slate-500">选择一位老人查看一对一会话</p></div>}{renderMessageArea()}</>
+        <>{messageScenario === 'multi_elder' && !selectedConversation && <div className="mt-5"><h3 className="text-sm font-extrabold text-slate-900">家庭留言</h3><p className="mt-1 text-[10px] text-slate-500">选择一位老人查看一对一留言</p></div>}{renderMessageArea()}</>
+      ) : activeSection === 'notifications' ? (
+        renderNotificationCenter()
       ) : (
         <>
           {effectivePhotoScenario === 'list_offline_cached' && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5"><strong className="text-xs text-amber-800">当前无网络</strong><p className="mt-1 text-[10px] text-amber-700">正在展示上次加载的影像，查看和喜欢状态可能不是最新。</p></div>}
           {effectivePhotoScenario !== 'list_empty' && effectivePhotoScenario !== 'list_offline_empty' && categoryStats.length >= 2 && <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1"><div className="flex w-max gap-2"><button type="button" onClick={() => setSelectedCategory('全部')} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === '全部' ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>全部 · {photoBatches.reduce((count, batch) => count + batch.items.length, 0)}项</button>{categoryStats.map(([category, count]) => <button key={category} type="button" onClick={() => setSelectedCategory(category)} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === category ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>{category} · {count}项</button>)}</div></div>}
-          {effectivePhotoScenario === 'list_offline_empty' ? <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-8 text-center"><CircleAlert size={24} className="mx-auto text-amber-500" /><h4 className="mt-3 text-sm font-bold text-slate-800">暂时无法加载家庭影像</h4><p className="mt-1 text-[10px] text-slate-400">请检查网络连接后重试</p><button type="button" onClick={() => setPhotoListRetryRecovered(true)} className="mt-4 rounded-full bg-slate-900 px-4 py-2 text-[10px] font-bold text-white">重新加载</button></div> : displayedPhotoBatches.length === 0 ? <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Images size={22} className="mx-auto text-slate-300" /><h4 className="mt-3 text-sm font-bold text-slate-800">还没有发布影像</h4><p className="mt-1 text-[10px] text-slate-400">把照片或视频分享给老人吧</p></div> : <div className="mt-3 space-y-3">{visiblePhotoBatches.map(batch => { const meta = feedbackMeta[batch.feedback]; const StatusIcon = meta.icon; return <button key={batch.id} type="button" onClick={() => setSelectedPhotoBatch(batch)} className="relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xs"><div className="grid h-28 grid-cols-3 gap-0.5 bg-slate-100">{batch.items.slice(0, 3).map((item, index) => <div key={item.id} className="relative overflow-hidden"><img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover" />{item.type === 'video' && <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/65 text-white"><Play size={13} className="ml-0.5 fill-current" /></span></span>}{item.type === 'video' && item.durationSeconds && <span className="absolute bottom-1 left-1 rounded bg-slate-950/70 px-1 text-[8px] text-white">{Math.floor(item.durationSeconds / 60)}:{String(item.durationSeconds % 60).padStart(2, '0')}</span>}{index === 2 && batch.items.length > 3 && <span className="absolute inset-0 flex items-center justify-center bg-slate-950/55 text-sm font-black text-white">+{batch.items.length - 3}</span>}</div>)}</div><div className="p-3"><div className="flex items-center justify-between gap-2"><strong className="text-xs text-slate-900">{batch.category} · {describeMediaCount(batch)}</strong><span className={`flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${meta.className}`}><StatusIcon size={11} />{meta.label}</span></div><div className="mt-2 flex items-center justify-between text-[9px] text-slate-400"><span>发给{batch.elderName} · {formatTime(batch.publishedAt)}</span><span className="font-bold text-blue-600">查看影像</span></div></div></button>; })}</div>}
+          {effectivePhotoScenario === 'list_offline_empty' ? (
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-8 text-center"><CircleAlert size={24} className="mx-auto text-amber-500" /><h4 className="mt-3 text-sm font-bold text-slate-800">暂时无法加载家庭影像</h4><p className="mt-1 text-[10px] text-slate-400">请检查网络连接后重试</p><button type="button" onClick={() => setPhotoListRetryRecovered(true)} className="mt-4 rounded-full bg-slate-900 px-4 py-2 text-[10px] font-bold text-white">重新加载</button></div>
+          ) : displayedPhotoBatches.length === 0 ? (
+            <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Images size={22} className="mx-auto text-slate-300" /><h4 className="mt-3 text-sm font-bold text-slate-800">还没有发布影像</h4><p className="mt-1 text-[10px] text-slate-400">把照片或视频分享给老人吧</p></div>
+          ) : (
+            <div className="mt-4 space-y-5">
+              {photoDateGroups.map(group => (
+                <section key={group.dateKey} aria-label={`${group.label}家庭影像`}>
+                  <div className="mb-2 flex items-center justify-between px-0.5">
+                    <h3 className="text-xs font-extrabold text-slate-800">{group.label}</h3>
+                    <span className="text-[9px] font-medium text-slate-400">{group.entries.length}项</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {group.entries.map(({ batch, item }) => (
+                      <button key={item.id} type="button" onClick={() => setSelectedPhotoItemId(item.id)} aria-label={`查看${item.name}`} className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100 text-left">
+                        <img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]" />
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/65 to-transparent px-2 pb-1.5 pt-5 text-[8px] font-bold text-white">{item.name.replace(/\.[^.]+$/, '')}</span>
+                        {item.type === 'video' && <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/65 text-white"><Play size={13} className="ml-0.5 fill-current" /></span></span>}
+                        {item.type === 'video' && item.durationSeconds && <span className="absolute right-1 top-1 rounded bg-slate-950/70 px-1 py-0.5 text-[8px] text-white">{Math.floor(item.durationSeconds / 60)}:{String(item.durationSeconds % 60).padStart(2, '0')}</span>}
+                        {batch.feedback === 'liked' && <span className="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-rose-500 shadow-sm"><Heart size={10} className="fill-current" /></span>}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
         </>
       )}
 
-      {selectedPhotoBatch && (() => { const meta = feedbackMeta[selectedPhotoBatch.feedback]; const StatusIcon = meta.icon; const label = selectedPhotoBatch.feedback === 'published' ? `已发给${selectedPhotoBatch.elderName}，等待查看` : `${selectedPhotoBatch.elderName}${meta.label}`; return <div className="absolute inset-0 z-[75] flex items-end bg-slate-950/45" onClick={() => setSelectedPhotoBatch(null)}><section role="dialog" aria-modal="true" onClick={event => event.stopPropagation()} className="flex max-h-[88%] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl"><header className="flex items-start justify-between border-b border-slate-100 p-4"><div><span className="text-[10px] font-bold text-blue-600">家庭影像</span><h3 className="mt-1 text-lg font-black text-slate-900">{selectedPhotoBatch.category} · {describeMediaCount(selectedPhotoBatch)}</h3></div><button type="button" onClick={() => setSelectedPhotoBatch(null)} className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></header><div className="flex-1 overflow-y-auto p-4"><div className="grid grid-cols-2 gap-2">{selectedPhotoBatch.items.map(item => item.type === 'video' ? <div key={item.id} className="overflow-hidden rounded-xl bg-slate-950"><video src={item.videoUrl} poster={item.previewUrl} controls preload="metadata" className="aspect-square w-full object-cover" /></div> : <img key={item.id} src={item.previewUrl} alt={item.name} className="aspect-square w-full rounded-xl object-cover" />)}</div>{selectedPhotoBatch.message && <div className="mt-4 rounded-2xl bg-orange-50 p-3"><span className="text-[9px] font-bold text-orange-600">影像附言</span><p className="mt-1 text-xs text-slate-700">“{selectedPhotoBatch.message}”</p></div>}<div className={`mt-4 flex items-center gap-2 rounded-2xl p-3 ${meta.className}`}><StatusIcon size={16} /><strong className="text-xs">{label}</strong></div><button type="button" onClick={() => { setSelectedPhotoBatch(null); onOpenPhotoShare(); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white"><ImagePlus size={15} />继续发照片或视频</button></div></section></div>; })()}
+      {selectedPhotoEntry && (() => {
+        const { batch, item } = selectedPhotoEntry;
+        const meta = feedbackMeta[batch.feedback];
+        const StatusIcon = meta.icon;
+        const publishedAt = new Date(batch.publishedAt);
+        const dateLabel = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }).format(publishedAt);
+        const timeLabel = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(publishedAt);
+        const showPrevious = selectedPhotoIndex > 0;
+        const showNext = selectedPhotoIndex >= 0 && selectedPhotoIndex < previewEntries.length - 1;
+        const selectOffset = (offset: number) => {
+          const nextEntry = previewEntries[selectedPhotoIndex + offset];
+          if (nextEntry) setSelectedPhotoItemId(nextEntry.item.id);
+        };
+        return (
+          <section role="dialog" aria-modal="true" aria-label={`预览${item.name}`} className="absolute inset-0 z-[75] flex flex-col bg-slate-950 text-white">
+            <header className="flex h-16 shrink-0 items-center justify-between px-3">
+              <button type="button" onClick={() => setSelectedPhotoItemId(null)} aria-label="关闭影像预览" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"><ArrowLeft size={20} /></button>
+              <div className="text-center">
+                <strong className="block text-xs">{dateLabel}</strong>
+                <span className="mt-0.5 block text-[9px] text-white/55">{timeLabel} · {selectedPhotoIndex + 1}/{previewEntries.length}</span>
+              </div>
+              <span className="h-10 w-10" aria-hidden="true" />
+            </header>
+
+            <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
+              {item.type === 'video' ? (
+                <video key={item.id} src={item.videoUrl} poster={item.previewUrl} controls playsInline preload="metadata" className="max-h-full w-full object-contain" />
+              ) : (
+                <img src={item.previewUrl} alt={item.name} className="max-h-full w-full object-contain" />
+              )}
+              {showPrevious && <button type="button" onClick={() => selectOffset(-1)} aria-label="上一张" className="absolute left-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white"><ChevronLeft size={21} /></button>}
+              {showNext && <button type="button" onClick={() => selectOffset(1)} aria-label="下一张" className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white"><ChevronRight size={21} /></button>}
+            </div>
+
+            <footer className="shrink-0 border-t border-white/10 bg-slate-950 px-4 pb-5 pt-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm">{item.name.replace(/\.[^.]+$/, '')}</strong>
+                  <span className="mt-1 block text-[10px] text-white/55">{batch.category} · 发给{batch.elderName}</span>
+                </div>
+                <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${meta.className}`}><StatusIcon size={11} />{meta.label}</span>
+              </div>
+              {batch.message && <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-white/70">{batch.message}</p>}
+            </footer>
+          </section>
+        );
+      })()}
+
+      {selectedSystemNotice && <div className="absolute inset-0 z-[75] flex items-end bg-slate-950/45" onClick={() => setSelectedSystemNotice(null)}><section role="dialog" aria-modal="true" onClick={event => event.stopPropagation()} className="w-full rounded-t-[28px] bg-white p-4 shadow-2xl"><div className="flex items-start justify-between"><div><span className="text-[10px] font-bold text-blue-600">{selectedSystemNotice.type === 'missed_call' ? '语音未接' : '服务预约'}</span><h3 className="mt-1 text-base font-black text-slate-900">{selectedSystemNotice.title}</h3></div><button type="button" onClick={() => setSelectedSystemNotice(null)} className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></div><p className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">{selectedSystemNotice.summary}</p>{selectedSystemNotice.type === 'missed_call' && <button type="button" onClick={() => { setSelectedSystemNotice(null); onContactElder(); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white"><Phone size={15} />联系老人</button>}</section></div>}
     </div>
   );
 };

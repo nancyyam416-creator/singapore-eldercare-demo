@@ -1,0 +1,167 @@
+@import "../../tokens.css";
+
+.entertainment-hub-page {
+  position: absolute;
+  inset: 0;
+  z-index: 132;
+  display: grid;
+  grid-template-rows: 96px minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--color-text);
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in oklch, var(--color-green), transparent 94%), transparent 38%),
+    var(--color-canvas);
+  font-family: var(--font-body);
+}
+
+.entertainment-hub-grid {
+  width: min(100%, 1440px);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 156px;
+  align-content: start;
+  gap: 18px;
+  margin: 0 auto;
+  padding: 28px 32px 34px;
+}
+
+.entertainment-hub-card {
+  --entertainment-accent: var(--color-green);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  color: var(--color-text);
+  text-align: left;
+  border: var(--rule-strong) solid var(--color-line);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--entertainment-accent), transparent 92%), transparent 50%),
+    var(--color-panel);
+  box-shadow: 0 12px 26px color-mix(in oklch, var(--color-canvas-deep), transparent 52%);
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-normal) var(--ease-out),
+    background-color var(--dur-normal) var(--ease-out);
+}
+
+.entertainment-hub-card[data-tone="amber"] { --entertainment-accent: var(--color-amber); }
+.entertainment-hub-card[data-tone="rose"] { --entertainment-accent: oklch(72% 0.17 345); }
+.entertainment-hub-card[data-tone="cyan"] { --entertainment-accent: var(--color-cyan); }
+.entertainment-hub-card[data-tone="blue"] { --entertainment-accent: oklch(70% 0.14 245); }
+
+.entertainment-hub-card:hover,
+.entertainment-hub-card:focus-visible {
+  border-color: var(--entertainment-accent);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--entertainment-accent), transparent 86%), transparent 54%),
+    var(--color-panel-raised);
+}
+
+.entertainment-hub-card:focus-visible {
+  outline: var(--rule-strong) solid var(--color-focus);
+  outline-offset: var(--space-xs);
+}
+
+.entertainment-hub-card:active { transform: scale(0.985); }
+
+.entertainment-hub-card__icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  color: var(--entertainment-accent);
+  background: color-mix(in oklch, var(--entertainment-accent), transparent 84%);
+}
+
+.entertainment-hub-card__icon svg { width: 36px; height: 36px; }
+
+.entertainment-hub-card__copy {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+}
+
+.entertainment-hub-card__copy strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.entertainment-hub-card__copy small {
+  color: var(--color-text-soft);
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 720;
+}
+
+.entertainment-hub-card__action {
+  min-width: 96px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: var(--rule-strong) solid color-mix(in oklch, var(--entertainment-accent), transparent 28%);
+  border-radius: var(--radius-round);
+  color: var(--color-text);
+  background: color-mix(in oklch, var(--entertainment-accent), transparent 76%);
+  font-size: 16px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.entertainment-hub-empty {
+  grid-column: 1 / -1;
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  border: var(--rule-thin) solid var(--color-line);
+  border-radius: var(--radius-md);
+  color: var(--color-text-soft);
+  background: var(--color-panel);
+}
+
+.entertainment-hub-empty span {
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: var(--color-panel-soft);
+}
+
+.entertainment-hub-empty svg { width: 38px; height: 38px; }
+.entertainment-hub-empty h2 { margin: 0; color: var(--color-text); font-size: 28px; }
+
+@media (max-width: 1180px) {
+  .entertainment-hub-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 176px;
+  }
+}
+
+@media (max-width: 760px) {
+  .entertainment-hub-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: 180px;
+  }
+
+  .entertainment-hub-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+    padding: 20px;
+  }
+
+  .entertainment-hub-card__icon { width: 72px; height: 72px; border-radius: 20px; }
+  .entertainment-hub-card__icon svg { width: 38px; height: 38px; }
+  .entertainment-hub-card__action { grid-column: 1 / -1; width: 100%; }
+}

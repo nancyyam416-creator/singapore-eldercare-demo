@@ -7,6 +7,7 @@ import {
   Images,
   Landmark,
   Radio,
+  UserRound,
   X,
 } from "lucide-react";
 import "./more-functions-drawer.css";
@@ -20,6 +21,7 @@ interface MoreFunctionsDrawerProps {
   onOpenCommunity: () => void;
   onOpenSpecialServices: () => void;
   onOpenEntertainment: () => void;
+  onOpenProfile: () => void;
 }
 
 interface FunctionEntry {
@@ -40,6 +42,7 @@ export default function MoreFunctionsDrawer({
   onOpenCommunity,
   onOpenSpecialServices,
   onOpenEntertainment,
+  onOpenProfile,
 }: MoreFunctionsDrawerProps) {
   const entries: FunctionEntry[] = [
     {
@@ -85,10 +88,18 @@ export default function MoreFunctionsDrawer({
     {
       id: "entertainment",
       title: "休闲娱乐",
-      description: "戏曲、音乐与视频",
+      description: "戏曲、音乐、评书与电视",
       icon: Radio,
       tone: "magenta",
       action: onOpenEntertainment,
+    },
+    {
+      id: "profile",
+      title: "我的信息",
+      description: "查看本人、家人和社区资料",
+      icon: UserRound,
+      tone: "teal",
+      action: onOpenProfile,
     },
   ];
 

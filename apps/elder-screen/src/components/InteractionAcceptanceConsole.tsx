@@ -55,9 +55,21 @@ export type AcceptanceRightContentScenario =
   | "missed-call"
   | "time-and-family"
   | "p1-due"
+  | "medication-upcoming"
+  | "schedule-due"
+  | "schedule-upcoming"
+  | "activity-started"
+  | "activity-upcoming"
+  | "activity-updated"
+  | "activity-cancelled"
+  | "reminder-daytime"
+  | "reminder-nighttime"
+  | "next-day-exit"
   | "recommendation-order"
-  | "recommendation-cooldown"
-  | "ai-fallback"
+  | "single-recommendation"
+  | "third-party-entertainment"
+  | "third-party-entertainment-failure"
+  | "no-content"
   | "interaction-locked";
 export type AcceptanceCommunityScenario =
   | "default"
@@ -77,7 +89,15 @@ export type AcceptanceCommunityScenario =
   | "topic-empty"
   | "topic-load-failure"
   | "activity-ended-cancelled"
-  | "activity-submit-failure";
+  | "activity-submit-failure"
+  | "activity-live-unconfigured"
+  | "activity-live-not-started"
+  | "activity-live-active"
+  | "activity-live-ended"
+  | "activity-live-cancelled-conflict"
+  | "activity-live-invalid-access"
+  | "activity-live-load-failure"
+  | "activity-live-interrupted";
 export type AcceptanceHomeCommand =
   | "reset-home-overlays"
   | "previous-photo"
@@ -107,7 +127,7 @@ interface InteractionAcceptanceConsoleProps {
   onSetCommunityScenario: (scenario: AcceptanceCommunityScenario) => void;
   onSetServiceScenario: (scenario: SpecialServicesAcceptanceScenario) => void;
   onApplyRightContentUpdate: () => void;
-  onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario, minutesUntil?: number) => void;
+  onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario, minutesUntil?: number, autoDismissMs?: number) => void;
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
   onOpenEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
   onOpenActivation: () => void;
@@ -156,9 +176,21 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "missed-call": { label: "家人未接来电", description: "同类未接来电累计次数，查看通话记录前持续保留。" },
   "time-and-family": { label: "时间与家庭同时产生", description: "两类内容同时进入候选，由同一个大按钮展示当前优先项。" },
   "p1-due": { label: "到点 P1 产生", description: "用药到点后转为 P1 主内容，家庭互动业务状态保留。" },
-  "recommendation-order": { label: "后台顺序轮换", description: "按展示顺序、发布时间倒序和固定内容编号稳定轮换。" },
-  "recommendation-cooldown": { label: "推荐进入冷却", description: "演示计时缩短：达到展示上限后进入冷却并换下一条。" },
-  "ai-fallback": { label: "无推荐 AI 补位", description: "全部后台推荐不可用时，仅展示普通 AI 语音入口。" },
+  "medication-upcoming": { label: "临近用药", description: "固定上标题提示用药临近，下标题显示执行时间与药品名称。" },
+  "schedule-due": { label: "到点日常事项", description: "固定上标题提示该做事项，下标题显示当前事项名称。" },
+  "schedule-upcoming": { label: "临近日常事项", description: "固定上标题提示事项临近，下标题显示执行时间与事项名称。" },
+  "activity-started": { label: "活动已经开始", description: "上标题显示活动开始，下标题显示活动名称。" },
+  "activity-upcoming": { label: "活动即将开始", description: "上标题显示活动临近，下标题显示开始时间与活动名称。" },
+  "activity-updated": { label: "活动信息已更新", description: "不弹窗、不语音，右侧直接读取更新后的活动时间和地点。" },
+  "activity-cancelled": { label: "活动已取消", description: "取消活动立即退出右侧候选，继续展示下一条有效内容。" },
+  "reminder-daytime": { label: "日间首次播报", description: "固定日间时间；同一提醒仅首次到点进行语音播报。" },
+  "reminder-nighttime": { label: "夜间静默提醒", description: "固定22:30；弹窗和右侧候选保留，但不进行语音播报。" },
+  "next-day-exit": { label: "次日00:00退出", description: "当天未处理推荐退出首页候选，不删除内容、不生成完成记录。" },
+  "recommendation-order": { label: "后台顺序轮换", description: "按后台展示顺序；同序时按创建时间从早到晚稳定轮换。" },
+  "single-recommendation": { label: "仅一条推荐", description: "后台只有一条有效内容时持续展示，不因计时进入冷却或消失。" },
+  "third-party-entertainment": { label: "娱乐内容打开成功", description: "展示后台ENT-002；成功进入第三方链接后退出本轮推荐。" },
+  "third-party-entertainment-failure": { label: "娱乐内容打开失败", description: "展示暂时无法打开、重试和返回；失败不退出推荐。" },
+  "no-content": { label: "无有效候选", description: "全部后台内容不可展示时，右侧显示“今日暂无内容”，不使用 AI 补位。" },
   "interaction-locked": { label: "操作中暂不换位", description: "正在操作右侧内容时先记录新留言，结束后再应用新排序。" },
 };
 
@@ -211,8 +243,16 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
   "topic-comment-failure": { label: "评论失败", description: "保留评论内容并支持重试。" },
   "topic-empty": { label: "话题空列表", description: "无话题时保留发起话题入口。" },
   "topic-load-failure": { label: "话题加载失败", description: "话题列表失败并提供重试。" },
-  "activity-ended-cancelled": { label: "活动结束/取消", description: "不可再提交参加意向。" },
+  "activity-ended-cancelled": { label: "活动结束/取消", description: "不可再选择参加意向，活动状态优先展示。" },
   "activity-submit-failure": { label: "意向提交失败", description: "保留原选择并支持重新提交。" },
+  "activity-live-unconfigured": { label: "活动未配置直播", description: "不显示直播信息和直播入口。" },
+  "activity-live-not-started": { label: "直播未开始", description: "显示预计开播时间，暂不可进入。" },
+  "activity-live-active": { label: "直播进行中", description: "访问配置有效，可进入和退出直播。" },
+  "activity-live-ended": { label: "直播已结束", description: "保留直播状态，不允许再次进入。" },
+  "activity-live-cancelled-conflict": { label: "活动取消但直播为 live", description: "活动取消优先，直播入口不可进入。" },
+  "activity-live-invalid-access": { label: "直播地址失效", description: "直播中但访问配置无效，入口禁用。" },
+  "activity-live-load-failure": { label: "直播加载失败", description: "进入后显示加载失败，可重新加载或退出。" },
+  "activity-live-interrupted": { label: "直播中断", description: "进入后显示中断状态，可重新连接或退出。" },
 };
 
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
@@ -460,7 +500,7 @@ export default function InteractionAcceptanceConsole({
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
           >
-            <div><Sparkles aria-hidden="true" /><span><strong>交互验收台</strong><small>执行动作后保持展开</small></span></div>
+            <div><Sparkles aria-hidden="true" /><span><strong>交互验收台</strong><small>L2 Mock 数据 · 执行动作后保持展开</small></span></div>
             <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setIsOpen(false)} aria-label="收起交互验收台"><PanelRightClose /></button>
           </header>
 
@@ -653,7 +693,7 @@ export default function InteractionAcceptanceConsole({
               </div>
 
               <div className="interaction-acceptance-field">
-                <h2><BellRing aria-hidden="true" />首页提前 5 分钟弹窗</h2>
+                <h2><BellRing aria-hidden="true" />首页提醒弹窗</h2>
                 <div className="interaction-acceptance-grid is-two-columns">
                   <button type="button" onClick={() => onOpenHomeReminderAlert("medicine")}>
                     <Pill />用药提醒弹窗
@@ -661,7 +701,11 @@ export default function InteractionAcceptanceConsole({
                   <button type="button" onClick={() => onOpenHomeReminderAlert("schedule")}>
                     <CalendarDays />日常提醒弹窗
                   </button>
+                  <button type="button" onClick={() => onOpenHomeReminderAlert("medicine", 0, 1_200)}>
+                    <Clock3 />60秒自动关闭（加速验收）
+                  </button>
                 </div>
+                <p className="interaction-acceptance-note">正式页面60秒后自动关闭；验收动作缩短为1.2秒，关闭不代表完成。</p>
               </div>
 
             </section>}
@@ -687,7 +731,7 @@ export default function InteractionAcceptanceConsole({
                   <ChevronRight aria-hidden="true" />打开当前社区生活场景
                 </button>
               </div>
-              <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向与“已确认参加”严格分开。</p>
+              <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向仅保留“我想参加”和“暂不参加”，与直播观看相互独立。</p>
             </section>}
 
             {activeSection === "special-services" && <section>

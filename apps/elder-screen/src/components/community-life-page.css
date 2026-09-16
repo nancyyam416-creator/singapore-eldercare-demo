@@ -161,11 +161,14 @@
 .community-life-info-list__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .community-life-info-list__copy { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .community-life-info-list__copy > span { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.community-life-info-list__activity-statuses { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .community-life-info-list__copy small { color: var(--color-text-muted); font-size: 16px; }
 .community-life-info-list__copy em,
 .community-life-info-list__copy b,
 .community-life-info-list__badge { padding: 5px 10px; border-radius: 999px; font-size: 14px; font-style: normal; }
 .community-life-info-list__copy em { color: var(--color-green); background: color-mix(in oklch, var(--color-green), transparent 86%); }
+.community-life-info-list__copy em.is-live { color: #9ed9ff; background: color-mix(in oklch, #1b6aa5, transparent 54%); }
+.community-life-info-list__copy em.is-unavailable { color: #ffb4b8; background: #441d23; }
 .community-life-info-list__copy b { color: white; background: #d52626; }
 .community-life-info-list__badge { color: #ffc45a; background: #403018; font-weight: 800; }
 .community-life-info-list__copy strong { font-size: 24px; line-height: 1.35; }

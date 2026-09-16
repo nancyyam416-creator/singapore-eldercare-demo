@@ -1,0 +1,124 @@
+@import "../../tokens.css";
+
+.personal-profile-page {
+  position: absolute;
+  inset: 0;
+  z-index: 132;
+  display: grid;
+  grid-template-rows: 96px minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-body);
+}
+
+.personal-profile-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 410px minmax(0, 1fr);
+  gap: 24px;
+  padding: 28px 32px 32px;
+}
+
+.personal-profile-summary,
+.personal-profile-content {
+  border: var(--rule-thin) solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
+}
+
+.personal-profile-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 34px 34px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in oklch, var(--color-green), transparent 78%), transparent 34%),
+    var(--color-panel);
+}
+
+.personal-profile-avatar {
+  width: 148px;
+  height: 148px;
+  display: grid;
+  place-items: center;
+  border: var(--rule-strong) solid color-mix(in oklch, var(--color-green), transparent 34%);
+  border-radius: 50%;
+  color: var(--color-green);
+  background: color-mix(in oklch, var(--color-green), transparent 87%);
+  box-shadow: 0 0 42px color-mix(in oklch, var(--color-green), transparent 75%);
+}
+
+.personal-profile-avatar svg { width: 78px; height: 78px; }
+.personal-profile-summary__eyebrow { margin-top: 28px; color: var(--color-green); font-size: 17px; font-weight: 850; }
+.personal-profile-summary h2 { margin: 10px 0 0; font-family: var(--font-display); font-size: 42px; line-height: 1.1; }
+.personal-profile-summary > p { margin: 12px 0 0; color: var(--color-text-soft); font-size: 20px; font-weight: 750; }
+
+.personal-profile-content {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding: 26px;
+  overflow-y: auto;
+}
+
+.personal-profile-section {
+  padding: 22px;
+  border: var(--rule-thin) solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-raised);
+}
+
+.personal-profile-section > header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: var(--rule-thin) solid var(--color-line);
+}
+
+.personal-profile-section > header > svg { width: 32px; height: 32px; flex: 0 0 auto; color: var(--color-green); }
+.personal-profile-section h3 { margin: 0; font-size: 25px; line-height: 1.1; }
+.personal-profile-section header p { margin: 6px 0 0; color: var(--color-text-soft); font-size: 15px; font-weight: 750; }
+
+.personal-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 18px;
+}
+
+.personal-profile-field {
+  min-width: 0;
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-soft);
+}
+
+.personal-profile-field__icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--color-cyan);
+  background: color-mix(in oklch, var(--color-cyan), transparent 88%);
+}
+
+.personal-profile-field__icon svg { width: 25px; height: 25px; }
+.personal-profile-field__copy { min-width: 0; display: grid; gap: 6px; text-align: left; }
+.personal-profile-field__copy small { color: var(--color-text-muted); font-size: 14px; font-weight: 800; }
+.personal-profile-field__copy strong { overflow: hidden; font-size: 19px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.personal-profile-field.is-missing .personal-profile-field__icon { color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 88%); }
+.personal-profile-field.is-missing .personal-profile-field__copy strong { color: var(--color-amber); }
+
+@media (max-width: 900px) {
+  .personal-profile-layout { grid-template-columns: 310px minmax(0, 1fr); padding-inline: 20px; }
+}

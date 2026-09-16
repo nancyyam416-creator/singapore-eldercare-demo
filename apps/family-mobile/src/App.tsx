@@ -67,6 +67,7 @@ export default function App() {
   const [previewOpenFamilyReceiptsSignal, setPreviewOpenFamilyReceiptsSignal] = useState(0);
   const [previewOpenFamilyMessagesSignal, setPreviewOpenFamilyMessagesSignal] = useState(0);
   const [previewOpenFamilyPhotosSignal, setPreviewOpenFamilyPhotosSignal] = useState(0);
+  const [previewOpenFamilyNotificationsSignal, setPreviewOpenFamilyNotificationsSignal] = useState(0);
   const [previewOpenHomeSignal, setPreviewOpenHomeSignal] = useState(0);
   const [previewCloseFamilyReceiptsSignal, setPreviewCloseFamilyReceiptsSignal] = useState(0);
   const [previewCompleteFamilyVoiceSignal, setPreviewCompleteFamilyVoiceSignal] = useState(0);
@@ -78,7 +79,7 @@ export default function App() {
   const [previewOpenLoginSignal, setPreviewOpenLoginSignal] = useState(0);
   const [previewOpenStoreSignal, setPreviewOpenStoreSignal] = useState(0);
   const [activePreviewPage, setActivePreviewPage] = useState<'login' | 'home' | 'family' | 'care' | 'profile'>('login');
-  const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos'>('family_messages');
+  const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos' | 'family_notifications'>('family_photos');
   
   // Real-time Emergency state triggered by the IoT sandbox
   const [emergencyAlert, setEmergencyAlert] = useState<string | null>(null);
@@ -175,6 +176,7 @@ export default function App() {
               previewOpenFamilyReceiptsSignal={previewOpenFamilyReceiptsSignal}
               previewOpenFamilyMessagesSignal={previewOpenFamilyMessagesSignal}
               previewOpenFamilyPhotosSignal={previewOpenFamilyPhotosSignal}
+              previewOpenFamilyNotificationsSignal={previewOpenFamilyNotificationsSignal}
               previewOpenHomeSignal={previewOpenHomeSignal}
               previewCloseFamilyReceiptsSignal={previewCloseFamilyReceiptsSignal}
               previewFamilyReceiptFilter={previewFamilyReceiptFilter}
@@ -222,6 +224,7 @@ export default function App() {
             onFamilyPhotoScenarioChange={setFamilyPhotoScenario}
             onOpenFamilyMessages={() => setPreviewOpenFamilyMessagesSignal(value => value + 1)}
             onOpenFamilyPhotos={() => setPreviewOpenFamilyPhotosSignal(value => value + 1)}
+            onOpenFamilyNotifications={() => setPreviewOpenFamilyNotificationsSignal(value => value + 1)}
             onOpenHome={() => setPreviewOpenHomeSignal(value => value + 1)}
             onOpenElderBinding={() => setPreviewOpenProfileSignal(value => value + 1)}
             onCareFeedScenarioChange={scenario => {

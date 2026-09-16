@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import "./today-overview.css";
+import { getEntertainmentContentById } from "../entertainment-content";
 
 type ScheduleStatus = "not-yet" | "pending" | "completed" | "unconfirmed" | "expired";
 export type RecommendationKind = "security" | "community" | "service" | "entertainment";
@@ -26,7 +27,8 @@ interface TodayOverviewPageProps {
   isOpen: boolean;
   onClose: () => void;
   initialRecommendationKind?: RecommendationKind | null;
-  directRecommendation?: boolean;
+  initialRecommendationId?: string | null;
+  entertainmentOpenShouldFail?: boolean;
   onFulfillment?: (record: { kind: "schedule" | "activity" | "service" | "content"; title: string }) => void;
   isSecurityRead?: boolean;
   onOpenSecurity?: () => void;
@@ -51,12 +53,14 @@ interface OverviewRecommendation {
   description: string;
   actionLabel: string;
   completedLabel: string;
+  targetUrl?: string;
   Icon: LucideIcon;
 }
 
 const SCHEDULE_STORAGE_KEY = "u2g-today-overview-schedules-v3";
 const SYNC_QUEUE_STORAGE_KEY = "u2g-today-overview-sync-queue-v2";
 const RECOMMENDATION_STORAGE_KEY = "u2g-today-overview-recommendations-v2";
+const entertainmentRecommendationContent = getEntertainmentContentById("ENT-002");
 
 const defaultSchedules: OverviewSchedule[] = [
   { id: "morning-med", time: "08:00", title: "早上药", status: "completed", Icon: Pill },
@@ -85,8 +89,8 @@ const recommendations: OverviewRecommendation[] = [
     eyebrow: "社区活动",
     title: "周五老年文艺汇演",
     description: "社区大舞台，精彩节目，周五 14:00 开始。",
-    actionLabel: "立即报名",
-    completedLabel: "已报名",
+    actionLabel: "我想参加",
+    completedLabel: "已选择：我想参加",
     Icon: Flag,
   },
   {
@@ -101,15 +105,16 @@ const recommendations: OverviewRecommendation[] = [
     Icon: Wrench,
   },
   {
-    id: "opera",
+    id: "REC-010",
     kind: "entertainment",
     priority: 4,
-    eyebrow: "休闲娱乐",
-    title: "京剧《女起解》",
-    description: "梅兰芳大师经典选段，约 42 分钟。",
-    actionLabel: "推荐查看",
+    eyebrow: "第三方内容",
+    title: entertainmentRecommendationContent?.name ?? "经典华语金曲",
+    description: "按一下打开第三方娱乐内容。",
+    actionLabel: "立即观看",
     completedLabel: "已查看",
-    Icon: Newspaper,
+    targetUrl: entertainmentRecommendationContent?.targetUrl,
+    Icon: Tv2,
   },
 ];
 
@@ -134,11 +139,22 @@ function readStringArray(key: string) {
   }
 }
 
+const isValidHttpTarget = (targetUrl?: string) => {
+  if (!targetUrl) return false;
+  try {
+    const parsed = new URL(targetUrl);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 export default function TodayOverviewPage({
   isOpen,
   onClose,
   initialRecommendationKind,
-  directRecommendation = false,
+  initialRecommendationId,
+  entertainmentOpenShouldFail = false,
   onFulfillment,
   isSecurityRead = false,
   onOpenSecurity,
@@ -151,6 +167,7 @@ export default function TodayOverviewPage({
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [syncNotice, setSyncNotice] = useState("");
   const [activeRecommendationId, setActiveRecommendationId] = useState<string | null>(null);
+  const [entertainmentOpenState, setEntertainmentOpenState] = useState<"ready" | "retrying" | "failure">("ready");
 
   const sortedSchedules = useMemo(() => defaultSchedules
     .map((item) => ({ ...item, status: scheduleStatuses[item.id] ?? item.status }))
@@ -159,7 +176,9 @@ export default function TodayOverviewPage({
   const sortedRecommendations = useMemo(() => [...recommendations].sort((first, second) => first.priority - second.priority), []);
   const activeRecommendation = recommendations.find((item) => item.id === activeRecommendationId);
   const activeRecommendationCompleted = activeRecommendation
-    ? activeRecommendation.kind === "security"
+    ? activeRecommendation.kind === "entertainment"
+      ? false
+      : activeRecommendation.kind === "security"
       ? isSecurityRead
       : activeRecommendation.kind === "service"
         ? isServiceBooked
@@ -168,7 +187,8 @@ export default function TodayOverviewPage({
 
   useEffect(() => {
     if (!isOpen || !initialRecommendationKind) return;
-    const recommendation = recommendations.find((item) => item.kind === initialRecommendationKind);
+    const recommendation = recommendations.find((item) => item.id === initialRecommendationId)
+      ?? recommendations.find((item) => item.kind === initialRecommendationKind);
     if (recommendation?.kind === "security" && onOpenSecurity) {
       onOpenSecurity();
       return;
@@ -177,8 +197,15 @@ export default function TodayOverviewPage({
       onOpenService();
       return;
     }
+    const entertainmentTargetInvalid = recommendation?.kind === "entertainment"
+      && !isValidHttpTarget(recommendation.targetUrl);
+    if (recommendation?.kind === "entertainment" && !entertainmentOpenShouldFail && !entertainmentTargetInvalid) {
+      window.location.assign(recommendation.targetUrl!);
+      return;
+    }
+    setEntertainmentOpenState(recommendation?.kind === "entertainment" ? "failure" : "ready");
     setActiveRecommendationId(recommendation?.id ?? null);
-  }, [initialRecommendationKind, isOpen, onOpenSecurity, onOpenService]);
+  }, [entertainmentOpenShouldFail, initialRecommendationId, initialRecommendationKind, isOpen, onOpenSecurity, onOpenService]);
 
   useEffect(() => {
     if (!isOpen) setActiveRecommendationId(null);
@@ -223,6 +250,15 @@ export default function TodayOverviewPage({
   const handleRecommendation = (recommendationId: string) => {
     const recommendation = recommendations.find((item) => item.id === recommendationId);
     if (!isOnline || !recommendation) return;
+    if (recommendation.kind === "entertainment") {
+      if (entertainmentOpenShouldFail || !isValidHttpTarget(recommendation.targetUrl)) {
+        setEntertainmentOpenState("failure");
+        setActiveRecommendationId(recommendation.id);
+        return;
+      }
+      window.location.assign(recommendation.targetUrl!);
+      return;
+    }
     const completed = recommendation.kind === "security"
       ? isSecurityRead
       : recommendation.kind === "service"
@@ -241,8 +277,13 @@ export default function TodayOverviewPage({
     const nextCompletedIds = [...completedRecommendationIds, recommendationId];
     setCompletedRecommendationIds(nextCompletedIds);
     window.localStorage.setItem(RECOMMENDATION_STORAGE_KEY, JSON.stringify(nextCompletedIds));
-    if (recommendation.kind === "community") onFulfillment?.({ kind: "activity", title: `已报名${recommendation.title}` });
+    if (recommendation.kind === "community") onFulfillment?.({ kind: "activity", title: `已选择参加${recommendation.title}` });
     else onFulfillment?.({ kind: "content", title: `${recommendation.completedLabel}${recommendation.title}` });
+  };
+
+  const retryEntertainmentOpen = () => {
+    setEntertainmentOpenState("retrying");
+    window.setTimeout(() => setEntertainmentOpenState("failure"), 650);
   };
 
   if (!isOpen) return null;
@@ -337,7 +378,9 @@ export default function TodayOverviewPage({
 
           <div className="today-recommendation-list">
             {sortedRecommendations.map((item) => {
-              const completed = item.kind === "security"
+              const completed = item.kind === "entertainment"
+                ? false
+                : item.kind === "security"
                 ? isSecurityRead
                 : item.kind === "service"
                   ? isServiceBooked
@@ -370,24 +413,44 @@ export default function TodayOverviewPage({
             <button
               type="button"
               className="recommendation-detail-close"
-              onClick={() => directRecommendation ? onClose() : setActiveRecommendationId(null)}
-              aria-label={directRecommendation ? "返回首页" : "关闭详情"}
+              onClick={() => setActiveRecommendationId(null)}
+              aria-label="关闭详情"
             >
-              {directRecommendation ? <ArrowLeft aria-hidden="true" /> : <X aria-hidden="true" />}
+              <X aria-hidden="true" />
             </button>
-            <span className="recommendation-detail-icon"><activeRecommendation.Icon aria-hidden="true" /></span>
-            <span className="recommendation-detail-eyebrow">{activeRecommendation.eyebrow}</span>
-            <h2>{activeRecommendation.title}</h2>
-            <p>{activeRecommendation.description}</p>
-            <button
-              type="button"
-              className="recommendation-detail-action"
-              onClick={() => handleRecommendation(activeRecommendation.id)}
-              disabled={!isOnline || activeRecommendationCompleted}
-            >
-              {!isOnline ? "网络异常" : activeRecommendationCompleted ? activeRecommendation.completedLabel : activeRecommendation.actionLabel}
-            </button>
-            {!isOnline && <small>请连接网络后查看</small>}
+            {activeRecommendation.kind === "entertainment" && entertainmentOpenState !== "ready" ? (
+              <div className="recommendation-detail-failure" role="status">
+                <WifiOff aria-hidden="true" />
+                <h2>暂时无法打开</h2>
+                <p>第三方内容暂时无法连接，请稍后重试。</p>
+                <div>
+                  <button type="button" onClick={retryEntertainmentOpen} disabled={entertainmentOpenState === "retrying"}>
+                    {entertainmentOpenState === "retrying" ? "正在重试…" : "重试"}
+                  </button>
+                  <button type="button" onClick={onClose}>返回</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <span className="recommendation-detail-icon"><activeRecommendation.Icon aria-hidden="true" /></span>
+                <span className="recommendation-detail-eyebrow">{activeRecommendation.eyebrow}</span>
+                <h2>{activeRecommendation.title}</h2>
+                <p>{activeRecommendation.description}</p>
+                <button
+                  type="button"
+                  className="recommendation-detail-action"
+                  onClick={() => handleRecommendation(activeRecommendation.id)}
+                  disabled={!isOnline || activeRecommendationCompleted}
+                >
+                  {!isOnline
+                    ? "网络异常"
+                    : activeRecommendationCompleted
+                        ? activeRecommendation.completedLabel
+                        : activeRecommendation.actionLabel}
+                </button>
+                {!isOnline && <small>请连接网络后查看</small>}
+              </>
+            )}
           </article>
         </section>
       )}

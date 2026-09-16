@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bot,
   CalendarDays,
   ChevronRight,
   Clock3,
@@ -12,7 +11,6 @@ import {
   PhoneMissed,
   ShieldAlert,
   Wrench,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -48,12 +46,12 @@ interface RailMessage {
   type?: "voice" | "text" | "photo" | "call_log";
 }
 
-type RightContentSource = "p1" | "time" | "family" | "recommendation" | "ai";
+type RightContentSource = "p1" | "time" | "family" | "recommendation" | "empty";
 
 interface RightContentItem {
   id: string;
   source: RightContentSource;
-  kind: "medication" | "schedule" | "activity" | "missed-call" | "message" | "album" | HomeRecommendationKind | "ai";
+  kind: "medication" | "schedule" | "activity" | "missed-call" | "message" | "album" | HomeRecommendationKind | "empty";
   title: string;
   subtitle: string;
   count?: number;
@@ -69,13 +67,11 @@ interface HomeTaskRailProps {
   missedCallCount: number;
   onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
   onOpenTodayOverview: () => void;
-  onOpenSchedule: () => void;
   onOpenMessages: () => void;
   onOpenCommunity: () => void;
   onOpenContacts: () => void;
   onOpenAlbum: () => void;
-  onOpenAssistant: () => void;
-  onOpenRecommendation: (kind: HomeRecommendationKind) => void;
+  onOpenRecommendation: (kind: HomeRecommendationKind, contentId?: string) => void;
   acceptanceRightContentScenario?: AcceptanceRightContentScenario;
   acceptanceRightContentApplySignal?: number;
   acceptanceRevision?: number;
@@ -85,8 +81,6 @@ const reminderMinutes = (time: string) => {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 };
-
-const medicinePeriod = (time: string) => time < "12:00" ? "早上" : time < "18:00" ? "中午" : "晚上";
 
 const senderRelation = (sender?: string) => sender?.match(/^(女儿|儿子|孙女|孙子|老伴)/)?.[1] ?? sender ?? "家人";
 
@@ -98,12 +92,10 @@ export default function HomeTaskRail({
   missedCallCount,
   onCompleteReminder,
   onOpenTodayOverview,
-  onOpenSchedule,
   onOpenMessages,
   onOpenCommunity,
   onOpenContacts,
   onOpenAlbum,
-  onOpenAssistant,
   onOpenRecommendation,
   acceptanceRightContentScenario = "default",
   acceptanceRightContentApplySignal = 0,
@@ -111,13 +103,14 @@ export default function HomeTaskRail({
 }: HomeTaskRailProps) {
   const [recommendationRuntime, setRecommendationRuntime] = useState<Record<string, RecommendationRuntimeState>>(createRecommendationRuntime);
   const [activeRecommendationId, setActiveRecommendationId] = useState(HOME_RECOMMENDATION_CONFIGS[0].contentId);
-  const [runtimeNow, setRuntimeNow] = useState(Date.now());
   const [isInteractionLocked, setIsInteractionLocked] = useState(false);
   const [isTodayRecommendationOpen, setIsTodayRecommendationOpen] = useState(false);
   const [completedOverviewScheduleIds, setCompletedOverviewScheduleIds] = useState<Set<string>>(() => new Set());
   const [frozenRightContentItems, setFrozenRightContentItems] = useState<RightContentItem[] | null>(null);
   const [hasAppliedLockedUpdate, setHasAppliedLockedUpdate] = useState(false);
+  const [dailyRecommendationsExpired, setDailyRecommendationsExpired] = useState(false);
   const interactionTimerRef = useRef<number | null>(null);
+  const recommendationDayRef = useRef("");
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const p0Tasks = useMemo(() => reminders.filter((item) => (item.priority ?? "P0") === "P0"), [reminders]);
 
@@ -128,22 +121,25 @@ export default function HomeTaskRail({
     .filter((item) => item.status !== "completed" && reminderMinutes(item.time) > nowMinutes && reminderMinutes(item.time) - nowMinutes <= 30)
     .sort((first, second) => reminderMinutes(first.time) - reminderMinutes(second.time));
 
-  const recommendationConfigs = useMemo(() => acceptanceRightContentScenario === "ai-fallback"
+  const recommendationConfigs = useMemo(() => acceptanceRightContentScenario === "no-content"
+    || acceptanceRightContentScenario === "next-day-exit"
+    || dailyRecommendationsExpired
     ? HOME_RECOMMENDATION_CONFIGS.map((item) => ({ ...item, enabled: false }))
     : HOME_RECOMMENDATION_CONFIGS.map((item) => (
-      acceptanceRightContentScenario === "recommendation-cooldown"
-        ? { ...item, displayDurationMs: 2_400, displayLimit: 1, cooldownMs: 4_800 }
+      ["third-party-entertainment", "third-party-entertainment-failure"].includes(acceptanceRightContentScenario)
+        ? { ...item, enabled: item.kind === "entertainment" }
+        : acceptanceRightContentScenario === "single-recommendation"
+        ? { ...item, enabled: item.contentId === HOME_RECOMMENDATION_CONFIGS[0].contentId }
         : acceptanceRightContentScenario === "recommendation-order"
-          ? { ...item, displayDurationMs: 3_200, displayLimit: 2, cooldownMs: 6_400 }
+          ? { ...item, displayDurationMs: 3_200 }
           : item
-    )), [acceptanceRightContentScenario]);
-  const recommendationClock = new Date(Math.max(now.getTime(), runtimeNow));
+    )), [acceptanceRightContentScenario, dailyRecommendationsExpired]);
   const eligibleRecommendations = useMemo(() => getEligibleRecommendationConfigs(
     recommendationConfigs,
-    recommendationClock,
+    now,
     "elder",
     recommendationRuntime,
-  ), [recommendationClock.getTime(), recommendationConfigs, recommendationRuntime]);
+  ), [now, recommendationConfigs, recommendationRuntime]);
   const activeRecommendation = eligibleRecommendations.find((item) => item.contentId === activeRecommendationId)
     ?? eligibleRecommendations[0]
     ?? null;
@@ -158,40 +154,24 @@ export default function HomeTaskRail({
     setHasAppliedLockedUpdate(false);
     setIsInteractionLocked(acceptanceRightContentScenario === "interaction-locked");
     setFrozenRightContentItems(null);
+    setDailyRecommendationsExpired(acceptanceRightContentScenario === "next-day-exit");
   }, [acceptanceRevision, acceptanceRightContentScenario]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      const current = Date.now();
-      setRuntimeNow(current);
-      setRecommendationRuntime((runtime) => Object.fromEntries(Object.entries(runtime).map(([contentId, state]: [string, RecommendationRuntimeState]) => [
-        contentId,
-        state.cooldownUntil && state.cooldownUntil <= current
-          ? { exposureCount: 0, lastShownAt: state.lastShownAt, cooldownUntil: null }
-          : state,
-      ])));
-    }, 500);
-    return () => window.clearInterval(timer);
-  }, []);
+    const dayKey = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
+    const previousDayKey = recommendationDayRef.current;
+    recommendationDayRef.current = dayKey;
+    if (previousDayKey && dayKey > previousDayKey) setDailyRecommendationsExpired(true);
+  }, [now]);
 
   useEffect(() => {
     if (isInteractionLocked || !activeRecommendation) return;
     const timer = window.setTimeout(() => {
       const finishedId = activeRecommendation.contentId;
-      setRecommendationRuntime((runtime) => {
-        const previous = runtime[finishedId] ?? { exposureCount: 0, lastShownAt: null, cooldownUntil: null };
-        const nextExposureCount = previous.exposureCount + 1;
-        return {
-          ...runtime,
-          [finishedId]: {
-            exposureCount: nextExposureCount,
-            lastShownAt: Date.now(),
-            cooldownUntil: nextExposureCount >= activeRecommendation.displayLimit
-              ? Date.now() + activeRecommendation.cooldownMs
-              : null,
-          },
-        };
-      });
       const currentIndex = eligibleRecommendations.findIndex((item) => item.contentId === finishedId);
       const next = eligibleRecommendations[currentIndex + 1] ?? eligibleRecommendations[0];
       if (next && next.contentId !== finishedId) setActiveRecommendationId(next.contentId);
@@ -199,9 +179,7 @@ export default function HomeTaskRail({
     return () => window.clearTimeout(timer);
   }, [
     activeRecommendation?.contentId,
-    activeRecommendation?.cooldownMs,
     activeRecommendation?.displayDurationMs,
-    activeRecommendation?.displayLimit,
     isInteractionLocked,
   ]);
 
@@ -229,8 +207,13 @@ export default function HomeTaskRail({
   const suppressLivePools = [
     "recommendations-only",
     "recommendation-order",
-    "recommendation-cooldown",
-    "ai-fallback",
+    "single-recommendation",
+    "third-party-entertainment",
+    "third-party-entertainment-failure",
+    "no-content",
+    "next-day-exit",
+    "activity-updated",
+    "activity-cancelled",
   ].includes(acceptanceRightContentScenario);
   const realUnreadMessages = messages.filter((item) => (
     !item.played
@@ -260,28 +243,57 @@ export default function HomeTaskRail({
 
   const currentTask = dueTasks[0] ?? upcomingTasks[0];
   const currentTaskIsDue = currentTask ? nowMinutes >= reminderMinutes(currentTask.time) : false;
+  const currentTaskGroup = currentTask
+    ? (currentTaskIsDue ? dueTasks : upcomingTasks).filter((item) => (
+        item.time === currentTask.time
+        && (item.category === "schedule") === (currentTask.category === "schedule")
+      ))
+    : [];
+  const currentTaskCount = Math.max(1, currentTaskGroup.length);
   const timeItems: RightContentItem[] = suppressLivePools || ["new-message", "new-album", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
     ? []
-    : acceptanceRightContentScenario === "time-and-family"
+    : acceptanceRightContentScenario === "activity-updated"
+      ? [{
+          id: "activity-updated",
+          source: "time",
+          kind: "activity",
+          title: "活动信息已更新",
+          subtitle: "14:00 社区剪纸活动 · 社区活动室2",
+          Icon: Flag,
+        }]
+      : acceptanceRightContentScenario === "activity-cancelled"
+        ? []
+    : ["time-and-family", "activity-upcoming"].includes(acceptanceRightContentScenario)
       ? [{
           id: "activity-upcoming",
           source: "time",
           kind: "activity",
-          title: "社区剪纸活动快开始了",
-          subtitle: "30分钟后开始 · 按一下查看",
+          title: "活动快开始了",
+          subtitle: "13:10 社区剪纸活动",
           Icon: Flag,
         }]
+      : acceptanceRightContentScenario === "activity-started"
+        ? [{
+            id: "activity-started",
+            source: "p1",
+            kind: "activity",
+            title: "活动开始了",
+            subtitle: "社区剪纸活动",
+            Icon: Flag,
+          }]
       : currentTask
         ? [{
             id: currentTask.id,
             source: currentTaskIsDue ? "p1" : "time",
             kind: currentTask.category === "schedule" ? "schedule" : "medication",
             title: currentTask.category === "schedule"
-              ? (currentTask.ctaTitle ?? currentTask.name)
-              : currentTaskIsDue ? `该吃${medicinePeriod(currentTask.time)}药啦` : `${medicinePeriod(currentTask.time)}药快到时间了`,
-            subtitle: currentTaskIsDue
-              ? currentTask.category === "schedule" ? "按一下：我已完成" : "按一下：我已服药"
-              : `将在 ${currentTask.time} 提醒`,
+              ? (currentTaskIsDue ? "该做事项了" : "事项时间快到了")
+              : (currentTaskIsDue ? "该用药了" : "用药时间快到了"),
+            subtitle: currentTaskCount > 1
+              ? currentTaskIsDue
+                ? `有${currentTaskCount}项${currentTask.category === "schedule" ? "事项" : "用药"}待完成`
+                : `${currentTask.time} 有${currentTaskCount}项${currentTask.category === "schedule" ? "事项" : "用药"}`
+              : `${currentTaskIsDue ? "" : `${currentTask.time} `}${currentTask.name}`,
             Icon: currentTask.category === "schedule" ? CalendarDays : Pill,
           }]
         : [];
@@ -291,8 +303,8 @@ export default function HomeTaskRail({
       id: "family-missed-call",
       source: "family" as const,
       kind: "missed-call" as const,
-      title: "家人有未接来电",
-      subtitle: "按一下查看通话记录",
+      title: "您有未接来电",
+      subtitle: visibleMissedCallCount > 1 ? `共${visibleMissedCallCount}次未接来电` : "家人",
       count: visibleMissedCallCount,
       Icon: PhoneMissed,
     } : null,
@@ -300,8 +312,8 @@ export default function HomeTaskRail({
       id: "family-messages",
       source: "family" as const,
       kind: "message" as const,
-      title: `${senderRelation(realUnreadMessages[0]?.sender)}发来新留言`,
-      subtitle: "按一下查看留言",
+      title: "家人给您留言了",
+      subtitle: messageCount > 1 ? `共${messageCount}条新留言` : senderRelation(realUnreadMessages[0]?.sender),
       count: messageCount,
       Icon: MessageCircleHeart,
     } : null,
@@ -309,8 +321,8 @@ export default function HomeTaskRail({
       id: "family-album",
       source: "family" as const,
       kind: "album" as const,
-      title: "家人发来新影像",
-      subtitle: "按一下全屏查看",
+      title: "家人分享了新影像",
+      subtitle: visibleAlbumUnreadCount > 1 ? `共${visibleAlbumUnreadCount}项新影像` : "女儿小敏",
       count: visibleAlbumUnreadCount,
       Icon: Image,
     } : null,
@@ -321,7 +333,9 @@ export default function HomeTaskRail({
     source: "recommendation",
     kind: activeRecommendation.kind,
     title: activeRecommendation.title,
-    subtitle: activeRecommendation.subtitle,
+    subtitle: activeRecommendation.kind === "entertainment"
+      ? "按一下观看"
+      : (activeRecommendation.subtitle ?? ""),
     Icon: activeRecommendation.kind === "security"
       ? ShieldAlert
       : activeRecommendation.kind === "community"
@@ -331,12 +345,12 @@ export default function HomeTaskRail({
           : Music2,
     recommendation: activeRecommendation,
   } : {
-    id: "ai-voice-fallback",
-    source: "ai",
-    kind: "ai",
-    title: "想聊聊天吗？",
-    subtitle: "按一下问小达",
-    Icon: Bot,
+    id: "right-content-empty",
+    source: "empty",
+    kind: "empty",
+    title: "今日暂无内容",
+    subtitle: "有新内容时会显示在这里",
+    Icon: Clock3,
   };
 
   const latestMergedItems = [...timeItems, ...familyItems, recommendationItem].slice(0, 1);
@@ -349,35 +363,43 @@ export default function HomeTaskRail({
     time: "时间提醒",
     family: "家庭互动",
     recommendation: "今日推荐",
-    ai: "AI 语音",
+    empty: "暂无内容",
   };
 
   const activateContent = (item: RightContentItem) => {
-    if (item.source === "p1" && (item.kind === "medication" || item.kind === "schedule")) onCompleteReminder(item.id);
-    else if (item.kind === "medication" || item.kind === "schedule") onOpenSchedule();
+    if (item.kind === "medication" || item.kind === "schedule") onOpenTodayOverview();
     else if (item.kind === "activity") onOpenCommunity();
     else if (item.kind === "missed-call") onOpenContacts();
     else if (item.kind === "message") onOpenMessages();
     else if (item.kind === "album") onOpenAlbum();
-    else if (item.kind === "ai") onOpenAssistant();
-    else onOpenRecommendation(item.kind);
+    else if (item.kind === "empty") return;
+    else {
+      const entertainmentFailed = acceptanceRightContentScenario === "third-party-entertainment-failure"
+        && item.kind === "entertainment";
+      if (item.source === "recommendation" && item.recommendation && !entertainmentFailed) {
+        const recommendationId = item.recommendation.contentId;
+        setRecommendationRuntime((runtime) => ({
+          ...runtime,
+          [recommendationId]: {
+            viewed: true,
+          },
+        }));
+      }
+      onOpenRecommendation(item.kind, item.recommendation?.contentId);
+    }
   };
 
   const contentClass = (item: RightContentItem) => `is-${item.source} is-${item.kind}`;
 
   return (
     <aside className="task-rail" aria-label="首页右侧内容">
-      <section className="primary-task">
+      <section className={`primary-task${isTodayRecommendationOpen ? " is-overview-open" : ""}`}>
         {isTodayRecommendationOpen ? (
           <section className="home-today-popover" aria-label="今日全览内容">
             <header>
               <div>
                 <strong>今日全览</strong>
-                <small>{TODAY_OVERVIEW_SCHEDULES.length} 项提醒 · {TODAY_OVERVIEW_RECOMMENDATIONS.length} 项推荐</small>
               </div>
-              <button type="button" onClick={() => setIsTodayRecommendationOpen(false)}>
-                <X aria-hidden="true" />收起
-              </button>
             </header>
             <div className="home-today-scroll">
               <section className="home-today-section" aria-label="提醒事项">
@@ -461,7 +483,7 @@ export default function HomeTaskRail({
                       className={`is-${recommendation.kind}`}
                       onClick={() => {
                         setIsTodayRecommendationOpen(false);
-                        onOpenRecommendation(recommendation.kind);
+                        onOpenRecommendation(recommendation.kind, recommendation.id);
                       }}
                     >
                       <span className="home-today-item-icon"><recommendation.Icon aria-hidden="true" /></span>
@@ -487,6 +509,7 @@ export default function HomeTaskRail({
               type="button"
               className={`medicine-orb ${contentClass(primaryContent)}`}
               onClick={() => activateContent(primaryContent)}
+              disabled={primaryContent.source === "empty"}
               aria-label={`${sourceLabel[primaryContent.source]}：${primaryContent.title} ${primaryContent.subtitle}`}
             >
               {primaryContent.count && primaryContent.count > 0 && (
@@ -504,7 +527,7 @@ export default function HomeTaskRail({
             )}
           </div>
         )}
-        <div className="today-overview-entry-group" aria-label="今日全览打开方式">
+        <div className="today-overview-entry-group">
           <button
             type="button"
             className={`today-overview-button${isTodayRecommendationOpen ? " is-open" : ""}`}
@@ -513,18 +536,6 @@ export default function HomeTaskRail({
           >
             <CalendarDays aria-hidden="true" />
             <strong>{isTodayRecommendationOpen ? "收起全览" : "今日全览"}</strong>
-          </button>
-          <button
-            type="button"
-            className="today-overview-page-button"
-            onClick={() => {
-              setIsTodayRecommendationOpen(false);
-              onOpenTodayOverview();
-            }}
-            aria-label="进入今日全览完整二级页面"
-          >
-            <strong>完整页面</strong>
-            <ChevronRight aria-hidden="true" />
           </button>
         </div>
       </section>
