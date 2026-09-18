@@ -211,7 +211,6 @@ export default function ContactsCommunicationPage({
     setSelectedContactId(contact.id);
     setRecorderState("idle");
     setRecordingSeconds(0);
-    speak(`已切换到${contact.name}`);
     window.setTimeout(() => {
       const firstUnread = timelineRef.current?.querySelector<HTMLElement>("[data-unread='true']");
       firstUnread?.scrollIntoView({ behavior: "smooth", block: "start" });

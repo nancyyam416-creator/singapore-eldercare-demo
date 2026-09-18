@@ -6,6 +6,7 @@ interface SecondaryPageHeaderProps {
   title: string;
   icon: ReactNode;
   onBack: () => void;
+  backLabel?: string;
   actions?: ReactNode;
 }
 
@@ -13,6 +14,7 @@ export default function SecondaryPageHeader({
   title,
   icon,
   onBack,
+  backLabel = "返回首页",
   actions,
 }: SecondaryPageHeaderProps) {
   return (
@@ -20,7 +22,7 @@ export default function SecondaryPageHeader({
       <div className="secondary-page-header__identity">
         <button type="button" className="secondary-page-header__back" onClick={onBack}>
           <ArrowLeft aria-hidden="true" />
-          返回首页
+          {backLabel}
         </button>
         <div className="secondary-page-header__title">
           {icon}

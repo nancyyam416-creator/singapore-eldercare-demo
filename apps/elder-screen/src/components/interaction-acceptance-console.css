@@ -232,6 +232,28 @@
   line-height: 1.45;
 }
 
+.interaction-acceptance-current {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px solid rgba(105, 223, 88, 0.34);
+  border-radius: 11px;
+  background: rgba(15, 45, 42, 0.72);
+}
+
+.interaction-acceptance-current > strong {
+  color: #efffec;
+  font-size: 13px;
+}
+
+.interaction-acceptance-current > p {
+  margin: 0;
+  color: #a9bad0;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .interaction-acceptance-field + .interaction-acceptance-field { margin-top: 14px; }
 .interaction-acceptance-field > h2 { margin-bottom: 7px; }
 .interaction-acceptance-field > p { margin: -3px 0 8px; color: #6f8298; font-size: 10px; }
@@ -380,6 +402,28 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.interaction-acceptance-actions-grid > button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.interaction-acceptance-context-action {
+  display: grid;
+  gap: 7px;
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(126, 151, 177, 0.18);
+}
+
+.interaction-acceptance-context-action > span {
+  color: #8fa2b8;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.interaction-acceptance-context-action .interaction-acceptance-primary-action {
+  margin-top: 0;
+}
+
 .interaction-acceptance-grid + .interaction-acceptance-grid {
   margin-top: 7px;
 }
@@ -451,12 +495,6 @@
   font-size: 13px;
   font-weight: 850;
   cursor: pointer;
-}
-
-.interaction-acceptance-panel > footer button.is-activation {
-  border-color: rgba(105, 223, 88, 0.5);
-  color: #efffec;
-  background: rgba(31, 111, 66, 0.68);
 }
 
 .interaction-acceptance-panel > footer svg {

@@ -1,0 +1,114 @@
+@import "../../tokens.css";
+
+.activation-flow {
+  width: 100%; height: 100%; display: grid; grid-template-rows: 96px minmax(0, 1fr);
+  overflow: hidden; color: var(--color-text); background: var(--color-canvas); font-family: var(--font-body);
+}
+
+.activation-flow__header {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 32px;
+  border-bottom: var(--rule-thin) solid var(--color-line); background: var(--color-canvas-deep);
+  box-shadow: 0 10px 30px color-mix(in oklch, var(--color-canvas-deep), transparent 42%);
+}
+.activation-flow__brand, .activation-flow__header-actions, .activation-flow__header-actions button { display: flex; align-items: center; }
+.activation-flow__brand { gap: 16px; }
+.activation-flow__brand > span { width: 54px; height: 54px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--color-green); background: color-mix(in oklch, var(--color-green), transparent 86%); }
+.activation-flow__brand svg { width: 31px; height: 31px; }
+.activation-flow__brand h1 { margin: 0; font-family: var(--font-display); font-size: 30px; line-height: 1; font-weight: 900; }
+.activation-flow__brand p { margin: 7px 0 0; color: var(--color-text-soft); font-size: 16px; font-weight: 750; }
+.activation-flow__header-actions { gap: 14px; }
+.activation-flow__header-actions button { height: 54px; gap: 9px; padding: 0 18px; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-round); font-size: 18px; font-weight: 900; }
+.activation-flow__header-actions button { color: var(--color-text); background: var(--color-panel-raised); cursor: pointer; }
+.activation-flow__header-actions svg { width: 23px; height: 23px; }
+
+.activation-flow__main { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 22px; padding: 26px 42px 34px; }
+.activation-progress { width: min(100%, 1120px); display: flex; align-items: center; margin: 0 auto; }
+.activation-progress > div { min-width: 160px; display: flex; align-items: center; gap: 12px; color: var(--color-text-muted); font-size: 17px; font-weight: 900; }
+.activation-progress i { width: 44px; height: 44px; display: grid; place-items: center; flex: 0 0 auto; border: var(--rule-strong) solid var(--color-line); border-radius: 50%; background: var(--color-panel); font-style: normal; }
+.activation-progress i svg { width: 23px; height: 23px; }
+.activation-progress > b { height: 3px; flex: 1; margin: 0 18px; border-radius: var(--radius-round); background: var(--color-line); }
+.activation-progress > div.is-active, .activation-progress > div.is-completed { color: var(--color-text); }
+.activation-progress > div.is-active i { color: var(--color-canvas-deep); border-color: var(--color-green); background: var(--color-green); box-shadow: 0 0 22px color-mix(in oklch, var(--color-green), transparent 72%); }
+.activation-progress > div.is-completed i { color: var(--color-green); border-color: color-mix(in oklch, var(--color-green), transparent 42%); background: color-mix(in oklch, var(--color-green-dark), transparent 42%); }
+.activation-progress > b.is-completed { background: var(--color-green); }
+
+.activation-shell { width: min(100%, 1500px); min-height: 0; display: grid; grid-template-columns: 380px minmax(0, 1fr); margin: 0 auto; overflow: hidden; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-panel); box-shadow: 0 20px 50px color-mix(in oklch, var(--color-canvas-deep), transparent 32%); }
+.activation-shell__summary { min-height: 0; display: flex; flex-direction: column; gap: 28px; padding: 42px 36px; border-right: var(--rule-thin) solid var(--color-line); background: color-mix(in oklch, var(--color-green-dark), var(--color-panel) 78%); }
+.activation-shell__summary-icon, .activation-step__status-icon, .activation-modal__icon { display: grid; place-items: center; color: var(--color-green); background: color-mix(in oklch, var(--color-green), transparent 86%); }
+.activation-shell__summary-icon { width: 68px; height: 68px; border-radius: var(--radius-md); }
+.activation-shell__summary-icon svg { width: 38px; height: 38px; }
+.activation-shell__summary h2 { margin: 28px 0 0; font-family: var(--font-display); font-size: 31px; line-height: 1.25; font-weight: 900; }
+.activation-shell__summary p { margin: 18px 0 0; color: var(--color-text-soft); font-size: 19px; line-height: 1.65; font-weight: 730; }
+
+.activation-shell__content { min-width: 0; min-height: 0; display: grid; place-items: center; padding: 34px 46px; overflow: auto; }
+.activation-step { width: min(100%, 720px); text-align: center; }
+.activation-step__eyebrow { color: var(--color-green); font-size: 17px; font-weight: 900; }
+.activation-step h2 { margin: 10px 0 0; font-family: var(--font-display); font-size: 40px; line-height: 1.15; font-weight: 900; }
+.activation-step > p { margin: 16px 0 0; color: var(--color-text-soft); font-size: 20px; line-height: 1.5; font-weight: 740; }
+.activation-device-status { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; margin-top: 24px; text-align: left; }
+.activation-device-status > div { min-width: 0; min-height: 74px; display: flex; align-items: center; gap: 13px; padding: 12px 16px; border: var(--rule-thin) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); }
+.activation-device-status svg { width: 27px; height: 27px; flex: 0 0 auto; color: var(--color-green); }
+.activation-device-status span { min-width: 0; }
+.activation-device-status small, .activation-device-status strong { display: block; }
+.activation-device-status small { color: var(--color-text-muted); font-size: 14px; font-weight: 800; }
+.activation-device-status strong { margin-top: 5px; overflow: hidden; font-size: 18px; font-weight: 900; letter-spacing: .02em; text-overflow: ellipsis; white-space: nowrap; }
+.activation-code-field { display: block; margin-top: 22px; text-align: left; }
+.activation-code-field > span { display: block; font-size: 19px; font-weight: 900; }
+.activation-code-input { position: relative; display: block; margin-top: 12px; }
+.activation-code-input > input { width: 100%; height: 94px; box-sizing: border-box; margin: 0; padding: 0 26px 8px; color: var(--color-text); border: 3px solid var(--color-line); border-radius: var(--radius-md); outline: none; background: var(--color-panel-raised); font-size: 43px; font-weight: 900; line-height: normal; text-align: center; letter-spacing: .42em; transition: border-color var(--dur-normal) var(--ease-out); }
+.activation-code-input > span { position: absolute; inset: 0; display: grid; place-items: center; padding-bottom: 2px; color: var(--color-text-muted); font-size: 22px; font-weight: 900; pointer-events: none; }
+.activation-code-field input:focus { border-color: var(--color-green); }
+.activation-code-field input[aria-invalid="true"] { border-color: var(--color-red); }
+.activation-error-slot { min-height: 58px; padding-top: 12px; }
+.activation-error-slot p { display: flex; align-items: center; gap: 10px; margin: 0; color: #ff9b97; font-size: 17px; font-weight: 900; text-align: left; }
+.activation-error-slot b { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: var(--color-red-deep); }
+.activation-primary-action { width: 100%; min-height: 66px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 0 24px; color: var(--color-canvas-deep); border: var(--rule-strong) solid var(--color-green); border-radius: var(--radius-md); background: var(--color-green); font-size: 22px; font-weight: 900; cursor: pointer; }
+.activation-primary-action:disabled { color: var(--color-text-muted); border-color: var(--color-line); background: var(--color-panel-soft); cursor: not-allowed; }
+.activation-primary-action svg { width: 25px; height: 25px; }
+
+.activation-profile-card { display: flex; align-items: center; gap: 28px; margin-top: 30px; padding: 28px; text-align: left; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-panel-raised); }
+.activation-profile-card__avatar { width: 108px; height: 108px; display: grid; place-items: center; flex: 0 0 auto; border: 3px solid color-mix(in oklch, var(--color-green), transparent 45%); border-radius: 50%; color: var(--color-green); background: color-mix(in oklch, var(--color-green-dark), transparent 42%); font-size: 42px; font-weight: 900; }
+.activation-profile-card h3 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 33px; }
+.activation-profile-card h3 span { padding: 5px 12px; border-radius: var(--radius-round); color: var(--color-green); background: color-mix(in oklch, var(--color-green-dark), transparent 42%); font-size: 15px; }
+.activation-profile-card strong { display: block; margin-top: 13px; font-size: 19px; }
+.activation-profile-card p { margin: 8px 0 0; color: var(--color-text-soft); font-size: 17px; font-weight: 740; }
+.activation-step__actions { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; margin-top: 28px; }
+.activation-step__actions button { min-height: 66px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; color: var(--color-text); border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); font-size: 20px; font-weight: 900; cursor: pointer; }
+.activation-step__actions button.is-primary { color: var(--color-canvas-deep); border-color: var(--color-green); background: var(--color-green); }
+
+.activation-step__status-icon { width: 94px; height: 94px; margin: 0 auto; border-radius: 50%; }
+.activation-step__status-icon svg { width: 49px; height: 49px; }
+.activation-sync-list, .activation-success-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 30px; }
+.activation-sync-list > div { min-height: 82px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); font-size: 16px; font-weight: 900; }
+.activation-sync-list > div.is-completed { border-color: color-mix(in oklch, var(--color-green), transparent 55%); color: var(--color-green); background: color-mix(in oklch, var(--color-green-dark), transparent 54%); }
+.activation-sync-list svg { width: 24px; height: 24px; flex: 0 0 auto; }
+.activation-step--syncing small { display: block; margin-top: 25px; color: var(--color-text-muted); font-size: 15px; font-weight: 800; }
+.activation-step--success .activation-step__status-icon { color: var(--color-canvas-deep); background: var(--color-green); box-shadow: 0 0 30px color-mix(in oklch, var(--color-green), transparent 68%); }
+.activation-success-list > div { min-height: 88px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 12px; color: var(--color-green); border: var(--rule-thin) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); font-size: 15px; font-weight: 900; }
+.activation-success-list svg { width: 27px; height: 27px; }
+.activation-step--success > .activation-primary-action { margin-top: 18px; }
+
+.activation-modal { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; padding: 36px; background: var(--color-overlay); }
+.activation-modal > section { position: relative; width: min(100%, 680px); padding: 38px; color: var(--color-text); border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-panel); box-shadow: 0 24px 70px var(--color-canvas-deep); }
+.activation-modal__close { position: absolute; top: 20px; right: 20px; width: 52px; height: 52px; display: grid; place-items: center; color: var(--color-text); border: var(--rule-thin) solid var(--color-line); border-radius: 50%; background: var(--color-panel-raised); cursor: pointer; }
+.activation-modal__close svg { width: 26px; height: 26px; }
+.activation-modal__icon { width: 66px; height: 66px; border-radius: var(--radius-md); }
+.activation-modal__icon svg { width: 37px; height: 37px; }
+.activation-modal h2 { margin: 24px 0 0; font-family: var(--font-display); font-size: 33px; }
+.activation-modal > section > p { margin: 14px 0 0; color: var(--color-text-soft); font-size: 19px; line-height: 1.55; font-weight: 740; }
+.activation-help-device { margin: 22px 0; padding: 18px 20px; border: var(--rule-thin) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); }
+.activation-help-device span { display: block; color: var(--color-text-muted); font-size: 15px; font-weight: 800; }
+.activation-help-device strong { display: block; margin-top: 7px; font-size: 20px; letter-spacing: .04em; }
+.activation-modal__actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 14px; margin-top: 26px; }
+.activation-modal__actions button { min-height: 62px; padding: 0 18px; color: var(--color-text); border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); font-size: 18px; font-weight: 900; cursor: pointer; }
+.activation-modal__actions button.is-primary { color: var(--color-canvas-deep); border-color: var(--color-green); background: var(--color-green); }
+
+.is-spinning { animation: activation-spin .9s linear infinite; }
+@keyframes activation-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1050px) {
+  .activation-shell { grid-template-columns: 300px minmax(0, 1fr); }
+  .activation-shell__summary { padding: 30px 26px; }
+  .activation-progress > div { min-width: 130px; }
+  .activation-sync-list, .activation-success-list { grid-template-columns: 1fr; }
+}

@@ -32,7 +32,6 @@ import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCo
 import type { MedicationReminder } from "../types";
 import {
   formatWeatherLocalTime,
-  formatWeatherUpdatedAt,
   type FamilyWeatherMember,
   type FamilyWeatherSnapshot,
   type WeatherConditionCode,
@@ -97,7 +96,6 @@ interface ControlCenterHomeProps {
   onOpenAlbum: () => void;
   onOpenMessages: () => void;
   onOpenSchedule: () => void;
-  onOpenTodayOverview: () => void;
   onOpenCommunity: () => void;
   onOpenRecommendation: (kind: "security" | "community" | "service" | "entertainment", contentId?: string) => void;
   onOpenContacts: () => void;
@@ -169,7 +167,6 @@ export default function ControlCenterHome({
   onOpenAlbum,
   onOpenMessages,
   onOpenSchedule,
-  onOpenTodayOverview,
   onOpenCommunity,
   onOpenRecommendation,
   onOpenContacts,
@@ -726,7 +723,6 @@ export default function ControlCenterHome({
           albumUnreadCount={albumUnreadCount}
           missedCallCount={missedCallCount}
           onCompleteReminder={onCompleteReminder}
-          onOpenTodayOverview={onOpenTodayOverview}
           onOpenMessages={onOpenMessages}
           onOpenCommunity={onOpenCommunity}
           onOpenContacts={onOpenContacts}
@@ -770,13 +766,9 @@ export default function ControlCenterHome({
             <header className="weather-overview__header">
               <div>
                 <h2 id="weather-overview-title">家庭天气</h2>
-                <span className={isWeatherOnline ? "" : "is-offline"}>
-                  {isWeatherOnline ? (
-                    <>天气数据更新时间以各城市卡片为准</>
-                  ) : (
-                    <><WifiOff aria-hidden="true" />网络已断开 · 显示最近缓存天气</>
-                  )}
-                </span>
+                {!isWeatherOnline && (
+                  <span className="is-offline"><WifiOff aria-hidden="true" />网络已断开 · 显示最近缓存天气</span>
+                )}
               </div>
               <button type="button" onClick={closeWeatherOverview} aria-label="关闭天气总览"><X aria-hidden="true" /></button>
             </header>
@@ -794,11 +786,8 @@ export default function ControlCenterHome({
                   {isAvailable && member.weather && member.location ? (
                     <>
                       <strong>{member.weather.temperatureC}°C</strong>
-                      <span className="weather-city-card__condition">{member.weather.conditionText} · 最高{member.weather.highC}° / 最低{member.weather.lowC}°</span>
                       <b className="weather-city-card__location"><MapPin aria-hidden="true" />{locationLabel}</b>
                       <span className="weather-city-card__time">当地 {formatWeatherLocalTime(member.location.timeZone)}</span>
-                      <span className="weather-city-card__updated">{member.weather.queryState === "cached" ? `更新失败 · 显示 ${formatWeatherUpdatedAt(member.weather.lastSuccessAt, member.location.timeZone)} 的缓存天气` : `已更新 · ${formatWeatherUpdatedAt(member.weather.lastSuccessAt, member.location.timeZone)}`}</span>
-                      {member.weather.riskText && <em>{member.weather.riskText}</em>}
                     </>
                   ) : (
                     <>
@@ -818,7 +807,7 @@ export default function ControlCenterHome({
                   <button
                     key={member.id}
                     type="button"
-                    className={`weather-city-card ${member.weather?.riskText ? "has-warning" : ""} ${isSelected ? "is-selected" : ""} ${isAvailable ? "" : "is-unavailable"}`}
+                    className={`weather-city-card ${isSelected ? "is-selected" : ""} ${isAvailable ? "" : "is-unavailable"}`}
                     aria-label={`查看${member.displayName}的天气状态`}
                     aria-pressed={isSelected}
                     onClick={() => selectWeatherRecipient(member)}

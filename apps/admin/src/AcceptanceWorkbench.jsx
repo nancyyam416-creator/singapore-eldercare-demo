@@ -12,7 +12,7 @@ const acceptanceHierarchy = [
   ] },
   { id: "content", label: "运营内容", modules: [
     { id: "recommendations", label: "推荐策略" }, { id: "safety", label: "社区内容" },
-    { id: "activities", label: "社区活动" }, { id: "services", label: "预约服务" },
+    { id: "activities", label: "社区活动" }, { id: "communityStaff", label: "社区人员" }, { id: "services", label: "预约服务" },
   ] },
   { id: "device-data", label: "设备与数据", modules: [
     { id: "tabletDevices", label: "平板设备" }, { id: "sensorDevices", label: "房间活动传感器" },
@@ -33,13 +33,18 @@ const overviewScenarios = [
   { value: "noProject", label: "当前账号无项目", description: "展示无数据权限的页面级空状态。", status: "权限" },
 ];
 
+const recommendationScenarios = [
+  { value: "normal", label: "正常排期", description: "按启用状态、生效时间与展示顺序展示当前排期。", status: "默认" },
+  { value: "empty", label: "今日暂无内容", description: "今日没有可展示推荐，日历和右侧预览展示空状态。", status: "空状态" },
+];
+
 const clamp = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
 const findContext = (moduleId) => {
   const page = acceptanceHierarchy.find((item) => item.modules.some((module) => module.id === moduleId)) || acceptanceHierarchy[0];
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onActivationFailure, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onActivationFailure, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -47,8 +52,14 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, overlayO
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(() => ({ x: Math.max(VIEWPORT_MARGIN, window.innerWidth - 322), y: Math.max(VIEWPORT_MARGIN, window.innerHeight - 430) }));
   const { page: selectedPage, module: selectedModule } = useMemo(() => findContext(activeModuleId), [activeModuleId]);
-  const currentScenario = overviewScenarios.find((item) => item.value === overviewScenario) || overviewScenarios[0];
-  const hasScenarios = selectedModule.id === "overview";
+  const scenarioOptions = selectedModule.id === "overview"
+    ? overviewScenarios
+    : selectedModule.id === "recommendations"
+      ? recommendationScenarios
+      : [];
+  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : overviewScenario;
+  const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
+  const hasScenarios = scenarioOptions.length > 0;
   const hasActions = selectedModule.id === "tabletDevices";
 
   const constrainPosition = useCallback((nextPosition, rect = shellRef.current?.getBoundingClientRect()) => {
@@ -134,7 +145,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, overlayO
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>验收场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="验收场景" value={overviewScenario} onChange={(event) => onOverviewScenarioChange(event.target.value)}>{overviewScenarios.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>验收场景</b><p>当前模块未配置额外场景，使用正式页面默认 Mock 数据。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>验收场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="验收场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>验收场景</b><p>当前模块未配置额外场景，使用正式页面默认 Mock 数据。</p></section>}
 
             {hasActions && <section className="acceptance-action-section"><div className="acceptance-section-title"><span>一次性动作</span><em>平板激活</em></div><p>打开待使用激活码弹窗后，可重复注入失败结果。</p><div className="acceptance-actions"><button onClick={() => onActivationFailure("code_invalid")}>激活码错误</button><button onClick={() => onActivationFailure("offline")}>网络异常</button></div></section>}
           </div>

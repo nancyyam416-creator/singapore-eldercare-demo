@@ -8,7 +8,6 @@ import HomeReminderAlert, { resetHomeReminderSpeechTracking } from "./components
 import ContactsPage from "./components/ContactsCommunicationPage";
 import FamilyAlbumPage from "./components/FamilyAlbumPage";
 import SchedulePage from "./components/SchedulePage";
-import TodayOverviewPage from "./components/TodayOverviewPage";
 import MoreFunctionsDrawer from "./components/MoreFunctionsDrawer";
 import CommunityActivitiesPage, { type CommunityActivityAcceptanceScenario } from "./components/CommunityActivitiesPage";
 import CommunityLifePage, { type CommunityLifeAcceptanceScenario } from "./components/CommunityLifePage";
@@ -16,6 +15,7 @@ import SecurityInformationPage from "./components/SecurityInformationPage";
 import SpecialServicesPage, { type SpecialServicesAcceptanceScenario } from "./components/SpecialServicesPage";
 import PersonalProfilePage from "./components/PersonalProfilePage";
 import EntertainmentHubPage from "./components/EntertainmentHubPage";
+import CommunityStaffPage, { type CommunityStaffAcceptanceScenario } from "./components/CommunityStaffPage";
 import ActivationFlow from "./components/ActivationFlow";
 import InteractionAcceptanceConsole, {
   type AcceptanceAlbumScenario,
@@ -207,12 +207,10 @@ export default function App() {
   const [safetyReadIds, setSafetyReadIds] = useState<string[]>(readStoredSafetyIds);
   const [isSpecialServicesOpen, setIsSpecialServicesOpen] = useState(false);
   const [serviceBookings, setServiceBookings] = useState<SpecialServiceBooking[]>(readStoredServiceBookings);
-  const [isTodayOverviewOpen, setIsTodayOverviewOpen] = useState(false);
   const [isPersonalProfileOpen, setIsPersonalProfileOpen] = useState(false);
   const [isEntertainmentHubOpen, setIsEntertainmentHubOpen] = useState(false);
-  const [overviewRecommendationKind, setOverviewRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
+  const [isCommunityStaffOpen, setIsCommunityStaffOpen] = useState(false);
   const [homeRecommendationKind, setHomeRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
-  const [homeRecommendationContentId, setHomeRecommendationContentId] = useState<string | null>(null);
   const [fulfillmentRecords, setFulfillmentRecords] = useState<FulfillmentRecord[]>(createInitialFulfillmentRecords);
 
   // 1.11. More Modules bottom drawer popup state
@@ -228,6 +226,7 @@ export default function App() {
   const [acceptanceRightContentScenario, setAcceptanceRightContentScenario] = useState<AcceptanceRightContentScenario>("default");
   const [acceptanceCommunityScenario, setAcceptanceCommunityScenario] = useState<AcceptanceCommunityScenario>("default");
   const [acceptanceSpecialServicesScenario, setAcceptanceSpecialServicesScenario] = useState<SpecialServicesAcceptanceScenario>("default");
+  const [acceptanceCommunityStaffScenario, setAcceptanceCommunityStaffScenario] = useState<CommunityStaffAcceptanceScenario>("multiple");
   const [communityLifeAcceptanceScenario, setCommunityLifeAcceptanceScenario] = useState<CommunityLifeAcceptanceScenario>("default");
   const [communityActivityAcceptanceScenario, setCommunityActivityAcceptanceScenario] = useState<CommunityActivityAcceptanceScenario>("default");
   const [acceptanceRightContentApplySignal, setAcceptanceRightContentApplySignal] = useState(0);
@@ -605,11 +604,10 @@ export default function App() {
     setIsCommunityActivitiesOpen(false);
     setIsSecurityInformationOpen(false);
     setIsSpecialServicesOpen(false);
-    setIsTodayOverviewOpen(false);
     setIsEntertainmentHubOpen(false);
+    setIsCommunityStaffOpen(false);
     setIsMoreModulesOpen(false);
     setHomeReminderAlert(null);
-    setOverviewRecommendationKind(null);
     setReturnToCommunityLife(false);
     sendAcceptanceCommand("reset-home-overlays");
   };
@@ -772,6 +770,12 @@ export default function App() {
     setIsSpecialServicesOpen(true);
   };
 
+  const openAcceptanceCommunityStaffScenario = (scenario: CommunityStaffAcceptanceScenario) => {
+    showHomeForAcceptance();
+    setAcceptanceCommunityStaffScenario(scenario);
+    setIsCommunityStaffOpen(true);
+  };
+
   const resetAcceptanceState = () => {
     showHomeForAcceptance();
     setAcceptanceTimeOverride(null);
@@ -782,6 +786,7 @@ export default function App() {
     setAcceptanceRightContentScenario("default");
     setAcceptanceCommunityScenario("default");
     setAcceptanceSpecialServicesScenario("default");
+    setAcceptanceCommunityStaffScenario("multiple");
     setCommunityLifeAcceptanceScenario("default");
     setCommunityActivityAcceptanceScenario("default");
     setAcceptanceRightContentApplySignal(0);
@@ -808,8 +813,8 @@ export default function App() {
     && !isCommunityActivitiesOpen
     && !isSecurityInformationOpen
     && !isSpecialServicesOpen
-    && !isTodayOverviewOpen
     && !isEntertainmentHubOpen
+    && !isCommunityStaffOpen
     && !isMoreModulesOpen;
 
   useEffect(() => {
@@ -905,12 +910,6 @@ export default function App() {
             onOpenAlbum={() => setIsAlbumPageOpen(true)}
             onOpenMessages={() => setIsContactsOpen(true)}
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
-            onOpenTodayOverview={() => {
-              setHomeRecommendationKind(null);
-              setHomeRecommendationContentId(null);
-              setOverviewRecommendationKind(null);
-              setIsTodayOverviewOpen(true);
-            }}
             onOpenCommunity={() => {
               setHomeRecommendationKind(null);
               setReturnToCommunityLife(false);
@@ -919,7 +918,6 @@ export default function App() {
             }}
             onOpenRecommendation={(kind, contentId) => {
               setHomeRecommendationKind(kind);
-              setHomeRecommendationContentId(contentId ?? null);
               if (kind === "community") {
                 setReturnToCommunityLife(false);
                 setCommunityActivityAcceptanceScenario("default");
@@ -934,8 +932,7 @@ export default function App() {
                 setIsSpecialServicesOpen(true);
                 return;
               }
-              setOverviewRecommendationKind(kind);
-              setIsTodayOverviewOpen(true);
+              setIsEntertainmentHubOpen(true);
             }}
             onOpenContacts={() => setIsContactsOpen(true)}
             onOpenAssistant={() => setIsAssistantOpen(true)}
@@ -1104,40 +1101,16 @@ export default function App() {
           onCancelBooking={handleCancelServiceBooking}
         />
 
-        <TodayOverviewPage
-          isOpen={isTodayOverviewOpen}
-          initialRecommendationKind={overviewRecommendationKind}
-          initialRecommendationId={homeRecommendationContentId}
-          entertainmentOpenShouldFail={acceptanceRightContentScenario === "third-party-entertainment-failure"}
-          onFulfillment={appendFulfillmentRecord}
-          isSecurityRead={safetyReadIds.includes("tip-1")}
-          onOpenSecurity={() => {
-            setIsTodayOverviewOpen(false);
-            setOverviewRecommendationKind(null);
-            setHomeRecommendationKind(null);
-            setHomeRecommendationContentId(null);
-            openSafetyInformation(false);
-          }}
-          isServiceBooked={serviceBookings.some((booking) => booking.status !== "cancelled")}
-          onOpenService={() => {
-            setIsTodayOverviewOpen(false);
-            setOverviewRecommendationKind(null);
-            setHomeRecommendationKind(null);
-            setHomeRecommendationContentId(null);
-            setIsSpecialServicesOpen(true);
-          }}
-          onClose={() => {
-            setIsTodayOverviewOpen(false);
-            setOverviewRecommendationKind(null);
-            if (homeRecommendationKind === "entertainment") setHomeRecommendationKind(null);
-            setHomeRecommendationContentId(null);
-          }}
-        />
-
         <EntertainmentHubPage
           isOpen={isEntertainmentHubOpen}
           onClose={() => setIsEntertainmentHubOpen(false)}
           forceEmpty={acceptanceRightContentScenario === "no-content"}
+        />
+
+        <CommunityStaffPage
+          isOpen={isCommunityStaffOpen}
+          onClose={() => setIsCommunityStaffOpen(false)}
+          acceptanceScenario={acceptanceCommunityStaffScenario}
         />
 
         <PersonalProfilePage
@@ -1191,9 +1164,11 @@ export default function App() {
           }}
           onOpenEntertainment={() => {
             setHomeRecommendationKind(null);
-            setHomeRecommendationContentId(null);
-            setOverviewRecommendationKind(null);
             setIsEntertainmentHubOpen(true);
+          }}
+          onOpenCommunityStaff={() => {
+            setAcceptanceCommunityStaffScenario("multiple");
+            setIsCommunityStaffOpen(true);
           }}
           onOpenProfile={() => setIsPersonalProfileOpen(true)}
         />
@@ -1208,6 +1183,7 @@ export default function App() {
         rightContentScenario={acceptanceRightContentScenario}
         communityScenario={acceptanceCommunityScenario}
         serviceScenario={acceptanceSpecialServicesScenario}
+        communityStaffScenario={acceptanceCommunityStaffScenario}
         onShowHome={showHomeForAcceptance}
         onShowAlbum={() => {
           showHomeForAcceptance();
@@ -1219,6 +1195,7 @@ export default function App() {
         }}
         onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
         onShowServices={() => openAcceptanceSpecialServicesScenario(acceptanceSpecialServicesScenario)}
+        onShowCommunityStaff={() => openAcceptanceCommunityStaffScenario(acceptanceCommunityStaffScenario)}
         onSetWeatherScenario={handleAcceptanceWeatherScenario}
         onOpenWeatherScenario={openAcceptanceWeatherScenario}
         onSetAlbumScenario={handleAcceptanceAlbumScenario}
@@ -1227,6 +1204,7 @@ export default function App() {
         onSetRightContentScenario={handleAcceptanceRightContentScenario}
         onSetCommunityScenario={openAcceptanceCommunityScenario}
         onSetServiceScenario={openAcceptanceSpecialServicesScenario}
+        onSetCommunityStaffScenario={openAcceptanceCommunityStaffScenario}
         onApplyRightContentUpdate={() => setAcceptanceRightContentApplySignal((signal) => signal + 1)}
         onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
         onHomeCommand={sendAcceptanceCommand}

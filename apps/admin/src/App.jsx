@@ -19,6 +19,7 @@ import {
   weatherMockApi,
 } from "./weatherMock";
 import { AcceptanceWorkbench } from "./AcceptanceWorkbench";
+import { CommunityStaffDrawer, CommunityStaffPage, initialCommunityStaff } from "./CommunityStaff";
 import {
   Activity,
   AlertTriangle,
@@ -42,7 +43,6 @@ import {
   MapPin,
   MessageSquareText,
   MoreHorizontal,
-  Music2,
   Plus,
   RefreshCw,
   Search,
@@ -71,9 +71,9 @@ const communityMenuGroups = [
     label: "运营内容",
     items: [
       { key: "recommendations", label: "推荐策略", icon: Sparkles },
-      { key: "entertainment", label: "娱乐内容", icon: Music2 },
       { key: "safety", label: "社区内容", icon: MessageSquareText },
       { key: "activities", label: "社区活动", icon: CalendarDays },
+      { key: "communityStaff", label: "社区人员", icon: Users },
       { key: "services", label: "预约服务", icon: ClipboardList },
     ],
   },
@@ -125,9 +125,9 @@ const pageMeta = {
   emergencyHelp: { title: "紧急求助", description: "跟进老人发起的紧急求助、通知送达与事件处理结果", add: "" },
   familyAlbums: { title: "家庭相册", description: "管理照片与视频批次，查看同步、首次查看和喜欢状态", add: "" },
   recommendations: { title: "推荐策略", description: "维护老人端每日推荐内容及自动轮播规则", add: "新增推荐策略" },
-  entertainment: { title: "娱乐内容", description: "管理老人端休闲娱乐聚合页中的第三方入口", add: "新增娱乐内容" },
   safety: { title: "社区内容", description: "管理社区资讯内容与社区话题互动", add: "新增内容" },
   activities: { title: "社区活动", description: "发布活动并跟踪老人参与意向与触达结果", add: "发布活动" },
+  communityStaff: { title: "社区人员", description: "维护面向当前社区老人展示的社区人员与服务联系人", add: "新增人员" },
   services: { title: "预约服务", description: "查看并处理老人通过中控屏提交的上门服务预约", add: "" },
   tabletDevices: { title: "平板设备", description: "维护平板资产、老人绑定、激活和在线状态", add: "录入平板" },
   sensorDevices: { title: "房间活动传感器", description: "录入传感器、绑定老人和房间并完成安装校验", add: "添加传感器" },
@@ -269,11 +269,16 @@ const initialActivationRecords = [
 ];
 
 const initialFamilyInvitations = [
-  { id: "FINV-001", elderlyId: "SG-E-000128", deviceId: "TAB-SG-20260031", deviceSn: "SN-TAB-260031", code: "736521", generatedAt: "2026-07-28 10:10", expiresAt: "2026-07-28 10:40", status: "有效", boundCount: 0 },
-  { id: "FINV-002", elderlyId: "SG-E-000128", deviceId: "TAB-SG-20260031", deviceSn: "SN-TAB-260031", code: "284913", generatedAt: "2026-07-26 18:06", expiresAt: "2026-07-26 18:36", status: "已被新邀请替换", boundCount: 1 },
-  { id: "FINV-003", elderlyId: "SG-E-000128", deviceId: "TAB-SG-20260031", deviceSn: "SN-TAB-260031", code: "592804", generatedAt: "2026-07-20 09:22", expiresAt: "2026-07-20 09:52", status: "老人端已结束", boundCount: 2 },
-  { id: "FINV-004", elderlyId: "SG-E-000127", deviceId: "TAB-SG-20260029", deviceSn: "SN-TAB-260029", code: "168305", generatedAt: "2026-07-27 14:05", expiresAt: "2026-07-27 14:35", status: "已过期", boundCount: 0 },
-  { id: "FINV-005", elderlyId: "SG-E-000126", deviceId: "TAB-SG-20260030", deviceSn: "SN-TAB-260030", code: "940217", generatedAt: "2026-07-25 11:30", expiresAt: "2026-07-25 12:00", status: "后台已作废", boundCount: 0 },
+  { id: "FINV-001", projectId: "PRJ-001", elderlyId: "SG-E-000128", deviceId: "TAB-SG-20260031", deviceSn: "SN-TAB-260031", code: "736521", generatedAt: "2026-07-28 10:10", expiresAt: "2026-07-28 10:40", status: "有效", boundCount: 0, bindingDetails: [] },
+  { id: "FINV-002", projectId: "PRJ-001", elderlyId: "SG-E-000128", deviceId: "TAB-SG-20260031", deviceSn: "SN-TAB-260031", code: "284913", generatedAt: "2026-07-26 18:06", expiresAt: "2026-07-26 18:36", status: "已被新邀请替换", boundCount: 1, bindingDetails: [
+    { id: "FBND-003", maskedAccount: "+65 9*** 1842", name: "陈丽华", relation: "女儿", boundAt: "2026-07-26 18:12", result: "绑定成功" },
+  ] },
+  { id: "FINV-003", projectId: "PRJ-001", elderlyId: "SG-E-000128", deviceId: "TAB-SG-20260031", deviceSn: "SN-TAB-260031", code: "592804", generatedAt: "2026-07-20 09:22", expiresAt: "2026-07-20 09:52", status: "老人端已结束", boundCount: 2, bindingDetails: [
+    { id: "FBND-001", maskedAccount: "+65 9*** 2036", name: "陈伟强", relation: "儿子", boundAt: "2026-07-20 09:28", result: "绑定成功" },
+    { id: "FBND-002", maskedAccount: "c***@mail.sg", name: "陈美芳", relation: "侄女", boundAt: "2026-07-20 09:31", result: "绑定成功" },
+  ] },
+  { id: "FINV-004", projectId: "PRJ-001", elderlyId: "SG-E-000127", deviceId: "TAB-SG-20260029", deviceSn: "SN-TAB-260029", code: "168305", generatedAt: "2026-07-27 14:05", expiresAt: "2026-07-27 14:35", status: "已过期", boundCount: 0, bindingDetails: [] },
+  { id: "FINV-005", projectId: "PRJ-001", elderlyId: "SG-E-000126", deviceId: "TAB-SG-20260030", deviceSn: "SN-TAB-260030", code: "940217", generatedAt: "2026-07-25 11:30", expiresAt: "2026-07-25 12:00", status: "后台已作废", boundCount: 0, bindingDetails: [] },
 ];
 
 const initialFamilyRelations = [
@@ -570,25 +575,17 @@ const recommendationTypes = [
 
 const recommendationMockNow = "2026-08-21T10:00";
 
-const initialEntertainmentContents = [
-  { id: "ENT-001", projectId: "PRJ-001", name: "戏曲名家经典选段", url: "https://www.youtube.com/watch?v=u2g-opera-classics", enabled: true, displayOrder: 1, updatedAt: "2026-08-21 09:10" },
-  { id: "ENT-002", projectId: "PRJ-001", name: "经典华语金曲", url: "https://www.youtube.com/watch?v=u2g-classic-songs", enabled: true, displayOrder: 2, updatedAt: "2026-08-21 09:20" },
-  { id: "ENT-003", projectId: "PRJ-001", name: "相声评书精选", url: "https://www.youtube.com/watch?v=u2g-storytelling", enabled: true, displayOrder: 3, updatedAt: "2026-08-21 09:30" },
-  { id: "ENT-004", projectId: "PRJ-001", name: "新加坡华语电视节目", url: "https://www.mewatch.sg/", enabled: false, displayOrder: 4, updatedAt: "2026-08-21 09:40" },
-  { id: "ENT-005", projectId: "PRJ-002", name: "大巴窑怀旧金曲", url: "https://www.youtube.com/watch?v=u2g-toa-payoh-music", enabled: true, displayOrder: 1, updatedAt: "2026-08-20 16:20" },
-];
-
 const initialRecommendationStrategies = [
-  { id: "REC-001", projectId: "PRJ-001", name: "明早一起练太极", type: "activity", sourceId: "ACT-001", sourceName: "乐龄太极体验课", sourceUpdatedAt: "2026-08-20 10:30", audience: "红山社区老人", startsAt: "2026-08-19T08:00", endsAt: "2026-08-22T18:00", enabled: true, displayOrder: 1, durationSeconds: 18, afterView: "continue", createdAt: "2026-08-18T17:30" },
-  { id: "REC-002", projectId: "PRJ-001", name: "雨天居家防滑提醒", type: "life_info", sourceId: "SAF-002", sourceName: "雨季居家防滑注意事项", sourceUpdatedAt: "2026-08-21 09:00", audience: "全部在服务老人", startsAt: "2026-08-18T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 2, durationSeconds: 20, afterView: "exit", createdAt: "2026-08-19T09:20" },
-  { id: "REC-003", projectId: "PRJ-001", name: "周三清洁安排提醒", type: "announcement", sourceId: "SAF-005", sourceName: "周三公共区域清洁安排", sourceUpdatedAt: "2026-08-23 16:30", audience: "全部在服务老人", startsAt: "2026-08-24T08:00", endsAt: "2026-08-27T18:00", enabled: true, displayOrder: 2, durationSeconds: 25, afterView: "continue", createdAt: "2026-08-23T16:30" },
-  { id: "REC-004", projectId: "PRJ-002", name: "大巴窑防诈骗分享会", type: "activity", sourceId: "ACT-002", sourceName: "大巴窑防诈骗分享会", sourceUpdatedAt: "2026-08-20 15:20", audience: "大巴窑社区老人", startsAt: "2026-08-22T09:00", endsAt: "2026-08-24T19:00", enabled: true, displayOrder: 3, durationSeconds: 18, afterView: "exit", createdAt: "2026-08-18T11:00" },
-  { id: "REC-005", projectId: "PRJ-001", name: "银行客服诈骗核验", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "全部在服务老人", startsAt: "2026-08-01T08:00", endsAt: "2026-08-18T23:59", enabled: true, displayOrder: 4, durationSeconds: 22, afterView: "continue", createdAt: "2026-08-01T10:15" },
-  { id: "REC-006", projectId: "PRJ-001", name: "防骗提醒暂停投放", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "全部在服务老人", startsAt: "2026-08-10T08:00", endsAt: "2026-08-31T23:59", enabled: false, displayOrder: 5, durationSeconds: 30, afterView: "continue", createdAt: "2026-08-17T16:00" },
-  { id: "REC-007", projectId: "PRJ-001", name: "雨季防滑日常提醒", type: "life_info", sourceId: "SAF-002", sourceName: "雨季居家防滑注意事项", sourceUpdatedAt: "2026-08-21 09:00", audience: "全部在服务老人", startsAt: "2026-08-19T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 6, durationSeconds: 30, afterView: "continue", createdAt: "2026-08-19T10:00" },
-  { id: "REC-008", projectId: "PRJ-001", name: "社区防骗小课堂", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "红山社区老人", startsAt: "2026-08-19T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 7, durationSeconds: 20, afterView: "continue", createdAt: "2026-08-19T12:00" },
-  { id: "REC-009", projectId: "PRJ-001", name: "周末防诈骗提醒", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", audience: "高龄老人", startsAt: "2026-08-23T09:00", endsAt: "2026-08-30T18:00", enabled: true, displayOrder: 3, durationSeconds: 20, afterView: "exit", createdAt: "2026-08-20T14:30" },
-  { id: "REC-010", projectId: "PRJ-001", name: "经典华语金曲", type: "third_party_entertainment", sourceId: "ENT-002", sourceName: "经典华语金曲", sourceUpdatedAt: "2026-08-21 09:20", thirdPartyUrl: "https://www.youtube.com/watch?v=u2g-classic-songs", audience: "全部在服务老人", startsAt: "2026-08-20T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 3, durationSeconds: 25, afterView: "continue", createdAt: "2026-08-20T16:20" },
+  { id: "REC-001", projectId: "PRJ-001", name: "明早一起练太极", type: "activity", sourceId: "ACT-001", sourceName: "乐龄太极体验课", sourceUpdatedAt: "2026-08-20 10:30", startsAt: "2026-08-19T08:00", endsAt: "2026-08-22T18:00", enabled: true, displayOrder: 1, durationSeconds: 18, afterView: "continue", createdAt: "2026-08-18T17:30" },
+  { id: "REC-002", projectId: "PRJ-001", name: "雨天居家防滑提醒", type: "life_info", sourceId: "SAF-002", sourceName: "雨季居家防滑注意事项", sourceUpdatedAt: "2026-08-21 09:00", startsAt: "2026-08-18T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 2, durationSeconds: 20, afterView: "exit", createdAt: "2026-08-19T09:20" },
+  { id: "REC-003", projectId: "PRJ-001", name: "周三清洁安排提醒", type: "announcement", sourceId: "SAF-005", sourceName: "周三公共区域清洁安排", sourceUpdatedAt: "2026-08-23 16:30", startsAt: "2026-08-24T08:00", endsAt: "2026-08-27T18:00", enabled: true, displayOrder: 2, durationSeconds: 25, afterView: "continue", createdAt: "2026-08-23T16:30" },
+  { id: "REC-004", projectId: "PRJ-002", name: "大巴窑防诈骗分享会", type: "activity", sourceId: "ACT-002", sourceName: "大巴窑防诈骗分享会", sourceUpdatedAt: "2026-08-20 15:20", startsAt: "2026-08-22T09:00", endsAt: "2026-08-24T19:00", enabled: true, displayOrder: 3, durationSeconds: 18, afterView: "exit", createdAt: "2026-08-18T11:00" },
+  { id: "REC-005", projectId: "PRJ-001", name: "银行客服诈骗核验", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", startsAt: "2026-08-01T08:00", endsAt: "2026-08-18T23:59", enabled: true, displayOrder: 4, durationSeconds: 22, afterView: "continue", createdAt: "2026-08-01T10:15" },
+  { id: "REC-006", projectId: "PRJ-001", name: "防骗提醒暂停投放", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", startsAt: "2026-08-10T08:00", endsAt: "2026-08-31T23:59", enabled: false, displayOrder: 5, durationSeconds: 30, afterView: "continue", createdAt: "2026-08-17T16:00" },
+  { id: "REC-007", projectId: "PRJ-001", name: "雨季防滑日常提醒", type: "life_info", sourceId: "SAF-002", sourceName: "雨季居家防滑注意事项", sourceUpdatedAt: "2026-08-21 09:00", startsAt: "2026-08-19T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 6, durationSeconds: 30, afterView: "continue", createdAt: "2026-08-19T10:00" },
+  { id: "REC-008", projectId: "PRJ-001", name: "社区防骗小课堂", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", startsAt: "2026-08-19T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 7, durationSeconds: 20, afterView: "continue", createdAt: "2026-08-19T12:00" },
+  { id: "REC-009", projectId: "PRJ-001", name: "周末防诈骗提醒", type: "alert", sourceId: "SAF-001", sourceName: "警惕冒充银行客服诈骗", sourceUpdatedAt: "2026-08-20 08:00", startsAt: "2026-08-23T09:00", endsAt: "2026-08-30T18:00", enabled: true, displayOrder: 3, durationSeconds: 20, afterView: "exit", createdAt: "2026-08-20T14:30" },
+  { id: "REC-010", projectId: "PRJ-001", name: "经典华语金曲", type: "third_party_entertainment", sourceId: "", sourceName: "经典华语金曲", sourceUpdatedAt: "", thirdPartyUrl: "https://www.youtube.com/watch?v=u2g-classic-songs", startsAt: "2026-08-20T08:00", endsAt: "2026-08-31T23:59", enabled: true, displayOrder: 3, durationSeconds: 25, afterView: "continue", createdAt: "2026-08-20T16:20" },
 ];
 
 function getRecommendationAvailability(item, now = recommendationMockNow) {
@@ -1069,6 +1066,7 @@ function InactivityRuleDrawer({ rule, onClose, onSave }) {
 
 function FamilyRelationshipPanel({ invitations, relations, onInvalidateInvite, onUnlinkRelation }) {
   const [pendingAction, setPendingAction] = useState(null);
+  const [bindingDetailInvite, setBindingDetailInvite] = useState(null);
   const activeRelations = relations.filter((item) => item.status === "正常");
   const activeInvitations = invitations.filter((item) => item.status === "有效");
 
@@ -1089,7 +1087,7 @@ function FamilyRelationshipPanel({ invitations, relations, onInvalidateInvite, o
       <section className="panel family-panel">
         <div className="panel-title"><div><h3>家庭绑定邀请记录</h3><p>邀请由老人设备生成，每次邀请在生成后 30 分钟失效</p></div><span className="result-count">共 {invitations.length} 条</span></div>
         <div className="table-scroll"><table className="family-invitation-table"><thead><tr><th>来源设备</th><th>6 位绑定码</th><th>生成时间</th><th>30 分钟失效时间</th><th>当前状态</th><th>本次绑定人数</th><th>操作</th></tr></thead><tbody>
-          {invitations.map((item) => <tr key={item.id}><td><div className="stacked-cell"><b>{formatDisplayId(item.deviceId)}</b><small>{item.deviceSn}</small></div></td><td><b className="family-code">{item.code}</b></td><td>{item.generatedAt}</td><td>{item.expiresAt}</td><td><StatusTag>{item.status}</StatusTag></td><td>{item.boundCount} 人</td><td>{item.status === "有效" ? <button className="table-action danger-text" onClick={() => setPendingAction({ type: "invite", record: item })}>强制作废</button> : <span className="muted-action">—</span>}</td></tr>)}
+          {invitations.map((item) => <tr key={item.id}><td><div className="stacked-cell"><b>{formatDisplayId(item.deviceId)}</b><small>{item.deviceSn}</small></div></td><td><b className="family-code">{item.code}</b></td><td>{item.generatedAt}</td><td>{item.expiresAt}</td><td><StatusTag>{item.status}</StatusTag></td><td><div className="invitation-binding-cell"><b>{item.boundCount} 人</b><button className="table-action" onClick={() => setBindingDetailInvite(item)}>{item.boundCount > 0 ? "查看绑定明细" : "查看空记录"}</button></div></td><td>{item.status === "有效" ? <button className="table-action danger-text" onClick={() => setPendingAction({ type: "invite", record: item })}>强制作废</button> : <span className="muted-action">—</span>}</td></tr>)}
           {!invitations.length && <tr><td colSpan="7"><div className="empty-table-state">暂无老人设备生成的家庭邀请记录</div></td></tr>}
         </tbody></table></div>
       </section>
@@ -1103,6 +1101,7 @@ function FamilyRelationshipPanel({ invitations, relations, onInvalidateInvite, o
       </section>
 
       {pendingAction && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭确认弹窗" onClick={() => setPendingAction(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true"><span className="confirm-icon danger"><ShieldCheck size={22}/></span><h3>{pendingAction.type === "invite" ? "确认强制作废邀请？" : "确认解除家庭关系？"}</h3><p>{pendingAction.type === "invite" ? `绑定码 ${pendingAction.record.code} 将立即不可再使用；已经完成的家庭绑定不受本次作废影响。` : `${pendingAction.record.name} 将失去后续家庭访问和通知关系；历史互动记录保留，其他已绑定子女不受影响。`}</p><div><button className="secondary-button" onClick={() => setPendingAction(null)}>取消</button><button className="danger-button" onClick={confirmAction}>{pendingAction.type === "invite" ? "确认作废" : "确认解除"}</button></div></section></div>}
+      {bindingDetailInvite && <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭绑定明细" onClick={() => setBindingDetailInvite(null)}/><aside className="drawer family-binding-detail-drawer" role="dialog" aria-modal="true" aria-label="家庭邀请绑定明细"><header><div><h2>家庭邀请绑定明细</h2><p>只读查看本次邀请产生的绑定结果</p></div><button className="icon-button" aria-label="关闭" onClick={() => setBindingDetailInvite(null)}><X size={19}/></button></header><div className="drawer-body"><section className="family-binding-summary"><div><span>6 位绑定码</span><b className="family-code">{bindingDetailInvite.code}</b></div><div><span>生成时间</span><b>{bindingDetailInvite.generatedAt}</b></div><div><span>邀请状态</span><StatusTag>{bindingDetailInvite.status}</StatusTag></div><div><span>本次绑定人数</span><b>{bindingDetailInvite.boundCount} 人</b></div></section><section className="form-section family-binding-detail-section"><div className="form-section-heading"><div><h3>绑定结果</h3><p>历史绑定关系不因邀请作废而失效</p></div><span className="result-count">共 {bindingDetailInvite.bindingDetails?.length || 0} 条</span></div>{bindingDetailInvite.bindingDetails?.length ? <div className="family-binding-detail-list">{bindingDetailInvite.bindingDetails.map((detail) => <article key={detail.id}><div className="relative-name-cell"><span>{detail.name.slice(-1)}</span><div><b>{detail.name}</b><small>{detail.maskedAccount}</small></div></div><div><span>家庭关系</span><b>{detail.relation}</b></div><div><span>绑定时间</span><b>{detail.boundAt}</b></div><StatusTag>{detail.result}</StatusTag></article>)}</div> : <div className="family-binding-empty"><Users size={30}/><b>本次邀请没有绑定账号</b><p>邀请已保留为历史记录，没有产生新的家庭关系。</p></div>}</section><div className="form-tip neutral"><ShieldCheck size={18}/><div><b>只读监管</b><p>后台仅查看绑定结果，不提供代绑定、审核或生成家庭邀请码能力。</p></div></div></div><footer><button className="secondary-button" onClick={() => setBindingDetailInvite(null)}>关闭</button></footer></aside></div>}
     </div>
   );
 }
@@ -1545,25 +1544,20 @@ function DeviceManagementPage({ deviceType, tablets, sensors, elderlyRecords, on
   );
 }
 
-function RecommendationStrategyPage({ strategies, entertainmentContents, communityName, onCreate, onEdit, onToggle, onMove }) {
+function RecommendationStrategyPage({ strategies, communityName, acceptanceScenario = "normal", onCreate, onEdit, onToggle, onMove }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("全部类型");
   const [status, setStatus] = useState("全部状态");
-  const [previewMode, setPreviewMode] = useState("正常排序");
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [selectedDate, setSelectedDate] = useState(recommendationMockNow.slice(0, 10));
   const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
   const [activeView, setActiveView] = useState("calendar");
-  const sortedStrategies = sortRecommendations(strategies.map((item) => {
-    if (item.type !== "third_party_entertainment") return item;
-    const source = entertainmentContents.find((record) => record.id === item.sourceId);
-    return { ...item, sourceName: source?.name || item.sourceName, thirdPartyUrl: source?.url || item.thirdPartyUrl, sourceUpdatedAt: source?.updatedAt || item.sourceUpdatedAt, sourceUnavailable: !source || !source.enabled };
-  }));
+  const sortedStrategies = sortRecommendations(strategies);
   const calendarDays = buildRecommendationCalendar(calendarMonth.year, calendarMonth.month);
   const todayKey = recommendationMockNow.slice(0, 10);
   const selectedIsToday = selectedDate === todayKey;
   const selectedScheduledItems = getRecommendationDayItems(sortedStrategies, selectedDate);
-  const selectedDayItems = previewMode === "今日暂无内容"
+  const selectedDayItems = acceptanceScenario === "empty"
     ? []
     : selectedIsToday
       ? selectedScheduledItems.filter((item) => getRecommendationAvailability(item) === "可展示")
@@ -1574,8 +1568,8 @@ function RecommendationStrategyPage({ strategies, entertainmentContents, communi
     const key = formatRecommendationDate(date.getFullYear(), date.getMonth(), date.getDate());
     return getRecommendationDayItems(sortedStrategies, key).length;
   });
-  const displayedSevenDayCoverage = previewMode === "今日暂无内容" ? sevenDayCoverage.map(() => 0) : sevenDayCoverage;
-  const todayAvailableCount = previewMode === "今日暂无内容" ? 0 : getRecommendationDayItems(sortedStrategies, todayKey).filter((item) => getRecommendationAvailability(item) === "可展示").length;
+  const displayedSevenDayCoverage = acceptanceScenario === "empty" ? sevenDayCoverage.map(() => 0) : sevenDayCoverage;
+  const todayAvailableCount = acceptanceScenario === "empty" ? 0 : getRecommendationDayItems(sortedStrategies, todayKey).filter((item) => getRecommendationAvailability(item) === "可展示").length;
   const moveCalendarMonth = (offset) => {
     const next = new Date(calendarMonth.year, calendarMonth.month + offset, 1);
     const nextMonth = { year: next.getFullYear(), month: next.getMonth() };
@@ -1589,7 +1583,7 @@ function RecommendationStrategyPage({ strategies, entertainmentContents, communi
   const rows = sortedStrategies.filter((item) => {
     const keyword = query.trim().toLowerCase();
     const availability = getRecommendationAvailability(item);
-    return (!keyword || `${item.name}${item.id}${item.sourceName}${item.sourceId}${item.audience}`.toLowerCase().includes(keyword))
+    return (!keyword || `${item.name}${item.id}${item.sourceName}${item.sourceId}`.toLowerCase().includes(keyword))
       && (type === "全部类型" || item.type === type)
       && (status === "全部状态" || availability === status)
       && (!dateFilterEnabled || isRecommendationScheduledForDate(item, selectedDate));
@@ -1597,9 +1591,9 @@ function RecommendationStrategyPage({ strategies, entertainmentContents, communi
 
   return (
     <>
-      <div className="page-heading"><div><h1>推荐策略</h1><p>{communityName} · 配置当前社区老人端右侧推荐内容的展示顺序、有效时间与轮换参数</p></div><button className="primary-button" onClick={() => onCreate()}><Plus size={16}/>新增推荐内容</button></div>
+      <div className="page-heading"><div><h1>推荐策略</h1><p>{communityName} · 配置当前社区老人端右侧推荐内容的展示顺序、有效时间与轮换参数</p></div>{activeView === "content" && <button className="primary-button" onClick={() => onCreate()}><Plus size={16}/>新增推荐内容</button>}</div>
       <section className="panel recommendation-calendar-panel">
-        <div className="recommendation-preview-heading"><div><span><CalendarDays size={18}/></span><div><h3>排期覆盖概览</h3><p>点击日历日期查看当天推荐，并可在右侧直接新增内容</p></div></div><label><span>演示状态</span><select className="select-control" value={previewMode} onChange={(event) => setPreviewMode(event.target.value)}><option>正常排序</option><option>今日暂无内容</option></select></label></div>
+        <div className="recommendation-preview-heading"><div><span><CalendarDays size={18}/></span><div><h3>排期覆盖概览</h3><p>点击日历日期查看当天推荐，并可在右侧直接新增内容</p></div></div></div>
         <div className="recommendation-calendar-summary"><div><span>当前可展示</span><b>{todayAvailableCount} 条</b></div><div><span>未来 7 天有排期</span><b>{displayedSevenDayCoverage.filter(Boolean).length} 天</b></div><div className={displayedSevenDayCoverage.some((count) => !count) ? "warning" : "success"}><span>未来 7 天无排期</span><b>{displayedSevenDayCoverage.filter((count) => !count).length} 天</b></div><p>今天按启用状态和生效时间计算实际顺序；未来日期只校验排期覆盖。</p></div>
         <div className="recommendation-view-tabs" role="tablist" aria-label="推荐策略视图"><button type="button" role="tab" aria-selected={activeView === "calendar"} className={activeView === "calendar" ? "active" : ""} onClick={() => setActiveView("calendar")}><CalendarDays size={15}/>排期日历</button><button type="button" role="tab" aria-selected={activeView === "content"} className={activeView === "content" ? "active" : ""} onClick={() => { setActiveView("content"); setDateFilterEnabled(false); }}><SlidersHorizontal size={15}/>内容管理 <span>{strategies.length}</span></button></div>
         {activeView === "calendar" && <div className="recommendation-calendar-layout">
@@ -1608,7 +1602,7 @@ function RecommendationStrategyPage({ strategies, entertainmentContents, communi
             <div className="recommendation-calendar-weekdays">{["周一", "周二", "周三", "周四", "周五", "周六", "周日"].map((item) => <span key={item}>{item}</span>)}</div>
             <div className="recommendation-calendar-grid">{calendarDays.map((date, index) => {
               if (!date) return <span className="calendar-blank" key={`blank-${index}`}/>;
-              const count = previewMode === "今日暂无内容" ? 0 : getRecommendationDayItems(sortedStrategies, date).length;
+              const count = acceptanceScenario === "empty" ? 0 : getRecommendationDayItems(sortedStrategies, date).length;
               const coverage = count === 0 ? "gap" : count === 1 ? "low" : "covered";
               return <button type="button" key={date} aria-label={`查看 ${date} 推荐内容`} title="点击查看当天推荐内容" className={`${coverage} ${date === selectedDate ? "selected" : ""} ${date === todayKey ? "today" : ""}`} onClick={() => manageDate(date)}><span>{Number(date.slice(8, 10))}</span><small>{count ? `${count} 条` : "无排期"}</small></button>;
             })}</div>
@@ -1616,18 +1610,18 @@ function RecommendationStrategyPage({ strategies, entertainmentContents, communi
           </div>
           <div className="recommendation-day-preview">
             <div className="recommendation-day-preview-heading"><div><span>{selectedDateLabel}</span><h4>{selectedIsToday ? "当前生效顺序预览" : "当天排期顺序"}</h4></div><StatusTag>{selectedDayItems.length ? `${selectedIsToday ? "可展示" : "排期"} ${selectedDayItems.length} 条` : selectedIsToday ? "今日暂无内容" : "当天暂无内容"}</StatusTag></div>
-            {selectedDayItems.length ? <div className="recommendation-day-list">{selectedDayItems.map((item, index) => <div key={item.id}><em>{index + 1}</em><span><b>{item.name}</b><small>{recommendationTypes.find((option) => option.key === item.type)?.label} · {item.audience} · 展示 {item.durationSeconds} 秒</small></span><button type="button" className="table-action" onClick={() => onEdit(item)}>编辑</button></div>)}</div> : <div className="recommendation-preview-empty"><Sparkles size={22}/><div><b>{selectedIsToday ? "今日暂无内容" : "当天暂无内容"}</b><span>当前没有符合启用状态和生效时间的推荐内容。</span></div></div>}
+            {selectedDayItems.length ? <div className="recommendation-day-list">{selectedDayItems.map((item, index) => <div key={item.id}><em>{index + 1}</em><span><b>{item.name}</b><small>{recommendationTypes.find((option) => option.key === item.type)?.label} · 展示 {item.durationSeconds} 秒</small></span><button type="button" className="table-action" onClick={() => onEdit(item)}>编辑</button></div>)}</div> : <div className="recommendation-preview-empty"><Sparkles size={22}/><div><b>{selectedIsToday ? "今日暂无内容" : "当天暂无内容"}</b><span>当前没有符合启用状态和生效时间的推荐内容。</span></div></div>}
             <button type="button" className="primary-button recommendation-date-filter-button" onClick={() => onCreate(selectedDate)}><Plus size={15}/>新增 {selectedDateLabel} 内容</button>
           </div>
         </div>}
       </section>
       {activeView === "content" && <section className="panel recommendation-pool-panel">
         <div className="recommendation-list-toolbar">
-          <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索内容名称、编号或适用人群"/></div><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>可展示</option><option>未生效</option><option>已过期</option><option>已停用</option><option>来源不可用</option></select>{dateFilterEnabled && <button type="button" className="recommendation-date-chip" onClick={() => setDateFilterEnabled(false)}>{selectedDateLabel}排期 <X size={13}/></button>}</div>
+          <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索内容名称、编号或来源"/></div><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>可展示</option><option>未生效</option><option>已过期</option><option>已停用</option><option>来源不可用</option></select>{dateFilterEnabled && <button type="button" className="recommendation-date-chip" onClick={() => setDateFilterEnabled(false)}>{selectedDateLabel}排期 <X size={13}/></button>}</div>
         </div>
         <div className="table-scroll">
-          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>内容来源 / 第三方链接</th><th>类型 / 适用人群</th><th>生效时间 / 失效时间</th><th>顺序</th><th>展示时长</th><th>查看后</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-            {rows.map((item) => { const availability = getRecommendationAvailability(item); const isThirdParty = item.type === "third_party_entertainment"; return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>{item.id} · 创建 {item.createdAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{isThirdParty ? item.thirdPartyUrl || "来源链接不可用" : `${item.sourceId || "—"} · 更新 ${item.sourceUpdatedAt || "—"}`}</small></div></td><td><div className="stacked-cell"><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b><small>{item.audience}</small></div></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><b>{item.durationSeconds} 秒 / 次</b></td><td>{item.afterView === "exit" ? "退出推荐" : "继续轮换"}</td><td><div className="stacked-cell"><StatusTag>{availability}</StatusTag><button type="button" role="switch" aria-checked={item.enabled} aria-label={`${item.name}启用状态`} className={`strategy-status-switch ${item.enabled ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{item.enabled ? "启用" : "停用"}</span></button></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
+          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>内容来源 / 第三方链接</th><th>内容类型</th><th>生效时间 / 失效时间</th><th>顺序</th><th>展示时长</th><th>查看后</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+            {rows.map((item) => { const availability = getRecommendationAvailability(item); const isThirdParty = item.type === "third_party_entertainment"; return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>{item.id} · 创建 {item.createdAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{isThirdParty ? item.thirdPartyUrl || "来源链接不可用" : `${item.sourceId || "—"} · 更新 ${item.sourceUpdatedAt || "—"}`}</small></div></td><td><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><b>{item.durationSeconds} 秒 / 次</b></td><td>{item.afterView === "exit" ? "退出推荐" : "继续轮换"}</td><td><div className="stacked-cell"><StatusTag>{availability}</StatusTag><button type="button" role="switch" aria-checked={item.enabled} aria-label={`${item.name}启用状态`} className={`strategy-status-switch ${item.enabled ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{item.enabled ? "启用" : "停用"}</span></button></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
             {!rows.length && <tr><td colSpan="9"><div className="empty-table-state">暂无符合条件的推荐内容</div></td></tr>}
           </tbody></table>
         </div>
@@ -1637,7 +1631,7 @@ function RecommendationStrategyPage({ strategies, entertainmentContents, communi
   );
 }
 
-function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activities, entertainmentContents, currentProject, onClose, onSave }) {
+function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activities, currentProject, onClose, onSave }) {
   const activityResources = [
     ...activities.filter((item) => !["已结束", "已下架"].includes(item.status)).map((item) => ({ id: item.id, name: item.title, category: item.category, summary: `${item.startAt.replace("T", " ")} · ${item.location} · ${item.description}`, date: item.publishedAt, status: item.status })),
   ];
@@ -1649,15 +1643,14 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activiti
     life_info: { label: "生活资讯", items: contentResources("生活资讯") },
     alert: { label: "警惕事项", items: contentResources("警惕事项") },
     activity: { label: "社区活动", items: activityResources },
-    third_party_entertainment: { label: "娱乐内容", items: entertainmentContents.filter((item) => item.enabled).map((item) => ({ id: item.id, name: item.name, category: "娱乐内容", summary: item.url, url: item.url, date: item.updatedAt, status: "已启用" })) },
   };
-  const [form, setForm] = useState(() => ({ projectId: currentProject?.id, name: "", type: "announcement", sourceId: "", sourceName: "", sourceUpdatedAt: "", thirdPartyUrl: "", audience: "全部在服务老人", startsAt: presetDate ? `${presetDate}T08:00` : "2026-08-21T08:00", endsAt: presetDate ? `${presetDate}T23:59` : "2026-08-31T23:59", enabled: true, displayOrder: 1, durationSeconds: 20, afterView: "continue", createdAt: recommendationMockNow, ...record }));
+  const [form, setForm] = useState(() => ({ projectId: currentProject?.id, name: "", type: "announcement", sourceId: "", sourceName: "", sourceUpdatedAt: "", thirdPartyUrl: "", startsAt: presetDate ? `${presetDate}T08:00` : "2026-08-21T08:00", endsAt: presetDate ? `${presetDate}T23:59` : "2026-08-31T23:59", enabled: true, displayOrder: 1, durationSeconds: 20, afterView: "continue", createdAt: recommendationMockNow, ...record }));
   const [errors, setErrors] = useState({});
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const isThirdParty = form.type === "third_party_entertainment";
   const currentGroup = resourceGroups[form.type];
-  const selectedResource = currentGroup?.items.find((item) => item.id === form.sourceId) || (currentGroup && form.sourceId ? { id: form.sourceId, name: form.sourceName, url: form.thirdPartyUrl, date: form.sourceUpdatedAt, category: recommendationTypes.find((item) => item.key === form.type)?.label, summary: isThirdParty ? form.thirdPartyUrl : "当前推荐已关联的来源内容", status: isThirdParty ? "来源不可用" : "已发布" } : null);
+  const selectedResource = currentGroup?.items.find((item) => item.id === form.sourceId) || (currentGroup && form.sourceId ? { id: form.sourceId, name: form.sourceName, date: form.sourceUpdatedAt, category: recommendationTypes.find((item) => item.key === form.type)?.label, summary: "当前推荐已关联的来源内容", status: "已发布" } : null);
   const changeType = (type) => setForm((current) => ({ ...current, type, sourceId: "", sourceName: "", sourceUpdatedAt: "", thirdPartyUrl: "" }));
   const selectResource = (resource) => {
     setForm((current) => ({ ...current, sourceId: resource.id, sourceName: resource.name, sourceUpdatedAt: resource.date, thirdPartyUrl: resource.url || "", name: resource.url ? resource.name : current.name || resource.name }));
@@ -1666,16 +1659,17 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activiti
   };
   const save = () => {
     const nextErrors = {};
-    if (!form.sourceId) nextErrors.sourceId = isThirdParty ? "请选择已启用的娱乐内容" : "请选择需要推荐的来源内容";
-    if (isThirdParty && form.sourceId && !currentGroup.items.some((item) => item.id === form.sourceId)) nextErrors.sourceId = "该娱乐内容已停用，请重新选择";
-    if (!isThirdParty && !form.name.trim()) nextErrors.name = "请输入内容名称";
+    if (!isThirdParty && !form.sourceId) nextErrors.sourceId = "请选择需要推荐的来源内容";
+    if (!form.name.trim()) nextErrors.name = "请输入内容名称";
+    if (isThirdParty && !form.thirdPartyUrl.trim()) nextErrors.thirdPartyUrl = "请输入第三方链接";
+    else if (isThirdParty && !isValidHttpUrl(form.thirdPartyUrl)) nextErrors.thirdPartyUrl = "请输入合法的 http/https 第三方链接";
     if (!["continue", "exit"].includes(form.afterView)) nextErrors.afterView = "请选择老人查看后的处理方式";
     if (!form.startsAt || !form.endsAt) nextErrors.validity = "请选择生效和失效时间";
     if (form.startsAt && form.endsAt && form.startsAt >= form.endsAt) nextErrors.validity = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    const { sourceUnavailable: _sourceUnavailable, ...cleanForm } = form;
-    onSave({ ...cleanForm, name: isThirdParty ? selectedResource.name : form.name.trim(), thirdPartyUrl: isThirdParty ? selectedResource.url : "", sourceName: selectedResource.name, sourceUpdatedAt: selectedResource.date, displayOrder: Number(form.displayOrder), durationSeconds: Number(form.durationSeconds) });
+    const { sourceUnavailable: _sourceUnavailable, audience: _audience, ...cleanForm } = form;
+    onSave({ ...cleanForm, name: form.name.trim(), sourceId: isThirdParty ? "" : selectedResource.id, sourceName: isThirdParty ? form.name.trim() : selectedResource.name, sourceUpdatedAt: isThirdParty ? "" : selectedResource.date, thirdPartyUrl: isThirdParty ? form.thirdPartyUrl.trim() : "", displayOrder: Number(form.displayOrder), durationSeconds: Number(form.durationSeconds) });
   };
   return (
     <div className="drawer-layer">
@@ -1684,9 +1678,10 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activiti
         <header><div><h2>{record ? "编辑推荐内容" : "新增推荐内容"}</h2><p>配置老人端右侧内容的展示顺序与轮换参数</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
         <div className="drawer-body"><div className="form-section">
           <h3>内容信息</h3>
-          <div className="form-row"><label><span>内容类型 *</span><select className="select-control form-select-native" value={form.type} onChange={(event) => changeType(event.target.value)}>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label><label><span>适用老人 / 人群 *</span><select className="select-control form-select-native" value={form.audience} onChange={(event) => update("audience", event.target.value)}><option>全部在服务老人</option><option>{currentProject?.community}老人</option><option>独居老人</option><option>高龄老人</option><option>喜欢戏曲与音乐</option></select></label></div>
-          <div className="recommendation-resource-field"><span>{isThirdParty ? "关联娱乐内容" : "关联内容"} *</span><button type="button" className={`strategy-resource-picker-trigger ${selectedResource ? "selected" : ""}`} onClick={() => setResourcePickerOpen(true)}>{selectedResource ? <><span><b>{selectedResource.name}</b><small>{isThirdParty ? selectedResource.url || "来源已停用，请更换" : `${selectedResource.id} · 更新 ${selectedResource.date}`}</small></span><em>更换</em></> : <><span><b>请选择{currentGroup.label}</b><small>{isThirdParty ? "仅可选择当前社区已启用的娱乐内容" : "推荐必须关联一条当前社区已发布的来源内容"}</small></span><em>选择</em></>}</button>{errors.sourceId && <small className="field-error">{errors.sourceId}</small>}</div>
-          {!isThirdParty && <label><span>内容名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：明早一起练太极"/>{errors.name && <small className="field-error">{errors.name}</small>}</label>}
+          <label><span>内容类型 *</span><select className="select-control form-select-native" value={form.type} onChange={(event) => changeType(event.target.value)}>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
+          {!isThirdParty && <div className="recommendation-resource-field"><span>关联内容 *</span><button type="button" className={`strategy-resource-picker-trigger ${selectedResource ? "selected" : ""}`} onClick={() => setResourcePickerOpen(true)}>{selectedResource ? <><span><b>{selectedResource.name}</b><small>{selectedResource.id} · 更新 ${selectedResource.date}</small></span><em>更换</em></> : <><span><b>请选择{currentGroup.label}</b><small>推荐必须关联一条当前社区已发布的来源内容</small></span><em>选择</em></>}</button>{errors.sourceId && <small className="field-error">{errors.sourceId}</small>}</div>}
+          <label><span>内容名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder={isThirdParty ? "例如：经典华语金曲" : "例如：明早一起练太极"}/>{errors.name && <small className="field-error">{errors.name}</small>}</label>
+          {isThirdParty && <label><span>第三方链接 *</span><input type="url" value={form.thirdPartyUrl} onChange={(event) => update("thirdPartyUrl", event.target.value)} placeholder="例如：https://www.youtube.com/watch?v=..."/>{errors.thirdPartyUrl && <small className="field-error">{errors.thirdPartyUrl}</small>}<small className="section-helper">保存后同时作为老人端休闲娱乐聚合页的有效内容来源。</small></label>}
           <div className="form-row"><label><span>生效时间 *</span><input type="datetime-local" value={form.startsAt} onChange={(event) => update("startsAt", event.target.value)}/></label><label><span>失效时间 *</span><input type="datetime-local" value={form.endsAt} onChange={(event) => update("endsAt", event.target.value)}/></label></div>{errors.validity && <small className="field-error">{errors.validity}</small>}
           <h3>排序与轮换</h3>
           <div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label><label><span>单次展示时长（秒）*</span><input type="number" min="5" max="120" value={form.durationSeconds} onChange={(event) => update("durationSeconds", event.target.value)}/></label></div>
@@ -1723,48 +1718,6 @@ function RecommendationResourcePicker({ group, selectedId, onClose, onConfirm })
     <div className="recommendation-resource-list">{rows.map((item) => <button type="button" key={item.id} className={`recommendation-resource-item ${selected === item.id ? "selected" : ""}`} onClick={() => setSelected(item.id)}><span className="resource-radio"/><span className="resource-main"><span><b>{item.name}</b><StatusTag>{item.status}</StatusTag></span><small>{item.summary || "暂无内容摘要"}</small></span><span className="resource-category"><small>分类</small><b>{item.category || "未分类"}</b></span><span className="resource-date"><small>上传/更新时间</small><b>{item.date || "时间待补充"}</b></span></button>)}{!rows.length && <div className="elderly-picker-empty"><Search size={22}/><b>未找到匹配资源</b><span>请调整搜索词或内容分类</span></div>}</div>
     <footer><span>{selectedResource ? `已选择：${selectedResource.name}` : "请选择一条资源"}</span><div><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={!selectedResource} onClick={() => onConfirm(selectedResource)}>确认选择</button></div></footer>
   </section></div>;
-}
-
-function EntertainmentContentPage({ records, recommendations, communityName, onCreate, onEdit, onToggle, onMove }) {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("全部状态");
-  const rows = [...records]
-    .filter((item) => (!query.trim() || `${item.name}${item.url}${item.id}`.toLowerCase().includes(query.trim().toLowerCase()))
-      && (status === "全部状态" || (item.enabled ? "启用" : "停用") === status))
-    .sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder) || String(a.id).localeCompare(String(b.id)));
-  return <>
-    <div className="page-heading"><div><h1>娱乐内容</h1><p>{communityName} · 管理老人端“更多功能 → 休闲娱乐”中的第三方入口</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增娱乐内容</button></div>
-    <section className="panel management-panel entertainment-content-panel">
-      <div className="filters"><label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="内容名称或第三方链接"/></div></label><label><span>启用状态</span><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>启用</option><option>停用</option></select></label></div>
-      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 条娱乐内容</span><span className="toolbar-hint">老人端仅展示已启用内容，并按展示顺序排列</span></div></div>
-      <div className="table-scroll"><table className="entertainment-content-table"><thead><tr><th>内容名称</th><th>第三方链接</th><th>展示顺序</th><th>推荐引用</th><th>启用状态</th><th>更新时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {rows.map((item) => { const linkedCount = recommendations.filter((record) => record.type === "third_party_entertainment" && record.sourceId === item.id).length; return <tr key={item.id}><td><div className="stacked-cell"><b>{item.name}</b><small>{item.id}</small></div></td><td><span className="entertainment-url">{item.url}</span></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td>{linkedCount ? `${linkedCount} 条` : "未引用"}</td><td><button type="button" role="switch" aria-checked={item.enabled} aria-label={`${item.name}启用状态`} className={`strategy-status-switch ${item.enabled ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{item.enabled ? "启用" : "停用"}</span></button></td><td>{item.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
-        {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无符合条件的娱乐内容</div></td></tr>}
-      </tbody></table></div>
-      <div className="pagination"><span>当前社区可管理 {records.length} 条，已启用 {records.filter((item) => item.enabled).length} 条</span><span>娱乐内容顺序与首页推荐顺序分别管理</span></div>
-    </section>
-  </>;
-}
-
-function EntertainmentContentDrawer({ record, currentProject, onClose, onSave }) {
-  const [form, setForm] = useState(() => ({ projectId: currentProject?.id, name: "", url: "", enabled: true, displayOrder: 1, ...record }));
-  const [errors, setErrors] = useState({});
-  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  const save = () => {
-    const nextErrors = {};
-    if (!form.name.trim()) nextErrors.name = "请输入内容名称";
-    if (!form.url.trim()) nextErrors.url = "请输入第三方链接";
-    else if (!isValidHttpUrl(form.url)) nextErrors.url = "请输入合法的 http/https 第三方链接";
-    if (!Number.isInteger(Number(form.displayOrder))) nextErrors.displayOrder = "请输入整数展示顺序";
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
-    onSave({ ...form, name: form.name.trim(), url: form.url.trim(), displayOrder: Number(form.displayOrder) });
-  };
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer recommendation-drawer entertainment-content-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑娱乐内容" : "新增娱乐内容"}>
-    <header><div><h2>{record ? "编辑娱乐内容" : "新增娱乐内容"}</h2><p>{currentProject?.community} · 配置休闲娱乐聚合页入口</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
-    <div className="drawer-body"><div className="form-section"><h3>内容信息</h3><label><span>内容名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：戏曲名家经典选段"/>{errors.name && <small className="field-error">{errors.name}</small>}</label><label><span>第三方链接 *</span><input type="url" value={form.url} onChange={(event) => update("url", event.target.value)} placeholder="例如：https://www.youtube.com/watch?v=..."/>{errors.url && <small className="field-error">{errors.url}</small>}</label><label><span>展示顺序 *</span><input type="number" step="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><label><span>启用状态 *</span><div className="strategy-enable-options"><button type="button" className={form.enabled ? "active" : ""} onClick={() => update("enabled", true)}><b>启用</b><small>进入老人端休闲娱乐聚合页</small></button><button type="button" className={!form.enabled ? "active" : ""} onClick={() => update("enabled", false)}><b>停用</b><small>不再进入新的推荐选择</small></button></div></label></div></div>
-    <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存内容</button></footer>
-  </aside></div>;
 }
 
 function getEmergencyEventMetrics(event) {
@@ -3259,6 +3212,7 @@ export function App() {
   const [platformMode, setPlatformMode] = useState("community");
   const [active, setActive] = useState("overview");
   const [overviewScenario, setOverviewScenario] = useState("normal");
+  const [recommendationScenario, setRecommendationScenario] = useState("normal");
   const [acceptanceResetSignal, setAcceptanceResetSignal] = useState(0);
   const [activationFailureSignal, setActivationFailureSignal] = useState({ id: 0, type: "" });
   const [collapsed, setCollapsed] = useState(false);
@@ -3337,7 +3291,10 @@ export function App() {
       if (!savedStrategies) return initialRecommendationStrategies;
       const mergedStrategies = JSON.parse(savedStrategies).map((item) => {
         const preset = initialRecommendationStrategies.find((record) => record.id === item.id);
-        return preset ? { ...preset, ...item, createdAt: item.createdAt || preset.createdAt, sourceId: item.sourceId || preset.sourceId, sourceName: item.sourceName || preset.sourceName, sourceUpdatedAt: item.sourceUpdatedAt || preset.sourceUpdatedAt } : { ...item, createdAt: item.createdAt || recommendationMockNow };
+        const merged = preset ? { ...preset, ...item, createdAt: item.createdAt || preset.createdAt, sourceId: item.sourceId || preset.sourceId, sourceName: item.sourceName || preset.sourceName, sourceUpdatedAt: item.sourceUpdatedAt || preset.sourceUpdatedAt } : { ...item, createdAt: item.createdAt || recommendationMockNow };
+        if (merged.type !== "third_party_entertainment") return merged;
+        const { sourceUnavailable: _sourceUnavailable, ...directEntertainment } = merged;
+        return { ...directEntertainment, sourceId: "", sourceName: merged.name, sourceUpdatedAt: "" };
       });
       const savedIds = new Set(mergedStrategies.map((item) => item.id));
       return [...mergedStrategies, ...initialRecommendationStrategies.filter((item) => !savedIds.has(item.id))];
@@ -3345,14 +3302,7 @@ export function App() {
       return initialRecommendationStrategies;
     }
   });
-  const [entertainmentContents, setEntertainmentContents] = useState(() => {
-    try {
-      const savedContents = window.localStorage.getItem("u2g-entertainment-contents-v14");
-      return savedContents ? JSON.parse(savedContents) : initialEntertainmentContents;
-    } catch {
-      return initialEntertainmentContents;
-    }
-  });
+  const [communityStaff, setCommunityStaff] = useState(initialCommunityStaff);
   const [safetyNews, setSafetyNews] = useState(() => {
     try {
       const savedNews = window.localStorage.getItem("u2g-community-content-v22-topics-split");
@@ -3494,7 +3444,7 @@ export function App() {
   const scopedActivityIds = useMemo(() => new Set(scopedCommunityActivities.map((activity) => activity.id)), [scopedCommunityActivities]);
   const scopedRegistrations = useMemo(() => initialActivityRegistrations.filter((registration) => scopedActivityIds.has(registration.activityId) && scopedElderlyIds.has(registration.elderlyId)), [scopedActivityIds, scopedElderlyIds]);
   const scopedSafetyNews = useMemo(() => safetyNews.filter((record) => record.projectId === currentProject?.id), [safetyNews, currentProject?.id]);
-  const scopedEntertainmentContents = useMemo(() => entertainmentContents.filter((record) => record.projectId === currentProject?.id), [entertainmentContents, currentProject?.id]);
+  const scopedCommunityStaff = useMemo(() => communityStaff.filter((record) => record.projectId === currentProject?.id), [communityStaff, currentProject?.id]);
   const scopedCommunityTopics = useMemo(() => communityTopics.filter((record) => record.projectId === currentProject?.id), [communityTopics, currentProject?.id]);
   const scopedTopicComments = useMemo(() => topicComments.filter((record) => record.projectId === currentProject?.id), [topicComments, currentProject?.id]);
   const scopedServiceCategories = useMemo(() => serviceCategories.filter((category) => category.projectId === currentProject?.id), [serviceCategories, currentProject?.id]);
@@ -3541,7 +3491,7 @@ export function App() {
     applyCommunitySwitch(projectId);
   };
   const resetAcceptance = () => {
-    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
+    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setRecommendationScenario("normal"); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
     setElderlyDetailId(null); setRelativeDetailId(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext("");
     setActivationFailureSignal({ id: 0, type: "" }); setAcceptanceResetSignal((value) => value + 1);
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -3594,9 +3544,6 @@ export function App() {
     window.localStorage.setItem("u2g-right-recommendations-v19-created-at-order", JSON.stringify(recommendationStrategies));
   }, [recommendationStrategies]);
 
-  useEffect(() => {
-    window.localStorage.setItem("u2g-entertainment-contents-v14", JSON.stringify(entertainmentContents));
-  }, [entertainmentContents]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-community-content-v22-topics-split", JSON.stringify(safetyNews));
@@ -3832,40 +3779,34 @@ export function App() {
       : item));
   };
 
-  const getEntertainmentReferenceCount = (id) => recommendationStrategies.filter((item) => item.type === "third_party_entertainment" && item.sourceId === id).length;
-
-  const confirmEntertainmentDisable = (record) => {
-    const referenceCount = getEntertainmentReferenceCount(record.id);
-    return window.confirm(referenceCount
-      ? `停用后，老人端休闲娱乐将隐藏“${record.name}”，关联的 ${referenceCount} 条推荐也会退出候选。确认停用吗？`
-      : `停用后，老人端休闲娱乐将隐藏“${record.name}”。确认停用吗？`);
-  };
-
-  const saveEntertainmentContent = (record) => {
-    const previous = entertainmentContents.find((item) => item.id === record.id);
-    if (previous?.enabled && !record.enabled && !confirmEntertainmentDisable(previous)) return;
+  const saveCommunityStaff = (record) => {
     const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
     if (record.id) {
-      setEntertainmentContents((items) => items.map((item) => item.id === record.id ? { ...item, ...record, updatedAt } : item));
+      setCommunityStaff((items) => items.map((item) => item.id === record.id ? { ...item, ...record, projectId: item.projectId, updatedAt } : item));
     } else {
-      const nextNumber = Math.max(0, ...entertainmentContents.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      setEntertainmentContents((items) => [{ ...record, projectId: currentProject.id, id: `ENT-${String(nextNumber).padStart(3, "0")}`, updatedAt }, ...items]);
+      const nextNumber = Math.max(0, ...communityStaff.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
+      setCommunityStaff((items) => [...items, { ...record, projectId: currentProject.id, id: `STF-${String(nextNumber).padStart(3, "0")}`, updatedAt }]);
     }
     setDrawer(null);
   };
 
-  const toggleEntertainmentContent = (id) => {
-    const target = entertainmentContents.find((item) => item.id === id);
-    if (!target || (target.enabled && !confirmEntertainmentDisable(target))) return;
+  const toggleCommunityStaff = (id) => {
     const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
-    setEntertainmentContents((items) => items.map((item) => item.id === id ? { ...item, enabled: !item.enabled, updatedAt } : item));
+    setCommunityStaff((items) => items.map((item) => item.id === id ? { ...item, enabled: !item.enabled, updatedAt } : item));
   };
 
-  const moveEntertainmentContent = (id, offset) => {
+  const moveCommunityStaff = (id, offset) => {
     const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
-    setEntertainmentContents((items) => items.map((item) => item.id === id
-      ? { ...item, displayOrder: Math.max(1, Number(item.displayOrder) + offset), updatedAt }
-      : item));
+    setCommunityStaff((items) => {
+      const ordered = items.filter((item) => item.projectId === currentProject.id).sort((a, b) => a.displayOrder - b.displayOrder || a.id.localeCompare(b.id));
+      const index = ordered.findIndex((item) => item.id === id);
+      const nextIndex = Math.min(Math.max(index + offset, 0), ordered.length - 1);
+      if (index < 0 || index === nextIndex) return items;
+      const [moved] = ordered.splice(index, 1);
+      ordered.splice(nextIndex, 0, moved);
+      const orderById = new Map(ordered.map((item, orderIndex) => [item.id, orderIndex + 1]));
+      return items.map((item) => orderById.has(item.id) ? { ...item, displayOrder: orderById.get(item.id), updatedAt: item.id === id ? updatedAt : item.updatedAt } : item);
+    });
   };
 
   const saveSafetyNews = (record) => {
@@ -4113,11 +4054,11 @@ export function App() {
               : active === "familyAlbums"
                 ? <FamilyAlbumBatchManagementPage categories={albumCategories} batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onAddCategory={() => setDrawer({ kind: "albumCategory" })} onEditCategory={(record) => setDrawer({ kind: "albumCategory", record })} onToggleCategory={toggleAlbumCategory} onDeleteCategory={deleteAlbumCategory} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
               : active === "recommendations"
-                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} entertainmentContents={scopedEntertainmentContents} communityName={currentProject?.community} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
-              : active === "entertainment"
-                ? <EntertainmentContentPage records={scopedEntertainmentContents} recommendations={scopedRecommendationStrategies} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "entertainment" })} onEdit={(record) => setDrawer({ kind: "entertainment", record })} onToggle={toggleEntertainmentContent} onMove={moveEntertainmentContent}/>
+                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} communityName={currentProject?.community} acceptanceScenario={recommendationScenario} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
               : active === "activities"
                 ? <CommunityActivityPage records={communityActivityRecords} registrations={scopedRegistrations} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "activity", mode: "edit" })} onView={(record) => setDrawer({ kind: "activity", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "activity", mode: "edit", record })} onUnpublish={unpublishCommunityActivity} onViewRegistrations={(record) => setDrawer({ kind: "activityRegistrations", record })}/>
+              : active === "communityStaff"
+                ? <CommunityStaffPage records={scopedCommunityStaff} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "communityStaff" })} onEdit={(record) => setDrawer({ kind: "communityStaff", record })} onToggle={toggleCommunityStaff} onMove={moveCommunityStaff}/>
               : active === "safety"
                 ? <SafetyNewsPage records={scopedSafetyNews} topics={scopedCommunityTopics} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "safety", mode: "edit" })} onView={(record) => setDrawer({ kind: "safety", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "safety", mode: "edit", record })} onStatusChange={changeSafetyNewsStatus} onCreateTopic={() => setDrawer({ kind: "communityTopicCreate" })} onViewTopic={(record) => setDrawer({ kind: "communityTopicDetail", topicId: record.id })}/>
               : active === "services"
@@ -4149,10 +4090,10 @@ export function App() {
         if (!batch) return null;
         return <FamilyAlbumBatchDetailDrawer batch={batch} elderly={scopedElderlyRecords.find((item) => item.id === batch.elderlyId)} uploader={scopedRelativeAccounts.find((item) => item.id === batch.uploaderId)} category={albumCategories.find((item) => item.id === batch.categoryId)} onClose={() => setDrawer(null)}/>;
       })()}
-      {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || `new-recommendation-${drawer.presetDate || "default"}`} record={drawer.record} presetDate={drawer.presetDate} safetyNews={scopedSafetyNews} activities={communityActivityRecords} entertainmentContents={scopedEntertainmentContents} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>}
-      {drawer?.kind === "entertainment" && <EntertainmentContentDrawer key={drawer.record?.id || `new-entertainment-${currentProjectId}`} record={drawer.record} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveEntertainmentContent}/>}
+      {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || `new-recommendation-${drawer.presetDate || "default"}`} record={drawer.record} presetDate={drawer.presetDate} safetyNews={scopedSafetyNews} activities={communityActivityRecords} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>}
       {drawer?.kind === "activity" && <CommunityActivityDrawer key={`${drawer.mode}-${drawer.record?.id || "new-activity"}`} mode={drawer.mode} currentProject={currentProject} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCommunityActivity} onSetLiveMockState={setCommunityActivityLiveMockState}/>}
       {drawer?.kind === "activityRegistrations" && <ActivityRegistrationsModal activity={drawer.record} registrations={scopedRegistrations} elderlyRecords={scopedElderlyRecords} onClose={() => setDrawer(null)}/>}
+      {drawer?.kind === "communityStaff" && <CommunityStaffDrawer key={drawer.record?.id || `new-community-staff-${currentProjectId}`} record={drawer.record} currentProject={currentProject} nextDisplayOrder={Math.max(0, ...scopedCommunityStaff.map((item) => Number(item.displayOrder) || 0)) + 1} onClose={() => setDrawer(null)} onSave={saveCommunityStaff}/>}
       {drawer?.kind === "safety" && <SafetyNewsDrawer key={`${drawer.mode}-${drawer.record?.id || "new-community-content"}`} mode={drawer.mode} record={drawer.record} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>}
       {drawer?.kind === "communityTopicCreate" && <CommunityTopicDrawer currentProject={currentProject} contentRecords={scopedSafetyNews} onClose={() => setDrawer(null)} onSave={saveCommunityTopic}/>}
       {drawer?.kind === "communityTopicDetail" && (() => {
@@ -4175,7 +4116,7 @@ export function App() {
       {tabletTarget && <TabletBindingModal record={tabletTarget} project={projects.find((project) => project.name === tabletTarget.project)} devices={tabletDevices} activation={activationRecords.find((item) => item.elderlyId === tabletTarget.id && ["待使用", "激活失败"].includes(item.status))} failureSignal={activationFailureSignal} onGenerate={generateTabletActivation} onFail={failTabletActivation} onActivate={(tabletId, activationId) => activateTablet(tabletTarget.id, tabletId, activationId)} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
       {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.community}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
-      {import.meta.env.DEV && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onActivationFailure={(type) => setActivationFailureSignal((signal) => ({ id: signal.id + 1, type }))} onReset={resetAcceptance}/>}
+      {import.meta.env.DEV && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onActivationFailure={(type) => setActivationFailureSignal((signal) => ({ id: signal.id + 1, type }))} onReset={resetAcceptance}/>}
     </div>
   );
 }

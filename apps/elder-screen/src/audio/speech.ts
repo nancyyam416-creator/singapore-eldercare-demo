@@ -143,7 +143,7 @@ export const speakText = (content: string, options: SpeakTextOptions = {}) => {
 
 const playFallback = (content: string, options: SpeakTextOptions) => {
   const voiceKey = options.fallbackKey ?? resolveVoiceKey(content);
-  const audio = new Audio(`./assets/voice/${voiceKey}.wav`);
+  const audio = new Audio(`/assets/voice/${voiceKey}.wav`);
   audio.preload = "auto";
   audio.volume = options.volume ?? 1;
   audio.onplay = () => options.onStart?.();

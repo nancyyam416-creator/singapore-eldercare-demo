@@ -66,7 +66,6 @@ interface HomeTaskRailProps {
   albumUnreadCount: number;
   missedCallCount: number;
   onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
-  onOpenTodayOverview: () => void;
   onOpenMessages: () => void;
   onOpenCommunity: () => void;
   onOpenContacts: () => void;
@@ -91,7 +90,6 @@ export default function HomeTaskRail({
   albumUnreadCount,
   missedCallCount,
   onCompleteReminder,
-  onOpenTodayOverview,
   onOpenMessages,
   onOpenCommunity,
   onOpenContacts,
@@ -367,7 +365,7 @@ export default function HomeTaskRail({
   };
 
   const activateContent = (item: RightContentItem) => {
-    if (item.kind === "medication" || item.kind === "schedule") onOpenTodayOverview();
+    if (item.kind === "medication" || item.kind === "schedule") setIsTodayRecommendationOpen(true);
     else if (item.kind === "activity") onOpenCommunity();
     else if (item.kind === "missed-call") onOpenContacts();
     else if (item.kind === "message") onOpenMessages();

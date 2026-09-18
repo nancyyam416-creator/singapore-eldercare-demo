@@ -135,6 +135,7 @@ export type ElderRelation = '儿子' | '女儿' | '儿媳' | '女婿' | '孙辈'
 export type ElderBindingScenario =
   | 'bound'
   | 'no_elder'
+  | 'mock_success'
   | 'code_error'
   | 'code_expired'
   | 'invitation_ended'

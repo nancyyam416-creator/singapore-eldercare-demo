@@ -158,6 +158,7 @@ const familyPhotoPublishScenarios: Array<{ value: FamilyPhotoScenario; label: st
 const elderBindingScenarios: Array<{ value: ElderBindingScenario; label: string; description: string; status: string }> = [
   { value: 'bound', label: '已绑定老人', description: '展示已绑定老人列表、当前老人及新增绑定入口。', status: '正常' },
   { value: 'no_elder', label: '登录后暂无老人', description: '登录成功后直接进入绑定老人引导。', status: '首次绑定' },
+  { value: 'mock_success', label: '固定 Mock 成功', description: '成功码735281固定映射老人王建国，不表示实时跨端校验。', status: '可校验' },
   { value: 'code_error', label: '绑定码错误', description: '输入的6位家庭绑定码无法识别。', status: '校验失败' },
   { value: 'code_expired', label: '绑定码已过期', description: '提示在老人屏幕重新生成家庭邀请。', status: '已过期' },
   { value: 'invitation_ended', label: '邀请已结束', description: '当前邀请已结束，需要使用新的邀请。', status: '已结束' },

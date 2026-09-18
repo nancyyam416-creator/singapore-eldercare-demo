@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   AlarmClock,
   BellRing,
@@ -27,6 +27,7 @@ import {
   TabletSmartphone,
   UserRoundCheck,
   UserMinus,
+  UsersRound,
   Video,
   Volume2,
   type LucideIcon,
@@ -34,6 +35,7 @@ import {
 import type { FamilyWeatherMockScenario } from "../weather/familyWeather";
 import type { EmergencyAcceptanceScenario } from "./EmergencyModal";
 import type { SpecialServicesAcceptanceScenario } from "./SpecialServicesPage";
+import type { CommunityStaffAcceptanceScenario } from "./CommunityStaffPage";
 import "./interaction-acceptance-console.css";
 
 export type AcceptanceTaskContentScenario = "medicine" | "schedule";
@@ -113,11 +115,13 @@ interface InteractionAcceptanceConsoleProps {
   rightContentScenario: AcceptanceRightContentScenario;
   communityScenario: AcceptanceCommunityScenario;
   serviceScenario: SpecialServicesAcceptanceScenario;
+  communityStaffScenario: CommunityStaffAcceptanceScenario;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
   onShowCommunity: () => void;
   onShowServices: () => void;
+  onShowCommunityStaff: () => void;
   onSetWeatherScenario: (scenario: FamilyWeatherMockScenario) => void;
   onOpenWeatherScenario: (target: WeatherAcceptanceTarget) => void;
   onSetAlbumScenario: (scenario: AcceptanceAlbumScenario) => void;
@@ -126,6 +130,7 @@ interface InteractionAcceptanceConsoleProps {
   onSetRightContentScenario: (scenario: AcceptanceRightContentScenario) => void;
   onSetCommunityScenario: (scenario: AcceptanceCommunityScenario) => void;
   onSetServiceScenario: (scenario: SpecialServicesAcceptanceScenario) => void;
+  onSetCommunityStaffScenario: (scenario: CommunityStaffAcceptanceScenario) => void;
   onApplyRightContentUpdate: () => void;
   onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario, minutesUntil?: number, autoDismissMs?: number) => void;
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
@@ -134,8 +139,8 @@ interface InteractionAcceptanceConsoleProps {
   onReset: () => void;
 }
 
-type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services";
-type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services";
+type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services" | "community-staff" | "activation";
+type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "community-staff" | "activation";
 type WeatherAcceptanceTarget = "home" | "detail";
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
@@ -146,6 +151,8 @@ const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: str
   { id: "reminders", label: "今日提醒" },
   { id: "community-life", label: "社区生活" },
   { id: "special-services", label: "特约服务" },
+  { id: "community-staff", label: "社区人员" },
+  { id: "activation", label: "激活流程" },
 ];
 
 const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; sections: AcceptanceConsoleSection[] }> = [
@@ -154,6 +161,8 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
   { id: "reminders", label: "提醒事项", sections: ["reminders"] },
   { id: "community-life", label: "社区生活", sections: ["community-life"] },
   { id: "special-services", label: "特约服务", sections: ["special-services"] },
+  { id: "community-staff", label: "社区人员", sections: ["community-staff"] },
+  { id: "activation", label: "设备激活", sections: ["activation"] },
 ];
 
 interface AcceptanceConsoleDragState {
@@ -170,17 +179,17 @@ interface AcceptanceConsoleDragState {
 
 const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label: string; description: string }> = {
   default: { label: "默认单按钮", description: "合并时间提醒、家庭互动和内容推荐，只展示当前最高优先级内容。" },
-  "recommendations-only": { label: "只有推荐内容", description: "无时间提醒和家庭未读，按 Mock 后台顺序展示推荐。" },
-  "new-message": { label: "新留言立即到达", description: "新留言聚合数量并立即进入右侧，不弹窗、不主动播报。" },
-  "new-album": { label: "新家庭影像到达", description: "照片、视频或混合批次按家庭影像聚合后立即进入。" },
-  "missed-call": { label: "家人未接来电", description: "同类未接来电累计次数，查看通话记录前持续保留。" },
+  "recommendations-only": { label: "查看推荐内容", description: "点击右侧推荐，进入对应内容。" },
+  "new-message": { label: "查看家人留言", description: "点击右侧留言入口，进入通讯录查看留言。" },
+  "new-album": { label: "查看家庭影像", description: "点击右侧影像入口，进入家庭相册。" },
+  "missed-call": { label: "查看未接来电", description: "点击右侧未接来电入口，进入通讯录。" },
   "time-and-family": { label: "时间与家庭同时产生", description: "两类内容同时进入候选，由同一个大按钮展示当前优先项。" },
   "p1-due": { label: "到点 P1 产生", description: "用药到点后转为 P1 主内容，家庭互动业务状态保留。" },
-  "medication-upcoming": { label: "临近用药", description: "固定上标题提示用药临近，下标题显示执行时间与药品名称。" },
-  "schedule-due": { label: "到点日常事项", description: "固定上标题提示该做事项，下标题显示当前事项名称。" },
+  "medication-upcoming": { label: "查看用药提醒", description: "点击右侧用药提醒，展开今日全览。" },
+  "schedule-due": { label: "查看日常事项", description: "点击右侧日常事项，展开今日全览。" },
   "schedule-upcoming": { label: "临近日常事项", description: "固定上标题提示事项临近，下标题显示执行时间与事项名称。" },
   "activity-started": { label: "活动已经开始", description: "上标题显示活动开始，下标题显示活动名称。" },
-  "activity-upcoming": { label: "活动即将开始", description: "上标题显示活动临近，下标题显示开始时间与活动名称。" },
+  "activity-upcoming": { label: "查看社区活动", description: "点击右侧活动提醒，进入社区活动。" },
   "activity-updated": { label: "活动信息已更新", description: "不弹窗、不语音，右侧直接读取更新后的活动时间和地点。" },
   "activity-cancelled": { label: "活动已取消", description: "取消活动立即退出右侧候选，继续展示下一条有效内容。" },
   "reminder-daytime": { label: "日间首次播报", description: "固定日间时间；同一提醒仅首次到点进行语音播报。" },
@@ -188,12 +197,23 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "next-day-exit": { label: "次日00:00退出", description: "当天未处理推荐退出首页候选，不删除内容、不生成完成记录。" },
   "recommendation-order": { label: "后台顺序轮换", description: "按后台展示顺序；同序时按创建时间从早到晚稳定轮换。" },
   "single-recommendation": { label: "仅一条推荐", description: "后台只有一条有效内容时持续展示，不因计时进入冷却或消失。" },
-  "third-party-entertainment": { label: "娱乐内容打开成功", description: "展示后台ENT-002；成功进入第三方链接后退出本轮推荐。" },
-  "third-party-entertainment-failure": { label: "娱乐内容打开失败", description: "展示暂时无法打开、重试和返回；失败不退出推荐。" },
+  "third-party-entertainment": { label: "打开娱乐内容", description: "点击右侧娱乐内容，进入对应播放页。" },
+  "third-party-entertainment-failure": { label: "娱乐内容打开失败", description: "点击后显示无法打开，可重试或返回。" },
   "no-content": { label: "无有效候选", description: "全部后台内容不可展示时，右侧显示“今日暂无内容”，不使用 AI 补位。" },
   "interaction-locked": { label: "操作中暂不换位", description: "正在操作右侧内容时先记录新留言，结束后再应用新排序。" },
 };
 
+const rightContentInteractionScenarios: AcceptanceRightContentScenario[] = [
+  "recommendations-only",
+  "new-message",
+  "new-album",
+  "missed-call",
+  "medication-upcoming",
+  "schedule-due",
+  "activity-upcoming",
+  "third-party-entertainment",
+  "third-party-entertainment-failure",
+];
 
 const albumLabels: Record<AcceptanceAlbumScenario, string> = {
   default: "正常轮播",
@@ -261,6 +281,13 @@ const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, {
   "filter-empty": { label: "当前筛选变为空", description: "保留当前分类并提示返回全部服务。" },
   "category-load-failure": { label: "分类加载失败", description: "不虚构分类，展示失败提示与重新加载。" },
   "category-disabled": { label: "分类已停用", description: "停用分类及其服务不进入老人端列表。" },
+};
+
+const communityStaffScenarioLabels: Record<CommunityStaffAcceptanceScenario, { label: string; description: string }> = {
+  multiple: { label: "多人列表", description: "同屏展示四位已启用人员及完整联系信息。" },
+  single: { label: "单人", description: "只展示一位社区服务负责人及完整联系信息。" },
+  "multiple-time-slots": { label: "多服务时间", description: "卡片内完整展示多个对外服务时间段。" },
+  empty: { label: "暂无人员", description: "没有已启用人员时展示统一空状态。" },
 };
 
 const weatherLabels: Record<FamilyWeatherMockScenario, string> = {
@@ -372,11 +399,13 @@ export default function InteractionAcceptanceConsole({
   rightContentScenario,
   communityScenario,
   serviceScenario,
+  communityStaffScenario,
   onShowHome,
   onShowAlbum,
   onShowReminders,
   onShowCommunity,
   onShowServices,
+  onShowCommunityStaff,
   onSetWeatherScenario,
   onOpenWeatherScenario,
   onSetAlbumScenario,
@@ -385,6 +414,7 @@ export default function InteractionAcceptanceConsole({
   onSetRightContentScenario,
   onSetCommunityScenario,
   onSetServiceScenario,
+  onSetCommunityStaffScenario,
   onApplyRightContentUpdate,
   onOpenHomeReminderAlert,
   onHomeCommand,
@@ -408,10 +438,31 @@ export default function InteractionAcceptanceConsole({
   const selectedPageSections = acceptanceSectionOptions.filter((section) => selectedPage.sections.includes(section.id));
   const albumScenarioOptions = activePage === "family-album" ? familyAlbumScenarios : homeAlbumScenarios;
 
-  const runAndClose = (action: () => void) => {
-    action();
-  };
+  useEffect(() => {
+    if (activeSection === "task-progress" && !rightContentInteractionScenarios.includes(rightContentScenario)) {
+      onSetRightContentScenario("recommendations-only");
+    }
+  }, [activeSection, onSetRightContentScenario, rightContentScenario]);
+
   const showAlbumAcceptanceTarget = () => activePage === "family-album" ? onShowAlbum() : onShowHome();
+  const changePage = (pageId: AcceptanceConsolePage) => {
+    const nextPage = acceptancePageOptions.find((page) => page.id === pageId) ?? acceptancePageOptions[0];
+    onReset();
+    setActivePage(nextPage.id);
+    setActiveSection(nextPage.sections[0]);
+    setWeatherAcceptanceTarget("home");
+  };
+  const changeSection = (sectionId: AcceptanceConsoleSection) => {
+    onReset();
+    setActiveSection(sectionId);
+    setWeatherAcceptanceTarget("home");
+  };
+  const resetWorkbench = () => {
+    setActivePage("home");
+    setActiveSection("weather");
+    setWeatherAcceptanceTarget("home");
+    onReset();
+  };
 
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
@@ -510,11 +561,7 @@ export default function InteractionAcceptanceConsole({
               <span className="interaction-acceptance-module-picker__select">
                 <select
                   value={activePage}
-                  onChange={(event) => {
-                    const nextPage = acceptancePageOptions.find((page) => page.id === event.target.value) ?? acceptancePageOptions[0];
-                    setActivePage(nextPage.id);
-                    if (!nextPage.sections.includes(activeSection)) setActiveSection(nextPage.sections[0]);
-                  }}
+                  onChange={(event) => changePage(event.target.value as AcceptanceConsolePage)}
                   aria-label="选择一级页面"
                 >
                   {acceptancePageOptions.map((page) => <option key={page.id} value={page.id}>{page.label}</option>)}
@@ -525,7 +572,7 @@ export default function InteractionAcceptanceConsole({
             <label className="interaction-acceptance-module-picker">
               <span>二级模块</span>
               <span className="interaction-acceptance-module-picker__select">
-              <select value={activeSection} onChange={(event) => setActiveSection(event.target.value as AcceptanceConsoleSection)} aria-label="选择验收模块">
+              <select value={activeSection} onChange={(event) => changeSection(event.target.value as AcceptanceConsoleSection)} aria-label="选择验收模块">
                 {selectedPageSections.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
               <ChevronDown aria-hidden="true" />
@@ -670,31 +717,30 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "task-progress" && <section>
               <div className="interaction-acceptance-field">
-                <h2><Sparkles aria-hidden="true" />右侧单按钮</h2>
-                <p>各类内容并行计算，首页只展示当前最高优先级的一项。</p>
-                <div className="interaction-acceptance-scenario-list">
-                  {(Object.keys(rightContentScenarioLabels) as AcceptanceRightContentScenario[]).map((scenario) => (
-                    <button
-                      key={scenario}
-                      type="button"
-                      className={rightContentScenario === scenario ? "is-active" : ""}
-                      onClick={() => onSetRightContentScenario(scenario)}
+                <h2><Sparkles aria-hidden="true" />交互内容</h2>
+                <label className="interaction-acceptance-module-picker">
+                  <span className="interaction-acceptance-module-picker__select">
+                    <select
+                      value={rightContentScenario}
+                      onChange={(event) => onSetRightContentScenario(event.target.value as AcceptanceRightContentScenario)}
+                      aria-label="选择首页右侧交互内容"
                     >
-                      <span><Sparkles aria-hidden="true" /><strong>{rightContentScenarioLabels[scenario].label}</strong></span>
-                      <small>{rightContentScenarioLabels[scenario].description}</small>
-                    </button>
-                  ))}
+                      {rightContentInteractionScenarios.map((scenario) => (
+                        <option key={scenario} value={scenario}>{rightContentScenarioLabels[scenario].label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
+                </label>
+                <div className="interaction-acceptance-current" aria-live="polite">
+                  <strong>{rightContentScenarioLabels[rightContentScenario].label}</strong>
+                  <p>{rightContentScenarioLabels[rightContentScenario].description}</p>
                 </div>
-                {rightContentScenario === "interaction-locked" && (
-                  <button type="button" className="interaction-acceptance-primary-action" onClick={onApplyRightContentUpdate}>
-                    <CheckCircle2 aria-hidden="true" />结束当前操作，应用新内容
-                  </button>
-                )}
               </div>
 
               <div className="interaction-acceptance-field">
-                <h2><BellRing aria-hidden="true" />首页提醒弹窗</h2>
-                <div className="interaction-acceptance-grid is-two-columns">
+                <h2><BellRing aria-hidden="true" />可执行动作</h2>
+                <div className="interaction-acceptance-grid is-two-columns interaction-acceptance-actions-grid">
                   <button type="button" onClick={() => onOpenHomeReminderAlert("medicine")}>
                     <Pill />用药提醒弹窗
                   </button>
@@ -706,6 +752,14 @@ export default function InteractionAcceptanceConsole({
                   </button>
                 </div>
                 <p className="interaction-acceptance-note">正式页面60秒后自动关闭；验收动作缩短为1.2秒，关闭不代表完成。</p>
+                {rightContentScenario === "interaction-locked" && (
+                  <div className="interaction-acceptance-context-action">
+                    <span>当前场景动作</span>
+                    <button type="button" className="interaction-acceptance-primary-action" onClick={onApplyRightContentUpdate}>
+                      <CheckCircle2 aria-hidden="true" />结束当前操作，应用新内容
+                    </button>
+                  </div>
+                )}
               </div>
 
             </section>}
@@ -757,11 +811,44 @@ export default function InteractionAcceptanceConsole({
               </div>
               <p className="interaction-acceptance-note">分类只用于筛选服务；详情、预约确认、预约结果和服务记录继续复用现有流程。</p>
             </section>}
+
+            {activeSection === "community-staff" && <section>
+              <div className="interaction-acceptance-field">
+                <h2><UsersRound aria-hidden="true" />社区人员场景</h2>
+                <p>选择场景后直接打开社区人员正式页面。</p>
+                <div className="interaction-acceptance-scenario-list">
+                  {(Object.keys(communityStaffScenarioLabels) as CommunityStaffAcceptanceScenario[]).map((scenario) => (
+                    <button
+                      key={scenario}
+                      type="button"
+                      className={communityStaffScenario === scenario ? "is-active" : ""}
+                      onClick={() => onSetCommunityStaffScenario(scenario)}
+                    >
+                      <span><UsersRound aria-hidden="true" /><strong>{communityStaffScenarioLabels[scenario].label}</strong></span>
+                      <small>{communityStaffScenarioLabels[scenario].description}</small>
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="interaction-acceptance-primary-action" onClick={onShowCommunityStaff}>
+                  <ChevronRight aria-hidden="true" />打开当前社区人员场景
+                </button>
+              </div>
+              <p className="interaction-acceptance-note">电话和邮箱仅展示，不触发拨号或邮件；人员顺序、照片与资料均为 L2 固定 Mock。</p>
+            </section>}
+
+            {activeSection === "activation" && <section>
+              <div className="interaction-acceptance-field">
+                <h2><TabletSmartphone aria-hidden="true" />设备激活</h2>
+                <p>仅在本模块提供设备激活验收入口。</p>
+                <button type="button" className="interaction-acceptance-primary-action" onClick={onOpenActivation}>
+                  <TabletSmartphone aria-hidden="true" />进入设备激活验收
+                </button>
+              </div>
+            </section>}
           </div>
 
           <footer>
-            <button type="button" className="is-activation" onClick={() => runAndClose(onOpenActivation)}><TabletSmartphone aria-hidden="true" />进入设备激活验收</button>
-            <button type="button" onClick={() => runAndClose(onReset)}><RefreshCcw aria-hidden="true" />恢复首页默认数据</button>
+            <button type="button" onClick={resetWorkbench}><RefreshCcw aria-hidden="true" />全局重置</button>
           </footer>
         </div>
       )}

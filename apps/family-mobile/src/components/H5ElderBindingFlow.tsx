@@ -16,7 +16,7 @@ import {
   UsersRound
 } from 'lucide-react';
 import { BoundElder, ElderBindingScenario, ElderRelation } from '../types';
-import { mockBindingCandidate } from '../data/mockData';
+import { defaultMockBindingSuccessCode, mockBindingCandidatesByCode } from '../data/mockData';
 
 type BindingStep = 'guide' | 'code' | 'preview' | 'success';
 
@@ -33,6 +33,7 @@ interface H5ElderBindingFlowProps {
 const relations: ElderRelation[] = ['儿子', '女儿', '儿媳', '女婿', '孙辈', '其他家属'];
 
 const scenarioCodes: Partial<Record<ElderBindingScenario, string>> = {
+  mock_success: defaultMockBindingSuccessCode,
   code_error: '111111',
   code_expired: '222222',
   invitation_ended: '333333',
@@ -65,6 +66,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
   const [bindingCode, setBindingCode] = useState('');
   const [relation, setRelation] = useState<ElderRelation | null>(null);
   const [error, setError] = useState('');
+  const [bindingCandidate, setBindingCandidate] = useState<Omit<BoundElder, 'relation' | 'relationshipStatus'> | null>(null);
   const [boundElder, setBoundElder] = useState<BoundElder | null>(null);
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
     setBindingCode(presetCode);
     setRelation(null);
     setError('');
+    setBindingCandidate(null);
     setBoundElder(null);
   }, [scenario]);
 
@@ -82,7 +85,10 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
   };
 
   const simulateScan = () => {
+    const candidate = mockBindingCandidatesByCode[defaultMockBindingSuccessCode];
     setError('');
+    setBindingCode(defaultMockBindingSuccessCode);
+    setBindingCandidate(candidate);
     setStep('preview');
   };
 
@@ -96,7 +102,13 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
       setError(validationError);
       return;
     }
+    const candidate = mockBindingCandidatesByCode[bindingCode];
+    if (!candidate) {
+      setError('家庭绑定码错误，请核对后重新输入。');
+      return;
+    }
     setError('');
+    setBindingCandidate(candidate);
     setStep('preview');
   };
 
@@ -105,12 +117,16 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
       setError('请选择你与老人的关系');
       return;
     }
-    if (existingElderIds.includes(mockBindingCandidate.id)) {
+    if (!bindingCandidate) {
+      setError('家庭绑定码错误，请返回重新校验。');
+      return;
+    }
+    if (existingElderIds.includes(bindingCandidate.id)) {
       setError('你已经绑定了这位老人');
       return;
     }
     const nextElder: BoundElder = {
-      ...mockBindingCandidate,
+      ...bindingCandidate,
       relation,
       relationshipStatus: 'active'
     };
@@ -162,7 +178,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
         )}
         <div>
           <h2 className="text-base font-black text-slate-900">绑定老人</h2>
-          <p className="mt-0.5 text-[10px] text-slate-500">使用老人屏幕上的家庭绑定邀请</p>
+          <p className="mt-0.5 text-[10px] text-slate-500">使用老人屏幕上的家庭绑定邀请 · L2 固定 Mock</p>
         </div>
       </div>
 
@@ -183,7 +199,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
             <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">输入6位家庭绑定码</strong><span className="mt-1 block text-xs text-slate-500">绑定码显示在老人屏幕邀请页</span></span>
             <ChevronRight size={18} className="text-slate-300" />
           </button>
-          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">家庭绑定用于建立你与老人的守护关系。请勿使用平板激活码或将绑定码分享给无关人员。</p>
+          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">家庭绑定用于建立你与老人的守护关系。当前为固定 Mock 演示，不与老人端实时校验。请勿使用平板激活码。</p>
         </div>
       )}
 
@@ -203,6 +219,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center text-2xl font-black tracking-[0.35em] text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
+          <p className="mt-2 rounded-xl bg-blue-50 px-3 py-2.5 text-[10px] leading-relaxed text-blue-700">L2 固定 Mock 成功码：<strong>{defaultMockBindingSuccessCode}</strong>，对应老人“王建国”。其他未预设的6位数字均会校验失败。</p>
           {error && (
             <div className="mt-3 flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-xs font-semibold leading-relaxed text-rose-700">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -214,22 +231,24 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
         </div>
       )}
 
-      {step === 'preview' && (
+      {step === 'preview' && bindingCandidate && (
         <div className="mt-5 space-y-4">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
             <div className="flex items-center gap-3 p-4">
-              <img src={mockBindingCandidate.avatar} alt={mockBindingCandidate.name} className="h-14 w-14 rounded-full object-cover" />
+              <img src={bindingCandidate.avatar} alt={bindingCandidate.name} className="h-14 w-14 rounded-full object-cover" />
               <div className="min-w-0 flex-1">
-                <strong className="text-base text-slate-900">{mockBindingCandidate.name}</strong>
-                <p className="mt-1 text-xs text-slate-500">{mockBindingCandidate.age}岁 · {mockBindingCandidate.project}</p>
+                <strong className="text-base text-slate-900">{bindingCandidate.name}</strong>
+                <p className="mt-1 text-xs text-slate-500">{bindingCandidate.age}岁 · {bindingCandidate.project}</p>
               </div>
               <ShieldCheck size={20} className="text-emerald-500" />
             </div>
             <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
               <MapPin size={15} className="shrink-0 text-slate-400" />
-              <span>{mockBindingCandidate.maskedAddress}</span>
+              <span>{bindingCandidate.maskedAddress}</span>
             </div>
           </section>
+
+          <p className="rounded-xl bg-blue-50 px-3 py-2.5 text-[10px] leading-relaxed text-blue-700">当前为 L2 固定 Mock 核对结果，不表示已完成实时跨端校验。</p>
 
           <section>
             <h3 className="text-sm font-extrabold text-slate-900">你与老人的关系</h3>
