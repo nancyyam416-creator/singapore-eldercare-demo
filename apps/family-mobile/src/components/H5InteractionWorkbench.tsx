@@ -18,6 +18,7 @@ import {
   HomeActivityScenario,
   FamilyReceiptScenario,
   FamilyMessageScenario,
+  FamilyCallScenario,
   FamilyPhotoScenario,
   FamilyReceiptFilter,
   CareFeedScenario,
@@ -30,8 +31,8 @@ import {
 
 type ElderAcceptanceTarget = 'card' | 'profile';
 type FamilyPhotoAcceptanceTarget = 'list' | 'publish';
-type AcceptancePage = 'login' | 'home' | 'family' | 'care' | 'profile';
-type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding';
+type AcceptancePage = 'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile';
+type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding';
 type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
@@ -41,6 +42,7 @@ interface H5InteractionWorkbenchProps {
   homeActivityScenario: HomeActivityScenario;
   familyReceiptScenario: FamilyReceiptScenario;
   familyMessageScenario: FamilyMessageScenario;
+  familyCallScenario: FamilyCallScenario;
   familyPhotoScenario: FamilyPhotoScenario;
   careFeedScenario: CareFeedScenario;
   elderStatusCardScenario: ElderStatusCardScenario;
@@ -57,8 +59,10 @@ interface H5InteractionWorkbenchProps {
   onHomeActivityScenarioChange: (scenario: HomeActivityScenario) => void;
   onFamilyReceiptScenarioChange: (scenario: FamilyReceiptScenario) => void;
   onFamilyMessageScenarioChange: (scenario: FamilyMessageScenario) => void;
+  onFamilyCallScenarioChange: (scenario: FamilyCallScenario) => void;
   onFamilyPhotoScenarioChange: (scenario: FamilyPhotoScenario) => void;
   onOpenFamilyMessages: () => void;
+  onOpenFamilyCall: () => void;
   onOpenFamilyPhotos: () => void;
   onOpenFamilyNotifications: () => void;
   onOpenHome: () => void;
@@ -120,7 +124,17 @@ const familyMessageScenarios: Array<{ value: FamilyMessageScenario; label: strin
   { value: 'empty', label: '空会话', description: '已绑定老人，但还没有留言记录', status: '暂无留言' },
   { value: 'send_failed', label: '发送失败', description: '保留原文或语音，可点击重新发送', status: '可重试' },
   { value: 'voice_error', label: '语音播放失败', description: '播放失败时保留留言并提供重试', status: '播放失败' },
-  { value: 'relationship_invalid', label: '家庭关系失效', description: '可查看历史，不可再发送留言', status: '已失效' }
+  { value: 'relationship_invalid', label: '家庭关系失效', description: '可查看历史，不可再发送留言或发起通话', status: '已失效' }
+];
+
+const familyCallScenarios: Array<{ value: FamilyCallScenario; label: string; description: string; status: string }> = [
+  { value: 'outgoing_voice', label: '呼出语音通话', description: '从老人会话发起语音通话，可取消或模拟接通。', status: '呼叫中' },
+  { value: 'outgoing_video', label: '呼出视频通话', description: '从老人会话发起视频通话，可取消或模拟接通。', status: '呼叫中' },
+  { value: 'incoming_voice', label: '收到语音来电', description: '独立来电界面展示老人信息，可接听或拒绝。', status: '来电' },
+  { value: 'incoming_video', label: '收到视频来电', description: '独立来电界面展示老人信息，可接听或拒绝。', status: '来电' },
+  { value: 'connected_voice', label: '语音通话中', description: '支持挂断、静音和免提。', status: '通话中' },
+  { value: 'connected_video', label: '视频通话中', description: '支持挂断、静音、免提和摄像头开关。', status: '通话中' },
+  { value: 'unanswered', label: '呼出无人接听', description: '呼出满 60 秒无人接听后结束，并返回老人会话。', status: '已结束' }
 ];
 
 const familyReceiptScenarios: Array<{ value: FamilyReceiptScenario; label: string; description: string; status: string }> = [
@@ -142,6 +156,16 @@ const familyPhotoListScenarios: Array<{ value: FamilyPhotoScenario; label: strin
 ];
 
 const familyPhotoPublishScenarios: Array<{ value: FamilyPhotoScenario; label: string; description: string; status: string }> = [
+  { value: 'single_elder', label: '单老人默认选中', description: '仅一位有效老人时默认选中，不增加发布步骤。', status: '单老人' },
+  { value: 'multi_select', label: '多老人多选', description: '默认只选当前老人，可勾选其他有效老人。', status: '可多选' },
+  { value: 'current_plus_other', label: '当前老人+其他老人', description: '从当前老人进入，保留默认勾选并追加其他老人。', status: '已选2位' },
+  { value: 'no_recipient', label: '未选择老人', description: '保留编辑内容，发布按钮不可用并提示至少选一位。', status: '不可发布' },
+  { value: 'recipient_invalid', label: '关系失效老人', description: '失效老人保留在名单中，不可选并显示原因。', status: '不可选' },
+  { value: 'recipients_all_success', label: '多老人全部成功', description: '同一内容分别发给两位老人，逐位显示成功。', status: '全部成功' },
+  { value: 'recipients_partial_success', label: '多老人部分成功', description: '一位成功、一位失败，成功老人不回滚。', status: '部分成功' },
+  { value: 'recipients_all_failed', label: '多老人全部失败', description: '保留影像和选中老人，区分可重试与关系失效。', status: '全部失败' },
+  { value: 'independent_feedback', label: '分老人独立反馈', description: '爸爸已喜欢、妈妈已查看，两位老人状态互不改写。', status: '独立状态' },
+  { value: 'retry_failed_recipient', label: '仅重试失败老人', description: '重试只向失败老人发送，已成功老人不重复接收。', status: '可重试' },
   { value: 'compose_empty', label: '编辑中 · 未选择', description: '展示拍照片、拍视频、从手机选择，发布按钮不可用。', status: '编辑中' },
   { value: 'compose_photo', label: '照片批次', description: '展示照片缩略图、预览、删除、分类和附言。', status: '可发布' },
   { value: 'compose_video', label: '视频批次', description: '展示视频封面、播放标识、时长与预览播放。', status: '可发布' },
@@ -208,10 +232,13 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
     { value: 'family_receipts', label: '亲情互动' },
     { value: 'today_feed', label: '今日动态' }
   ],
-  family: [
+  messages: [
     { value: 'family_messages', label: '家庭留言' },
-    { value: 'family_photos', label: '家庭影像' },
+    { value: 'family_calls', label: '音视频通话' },
     { value: 'family_notifications', label: '消息' }
+  ],
+  photos: [
+    { value: 'family_photos', label: '家庭影像' }
   ],
   care: [
     { value: 'reminders', label: '提醒事项' },
@@ -301,6 +328,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   homeActivityScenario,
   familyReceiptScenario,
   familyMessageScenario,
+  familyCallScenario,
   familyPhotoScenario,
   careFeedScenario,
   elderStatusCardScenario,
@@ -317,8 +345,10 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   onHomeActivityScenarioChange,
   onFamilyReceiptScenarioChange,
   onFamilyMessageScenarioChange,
+  onFamilyCallScenarioChange,
   onFamilyPhotoScenarioChange,
   onOpenFamilyMessages,
+  onOpenFamilyCall,
   onOpenFamilyPhotos,
   onOpenFamilyNotifications,
   onOpenHome,
@@ -365,9 +395,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
           ? 'reminders'
         : activePreviewPage === 'profile'
           ? 'elder_binding'
-          : activePreviewFamilyModule === 'family_messages'
+          : activePreviewPage === 'messages' && activePreviewFamilyModule === 'family_messages'
             ? 'family_messages'
-            : activePreviewFamilyModule === 'family_notifications'
+            : activePreviewPage === 'messages' && activePreviewFamilyModule === 'family_notifications'
               ? 'family_notifications'
               : 'family_photos'
     );
@@ -393,7 +423,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
         ? 'reminders'
       : page === 'profile'
         ? 'elder_binding'
-        : 'family_photos';
+        : page === 'messages'
+          ? 'family_messages'
+          : 'family_photos';
     setAcceptanceModule(nextModule);
     onCloseElderProfile();
     onCloseScoreDetails();
@@ -402,6 +434,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     else if (page === 'home') onOpenHome();
     else if (page === 'care') onOpenReminders();
     else if (page === 'profile') onOpenElderBinding();
+    else if (page === 'messages') onOpenFamilyMessages();
     else onOpenFamilyPhotos();
   };
 
@@ -458,8 +491,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
         <section className="space-y-3" aria-label="页面与模块层级">
             <div>
               <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">一级页面</h3>
-              <div className="grid grid-cols-5 gap-1 rounded-xl bg-slate-100 p-1">
-                {([['login', '登录'], ['home', '安心看'], ['family', '亲情连'], ['care', '代管家'], ['profile', '我的']] as const).map(([page, label]) => (
+              <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭影像'], ['care', '代管家'], ['profile', '我的']] as const).map(([page, label]) => (
                   <button key={page} type="button" onClick={() => changeAcceptancePage(page)} aria-pressed={acceptancePage === page} className={`rounded-lg px-2 py-2 text-[10px] font-bold ${acceptancePage === page ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>{label}</button>
                 ))}
               </div>
@@ -520,12 +553,14 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             )}
             <p className="text-[9px] leading-relaxed text-slate-400">
               {acceptancePage === 'home'
-                ? '安心看只验证摘要、状态和首页弹层。'
+                ? '首页只验证摘要、状态和首页弹层。'
                 : acceptancePage === 'care'
                   ? '代管家验证提醒事项、特约服务与服务记录。'
                 : acceptancePage === 'profile'
                   ? '我的页面验证老人绑定、切换与异常状态。'
-                  : '亲情连以家庭留言和家庭影像为主入口；消息仅聚合各类通知。'}
+                  : acceptancePage === 'messages'
+                    ? '家庭留言独立底部入口，同时承载音视频通话与消息。'
+                    : '家庭影像独立底部入口，承载相册查看与影像发布。'}
             </p>
         </section>
 
@@ -885,6 +920,21 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   </div>
                 </section>
                 <section aria-label="家庭留言交互"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3><button type="button" onClick={onOpenFamilyMessages} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开家庭留言</button></section>
+              </>
+            )}
+
+            {acceptanceModule === 'family_calls' && (
+              <>
+                <section aria-label="音视频通话状态">
+                  <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">通话场景</h3><p className="mt-0.5 text-[10px] text-slate-400">验证呼出、来电、通话中及无人接听</p></div>
+                  <div className="space-y-1.5">
+                    {familyCallScenarios.map(option => {
+                      const selected = familyCallScenario === option.value;
+                      return <button key={option.value} type="button" onClick={() => { onFamilyCallScenarioChange(option.value); onOpenFamilyMessages(); window.setTimeout(onOpenFamilyCall, 0); }} aria-pressed={selected} className={`w-full rounded-xl border px-3 py-2.5 text-left ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}><span className="flex justify-between gap-2"><strong className="text-[11px] text-slate-800">{option.label}</strong><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-600">{option.status}</span></span><span className="mt-1 block text-[9px] text-slate-400">{option.description}</span></button>;
+                    })}
+                  </div>
+                </section>
+                <section aria-label="音视频通话交互"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3><button type="button" onClick={() => { onOpenFamilyMessages(); window.setTimeout(onOpenFamilyCall, 0); }} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开当前通话场景</button></section>
               </>
             )}
 

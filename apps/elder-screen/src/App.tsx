@@ -5,7 +5,7 @@ import EmergencyModal, { type EmergencyAcceptanceScenario } from "./components/E
 import SmartAssistantModal from "./components/SmartAssistantModal";
 import MedicationCelebration from "./components/MedicationCelebration";
 import HomeReminderAlert, { resetHomeReminderSpeechTracking } from "./components/HomeReminderAlert";
-import ContactsPage from "./components/ContactsCommunicationPage";
+import ContactsPage, { type ServiceConversationAcceptanceScenario } from "./components/ContactsCommunicationPage";
 import FamilyAlbumPage from "./components/FamilyAlbumPage";
 import SchedulePage from "./components/SchedulePage";
 import MoreFunctionsDrawer from "./components/MoreFunctionsDrawer";
@@ -31,7 +31,8 @@ import {
   type FamilyWeatherMockScenario,
 } from "./weather/familyWeather";
 import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord, SpecialServiceBooking } from "./types";
-import { elderProfileMock, getActiveFamilyRelationshipCount } from "./elder-profile";
+import { elderProfileMock, getActiveFamilyRelationshipCount, getActiveFamilyRelationships } from "./elder-profile";
+import { SERVICE_COMMUNICATION_FIXTURES, secondsFromDuration } from "./service-communication-fixture";
 import "./control-center.css";
 
 const createInitialFulfillmentRecords = (): FulfillmentRecord[] => {
@@ -65,10 +66,130 @@ const readStoredServiceBookings = () => {
   }
 };
 
+const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
+  {
+    id: "photo-snowman-message",
+    url: "./assets/snowman-photo-message.jpg",
+    caption: "爸，这是昨天下雪拍的照片",
+    date: "今天 09:12 · 女儿小敏上传",
+    type: "photo",
+    senderName: "女儿小敏",
+    uploaderRelationshipId: "daughter",
+    publishedAt: "2026-09-20T09:12:00+08:00",
+    uploadTime: "今天 09:12",
+    categoryNameSnapshot: "孩子成长",
+    batchCaption: "昨天下雪，孩子们一起堆了一个大雪人。",
+    initialHearts: 12,
+    voiceDuration: 7,
+    viewedAt: null,
+  },
+  {
+    id: "video-1",
+    url: "https://picsum.photos/seed/familygarden/600/450",
+    caption: "重孙女在幼儿园录制了端午节儿歌祝福视频。",
+    date: "今天 10:05 · 女儿小敏上传",
+    type: "video",
+    videoUrl: "./assets/family-video-mock.mp4",
+    senderName: "女儿小敏",
+    uploaderRelationshipId: "daughter",
+    publishedAt: "2026-09-20T10:05:00+08:00",
+    uploadTime: "今天 10:05",
+    categoryNameSnapshot: "节日纪念",
+    batchCaption: "幼儿园端午节活动，悦悦专门录给爷爷看。",
+    initialHearts: 15,
+    viewedAt: null,
+  },
+  {
+    id: "photo-1",
+    url: "https://picsum.photos/seed/familytree/600/450",
+    caption: "孙女小雅给您画的父亲节贺卡，祝爷爷健康快乐！",
+    date: "昨天 18:20 · 儿子小刚上传",
+    type: "photo",
+    senderName: "儿子小刚",
+    uploaderRelationshipId: "son",
+    publishedAt: "2026-09-19T18:20:00+08:00",
+    uploadTime: "昨天 18:20",
+    categoryNameSnapshot: "节日纪念",
+    batchCaption: "小雅给爷爷准备的父亲节惊喜。",
+    initialHearts: 9,
+    voiceDuration: 8,
+    viewedAt: "2026-09-19T18:25:00+08:00",
+  },
+  {
+    id: "photo-2",
+    url: "https://picsum.photos/seed/gardenstroll/600/450",
+    caption: "周末带孩子们去公园散步了，下次我们陪您一起去。",
+    date: "星期天 15:40 · 女儿小敏上传",
+    type: "photo",
+    senderName: "女儿小敏",
+    uploaderRelationshipId: "daughter",
+    publishedAt: "2026-09-14T15:40:00+08:00",
+    uploadTime: "星期天 15:40",
+    categoryNameSnapshot: "日常生活",
+    batchCaption: "周末公园散步的一组照片。",
+    initialHearts: 14,
+    voiceDuration: 8,
+    viewedAt: "2026-09-14T16:02:00+08:00",
+  },
+  {
+    id: "video-2",
+    url: "https://picsum.photos/seed/grandsonplay/600/450",
+    caption: "外孙小杰参加学校钢琴大赛，获得了一等奖。",
+    date: "上周五 19:45 · 儿子小刚上传",
+    type: "video",
+    videoUrl: "./assets/family-video-mock.mp4",
+    senderName: "儿子小刚",
+    uploaderRelationshipId: "son",
+    publishedAt: "2026-09-12T19:45:00+08:00",
+    uploadTime: "上周五 19:45",
+    categoryNameSnapshot: "孩子成长",
+    batchCaption: "小杰学校钢琴比赛现场记录。",
+    initialHearts: 18,
+    viewedAt: "2026-09-12T20:10:00+08:00",
+  },
+  {
+    id: "photo-3",
+    url: "https://picsum.photos/seed/birthdaycake/600/450",
+    caption: "上个月寿宴的大合影，四世同堂，大家都笑得特别开心。",
+    date: "05月22日 · 儿子小刚上传",
+    type: "photo",
+    senderName: "儿子小刚",
+    uploaderRelationshipId: "son",
+    publishedAt: "2026-05-22T18:10:00+08:00",
+    uploadTime: "05月22日",
+    categoryNameSnapshot: "家庭聚会",
+    batchCaption: "八十寿诞家庭聚会影像。",
+    initialHearts: 21,
+    voiceDuration: 10,
+    viewedAt: "2026-05-22T18:25:00+08:00",
+  },
+  {
+    id: "photo-4",
+    url: "https://picsum.photos/seed/mountain/600/450",
+    caption: "整理旧照片时看到这张山顶日出，想起您以前讲的旅行故事。",
+    date: "05月10日 · 女儿小敏上传",
+    type: "photo",
+    senderName: "女儿小敏",
+    uploaderRelationshipId: "daughter",
+    publishedAt: "2026-05-10T10:20:00+08:00",
+    uploadTime: "05月10日",
+    categoryNameSnapshot: "旅行风景",
+    batchCaption: "一起回看以前旅行时留下的风景。",
+    initialHearts: 17,
+    voiceDuration: 10,
+    viewedAt: "2026-05-10T11:00:00+08:00",
+  },
+];
+
+const createInitialFamilyMediaViewedAt = () => Object.fromEntries(
+  INITIAL_FAMILY_PHOTOS.map((photo) => [photo.id, photo.viewedAt ?? null]),
+) as Record<string, string | null>;
+
 const createDefaultReminders = (): MedicationReminder[] => [
   {
     id: "med-1",
     time: "08:00",
+    scheduledAt: "2026-09-18T08:00:00+08:00",
     name: "复方降压片 + 维生素D片",
     dosage: "降压药1片，维生素D1片 (温水送服)",
     status: "completed",
@@ -77,6 +198,7 @@ const createDefaultReminders = (): MedicationReminder[] => [
   {
     id: "med-2",
     time: "13:00",
+    scheduledAt: "2026-09-18T13:00:00+08:00",
     name: "阿司匹林肠溶片 (保护心脏)",
     dosage: "1片 (饭后半小时服用)",
     status: "pending",
@@ -84,6 +206,7 @@ const createDefaultReminders = (): MedicationReminder[] => [
   {
     id: "med-3",
     time: "19:30",
+    scheduledAt: "2026-09-18T19:30:00+08:00",
     name: "阿托伐他汀钙片 + 血脂平胶囊",
     dosage: "他汀1片，血脂平2粒 (睡前服用)",
     status: "pending",
@@ -91,6 +214,7 @@ const createDefaultReminders = (): MedicationReminder[] => [
   {
     id: "schedule-self-walk",
     time: "17:00",
+    scheduledAt: "2026-09-18T17:00:00+08:00",
     name: "傍晚散步",
     dosage: "天气合适时在楼下慢走20分钟",
     status: "pending",
@@ -107,8 +231,22 @@ const createDefaultMessages = (): FamilyMessage[] => [
     type: "photo",
     content: "爸，这是昨天下雪拍的照片",
     photoUrl: "./assets/snowman-photo-message.jpg",
+    familyMediaId: "photo-snowman-message",
+    familyMediaType: "photo",
     duration: 7,
     timestamp: "刚刚",
+    played: false,
+  },
+  {
+    id: "msg-video-dragon-boat",
+    sender: "女儿小敏",
+    avatar: "https://picsum.photos/seed/xiaomin/120/120",
+    type: "photo",
+    content: "悦悦在幼儿园唱了端午节儿歌，专门录给爷爷看。",
+    photoUrl: "https://picsum.photos/seed/familygarden/600/450",
+    familyMediaId: "video-1",
+    familyMediaType: "video",
+    timestamp: "今天 10:05",
     played: false,
   },
   {
@@ -150,6 +288,30 @@ const createDefaultMessages = (): FamilyMessage[] => [
     timestamp: "1小时前",
     played: true,
   },
+  ...SERVICE_COMMUNICATION_FIXTURES.flatMap((conversation) => conversation.messages
+    .map((message): FamilyMessage => {
+      const contactDisplayName = conversation.staffName || conversation.contactName;
+      const isElderlyReply = message.sender === "elderly";
+      return {
+        id: message.id,
+        sender: isElderlyReply ? "您 (我)" : contactDisplayName,
+        recipient: isElderlyReply ? contactDisplayName : undefined,
+        avatar: isElderlyReply
+          ? "https://picsum.photos/seed/grandfather/120/120"
+          : conversation.id === "CONV-CARE-001"
+            ? "https://picsum.photos/seed/nurse/240/240"
+            : "https://picsum.photos/seed/community-center/240/240",
+        type: message.type === "audio" ? "voice" : "text",
+        content: message.content ?? (isElderlyReply ? `给${contactDisplayName}的语音回复` : `来自${contactDisplayName}的语音留言`),
+        duration: secondsFromDuration(message.duration),
+        timestamp: message.sentAt,
+        played: isElderlyReply || Boolean(message.elderViewedAt),
+        loadFailed: message.deliveryStatus === "failed",
+        deliveryStatus: message.deliveryStatus,
+        elderViewedAt: message.elderViewedAt,
+        replyToMessageId: message.replyToMessageId,
+      };
+    })),
 ];
 
 export default function App() {
@@ -175,7 +337,7 @@ export default function App() {
   const [homeReminderAlert, setHomeReminderAlert] = useState<{
     reminderId: string;
     minutesUntil: number;
-    source: "automatic" | "acceptance";
+    source: "automatic" | "acceptance" | "manual";
     autoDismissMs?: number;
   } | null>(null);
   const dismissedHomeReminderAlertsRef = useRef(new Set<string>());
@@ -190,7 +352,10 @@ export default function App() {
 
   // 1.9. Family Album Secondary Page State
   const [isAlbumPageOpen, setIsAlbumPageOpen] = useState(false);
-  const [albumUnreadCount, setAlbumUnreadCount] = useState(2);
+  const [familyMediaViewedAt, setFamilyMediaViewedAt] = useState<Record<string, string | null>>(createInitialFamilyMediaViewedAt);
+  const [familyMediaFocusRequest, setFamilyMediaFocusRequest] = useState<{ id: number; contactId: string; mediaId: string } | null>(null);
+  const [albumInitialMediaId, setAlbumInitialMediaId] = useState<string | null>(null);
+  const [familyMediaOpenError, setFamilyMediaOpenError] = useState("");
   const [missedCallCount, setMissedCallCount] = useState(0);
   const [photoHeartStates, setPhotoHeartStates] = useState<Record<string, boolean>>({});
 
@@ -227,9 +392,13 @@ export default function App() {
   const [acceptanceCommunityScenario, setAcceptanceCommunityScenario] = useState<AcceptanceCommunityScenario>("default");
   const [acceptanceSpecialServicesScenario, setAcceptanceSpecialServicesScenario] = useState<SpecialServicesAcceptanceScenario>("default");
   const [acceptanceCommunityStaffScenario, setAcceptanceCommunityStaffScenario] = useState<CommunityStaffAcceptanceScenario>("multiple");
+  const [acceptanceServiceConversationScenario, setAcceptanceServiceConversationScenario] = useState<ServiceConversationAcceptanceScenario>("off");
   const [communityLifeAcceptanceScenario, setCommunityLifeAcceptanceScenario] = useState<CommunityLifeAcceptanceScenario>("default");
   const [communityActivityAcceptanceScenario, setCommunityActivityAcceptanceScenario] = useState<CommunityActivityAcceptanceScenario>("default");
   const [acceptanceRightContentApplySignal, setAcceptanceRightContentApplySignal] = useState(0);
+  const [acceptanceRightContentActionSignal, setAcceptanceRightContentActionSignal] = useState(0);
+  const [acceptanceEntertainmentFailureSignal, setAcceptanceEntertainmentFailureSignal] = useState(0);
+  const [acceptanceServiceConversationActionSignal, setAcceptanceServiceConversationActionSignal] = useState(0);
   const [acceptanceRevision, setAcceptanceRevision] = useState(0);
   const [acceptanceCommand, setAcceptanceCommand] = useState<{ id: number; type: AcceptanceHomeCommand } | null>(null);
   const [familyWeatherScenario, setFamilyWeatherScenario] = useState<FamilyWeatherMockScenario>("default");
@@ -259,11 +428,46 @@ export default function App() {
       dismissedHomeReminderAlertsRef.current.clear();
       resetHomeReminderSpeechTracking();
       setHomeReminderAlert(null);
-      setReminders((current) => current.map((reminder) => ({ ...reminder, status: "pending", takenAt: undefined })));
     };
     const timer = window.setInterval(resetAtNewDay, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const resolveNow = () => {
+      if (!acceptanceTimeOverride) return new Date();
+      if (acceptanceTimeOverride.includes("T")) return new Date(acceptanceTimeOverride);
+      const resolved = new Date("2026-09-18T00:00:00+08:00");
+      const [hours, minutes] = acceptanceTimeOverride.split(":").map(Number);
+      resolved.setHours(hours, minutes, 0, 0);
+      return resolved;
+    };
+
+    const syncReminderExecutionStatuses = () => {
+      const effectiveNow = resolveNow();
+      setReminders((current) => {
+        let changed = false;
+        const next = current.map((reminder) => {
+          if (!reminder.scheduledAt || reminder.status === "completed" || reminder.status === "expired") return reminder;
+          const scheduledAt = new Date(reminder.scheduledAt);
+          const nextDay = new Date(scheduledAt);
+          nextDay.setDate(nextDay.getDate() + 1);
+          nextDay.setHours(0, 0, 0, 0);
+          let nextStatus = reminder.status;
+          if (effectiveNow.getTime() >= nextDay.getTime()) nextStatus = "expired";
+          else if (reminder.status === "pending" && effectiveNow.getTime() - scheduledAt.getTime() >= 30 * 60 * 1000) nextStatus = "unconfirmed";
+          if (nextStatus === reminder.status) return reminder;
+          changed = true;
+          return { ...reminder, status: nextStatus };
+        });
+        return changed ? next : current;
+      });
+    };
+
+    syncReminderExecutionStatuses();
+    const timer = window.setInterval(syncReminderExecutionStatuses, 15_000);
+    return () => window.clearInterval(timer);
+  }, [acceptanceTimeOverride]);
 
   // 3. Live vitals index state
   const [telemetry, setTelemetry] = useState<HealthTelemetry>({
@@ -311,86 +515,68 @@ export default function App() {
     { id: "iot-4", name: "入户智能门磁锁", location: "大门玄关", status: "normal", lastSeen: "5分钟前" },
   ]);
 
-  // 5. Digital Photo Album slides
-  const [photos] = useState<FamilyPhoto[]>([
-    {
-      id: "photo-snowman-message",
-      url: "./assets/snowman-photo-message.jpg",
-      caption: "爸，这是昨天下雪拍的照片",
-      date: "刚刚 · 女儿小敏上传",
-      type: "photo",
-      senderName: "女儿小敏",
-      uploadTime: "刚刚",
-      categoryName: "孙辈成长",
-      batchCaption: "昨天下雪，孩子们一起堆了一个大雪人。",
-      initialHearts: 12,
-    },
-    {
-      id: "photo-1",
-      url: "https://picsum.photos/seed/familytree/600/450",
-      caption: "孙女小雅给您画的父亲节贺卡！画里您精神抖擞呢，祝爷爷健康快乐！",
-      date: "今天 09:12 · 儿子小刚上传",
-      type: "photo",
-      senderName: "儿子小刚",
-      uploadTime: "今天 09:12",
-      categoryName: "孙辈成长",
-      batchCaption: "小雅给爷爷准备的父亲节惊喜。",
-      initialHearts: 9,
-    },
-    {
-      id: "video-1",
-      url: "https://picsum.photos/seed/familygarden/600/450",
-      caption: "重孙女小悦悦在幼儿园给爷爷录制的端午节儿歌祝福视频，快点开看看吧！",
-      date: "昨天 18:20 · 女儿小敏上传",
-      type: "video",
-      videoUrl: "./assets/family-video-mock.mp4",
-      senderName: "女儿小敏",
-      uploadTime: "昨天 18:20",
-      categoryName: "孙辈成长",
-      batchCaption: "幼儿园端午节活动，悦悦专门录给爷爷看。",
-      initialHearts: 15,
-    },
-    {
-      id: "photo-2",
-      url: "https://picsum.photos/seed/gardenstroll/600/450",
-      caption: "孩子们带小杰去西湖赏樱花散步，小杰说周末一定要去给爷爷炖最爱喝的黑鱼汤！",
-      date: "星期天 15:40 · 女儿小敏上传",
-      type: "photo",
-      senderName: "女儿小敏",
-      uploadTime: "星期天 15:40",
-      categoryName: "日常与花草",
-      batchCaption: "周末公园散步的一组照片。",
-      initialHearts: 14,
-    },
-    {
-      id: "video-2",
-      url: "https://picsum.photos/seed/grandsonplay/600/450",
-      caption: "外孙小杰参加学校钢琴大赛，弹奏《献给爱丽丝》获得了一等奖！",
-      date: "上周五 19:45 · 儿子小刚上传",
-      type: "video",
-      videoUrl: "./assets/family-video-mock.mp4",
-      senderName: "儿子小刚",
-      uploadTime: "上周五 19:45",
-      categoryName: "孙辈成长",
-      batchCaption: "小杰学校钢琴比赛现场记录。",
-      initialHearts: 18,
-    },
-    {
-      id: "photo-3",
-      url: "https://picsum.photos/seed/birthdaycake/600/450",
-      caption: "上个月在酒楼办的八十寿诞大合影，四世同堂，岁岁常欢愉，年年皆胜意！",
-      date: "05月22日 · 全家大合影回忆",
-      type: "photo",
-      senderName: "全家",
-      uploadTime: "05月22日",
-      categoryName: "节日团聚",
-      batchCaption: "八十寿诞家庭聚会影像。",
-      initialHearts: 21,
-    },
-  ]);
+  // 5. Digital Photo Album slides. This mirrors child-side published batch snapshots.
+  const [photos] = useState<FamilyPhoto[]>(INITIAL_FAMILY_PHOTOS);
+  const albumUnreadCount = photos.filter((photo) => !familyMediaViewedAt[photo.id]).length;
 
   // 6. Voice / Text message inbox state
   const [messages, setMessages] = useState<FamilyMessage[]>(createDefaultMessages);
+
+  const markFamilyMediaViewed = (mediaId: string) => {
+    setFamilyMediaViewedAt((current) => current[mediaId]
+      ? current
+      : { ...current, [mediaId]: new Date().toISOString() });
+    setMessages((current) => current.map((message) => message.familyMediaId === mediaId
+      ? { ...message, played: true }
+      : message));
+  };
+
+  const setUnreadFamilyMedia = (mediaIds: string[]) => {
+    const unreadIds = new Set(mediaIds);
+    setFamilyMediaViewedAt(Object.fromEntries(photos.map((photo) => [
+      photo.id,
+      unreadIds.has(photo.id) ? null : (photo.viewedAt ?? "2026-09-20T08:00:00+08:00"),
+    ])));
+    setMessages((current) => current.map((message) => message.familyMediaId
+      ? { ...message, played: !unreadIds.has(message.familyMediaId) }
+      : message));
+  };
+
+  const openFamilyMediaReminder = () => {
+    const firstUnread = photos
+      .filter((photo) => !familyMediaViewedAt[photo.id])
+      .sort((first, second) => (first.publishedAt ?? "").localeCompare(second.publishedAt ?? ""))[0];
+    if (!firstUnread) return;
+
+    const relationshipId = acceptanceRightContentScenario === "new-album-invalid-relation"
+      ? "removed-family-relationship"
+      : firstUnread.uploaderRelationshipId;
+    const relationship = getActiveFamilyRelationships().find((item) => item.id === relationshipId);
+    const mediaMessageExists = messages.some((message) => message.familyMediaId === firstUnread.id);
+    if (!relationship || !mediaMessageExists) {
+      setFamilyMediaOpenError("暂时无法打开这条家庭影像");
+      window.setTimeout(() => setFamilyMediaOpenError(""), 3200);
+      return;
+    }
+
+    setFamilyMediaOpenError("");
+    setAlbumInitialMediaId(null);
+    setFamilyMediaFocusRequest((current) => ({
+      id: (current?.id ?? 0) + 1,
+      contactId: relationship.id,
+      mediaId: firstUnread.id,
+    }));
+    setIsContactsOpen(true);
+  };
+
+  const openFamilyMediaDetail = (mediaId: string) => {
+    if (!photos.some((photo) => photo.id === mediaId)) return;
+    markFamilyMediaViewed(mediaId);
+    setAlbumInitialMediaId(mediaId);
+    setFamilyMediaFocusRequest(null);
+    setIsContactsOpen(false);
+    setIsAlbumPageOpen(true);
+  };
 
   // 7. Community physical Activities list state
   const [activities] = useState<CommunityActivity[]>([
@@ -609,6 +795,9 @@ export default function App() {
     setIsMoreModulesOpen(false);
     setHomeReminderAlert(null);
     setReturnToCommunityLife(false);
+    setFamilyMediaFocusRequest(null);
+    setFamilyMediaOpenError("");
+    setAlbumInitialMediaId(null);
     sendAcceptanceCommand("reset-home-overlays");
   };
 
@@ -624,13 +813,30 @@ export default function App() {
       : undefined;
     setReminders((current) => current.map((reminder) => (
       reminder.id === targetId
-        ? {
-            ...reminder,
-            time: acceptanceReminderTime ?? reminder.time,
-            status: "pending" as const,
-            takenAt: undefined,
-            priority: "P0" as const,
-          }
+        ? (() => {
+            const effectiveNow = acceptanceTimeOverride?.includes("T")
+              ? new Date(acceptanceTimeOverride)
+              : new Date("2026-09-18T00:00:00+08:00");
+            const effectiveTime = acceptanceReminderTime
+              ?? (acceptanceTimeOverride?.includes("T")
+                ? `${String(effectiveNow.getHours()).padStart(2, "0")}:${String(effectiveNow.getMinutes()).padStart(2, "0")}`
+                : reminder.time);
+            const [hours, minutes] = effectiveTime.split(":").map(Number);
+            effectiveNow.setHours(hours, minutes, 0, 0);
+            const scheduledDate = [
+              effectiveNow.getFullYear(),
+              String(effectiveNow.getMonth() + 1).padStart(2, "0"),
+              String(effectiveNow.getDate()).padStart(2, "0"),
+            ].join("-");
+            return {
+              ...reminder,
+              time: effectiveTime,
+              scheduledAt: `${scheduledDate}T${effectiveTime}:00+08:00`,
+              status: "pending" as const,
+              takenAt: undefined,
+              priority: "P0" as const,
+            };
+          })()
         : reminder
     )));
     setHomeReminderAlert({
@@ -664,7 +870,8 @@ export default function App() {
 
   const handleAcceptanceAlbumScenario = (scenario: AcceptanceAlbumScenario) => {
     setAcceptanceAlbumScenario(scenario);
-    if (scenario === "notice-photo" || scenario === "notice-video") setAlbumUnreadCount(1);
+    if (scenario === "notice-photo") setUnreadFamilyMedia(["photo-snowman-message"]);
+    if (scenario === "notice-video") setUnreadFamilyMedia(["video-1"]);
     showHomeForAcceptance();
   };
 
@@ -673,11 +880,26 @@ export default function App() {
     const markMessagesRead = createDefaultMessages().map((message) => ({ ...message, played: true }));
     setAcceptanceRightContentScenario(scenario);
     setAcceptanceRightContentApplySignal(0);
+    setAcceptanceRightContentActionSignal(0);
+    setAcceptanceEntertainmentFailureSignal(0);
     setMissedCallCount(scenario === "missed-call" ? 2 : 0);
-    setAlbumUnreadCount(scenario === "new-album" ? 2 : scenario === "time-and-family" ? 1 : 0);
+    setUnreadFamilyMedia(
+      scenario === "new-album" || scenario === "new-album-invalid-relation"
+        ? ["photo-snowman-message", "video-1"]
+        : scenario === "time-and-family"
+          ? ["photo-snowman-message"]
+          : [],
+    );
     setMessages(
       scenario === "new-message" || scenario === "interaction-locked"
         ? createDefaultMessages().map((message, index) => ({ ...message, played: index > 2 }))
+        : scenario === "new-album" || scenario === "new-album-invalid-relation"
+          ? markMessagesRead.map((message) => ({
+              ...message,
+              played: message.familyMediaId
+                ? !["photo-snowman-message", "video-1"].includes(message.familyMediaId)
+                : true,
+            }))
         : scenario === "time-and-family"
           ? createDefaultMessages().map((message, index) => ({ ...message, played: index > 0 }))
           : markMessagesRead,
@@ -686,15 +908,66 @@ export default function App() {
     if (scenario === "p1-due") {
       setAcceptanceTimeOverride("13:00");
       setReminders(defaults);
-    } else if (scenario === "medication-upcoming") {
+    } else if (scenario === "medication-upcoming" || scenario === "medication-grouped") {
       setAcceptanceTimeOverride("12:40");
+      setReminders(scenario === "medication-grouped"
+        ? [
+            ...defaults,
+            {
+              id: "med-2-companion",
+              time: "13:00",
+              scheduledAt: "2026-09-18T13:00:00+08:00",
+              name: "维生素D片",
+              dosage: "1片（饭后服用）",
+              status: "pending",
+            },
+          ]
+        : defaults);
+    } else if (scenario === "medication-grace-period") {
+      setAcceptanceTimeOverride("2026-09-18T13:29:59+08:00");
       setReminders(defaults);
+    } else if (scenario === "medication-unconfirmed") {
+      setAcceptanceTimeOverride("2026-09-18T13:30:00+08:00");
+      setReminders(defaults.map((reminder) => reminder.id === "med-2"
+        ? { ...reminder, status: "unconfirmed" as const }
+        : reminder));
+    } else if (scenario === "medication-expired") {
+      setAcceptanceTimeOverride("2026-09-19T00:00:00+08:00");
+      setReminders(defaults.map((reminder) => reminder.id === "med-2"
+        ? { ...reminder, status: "expired" as const }
+        : reminder));
     } else if (scenario === "schedule-due") {
       setAcceptanceTimeOverride("17:00");
       setReminders(defaults);
-    } else if (scenario === "schedule-upcoming") {
+    } else if (scenario === "schedule-upcoming" || scenario === "schedule-grouped") {
       setAcceptanceTimeOverride("16:40");
+      setReminders(scenario === "schedule-grouped"
+        ? [
+            ...defaults,
+            {
+              id: "schedule-water-plants",
+              time: "17:00",
+              scheduledAt: "2026-09-18T17:00:00+08:00",
+              name: "给阳台花草浇水",
+              dosage: "浇水后检查窗户",
+              status: "pending",
+              category: "schedule",
+            },
+          ]
+        : defaults);
+    } else if (scenario === "schedule-grace-period") {
+      setAcceptanceTimeOverride("2026-09-18T17:29:59+08:00");
       setReminders(defaults);
+    } else if (scenario === "schedule-unconfirmed") {
+      setAcceptanceTimeOverride("2026-09-18T17:30:00+08:00");
+      setReminders(defaults.map((reminder) => reminder.id === "schedule-self-walk"
+        ? { ...reminder, status: "unconfirmed" as const }
+        : reminder));
+    } else if (scenario === "schedule-expired") {
+      setAcceptanceTimeOverride("2026-09-19T00:00:00+08:00");
+      setReminders(defaults.map((reminder) => reminder.id === "schedule-self-walk"
+        ? { ...reminder, status: "expired" as const }
+        : reminder));
     } else if (scenario === "activity-started") {
       setAcceptanceTimeOverride("13:10");
       setReminders(defaults);
@@ -722,6 +995,19 @@ export default function App() {
     }
     setAcceptanceRevision((revision) => revision + 1);
     showHomeForAcceptance();
+    if (scenario === "p1-due") {
+      setHomeReminderAlert({
+        reminderId: "med-2",
+        minutesUntil: 0,
+        source: "acceptance",
+      });
+    } else if (scenario === "schedule-due") {
+      setHomeReminderAlert({
+        reminderId: "schedule-self-walk",
+        minutesUntil: 0,
+        source: "acceptance",
+      });
+    }
   };
 
   const openAcceptanceCommunityScenario = (scenario: AcceptanceCommunityScenario) => {
@@ -780,16 +1066,20 @@ export default function App() {
     showHomeForAcceptance();
     setAcceptanceTimeOverride(null);
     setAcceptanceAlbumScenario("default");
-    setAlbumUnreadCount(2);
+    setFamilyMediaViewedAt(createInitialFamilyMediaViewedAt());
     setAcceptanceHeartScenario("not-liked");
     setAcceptanceReminderScenario("default");
     setAcceptanceRightContentScenario("default");
     setAcceptanceCommunityScenario("default");
     setAcceptanceSpecialServicesScenario("default");
     setAcceptanceCommunityStaffScenario("multiple");
+    setAcceptanceServiceConversationScenario("off");
     setCommunityLifeAcceptanceScenario("default");
     setCommunityActivityAcceptanceScenario("default");
     setAcceptanceRightContentApplySignal(0);
+    setAcceptanceRightContentActionSignal(0);
+    setAcceptanceEntertainmentFailureSignal(0);
+    setAcceptanceServiceConversationActionSignal(0);
     setMissedCallCount(0);
     setPhotoHeartStates({});
     setReminders(createDefaultReminders());
@@ -825,16 +1115,21 @@ export default function App() {
       }
 
       setHomeReminderAlert((current) => {
-        if (current?.source === "acceptance") return current;
+        if (current && current.source !== "automatic") return current;
 
         const now = new Date();
         const dayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
         const nextReminder = reminders
-          .filter((reminder) => reminder.status !== "completed")
+          .filter((reminder) => reminder.status === "pending")
           .map((reminder) => {
-            const [hours, minutes] = reminder.time.split(":").map(Number);
-            const reminderTime = new Date(now);
-            reminderTime.setHours(hours, minutes, 0, 0);
+            const reminderTime = reminder.scheduledAt
+              ? new Date(reminder.scheduledAt)
+              : (() => {
+                  const fallback = new Date(now);
+                  const [hours, minutes] = reminder.time.split(":").map(Number);
+                  fallback.setHours(hours, minutes, 0, 0);
+                  return fallback;
+                })();
             return {
               reminder,
               millisecondsUntil: reminderTime.getTime() - now.getTime(),
@@ -864,6 +1159,14 @@ export default function App() {
   const activeHomeReminder = homeReminderAlert
     ? reminders.find((reminder) => reminder.id === homeReminderAlert.reminderId) ?? null
     : null;
+
+  const openHomeReminderFromRightContent = (reminderId: string, minutesUntil: number) => {
+    setHomeReminderAlert({
+      reminderId,
+      minutesUntil,
+      source: "manual",
+    });
+  };
 
   const dismissHomeReminderAlert = () => {
     if (activeHomeReminder && homeReminderAlert?.source === "automatic") {
@@ -905,9 +1208,14 @@ export default function App() {
               }));
               setAcceptanceHeartScenario(liked ? "liked" : "not-liked");
             }}
-            onVideoViewed={() => setAlbumUnreadCount((count) => Math.max(0, count - 1))}
+            onVideoViewed={markFamilyMediaViewed}
             onCompleteReminder={handleQuickCompleteReminder}
-            onOpenAlbum={() => setIsAlbumPageOpen(true)}
+            onOpenReminder={openHomeReminderFromRightContent}
+            onOpenAlbum={() => {
+              setAlbumInitialMediaId(null);
+              setIsAlbumPageOpen(true);
+            }}
+            onOpenFamilyMediaReminder={openFamilyMediaReminder}
             onOpenMessages={() => setIsContactsOpen(true)}
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
             onOpenCommunity={() => {
@@ -943,6 +1251,7 @@ export default function App() {
             acceptanceHeartScenario={acceptanceHeartScenario}
             acceptanceRightContentScenario={acceptanceRightContentScenario}
             acceptanceRightContentApplySignal={acceptanceRightContentApplySignal}
+            acceptanceRightContentActionSignal={acceptanceRightContentActionSignal}
             acceptanceRevision={acceptanceRevision}
             acceptanceCommand={acceptanceCommand}
             familyWeather={familyWeather}
@@ -962,7 +1271,8 @@ export default function App() {
               currentTime.setHours(hours, minutes, 0, 0);
               return currentTime;
             })()}
-            autoDismissMs={homeReminderAlert.autoDismissMs}
+            autoDismissMs={homeReminderAlert.source === "manual" ? null : homeReminderAlert.autoDismissMs}
+            shouldSpeak={homeReminderAlert.source !== "manual"}
           />
         )}
 
@@ -979,12 +1289,26 @@ export default function App() {
         {/* CONTACTS LIST PAGE */}
         <ContactsPage
           isOpen={isContactsOpen}
-          onClose={() => setIsContactsOpen(false)}
+          onClose={() => {
+            setIsContactsOpen(false);
+            setFamilyMediaFocusRequest(null);
+          }}
           hasBoundFamily={hasBoundFamily}
           messages={messages}
           missedCallCount={missedCallCount}
+          acceptanceScenario={acceptanceServiceConversationScenario}
+          acceptanceActionSignal={acceptanceServiceConversationActionSignal}
+          familyMediaFocusRequest={familyMediaFocusRequest}
+          onFamilyMediaViewed={markFamilyMediaViewed}
+          onOpenFamilyMedia={openFamilyMediaDetail}
           onAddMessage={(newMessage) => setMessages((currentMessages) => [...currentMessages, newMessage])}
-          onMarkRead={(messageId) => setMessages((currentMessages) => currentMessages.map((message) => message.id === messageId ? { ...message, played: true } : message))}
+          onMarkRead={(messageId) => setMessages((currentMessages) => currentMessages.map((message) => message.id === messageId
+            ? {
+                ...message,
+                played: true,
+                ...(message.deliveryStatus ? { elderViewedAt: message.elderViewedAt ?? "刚刚" } : {}),
+              }
+            : message))}
           onClearMissedCalls={() => {
             setMissedCallCount(0);
             if (acceptanceRightContentScenario === "missed-call") setAcceptanceRightContentScenario("default");
@@ -995,7 +1319,10 @@ export default function App() {
         <FamilyAlbumPage
           isOpen={isAlbumPageOpen}
           onClose={() => setIsAlbumPageOpen(false)}
-          onUnreadCountChange={(count) => setAlbumUnreadCount(count)}
+          photos={photos}
+          viewedMediaIds={Object.keys(familyMediaViewedAt).filter((mediaId) => Boolean(familyMediaViewedAt[mediaId]))}
+          initialMediaId={albumInitialMediaId}
+          onMediaViewed={markFamilyMediaViewed}
           acceptanceScenario={acceptanceAlbumScenario}
           acceptanceHeartScenario={acceptanceHeartScenario}
           heartStates={photoHeartStates}
@@ -1105,6 +1432,8 @@ export default function App() {
           isOpen={isEntertainmentHubOpen}
           onClose={() => setIsEntertainmentHubOpen(false)}
           forceEmpty={acceptanceRightContentScenario === "no-content"}
+          openShouldFail={acceptanceEntertainmentFailureSignal > 0}
+          failureSignal={acceptanceEntertainmentFailureSignal}
         />
 
         <CommunityStaffPage
@@ -1150,7 +1479,10 @@ export default function App() {
         <MoreFunctionsDrawer
           isOpen={isMoreModulesOpen}
           onClose={() => setIsMoreModulesOpen(false)}
-          onOpenAlbum={() => setIsAlbumPageOpen(true)}
+          onOpenAlbum={() => {
+            setAlbumInitialMediaId(null);
+            setIsAlbumPageOpen(true);
+          }}
           onOpenContacts={() => setIsContactsOpen(true)}
           onOpenReminders={() => setIsSchedulePageOpen(true)}
           onOpenCommunity={() => {
@@ -1175,6 +1507,11 @@ export default function App() {
 
         </div>
       </TabletSimulator>
+      {familyMediaOpenError && (
+        <div className="family-media-open-error" role="status" aria-live="polite">
+          {familyMediaOpenError}
+        </div>
+      )}
       <InteractionAcceptanceConsole
         weatherScenario={familyWeatherScenario}
         albumScenario={acceptanceAlbumScenario}
@@ -1184,6 +1521,7 @@ export default function App() {
         communityScenario={acceptanceCommunityScenario}
         serviceScenario={acceptanceSpecialServicesScenario}
         communityStaffScenario={acceptanceCommunityStaffScenario}
+        serviceConversationScenario={acceptanceServiceConversationScenario}
         onShowHome={showHomeForAcceptance}
         onShowAlbum={() => {
           showHomeForAcceptance();
@@ -1196,6 +1534,13 @@ export default function App() {
         onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
         onShowServices={() => openAcceptanceSpecialServicesScenario(acceptanceSpecialServicesScenario)}
         onShowCommunityStaff={() => openAcceptanceCommunityStaffScenario(acceptanceCommunityStaffScenario)}
+        onShowContacts={(scenario) => {
+          showHomeForAcceptance();
+          setIsContactsOpen(true);
+          if (scenario === "call-timeout") {
+            setAcceptanceServiceConversationActionSignal((signal) => signal + 1);
+          }
+        }}
         onSetWeatherScenario={handleAcceptanceWeatherScenario}
         onOpenWeatherScenario={openAcceptanceWeatherScenario}
         onSetAlbumScenario={handleAcceptanceAlbumScenario}
@@ -1205,6 +1550,16 @@ export default function App() {
         onSetCommunityScenario={openAcceptanceCommunityScenario}
         onSetServiceScenario={openAcceptanceSpecialServicesScenario}
         onSetCommunityStaffScenario={openAcceptanceCommunityStaffScenario}
+        onSetServiceConversationScenario={setAcceptanceServiceConversationScenario}
+        onActivateRightContent={() => {
+          setAcceptanceEntertainmentFailureSignal(0);
+          setAcceptanceRightContentActionSignal((signal) => signal + 1);
+        }}
+        onOpenEntertainmentFailure={() => {
+          handleAcceptanceRightContentScenario("third-party-entertainment");
+          setAcceptanceEntertainmentFailureSignal((signal) => signal + 1);
+          setIsEntertainmentHubOpen(true);
+        }}
         onApplyRightContentUpdate={() => setAcceptanceRightContentApplySignal((signal) => signal + 1)}
         onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
         onHomeCommand={sendAcceptanceCommand}

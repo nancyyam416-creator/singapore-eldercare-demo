@@ -109,7 +109,7 @@ const recommendations: OverviewRecommendation[] = [
     kind: "entertainment",
     priority: 4,
     eyebrow: "第三方内容",
-    title: entertainmentRecommendationContent?.name ?? "经典华语金曲",
+    title: entertainmentRecommendationContent?.name ?? "Spotify",
     description: "按一下打开第三方娱乐内容。",
     actionLabel: "立即观看",
     completedLabel: "已查看",

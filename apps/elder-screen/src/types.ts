@@ -1,6 +1,7 @@
 export interface MedicationReminder {
   id: string;
   time: string;
+  scheduledAt?: string;
   name: string;
   dosage: string;
   status: 'completed' | 'pending' | 'unconfirmed' | 'expired';
@@ -44,10 +45,17 @@ export interface FamilyPhoto {
   type?: 'photo' | 'video';
   videoUrl?: string;
   senderName?: string;
+  uploaderRelationshipId?: string;
+  publishedAt?: string;
   uploadTime?: string;
-  categoryName?: string;
+  categoryNameSnapshot?: string;
   batchCaption?: string;
   initialHearts?: number;
+  width?: number;
+  height?: number;
+  alt?: string;
+  voiceDuration?: number;
+  viewedAt?: string | null;
 }
 
 export interface FamilyMessage {
@@ -62,8 +70,13 @@ export interface FamilyMessage {
   recipient?: string;
   photoUrl?: string;
   photoUrls?: string[];
+  familyMediaId?: string;
+  familyMediaType?: 'photo' | 'video';
   audioUrl?: string;
   loadFailed?: boolean;
+  deliveryStatus?: 'sending' | 'failed' | 'delivered';
+  elderViewedAt?: string | null;
+  replyToMessageId?: string;
 }
 
 export interface CommunityActivity {

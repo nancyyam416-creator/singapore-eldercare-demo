@@ -27,12 +27,12 @@ import type {
 } from "./InteractionAcceptanceConsole";
 import {
   TODAY_OVERVIEW_RECOMMENDATIONS,
-  TODAY_OVERVIEW_SCHEDULES,
 } from "./TodayOverviewPage";
 
 interface RailReminder {
   id: string;
   time: string;
+  scheduledAt?: string;
   name: string;
   status: "pending" | "completed" | "unconfirmed" | "expired";
   priority?: "P0" | "P1" | "P2";
@@ -44,6 +44,7 @@ interface RailMessage {
   sender: string;
   played: boolean;
   type?: "voice" | "text" | "photo" | "call_log";
+  deliveryStatus?: "sending" | "failed" | "delivered";
 }
 
 type RightContentSource = "p1" | "time" | "family" | "recommendation" | "empty";
@@ -57,6 +58,8 @@ interface RightContentItem {
   count?: number;
   Icon: LucideIcon;
   recommendation?: HomeRecommendationConfig;
+  reminderIds?: string[];
+  minutesUntil?: number;
 }
 
 interface HomeTaskRailProps {
@@ -66,6 +69,7 @@ interface HomeTaskRailProps {
   albumUnreadCount: number;
   missedCallCount: number;
   onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
+  onOpenReminder: (id: string, minutesUntil: number) => void;
   onOpenMessages: () => void;
   onOpenCommunity: () => void;
   onOpenContacts: () => void;
@@ -73,13 +77,9 @@ interface HomeTaskRailProps {
   onOpenRecommendation: (kind: HomeRecommendationKind, contentId?: string) => void;
   acceptanceRightContentScenario?: AcceptanceRightContentScenario;
   acceptanceRightContentApplySignal?: number;
+  acceptanceRightContentActionSignal?: number;
   acceptanceRevision?: number;
 }
-
-const reminderMinutes = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-};
 
 const senderRelation = (sender?: string) => sender?.match(/^(女儿|儿子|孙女|孙子|老伴)/)?.[1] ?? sender ?? "家人";
 
@@ -90,6 +90,7 @@ export default function HomeTaskRail({
   albumUnreadCount,
   missedCallCount,
   onCompleteReminder,
+  onOpenReminder,
   onOpenMessages,
   onOpenCommunity,
   onOpenContacts,
@@ -97,6 +98,7 @@ export default function HomeTaskRail({
   onOpenRecommendation,
   acceptanceRightContentScenario = "default",
   acceptanceRightContentApplySignal = 0,
+  acceptanceRightContentActionSignal = 0,
   acceptanceRevision = 0,
 }: HomeTaskRailProps) {
   const [recommendationRuntime, setRecommendationRuntime] = useState<Record<string, RecommendationRuntimeState>>(createRecommendationRuntime);
@@ -109,15 +111,28 @@ export default function HomeTaskRail({
   const [dailyRecommendationsExpired, setDailyRecommendationsExpired] = useState(false);
   const interactionTimerRef = useRef<number | null>(null);
   const recommendationDayRef = useRef("");
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowTimestamp = now.getTime();
+  const reminderTimestamp = (item: RailReminder) => {
+    if (item.scheduledAt) return new Date(item.scheduledAt).getTime();
+    const fallback = new Date(now);
+    const [hours, minutes] = item.time.split(":").map(Number);
+    fallback.setHours(hours, minutes, 0, 0);
+    return fallback.getTime();
+  };
   const p0Tasks = useMemo(() => reminders.filter((item) => (item.priority ?? "P0") === "P0"), [reminders]);
 
   const dueTasks = p0Tasks
-    .filter((item) => item.status !== "completed" && nowMinutes >= reminderMinutes(item.time) && nowMinutes <= reminderMinutes(item.time) + 30)
-    .sort((first, second) => reminderMinutes(first.time) - reminderMinutes(second.time));
+    .filter((item) => {
+      const elapsedSeconds = (nowTimestamp - reminderTimestamp(item)) / 1000;
+      return item.status === "pending" && elapsedSeconds >= 0 && elapsedSeconds < 30 * 60;
+    })
+    .sort((first, second) => reminderTimestamp(first) - reminderTimestamp(second));
   const upcomingTasks = p0Tasks
-    .filter((item) => item.status !== "completed" && reminderMinutes(item.time) > nowMinutes && reminderMinutes(item.time) - nowMinutes <= 30)
-    .sort((first, second) => reminderMinutes(first.time) - reminderMinutes(second.time));
+    .filter((item) => {
+      const secondsUntil = (reminderTimestamp(item) - nowTimestamp) / 1000;
+      return item.status === "pending" && secondsUntil > 0 && secondsUntil <= 30 * 60;
+    })
+    .sort((first, second) => reminderTimestamp(first) - reminderTimestamp(second));
 
   const recommendationConfigs = useMemo(() => acceptanceRightContentScenario === "no-content"
     || acceptanceRightContentScenario === "next-day-exit"
@@ -152,6 +167,8 @@ export default function HomeTaskRail({
     setHasAppliedLockedUpdate(false);
     setIsInteractionLocked(acceptanceRightContentScenario === "interaction-locked");
     setFrozenRightContentItems(null);
+    setIsTodayRecommendationOpen(false);
+    setCompletedOverviewScheduleIds(new Set());
     setDailyRecommendationsExpired(acceptanceRightContentScenario === "next-day-exit");
   }, [acceptanceRevision, acceptanceRightContentScenario]);
 
@@ -216,19 +233,23 @@ export default function HomeTaskRail({
   const realUnreadMessages = messages.filter((item) => (
     !item.played
     && item.sender !== "您 (我)"
+    && item.deliveryStatus !== "failed"
     && item.type !== "photo"
     && item.type !== "call_log"
   ));
+  const serviceMessageSenders = new Set(["林佳慧", "社区服务站"]);
+  const hasServiceUnread = realUnreadMessages.some((item) => serviceMessageSenders.has(item.sender));
+  const hasFamilyUnread = realUnreadMessages.some((item) => !serviceMessageSenders.has(item.sender));
   const messageCount = acceptanceRightContentScenario === "new-message"
     ? Math.max(3, realUnreadMessages.length)
     : acceptanceRightContentScenario === "time-and-family"
       ? Math.max(2, realUnreadMessages.length)
       : acceptanceRightContentScenario === "interaction-locked"
         ? hasAppliedLockedUpdate ? Math.max(2, realUnreadMessages.length) : 0
-        : suppressLivePools || acceptanceRightContentScenario === "new-album" || acceptanceRightContentScenario === "missed-call"
+        : suppressLivePools || ["new-album", "new-album-invalid-relation"].includes(acceptanceRightContentScenario) || acceptanceRightContentScenario === "missed-call"
           ? 0
           : realUnreadMessages.length;
-  const visibleAlbumUnreadCount = acceptanceRightContentScenario === "new-album"
+  const visibleAlbumUnreadCount = ["new-album", "new-album-invalid-relation"].includes(acceptanceRightContentScenario)
     ? Math.max(2, albumUnreadCount)
     : suppressLivePools || ["new-message", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
       ? 0
@@ -240,15 +261,16 @@ export default function HomeTaskRail({
       : missedCallCount;
 
   const currentTask = dueTasks[0] ?? upcomingTasks[0];
-  const currentTaskIsDue = currentTask ? nowMinutes >= reminderMinutes(currentTask.time) : false;
+  const currentTaskIsDue = currentTask ? nowTimestamp >= reminderTimestamp(currentTask) : false;
   const currentTaskGroup = currentTask
     ? (currentTaskIsDue ? dueTasks : upcomingTasks).filter((item) => (
         item.time === currentTask.time
+        && item.scheduledAt === currentTask.scheduledAt
         && (item.category === "schedule") === (currentTask.category === "schedule")
       ))
     : [];
   const currentTaskCount = Math.max(1, currentTaskGroup.length);
-  const timeItems: RightContentItem[] = suppressLivePools || ["new-message", "new-album", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
+  const timeItems: RightContentItem[] = suppressLivePools || ["new-message", "new-album", "new-album-invalid-relation", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
     ? []
     : acceptanceRightContentScenario === "activity-updated"
       ? [{
@@ -293,8 +315,39 @@ export default function HomeTaskRail({
                 : `${currentTask.time} 有${currentTaskCount}项${currentTask.category === "schedule" ? "事项" : "用药"}`
               : `${currentTaskIsDue ? "" : `${currentTask.time} `}${currentTask.name}`,
             Icon: currentTask.category === "schedule" ? CalendarDays : Pill,
+            reminderIds: currentTaskGroup.map((item) => item.id),
+            minutesUntil: Math.max(0, Math.ceil((reminderTimestamp(currentTask) - nowTimestamp) / 60_000)),
           }]
         : [];
+
+  const currentDayKey = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  const todayReminderItems = reminders
+    .filter((item) => !item.scheduledAt || item.scheduledAt.slice(0, 10) === currentDayKey)
+    .map((item) => {
+      const elapsedSeconds = (nowTimestamp - reminderTimestamp(item)) / 1000;
+      const status = completedOverviewScheduleIds.has(item.id)
+        ? "completed" as const
+        : item.status === "pending"
+          ? elapsedSeconds < 0
+            ? "not-yet" as const
+            : elapsedSeconds < 30 * 60
+              ? "pending" as const
+              : "unconfirmed" as const
+          : item.status;
+      return {
+        id: item.id,
+        time: item.time,
+        title: item.name,
+        status,
+        category: item.category === "schedule" ? "schedule" as const : "medication" as const,
+        Icon: item.category === "schedule" ? CalendarDays : Pill,
+      };
+    })
+    .sort((first, second) => first.time.localeCompare(second.time));
 
   const familyItems = [
     visibleMissedCallCount > 0 ? {
@@ -310,7 +363,11 @@ export default function HomeTaskRail({
       id: "family-messages",
       source: "family" as const,
       kind: "message" as const,
-      title: "家人给您留言了",
+      title: hasServiceUnread && !hasFamilyUnread
+        ? "服务人员给您留言了"
+        : hasServiceUnread && hasFamilyUnread
+          ? "您有新的留言"
+          : "家人给您留言了",
       subtitle: messageCount > 1 ? `共${messageCount}条新留言` : senderRelation(realUnreadMessages[0]?.sender),
       count: messageCount,
       Icon: MessageCircleHeart,
@@ -365,7 +422,13 @@ export default function HomeTaskRail({
   };
 
   const activateContent = (item: RightContentItem) => {
-    if (item.kind === "medication" || item.kind === "schedule") setIsTodayRecommendationOpen(true);
+    if (item.kind === "medication" || item.kind === "schedule") {
+      if (item.reminderIds?.length === 1) {
+        onOpenReminder(item.reminderIds[0], item.minutesUntil ?? 0);
+      } else {
+        setIsTodayRecommendationOpen(true);
+      }
+    }
     else if (item.kind === "activity") onOpenCommunity();
     else if (item.kind === "missed-call") onOpenContacts();
     else if (item.kind === "message") onOpenMessages();
@@ -387,6 +450,16 @@ export default function HomeTaskRail({
     }
   };
 
+  const primaryContentRef = useRef(primaryContent);
+  const activateContentRef = useRef(activateContent);
+  primaryContentRef.current = primaryContent;
+  activateContentRef.current = activateContent;
+
+  useEffect(() => {
+    if (acceptanceRightContentActionSignal <= 0) return;
+    activateContentRef.current(primaryContentRef.current);
+  }, [acceptanceRightContentActionSignal]);
+
   const contentClass = (item: RightContentItem) => `is-${item.source} is-${item.kind}`;
 
   return (
@@ -406,19 +479,19 @@ export default function HomeTaskRail({
                   <strong>提醒事项</strong>
                 </div>
                 <div className="home-today-list is-schedule">
-                  {TODAY_OVERVIEW_SCHEDULES.map((item) => {
+                  {todayReminderItems.map((item) => {
                     const currentStatus = completedOverviewScheduleIds.has(item.id) ? "completed" : item.status;
                     const statusLabel = {
                       "not-yet": "未到时间",
                       pending: "待完成",
                       completed: "已完成",
-                      unconfirmed: "未确认",
+                      unconfirmed: item.category === "medication" ? "用药尚未确认" : "事项尚未完成",
                       expired: "已过期",
                     }[currentStatus];
                     const isActionable = currentStatus === "pending"
                       || currentStatus === "unconfirmed"
                       || currentStatus === "expired";
-                    const actionLabel = item.id.includes("med") ? "服药" : "完成";
+                    const actionLabel = item.category === "medication" ? "服药" : "完成";
                     return (
                       <article
                         key={item.id}
@@ -434,28 +507,8 @@ export default function HomeTaskRail({
                             type="button"
                             className="home-today-schedule-action"
                             onClick={() => {
-                              const isMedication = item.id.includes("med");
                               setCompletedOverviewScheduleIds((current) => new Set(current).add(item.id));
-                              if (isMedication) {
-                                const overviewTime = reminderMinutes(item.time);
-                                const targetMedication = reminders
-                                  .filter((reminder) => reminder.category !== "schedule" && reminder.status !== "completed")
-                                  .sort((first, second) => (
-                                    Math.abs(reminderMinutes(first.time) - overviewTime)
-                                    - Math.abs(reminderMinutes(second.time) - overviewTime)
-                                  ))[0];
-                                onCompleteReminder(targetMedication?.id ?? item.title);
-                              } else {
-                                const overviewReminder: MedicationReminder = {
-                                  id: `overview-${item.id}`,
-                                  time: item.time,
-                                  name: item.title,
-                                  dosage: "",
-                                  status: "pending",
-                                  category: "schedule",
-                                };
-                                onCompleteReminder(overviewReminder.id, overviewReminder);
-                              }
+                              onCompleteReminder(item.id);
                             }}
                             >
                               {actionLabel}

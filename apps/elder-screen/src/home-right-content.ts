@@ -53,7 +53,7 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
   {
     contentId: "REC-010",
     kind: "entertainment",
-    title: entertainmentRecommendationContent?.name ?? "经典华语金曲",
+    title: entertainmentRecommendationContent?.name ?? "Spotify",
     targetUrl: entertainmentRecommendationContent?.targetUrl,
     applicableAudiences: ["elder"],
     effectiveAt: "2026-01-01T00:00:00+08:00",

@@ -175,10 +175,17 @@ const createFamilyPhoto = (start: string, end: string, title: string, subtitle: 
 export const initialPublishedPhotoBatches: PublishedPhotoBatch[] = [
   {
     id: 'photo-batch-family-dinner',
+    publicationId: 'publication-family-dinner',
+    uploaderId: 'child-current',
+    recipientElderId: 'elder-father',
+    conversationId: 'conversation-father',
     elderName: '爸爸',
-    category: '家庭聚会',
+    categoryNameSnapshot: '家庭聚会',
     message: '周末大家一起吃饭，拍了几张照片给你看看。',
     publishedAt: '2026-07-26T12:18:00+08:00',
+    publishStatus: 'published',
+    syncStatus: 'delivered',
+    withdrawStatus: 'active',
     feedback: 'liked',
     items: [
       ...[
@@ -191,10 +198,17 @@ export const initialPublishedPhotoBatches: PublishedPhotoBatch[] = [
   },
   {
     id: 'photo-batch-travel',
+    publicationId: 'publication-travel',
+    uploaderId: 'child-current',
+    recipientElderId: 'elder-father',
+    conversationId: 'conversation-father',
     elderName: '爸爸',
-    category: '旅行风景',
+    categoryNameSnapshot: '旅行风景',
     message: '这是上周去海边拍的风景。',
     publishedAt: '2026-07-23T16:35:00+08:00',
+    publishStatus: 'published',
+    syncStatus: 'delivered',
+    withdrawStatus: 'active',
     feedback: 'viewed',
     items: [
       ['travel-1', '海边日落', '#38BDF8', '#4F46E5'],
@@ -204,10 +218,17 @@ export const initialPublishedPhotoBatches: PublishedPhotoBatch[] = [
   },
   {
     id: 'photo-batch-growth',
+    publicationId: 'publication-growth',
+    uploaderId: 'child-current',
+    recipientElderId: 'elder-father',
+    conversationId: 'conversation-father',
     elderName: '爸爸',
-    category: '孩子成长',
+    categoryNameSnapshot: '孩子成长',
     message: '孩子参加学校活动的照片。',
     publishedAt: '2026-07-18T10:06:00+08:00',
+    publishStatus: 'published',
+    syncStatus: 'delivered',
+    withdrawStatus: 'active',
     feedback: 'published',
     items: [
       ['growth-1', '校园活动', '#60A5FA', '#7C3AED'],

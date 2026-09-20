@@ -4,16 +4,16 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { 
-  Heart, 
-  ShoppingBag, 
-  ClipboardList, 
+import {
+  Heart,
+  ShoppingBag,
+  ClipboardList,
   UserRound,
-  Wifi, 
-  Signal, 
-  Battery, 
-  Phone, 
-  AlertOctagon, 
+  Wifi,
+  Signal,
+  Battery,
+  Phone,
+  AlertOctagon,
   AlertTriangle,
   MapPin,
   Flame,
@@ -23,7 +23,13 @@ import {
   Compass,
   ArrowRight,
   House,
-  AudioWaveform,
+  MessageCircle,
+  Images,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Volume2,
   ImagePlus,
   Settings2
 } from 'lucide-react';
@@ -36,6 +42,7 @@ import {
   HomeActivityScenario,
   FamilyReceiptScenario,
   FamilyMessageScenario,
+  FamilyCallScenario,
   FamilyPhotoScenario,
   FamilyReceiptFilter,
   CareFeedScenario,
@@ -44,7 +51,9 @@ import {
   ElderProfileDataScenario,
   ElderProfileDeviceScenario,
   PublishedPhotoBatch,
+  PhotoRecipientOption,
   FamilyNotification,
+  FamilyConversation,
   BoundElder,
   ElderBindingScenario,
   ReminderScenario,
@@ -76,6 +85,7 @@ interface H5AppFrameProps {
   homeActivityScenario: HomeActivityScenario;
   familyReceiptScenario: FamilyReceiptScenario;
   familyMessageScenario: FamilyMessageScenario;
+  familyCallScenario: FamilyCallScenario;
   familyPhotoScenario: FamilyPhotoScenario;
   careFeedScenario: CareFeedScenario;
   elderStatusCardScenario: ElderStatusCardScenario;
@@ -91,6 +101,7 @@ interface H5AppFrameProps {
   previewCloseScoreDetailsSignal: number;
   previewOpenFamilyReceiptsSignal: number;
   previewOpenFamilyMessagesSignal: number;
+  previewOpenFamilyCallSignal: number;
   previewOpenFamilyPhotosSignal: number;
   previewOpenFamilyNotificationsSignal: number;
   previewOpenHomeSignal: number;
@@ -108,7 +119,7 @@ interface H5AppFrameProps {
   loginScenario: ChildLoginScenario;
   elderBindingScenario: ElderBindingScenario;
   onPreviewContextChange?: (
-    page: 'login' | 'home' | 'family' | 'care' | 'profile',
+    page: 'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile',
     familyModule?: 'family_messages' | 'family_photos' | 'family_notifications'
   ) => void;
 }
@@ -129,6 +140,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   homeActivityScenario,
   familyReceiptScenario,
   familyMessageScenario,
+  familyCallScenario,
   familyPhotoScenario,
   careFeedScenario,
   elderStatusCardScenario,
@@ -144,6 +156,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   previewCloseScoreDetailsSignal,
   previewOpenFamilyReceiptsSignal,
   previewOpenFamilyMessagesSignal,
+  previewOpenFamilyCallSignal,
   previewOpenFamilyPhotosSignal,
   previewOpenFamilyNotificationsSignal,
   previewOpenHomeSignal,
@@ -164,7 +177,14 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'monitor' | 'store' | 'orders' | 'profile'>('monitor');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isCallingParent, setIsCallingParent] = useState(false);
+  const [callState, setCallState] = useState<'idle' | 'outgoing' | 'incoming' | 'connected' | 'unanswered'>('idle');
+  const [callMode, setCallMode] = useState<'voice' | 'video'>('voice');
+  const [callSeconds, setCallSeconds] = useState(0);
+  const [callMuted, setCallMuted] = useState(false);
+  const [callSpeaker, setCallSpeaker] = useState(true);
+  const [callCamera, setCallCamera] = useState(true);
+  const [callTarget, setCallTarget] = useState<Pick<FamilyConversation, 'id' | 'elderName' | 'avatar'> | null>(null);
+  const [callConnected, setCallConnected] = useState(false);
   const [showElderProfile, setShowElderProfile] = useState(false);
   const [residenceAddress, setResidenceAddress] = useState(initialChildResidenceAddress);
   const [familyMessages, setFamilyMessages] = useState(initialFamilyMessages);
@@ -185,7 +205,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           elderName: latestLikedBatch.elderName,
           photoCount: latestLikedBatch.items.filter(item => item.type === 'photo').length,
           videoCount: latestLikedBatch.items.filter(item => item.type === 'video').length,
-          category: latestLikedBatch.category,
+          category: latestLikedBatch.categoryNameSnapshot,
           feedback: latestLikedBatch.feedback
         }
       : null;
@@ -199,10 +219,56 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const currentParentProfile = currentBoundElder
     ? { ...parentProfile, name: currentBoundElder.name, age: currentBoundElder.age, avatar: currentBoundElder.avatar }
     : parentProfile;
+  const photoRecipients: PhotoRecipientOption[] = [
+    ...initialFamilyConversations.map(conversation => ({
+      elderId: conversation.elderId,
+      elderName: conversation.elderName,
+      conversationId: conversation.id,
+      relationshipStatus: conversation.relationshipStatus
+    })),
+    {
+      elderId: 'elder-grandpa-invalid',
+      elderName: '外公',
+      conversationId: 'conversation-grandpa-invalid',
+      relationshipStatus: 'invalid' as const,
+      unavailableReason: '家庭关系已解除，不可发送'
+    }
+  ];
 
   useEffect(() => {
     contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab]);
+
+  useEffect(() => {
+    if (callState !== 'connected') return;
+    const timer = window.setInterval(() => setCallSeconds(value => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [callState]);
+
+  useEffect(() => {
+    if (previewOpenFamilyCallSignal <= 0) return;
+    const mode = familyCallScenario.includes('video') ? 'video' : 'voice';
+    setCallMode(mode);
+    setCallSeconds(0);
+    setCallMuted(false);
+    setCallSpeaker(true);
+    setCallCamera(true);
+    setCallConnected(familyCallScenario.startsWith('connected'));
+    setCallTarget({
+      id: initialFamilyConversations[0].id,
+      elderName: initialFamilyConversations[0].elderName,
+      avatar: initialFamilyConversations[0].avatar
+    });
+    setCallState(
+      familyCallScenario.startsWith('incoming')
+        ? 'incoming'
+        : familyCallScenario.startsWith('connected')
+          ? 'connected'
+          : familyCallScenario === 'unanswered'
+            ? 'unanswered'
+            : 'outgoing'
+    );
+  }, [previewOpenFamilyCallSignal, familyCallScenario]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -211,7 +277,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
       onPreviewContextChange?.('home');
     } else if (activeTab === 'store') {
       onPreviewContextChange?.(
-        'family',
+        familySection === 'photos' ? 'photos' : 'messages',
         familySection === 'messages' ? 'family_messages' : familySection === 'notifications' ? 'family_notifications' : 'family_photos'
       );
     } else if (activeTab === 'orders') {
@@ -271,7 +337,14 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
     if (previewResetSignal > 0) {
       setActiveTab('monitor');
       setFamilySection('photos');
+      setFamilyMessages(initialFamilyMessages);
       setFamilyNotifications(initialFamilyNotifications);
+      setPhotoBatches(initialPublishedPhotoBatches);
+      setBoundElders(initialBoundElders);
+      setCurrentElderId(initialBoundElders[0]?.id ?? null);
+      setCallState('idle');
+      setCallTarget(null);
+      setCallConnected(false);
       setShowElderProfile(false);
       setShowPhotoShare(false);
       setPhotoShareMounted(false);
@@ -340,12 +413,47 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
     addActivity("子女端APP：子女已在APP上查看并手动“解除紧急跌倒警告” 🟢", 'info');
   };
 
-  const handleMockCall = () => {
-    setIsCallingParent(true);
-    setTimeout(() => {
-      setIsCallingParent(false);
-      alert(`已接通长辈智能中控屏！目前正处于免提对讲，并已开启中控屏摄像头。`);
-    }, 1200);
+  const handleMockCall = (mode: 'voice' | 'video' = 'voice', conversation?: FamilyConversation) => {
+    setCallMode(mode);
+    setCallSeconds(0);
+    setCallMuted(false);
+    setCallSpeaker(true);
+    setCallCamera(true);
+    setCallConnected(false);
+    const target = conversation ?? initialFamilyConversations.find(item => item.elderId === currentBoundElder?.id) ?? initialFamilyConversations[0];
+    setCallTarget({ id: target.id, elderName: target.elderName, avatar: target.avatar });
+    setCallState('outgoing');
+  };
+
+  const finishMockCall = (result: 'completed' | 'cancelled' | 'rejected' | 'unanswered') => {
+    if (callTarget) {
+      const resultLabel = result === 'completed'
+        ? `通话结束${callSeconds > 0 ? ` · ${String(Math.floor(callSeconds / 60)).padStart(2, '0')}:${String(callSeconds % 60).padStart(2, '0')}` : ''}`
+        : result === 'cancelled'
+          ? '已取消'
+          : result === 'rejected'
+            ? '已拒绝'
+            : '无人接听';
+      const record: import('../types').FamilyMessage = {
+        id: `family-call-${Date.now()}`,
+        conversationId: callTarget.id,
+        sender: result === 'rejected' ? 'elder' : 'child',
+        senderName: result === 'rejected' ? callTarget.elderName : '我',
+        text: `${callMode === 'video' ? '视频通话' : '语音通话'} · ${resultLabel}`,
+        sentAtUtc: new Date().toISOString(),
+        status: 'delivered',
+        type: 'call',
+        durationSeconds: result === 'completed' ? callSeconds : undefined,
+        callMode,
+        callResult: result
+      };
+      setFamilyMessages(current => [...current, record]);
+      setInitialFamilyConversationId(callTarget.id);
+    }
+    setCallState('idle');
+    setCallConnected(false);
+    setFamilySection('messages');
+    setActiveTab('store');
   };
 
   const handleLogin = () => {
@@ -368,7 +476,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
       {/* 2. Main Phone Screen content */}
       <div id="h5-phone-screen" className="w-full h-full bg-slate-50 rounded-none sm:rounded-[38px] overflow-hidden flex flex-col relative border-0 sm:border border-slate-900">
-        
+
         {/* Mock OS Status Bar */}
         <div className="hidden sm:flex h-10 bg-white items-center justify-between px-6 shrink-0 z-40">
           <span className="text-2xs font-bold text-slate-800">{homeCareScenario === 'medication_expired' ? '23:59' : homeCareScenario === 'medication_overdue' ? '22:10' : '18:26'}</span>
@@ -382,12 +490,24 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '安心看' : activeTab === 'store' ? '亲情连' : activeTab === 'orders' ? '代管家' : '我的'}</h1>
+          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'photos' ? '家庭影像' : '家庭留言' : activeTab === 'orders' ? '代管家' : '我的'}</h1>
+          {isLoggedIn && activeTab === 'store' && familySection !== 'photos' && (
+            <button
+              type="button"
+              onClick={() => setFamilySection(familySection === 'notifications' ? 'messages' : 'notifications')}
+              aria-label={familySection === 'notifications' ? '返回家庭留言' : `消息，${unreadFamilyNotificationCount}条未读`}
+              className={`absolute right-4 flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition ${familySection === 'notifications' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              <MessageCircle size={14} />
+              {familySection === 'notifications' ? '返回留言' : '消息'}
+              {familySection !== 'notifications' && unreadFamilyNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}
+            </button>
+          )}
         </header>
 
         {/* 3. APP SCREEN WRAPPER WITH ABSOLUTE ALERT OVERLAYS */}
         <div ref={contentScrollRef} className="flex-1 overflow-y-auto relative min-h-0 bg-slate-50">
-          
+
           {/* CRITICAL EMERGENCY ALARM POPUP OVERLAY */}
           {isLoggedIn && emergencyAlert && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -395,7 +515,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
                 <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
                   <AlertOctagon size={24} className="stroke-[2.5]" />
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <h3 className="font-extrabold text-sm text-rose-600">🚨 长辈突发跌倒预警 🚨</h3>
                   <p className="text-3xs text-slate-600 leading-relaxed font-semibold">
@@ -420,7 +540,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
                 <div className="space-y-2 pt-1">
                   <button
-                    onClick={handleMockCall}
+                    onClick={() => handleMockCall('voice')}
                     className="w-full bg-rose-600 hover:bg-rose-500 text-white text-3xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/10 transition-colors"
                   >
                     <Phone size={12} className="fill-white" />
@@ -451,7 +571,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           )}
 
           {isLoggedIn && activeTab === 'monitor' && (
-            <H5MonitorTab 
+            <H5MonitorTab
               healthStats={healthStats}
               setHealthStats={setHealthStats}
               medications={medications}
@@ -509,6 +629,13 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               initialConversationId={initialFamilyConversationId}
               onSectionChange={setFamilySection}
               onOpenPhotoShare={openPhotoShare}
+              onRetryFailedRecipients={(publicationId) => {
+                setPhotoBatches(previous => previous.map(batch =>
+                  batch.publicationId === publicationId && batch.publishStatus === 'failed' && batch.retryable
+                    ? { ...batch, publishStatus: 'published', syncStatus: 'delivered', failureReason: undefined, retryable: undefined, feedback: 'published' }
+                    : batch
+                ));
+              }}
               onMessagesChange={setFamilyMessages}
               onNotificationsChange={setFamilyNotifications}
               onContactElder={handleMockCall}
@@ -516,7 +643,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           )}
 
           {isLoggedIn && activeTab === 'orders' && (
-            <H5OrdersTab 
+            <H5OrdersTab
               orders={orders}
               setOrders={setOrders}
               activities={activities}
@@ -575,18 +702,44 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
         {isLoggedIn && photoShareMounted && (
           <H5PhotoShareSheet
             key={familyPhotoScenario}
-            elderNames={['爸爸']}
+            recipients={photoRecipients}
+            currentElderId={currentElderId ?? initialFamilyConversations[0]?.elderId}
+            uploaderId="child-current"
             demoScenario={familyPhotoScenario}
             isOpen={showPhotoShare}
             onClose={() => setShowPhotoShare(false)}
-            onPublished={(batch) => {
-              setPhotoBatches(previous => [batch, ...previous.filter(item => item.id !== batch.id)]);
+            onPublished={(batches) => {
+              setPhotoBatches(previous => [...batches, ...previous.filter(item => !batches.some(batch => batch.id === item.id))]);
             }}
-            onContactElder={() => {
+            onContactElder={(recipient) => {
               setShowPhotoShare(false);
-              handleMockCall();
+              const target = initialFamilyConversations.find(conversation => conversation.id === recipient.conversationId);
+              handleMockCall('voice', target);
             }}
           />
+        )}
+
+        {isLoggedIn && callState !== 'idle' && (
+          <section role="dialog" aria-modal="true" aria-label={`${callMode === 'video' ? '视频' : '语音'}通话`} className="absolute inset-0 z-[90] flex flex-col items-center justify-between bg-slate-950 px-6 pb-10 pt-20 text-white">
+            <div className="text-center">
+              <img src={callTarget?.avatar ?? currentParentProfile.avatar} alt="" className="mx-auto h-24 w-24 rounded-full border-4 border-white/15 object-cover" />
+              <h2 className="mt-5 text-xl font-black">{callTarget?.elderName ?? currentParentProfile.name}</h2>
+              <p className="mt-2 text-sm text-white/60">{callState === 'incoming' ? `${callMode === 'video' ? '视频' : '语音'}来电` : callState === 'outgoing' ? `正在呼叫 · ${callMode === 'video' ? '视频' : '语音'}通话` : callState === 'unanswered' ? '无人接听' : `${String(Math.floor(callSeconds / 60)).padStart(2, '0')}:${String(callSeconds % 60).padStart(2, '0')}`}</p>
+              {callState === 'unanswered' && <p className="mt-3 text-xs text-white/45">呼出 60 秒未接，通话已结束</p>}
+            </div>
+
+            {callState === 'connected' && <div className={`grid text-center text-[10px] ${callMode === 'video' ? 'w-full grid-cols-3 gap-4' : 'w-44 grid-cols-2 gap-5'}`}>
+              <button type="button" onClick={() => setCallMuted(value => !value)} className="flex flex-col items-center gap-2"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15">{callMuted ? <MicOff /> : <Mic />}</span>{callMuted ? '取消静音' : '静音'}</button>
+              <button type="button" onClick={() => setCallSpeaker(value => !value)} className="flex flex-col items-center gap-2"><span className={`flex h-14 w-14 items-center justify-center rounded-full ${callSpeaker ? 'bg-white text-slate-950' : 'bg-white/15'}`}><Volume2 /></span>免提</button>
+              {callMode === 'video' && <button type="button" onClick={() => setCallCamera(value => !value)} className="flex flex-col items-center gap-2"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15">{callCamera ? <Video /> : <VideoOff />}</span>{callCamera ? '关闭摄像头' : '开启摄像头'}</button>}
+            </div>}
+
+            <div className="flex w-full items-center justify-center gap-10">
+              {callState === 'incoming' && <button type="button" onClick={() => { setCallConnected(true); setCallState('connected'); }} className="flex flex-col items-center gap-2 text-xs"><span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500"><Phone className="fill-current" /></span>接听</button>}
+              {callState === 'outgoing' && <button type="button" onClick={() => { setCallConnected(true); setCallState('connected'); }} className="rounded-full border border-white/20 px-4 py-2 text-xs text-white/70">模拟接通</button>}
+              <button type="button" onClick={() => finishMockCall(callState === 'incoming' ? 'rejected' : callState === 'unanswered' ? 'unanswered' : callState === 'outgoing' ? 'cancelled' : callConnected ? 'completed' : 'cancelled')} className="flex flex-col items-center gap-2 text-xs"><span className="flex h-16 w-16 rotate-[135deg] items-center justify-center rounded-full bg-rose-600"><Phone className="fill-current" /></span>{callState === 'incoming' ? '拒绝' : callState === 'unanswered' ? '返回会话' : callState === 'outgoing' ? '取消' : '挂断'}</button>
+            </div>
+          </section>
         )}
 
         {/* 4. IOS Elegant Bottom Navigation Tabs bar */}
@@ -597,16 +750,25 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'monitor' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <House size={18} className={activeTab === 'monitor' ? 'stroke-[2.5]' : ''} />
-            <span className="text-5xs font-extrabold tracking-tight">安心看</span>
+            <span className="text-5xs font-extrabold tracking-tight">首页</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('store')}
+            onClick={() => { setActiveTab('store'); setFamilySection('messages'); }}
             disabled={!isLoggedIn}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection !== 'photos' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="relative"><AudioWaveform size={18} className={activeTab === 'store' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
-            <span className="text-5xs font-extrabold tracking-tight">亲情连</span>
+            <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection !== 'photos' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
+            <span className="text-5xs font-extrabold tracking-tight">家庭留言</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('store'); setFamilySection('photos'); }}
+            disabled={!isLoggedIn}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection === 'photos' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Images size={18} className={activeTab === 'store' && familySection === 'photos' ? 'stroke-[2.5]' : ''} />
+            <span className="text-5xs font-extrabold tracking-tight">家庭影像</span>
           </button>
 
           <button

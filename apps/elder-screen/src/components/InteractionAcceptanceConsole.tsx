@@ -16,6 +16,8 @@ import {
   Image,
   Landmark,
   MapPinOff,
+  MessageCircleHeart,
+  Mic,
   PanelRightClose,
   PanelRightOpen,
   Pill,
@@ -36,6 +38,7 @@ import type { FamilyWeatherMockScenario } from "../weather/familyWeather";
 import type { EmergencyAcceptanceScenario } from "./EmergencyModal";
 import type { SpecialServicesAcceptanceScenario } from "./SpecialServicesPage";
 import type { CommunityStaffAcceptanceScenario } from "./CommunityStaffPage";
+import type { ServiceConversationAcceptanceScenario } from "./ContactsCommunicationPage";
 import "./interaction-acceptance-console.css";
 
 export type AcceptanceTaskContentScenario = "medicine" | "schedule";
@@ -54,12 +57,21 @@ export type AcceptanceRightContentScenario =
   | "recommendations-only"
   | "new-message"
   | "new-album"
+  | "new-album-invalid-relation"
   | "missed-call"
   | "time-and-family"
   | "p1-due"
   | "medication-upcoming"
+  | "medication-grace-period"
+  | "medication-unconfirmed"
+  | "medication-grouped"
+  | "medication-expired"
   | "schedule-due"
   | "schedule-upcoming"
+  | "schedule-grace-period"
+  | "schedule-unconfirmed"
+  | "schedule-grouped"
+  | "schedule-expired"
   | "activity-started"
   | "activity-upcoming"
   | "activity-updated"
@@ -116,12 +128,14 @@ interface InteractionAcceptanceConsoleProps {
   communityScenario: AcceptanceCommunityScenario;
   serviceScenario: SpecialServicesAcceptanceScenario;
   communityStaffScenario: CommunityStaffAcceptanceScenario;
+  serviceConversationScenario: ServiceConversationAcceptanceScenario;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
   onShowCommunity: () => void;
   onShowServices: () => void;
   onShowCommunityStaff: () => void;
+  onShowContacts: (scenario?: ServiceConversationAcceptanceScenario) => void;
   onSetWeatherScenario: (scenario: FamilyWeatherMockScenario) => void;
   onOpenWeatherScenario: (target: WeatherAcceptanceTarget) => void;
   onSetAlbumScenario: (scenario: AcceptanceAlbumScenario) => void;
@@ -131,6 +145,9 @@ interface InteractionAcceptanceConsoleProps {
   onSetCommunityScenario: (scenario: AcceptanceCommunityScenario) => void;
   onSetServiceScenario: (scenario: SpecialServicesAcceptanceScenario) => void;
   onSetCommunityStaffScenario: (scenario: CommunityStaffAcceptanceScenario) => void;
+  onSetServiceConversationScenario: (scenario: ServiceConversationAcceptanceScenario) => void;
+  onActivateRightContent: () => void;
+  onOpenEntertainmentFailure: () => void;
   onApplyRightContentUpdate: () => void;
   onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario, minutesUntil?: number, autoDismissMs?: number) => void;
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
@@ -139,8 +156,8 @@ interface InteractionAcceptanceConsoleProps {
   onReset: () => void;
 }
 
-type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services" | "community-staff" | "activation";
-type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "community-staff" | "activation";
+type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services" | "community-staff" | "service-messages" | "activation";
+type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "community-staff" | "contacts" | "activation";
 type WeatherAcceptanceTarget = "home" | "detail";
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
@@ -152,6 +169,7 @@ const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: str
   { id: "community-life", label: "社区生活" },
   { id: "special-services", label: "特约服务" },
   { id: "community-staff", label: "社区人员" },
+  { id: "service-messages", label: "通讯录与家庭互动" },
   { id: "activation", label: "激活流程" },
 ];
 
@@ -162,6 +180,7 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
   { id: "community-life", label: "社区生活", sections: ["community-life"] },
   { id: "special-services", label: "特约服务", sections: ["special-services"] },
   { id: "community-staff", label: "社区人员", sections: ["community-staff"] },
+  { id: "contacts", label: "通讯录", sections: ["service-messages"] },
   { id: "activation", label: "设备激活", sections: ["activation"] },
 ];
 
@@ -180,16 +199,25 @@ interface AcceptanceConsoleDragState {
 const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label: string; description: string }> = {
   default: { label: "默认单按钮", description: "合并时间提醒、家庭互动和内容推荐，只展示当前最高优先级内容。" },
   "recommendations-only": { label: "查看推荐内容", description: "点击右侧推荐，进入对应内容。" },
-  "new-message": { label: "查看家人留言", description: "点击右侧留言入口，进入通讯录查看留言。" },
-  "new-album": { label: "查看家庭影像", description: "点击右侧影像入口，进入家庭相册。" },
-  "missed-call": { label: "查看未接来电", description: "点击右侧未接来电入口，进入通讯录。" },
+  "new-message": { label: "家人给您留言了", description: "右侧显示未读数量；点击后进入通讯录查看留言，已查看内容不再计数。" },
+  "new-album": { label: "家人分享了新影像", description: "点击后进入上传人的一对一会话，并定位最早一条未查看影像记录；记录进入可视区后只更新该条状态。" },
+  "new-album-invalid-relation": { label: "影像上传人关系失效", description: "找不到上传人家庭关系时保留未查看状态，提示无法打开，不跳转其他联系人。" },
+  "missed-call": { label: "您有未接来电", description: "右侧显示未接次数；点击后进入通讯录查看通话记录。" },
   "time-and-family": { label: "时间与家庭同时产生", description: "两类内容同时进入候选，由同一个大按钮展示当前优先项。" },
-  "p1-due": { label: "到点 P1 产生", description: "用药到点后转为 P1 主内容，家庭互动业务状态保留。" },
-  "medication-upcoming": { label: "查看用药提醒", description: "点击右侧用药提醒，展开今日全览。" },
-  "schedule-due": { label: "查看日常事项", description: "点击右侧日常事项，展开今日全览。" },
-  "schedule-upcoming": { label: "临近日常事项", description: "固定上标题提示事项临近，下标题显示执行时间与事项名称。" },
-  "activity-started": { label: "活动已经开始", description: "上标题显示活动开始，下标题显示活动名称。" },
-  "activity-upcoming": { label: "查看社区活动", description: "点击右侧活动提醒，进入社区活动。" },
+  "p1-due": { label: "该用药了", description: "到达执行时间后显示到点弹窗；关闭弹窗后提醒仍保留在右侧，点击单条提醒直达确认界面。" },
+  "medication-upcoming": { label: "用药时间快到了", description: "进入到点前30分钟后显示临近提醒，不弹出到点弹窗；点击单条提醒直达确认界面。" },
+  "medication-grace-period": { label: "该用药了（29分59秒）", description: "仍处于到点强提醒；不重复弹窗或播报，右侧继续保留。" },
+  "medication-unconfirmed": { label: "用药尚未确认（30分钟）", description: "到点满30分钟转为未确认并退出右侧，在今日全览中仍可处理。" },
+  "medication-grouped": { label: "同一时间多项用药", description: "同时间、同阶段的多项用药合并展示；点击右侧进入今日全览。" },
+  "medication-expired": { label: "用药次日已过期", description: "模拟次日00:00；记录转为已过期，退出首页右侧和今日全览，历史记录保留。" },
+  "schedule-due": { label: "该做事项了", description: "到达执行时间后显示到点弹窗；关闭弹窗后事项仍保留在右侧，点击单条事项直达确认界面。" },
+  "schedule-upcoming": { label: "事项时间快到了", description: "进入到点前30分钟后显示临近提醒；点击单条事项直达确认界面。" },
+  "schedule-grace-period": { label: "该做事项了（29分59秒）", description: "仍处于到点强提醒；不重复弹窗或播报，右侧继续保留。" },
+  "schedule-unconfirmed": { label: "事项尚未完成（30分钟）", description: "到点满30分钟转为未确认并退出右侧，在今日全览中仍可处理。" },
+  "schedule-grouped": { label: "同一时间多项事项", description: "同时间、同阶段的多项事项合并展示；点击右侧进入今日全览。" },
+  "schedule-expired": { label: "事项次日已过期", description: "模拟次日00:00；记录转为已过期，退出首页右侧和今日全览，历史记录保留。" },
+  "activity-started": { label: "活动开始了", description: "到达活动开始时间后显示活动名称；点击右侧进入社区活动。" },
+  "activity-upcoming": { label: "活动快开始了", description: "活动开始前30分钟显示开始时间和活动名称；点击右侧进入社区活动。" },
   "activity-updated": { label: "活动信息已更新", description: "不弹窗、不语音，右侧直接读取更新后的活动时间和地点。" },
   "activity-cancelled": { label: "活动已取消", description: "取消活动立即退出右侧候选，继续展示下一条有效内容。" },
   "reminder-daytime": { label: "日间首次播报", description: "固定日间时间；同一提醒仅首次到点进行语音播报。" },
@@ -197,8 +225,8 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "next-day-exit": { label: "次日00:00退出", description: "当天未处理推荐退出首页候选，不删除内容、不生成完成记录。" },
   "recommendation-order": { label: "后台顺序轮换", description: "按后台展示顺序；同序时按创建时间从早到晚稳定轮换。" },
   "single-recommendation": { label: "仅一条推荐", description: "后台只有一条有效内容时持续展示，不因计时进入冷却或消失。" },
-  "third-party-entertainment": { label: "打开娱乐内容", description: "点击右侧娱乐内容，进入对应播放页。" },
-  "third-party-entertainment-failure": { label: "娱乐内容打开失败", description: "点击后显示无法打开，可重试或返回。" },
+  "third-party-entertainment": { label: "休闲娱乐推荐", description: "右侧展示当前娱乐推荐；点击后进入休闲娱乐内容。" },
+  "third-party-entertainment-failure": { label: "娱乐内容打开失败", description: "点击首页娱乐内容，再点任一内容入口，显示失败提示。" },
   "no-content": { label: "无有效候选", description: "全部后台内容不可展示时，右侧显示“今日暂无内容”，不使用 AI 补位。" },
   "interaction-locked": { label: "操作中暂不换位", description: "正在操作右侧内容时先记录新留言，结束后再应用新排序。" },
 };
@@ -207,13 +235,40 @@ const rightContentInteractionScenarios: AcceptanceRightContentScenario[] = [
   "recommendations-only",
   "new-message",
   "new-album",
+  "new-album-invalid-relation",
   "missed-call",
+  "p1-due",
   "medication-upcoming",
+  "medication-grace-period",
+  "medication-grouped",
+  "schedule-upcoming",
   "schedule-due",
+  "schedule-grace-period",
+  "schedule-grouped",
   "activity-upcoming",
+  "activity-started",
   "third-party-entertainment",
-  "third-party-entertainment-failure",
+  "no-content",
 ];
+
+const rightContentActionLabels: Partial<Record<AcceptanceRightContentScenario, string>> = {
+  "recommendations-only": "打开推荐内容",
+  "new-message": "查看家人留言",
+  "new-album": "定位未查看影像",
+  "new-album-invalid-relation": "查看关系失效结果",
+  "missed-call": "查看未接来电",
+  "p1-due": "打开用药确认",
+  "medication-upcoming": "打开用药确认",
+  "medication-grace-period": "打开用药确认",
+  "medication-grouped": "打开今日全览",
+  "schedule-upcoming": "打开事项确认",
+  "schedule-due": "打开事项确认",
+  "schedule-grace-period": "打开事项确认",
+  "schedule-grouped": "打开今日全览",
+  "activity-upcoming": "查看活动详情",
+  "activity-started": "查看活动详情",
+  "third-party-entertainment": "打开休闲娱乐",
+};
 
 const albumLabels: Record<AcceptanceAlbumScenario, string> = {
   default: "正常轮播",
@@ -288,6 +343,28 @@ const communityStaffScenarioLabels: Record<CommunityStaffAcceptanceScenario, { l
   single: { label: "单人", description: "只展示一位社区服务负责人及完整联系信息。" },
   "multiple-time-slots": { label: "多服务时间", description: "卡片内完整展示多个对外服务时间段。" },
   empty: { label: "暂无人员", description: "没有已启用人员时展示统一空状态。" },
+};
+
+const serviceConversationScenarioLabels: Record<Exclude<ServiceConversationAcceptanceScenario, "off">, { label: string; description: string }> = {
+  normal: { label: "正常留言", description: "查看文字和语音留言，并完整走通语音回复。" },
+  empty: { label: "暂无留言", description: "服务联系人当前没有历史留言。" },
+  "playback-failure": { label: "语音播放失败", description: "首次播放失败，页面内可直接重试。" },
+  "send-failure": { label: "回复发送失败", description: "直接展示发送失败结果，录音已保留并可重试。" },
+  "incoming-voice": { label: "家人语音来电", description: "展示独立来电界面，可接听或拒绝。" },
+  "incoming-video": { label: "家人视频来电", description: "接听后进入视频通话，可控制静音、扬声器和画面。" },
+  "call-timeout": { label: "呼出无人接听", description: "发起语音呼叫后进入等待，无人接听时自动结束并显示结果。" },
+};
+
+const serviceConversationScenarios = Object.keys(serviceConversationScenarioLabels) as Array<Exclude<ServiceConversationAcceptanceScenario, "off">>;
+
+const serviceConversationActionLabels: Record<Exclude<ServiceConversationAcceptanceScenario, "off">, string> = {
+  normal: "打开服务留言",
+  empty: "查看暂无留言",
+  "playback-failure": "打开语音播放场景",
+  "send-failure": "查看回复发送失败",
+  "incoming-voice": "显示家人语音来电",
+  "incoming-video": "显示家人视频来电",
+  "call-timeout": "重新模拟无人接听",
 };
 
 const weatherLabels: Record<FamilyWeatherMockScenario, string> = {
@@ -400,12 +477,14 @@ export default function InteractionAcceptanceConsole({
   communityScenario,
   serviceScenario,
   communityStaffScenario,
+  serviceConversationScenario,
   onShowHome,
   onShowAlbum,
   onShowReminders,
   onShowCommunity,
   onShowServices,
   onShowCommunityStaff,
+  onShowContacts,
   onSetWeatherScenario,
   onOpenWeatherScenario,
   onSetAlbumScenario,
@@ -415,6 +494,9 @@ export default function InteractionAcceptanceConsole({
   onSetCommunityScenario,
   onSetServiceScenario,
   onSetCommunityStaffScenario,
+  onSetServiceConversationScenario,
+  onActivateRightContent,
+  onOpenEntertainmentFailure,
   onApplyRightContentUpdate,
   onOpenHomeReminderAlert,
   onHomeCommand,
@@ -437,12 +519,19 @@ export default function InteractionAcceptanceConsole({
   const selectedPage = acceptancePageOptions.find((page) => page.id === activePage) ?? acceptancePageOptions[0];
   const selectedPageSections = acceptanceSectionOptions.filter((section) => selectedPage.sections.includes(section.id));
   const albumScenarioOptions = activePage === "family-album" ? familyAlbumScenarios : homeAlbumScenarios;
+  const rightContentActionLabel = rightContentActionLabels[rightContentScenario];
 
   useEffect(() => {
     if (activeSection === "task-progress" && !rightContentInteractionScenarios.includes(rightContentScenario)) {
       onSetRightContentScenario("recommendations-only");
     }
   }, [activeSection, onSetRightContentScenario, rightContentScenario]);
+
+  useEffect(() => {
+    if (activeSection === "service-messages" && serviceConversationScenario === "off") {
+      onSetServiceConversationScenario("normal");
+    }
+  }, [activeSection, onSetServiceConversationScenario, serviceConversationScenario]);
 
   const showAlbumAcceptanceTarget = () => activePage === "family-album" ? onShowAlbum() : onShowHome();
   const changePage = (pageId: AcceptanceConsolePage) => {
@@ -522,7 +611,7 @@ export default function InteractionAcceptanceConsole({
 
   return (
     <aside
-      className={`interaction-acceptance-console${isOpen ? " is-open" : ""}${opensToRight ? " opens-to-right" : ""}${opensUpward ? " opens-upward" : ""}`}
+      className={`interaction-acceptance-console${isOpen ? " is-open" : ""}${opensToRight ? " opens-to-right" : ""}${opensUpward ? " opens-upward" : ""}${activeSection === "task-progress" ? " is-reviewing-right-content" : ""}`}
       aria-label="交互验收台"
       style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)` }}
     >
@@ -717,13 +806,13 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "task-progress" && <section>
               <div className="interaction-acceptance-field">
-                <h2><Sparkles aria-hidden="true" />交互内容</h2>
+                <h2><Sparkles aria-hidden="true" />可见状态</h2>
                 <label className="interaction-acceptance-module-picker">
                   <span className="interaction-acceptance-module-picker__select">
                     <select
                       value={rightContentScenario}
                       onChange={(event) => onSetRightContentScenario(event.target.value as AcceptanceRightContentScenario)}
-                      aria-label="选择首页右侧交互内容"
+                      aria-label="选择首页右侧可见状态"
                     >
                       {rightContentInteractionScenarios.map((scenario) => (
                         <option key={scenario} value={scenario}>{rightContentScenarioLabels[scenario].label}</option>
@@ -740,18 +829,30 @@ export default function InteractionAcceptanceConsole({
 
               <div className="interaction-acceptance-field">
                 <h2><BellRing aria-hidden="true" />可执行动作</h2>
-                <div className="interaction-acceptance-grid is-two-columns interaction-acceptance-actions-grid">
-                  <button type="button" onClick={() => onOpenHomeReminderAlert("medicine")}>
-                    <Pill />用药提醒弹窗
+                {rightContentActionLabel && (
+                  <button type="button" className="interaction-acceptance-primary-action" onClick={onActivateRightContent}>
+                    <ChevronRight aria-hidden="true" />{rightContentActionLabel}
                   </button>
-                  <button type="button" onClick={() => onOpenHomeReminderAlert("schedule")}>
-                    <CalendarDays />日常提醒弹窗
+                )}
+                {rightContentScenario === "third-party-entertainment" && (
+                  <button type="button" className="interaction-acceptance-wide is-danger" onClick={onOpenEntertainmentFailure}>
+                    <CloudOff aria-hidden="true" />查看打开失败结果
                   </button>
-                  <button type="button" onClick={() => onOpenHomeReminderAlert("medicine", 0, 1_200)}>
-                    <Clock3 />60秒自动关闭（加速验收）
+                )}
+                {rightContentScenario === "p1-due" && (
+                  <button type="button" className="interaction-acceptance-wide" onClick={() => onOpenHomeReminderAlert("medicine", 0)}>
+                    <Pill />再次显示用药到点弹窗
                   </button>
-                </div>
-                <p className="interaction-acceptance-note">正式页面60秒后自动关闭；验收动作缩短为1.2秒，关闭不代表完成。</p>
+                )}
+                {rightContentScenario === "schedule-due" && (
+                  <button type="button" className="interaction-acceptance-wide" onClick={() => onOpenHomeReminderAlert("schedule", 0)}>
+                    <CalendarDays />再次显示事项到点弹窗
+                  </button>
+                )}
+                {!rightContentActionLabel && rightContentScenario === "no-content" && (
+                  <p className="interaction-acceptance-note">当前为空状态，没有可执行的内容入口。</p>
+                )}
+                <p className="interaction-acceptance-note">上方切换右侧展示状态；这里执行正式页面对应的点击动作并查看结果。</p>
                 {rightContentScenario === "interaction-locked" && (
                   <div className="interaction-acceptance-context-action">
                     <span>当前场景动作</span>
@@ -834,6 +935,44 @@ export default function InteractionAcceptanceConsole({
                 </button>
               </div>
               <p className="interaction-acceptance-note">电话和邮箱仅展示，不触发拨号或邮件；人员顺序、照片与资料均为 L2 固定 Mock。</p>
+            </section>}
+
+            {activeSection === "service-messages" && <section>
+              <div className="interaction-acceptance-field">
+                <h2><MessageCircleHeart aria-hidden="true" />可见状态</h2>
+                <label className="interaction-acceptance-module-picker">
+                  <span className="interaction-acceptance-module-picker__select">
+                    <select
+                      value={serviceConversationScenario === "off" ? "normal" : serviceConversationScenario}
+                      onChange={(event) => {
+                        const scenario = event.target.value as Exclude<ServiceConversationAcceptanceScenario, "off">;
+                        onSetServiceConversationScenario(scenario);
+                        onShowContacts(scenario);
+                      }}
+                      aria-label="选择通讯录与家庭互动状态"
+                    >
+                      {serviceConversationScenarios.map((scenario) => (
+                        <option key={scenario} value={scenario}>{serviceConversationScenarioLabels[scenario].label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
+                </label>
+                {serviceConversationScenario !== "off" && (
+                  <div className="interaction-acceptance-current" aria-live="polite">
+                    <strong>{serviceConversationScenarioLabels[serviceConversationScenario].label}</strong>
+                    <p>{serviceConversationScenarioLabels[serviceConversationScenario].description}</p>
+                  </div>
+                )}
+              </div>
+              <div className="interaction-acceptance-field">
+                <h2><BellRing aria-hidden="true" />可执行动作</h2>
+                {serviceConversationScenario !== "off" && (
+                  <button type="button" className="interaction-acceptance-primary-action" onClick={() => onShowContacts(serviceConversationScenario)}>
+                    <ChevronRight aria-hidden="true" />{serviceConversationActionLabels[serviceConversationScenario]}
+                  </button>
+                )}
+              </div>
             </section>}
 
             {activeSection === "activation" && <section>

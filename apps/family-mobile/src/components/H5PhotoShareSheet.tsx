@@ -19,7 +19,7 @@ import {
   Video,
   X
 } from 'lucide-react';
-import { FamilyPhotoScenario, PublishedPhotoBatch } from '../types';
+import { FamilyPhotoScenario, PhotoRecipientOption, PublishedPhotoBatch } from '../types';
 
 type MediaStatus = 'pending' | 'uploading' | 'published' | 'failed';
 type MediaType = 'photo' | 'video';
@@ -37,16 +37,18 @@ interface UploadMediaItem {
 }
 
 interface H5PhotoShareSheetProps {
-  elderNames: string[];
+  recipients: PhotoRecipientOption[];
+  currentElderId?: string | null;
+  uploaderId: string;
   onClose: () => void;
-  onPublished: (batch: PublishedPhotoBatch) => void;
-  onContactElder: () => void;
+  onPublished: (batches: PublishedPhotoBatch[]) => void;
+  onContactElder: (recipient: PhotoRecipientOption) => void;
   demoScenario?: FamilyPhotoScenario;
   isOpen: boolean;
 }
 
 const MAX_MEDIA_COUNT = 9;
-const categories = ['日常生活', '家庭聚会', '旅行风景', '孩子成长', '节日纪念'];
+const childAlbumCategoryOptions = ['日常生活', '家庭聚会', '旅行风景', '孩子成长', '节日纪念'];
 const demoVideoUrl = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
 
 const createDemoCover = (start: string, end: string, title: string, subtitle: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${start}"/><stop offset="1" stop-color="${end}"/></linearGradient></defs><rect width="360" height="360" rx="32" fill="url(#g)"/><circle cx="180" cy="135" r="58" fill="white" fill-opacity=".22"/><path d="M116 256c16-48 112-48 128 0" fill="white" fill-opacity=".22"/><text x="180" y="302" text-anchor="middle" fill="white" font-family="sans-serif" font-size="26" font-weight="700">${title}</text><text x="180" y="330" text-anchor="middle" fill="white" fill-opacity=".78" font-family="sans-serif" font-size="16">${subtitle}</text></svg>`)}`;
@@ -104,10 +106,27 @@ const describeItems = (items: UploadMediaItem[]) => {
   return [photoCount ? `${photoCount}张照片` : '', videoCount ? `${videoCount}段视频` : ''].filter(Boolean).join('、');
 };
 
-export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames, onClose, onPublished, onContactElder, demoScenario, isOpen }) => {
+type RecipientResult = PhotoRecipientOption & {
+  status: 'pending' | 'publishing' | 'success' | 'failed';
+  failureReason?: string;
+  retryable?: boolean;
+  feedback: 'published' | 'viewed' | 'liked';
+};
+
+export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ recipients, currentElderId, uploaderId, onClose, onPublished, onContactElder, demoScenario, isOpen }) => {
   const [items, setItems] = useState<UploadMediaItem[]>(() => createInitialItems(demoScenario));
-  const [elderName, setElderName] = useState(elderNames[0] || '老人');
-  const [category, setCategory] = useState(categories[0]);
+  const activeRecipients = recipients.filter(item => item.relationshipStatus === 'active');
+  const initialSelectedIds = (() => {
+    if (demoScenario === 'no_recipient') return [];
+    if (demoScenario === 'single_elder') return activeRecipients.slice(0, 1).map(item => item.elderId);
+    if (['current_plus_other', 'recipients_all_success', 'recipients_partial_success', 'recipients_all_failed', 'independent_feedback', 'retry_failed_recipient'].includes(demoScenario || '')) return activeRecipients.slice(0, 2).map(item => item.elderId);
+    const currentIsActive = activeRecipients.some(item => item.elderId === currentElderId);
+    if (currentIsActive) return [currentElderId as string];
+    return activeRecipients.slice(0, 1).map(item => item.elderId);
+  })();
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(initialSelectedIds);
+  const [recipientResults, setRecipientResults] = useState<RecipientResult[]>([]);
+  const [category, setCategory] = useState(childAlbumCategoryOptions[0]);
   const [message, setMessage] = useState('');
   const [selectedPreview, setSelectedPreview] = useState<UploadMediaItem | null>(null);
   const [notice, setNotice] = useState('');
@@ -118,6 +137,7 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
   const videoInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const publishingRef = useRef(demoScenario === 'publishing');
+  const publicationIdRef = useRef(`publication-${Date.now()}`);
   const itemsRef = useRef(items);
 
   useEffect(() => { itemsRef.current = items; }, [items]);
@@ -125,24 +145,43 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
 
   const failedCount = items.filter(item => item.status === 'failed').length;
   const publishedCount = items.filter(item => item.status === 'published').length;
-  const canPublish = items.length > 0 && !publishingRef.current && batchStatus !== 'uploading';
-  const title = useMemo(() => batchStatus === 'published' ? '影像已发给家人' : `发照片或视频给${elderName}`, [batchStatus, elderName]);
+  const selectedRecipients = recipients.filter(item => selectedRecipientIds.includes(item.elderId) && item.relationshipStatus === 'active');
+  const canPublish = items.length > 0 && selectedRecipients.length > 0 && !publishingRef.current && batchStatus !== 'uploading';
+  const title = useMemo(() => batchStatus === 'published' ? '影像发布结果' : '发照片或视频', [batchStatus]);
 
-  const completePublish = () => onPublished({
-    id: `media-batch-${Date.now()}`,
-    elderName,
-    category,
-    message: message.trim() || undefined,
-    publishedAt: new Date().toISOString(),
-    items: items.map(item => ({
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      previewUrl: item.previewUrl,
-      videoUrl: item.videoUrl || (item.type === 'video' ? item.previewUrl : undefined),
-      durationSeconds: item.durationSeconds
-    })),
-    feedback: 'liked'
+  const buildBatches = (results: RecipientResult[]) => {
+    const publicationId = publicationIdRef.current;
+    return results.map((result, index): PublishedPhotoBatch => ({
+      id: `${publicationId}-${result.elderId}`,
+      publicationId,
+      uploaderId,
+      recipientElderId: result.elderId,
+      conversationId: result.conversationId,
+      elderName: result.elderName,
+      categoryNameSnapshot: category,
+      message: message.trim() || undefined,
+      publishedAt: new Date().toISOString(),
+      items: items.map(item => ({ ...item, id: `${item.id}-${result.elderId}-${index}`, videoUrl: item.videoUrl || (item.type === 'video' ? item.previewUrl : undefined) })),
+      publishStatus: result.status === 'success' ? 'published' : 'failed',
+      syncStatus: result.status === 'success' ? 'delivered' : 'failed',
+      failureReason: result.failureReason,
+      retryable: result.retryable,
+      withdrawStatus: 'active',
+      feedback: result.feedback
+    }));
+  };
+
+  const makeResults = (): RecipientResult[] => selectedRecipients.map((recipient, index) => {
+    if (demoScenario === 'recipients_partial_success' || demoScenario === 'retry_failed_recipient') {
+      return index === 0 ? { ...recipient, status: 'success', feedback: 'published' } : { ...recipient, status: 'failed', failureReason: '网络异常，未送达', retryable: true, feedback: 'published' };
+    }
+    if (demoScenario === 'recipients_all_failed') {
+      return index === 0 ? { ...recipient, status: 'failed', failureReason: '网络异常，可重试', retryable: true, feedback: 'published' } : { ...recipient, status: 'failed', failureReason: '家庭关系已失效', retryable: false, feedback: 'published' };
+    }
+    if (demoScenario === 'independent_feedback') {
+      return { ...recipient, status: 'success', feedback: index === 0 ? 'liked' : 'viewed' };
+    }
+    return { ...recipient, status: 'success', feedback: 'published' };
   });
 
   const addLocalMedia = (event: ChangeEvent<HTMLInputElement>, expectedType?: MediaType) => {
@@ -185,10 +224,13 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
     publishingRef.current = true;
     setBatchStatus('uploading');
     setItems(previous => previous.map(item => item.status === 'pending' || item.status === 'failed' ? { ...item, status: 'uploading' } : item));
+    setRecipientResults(selectedRecipients.map(recipient => ({ ...recipient, status: 'publishing', feedback: 'published' })));
     window.setTimeout(() => {
       setItems(previous => previous.map(item => item.status === 'uploading' ? { ...item, status: 'published' } : item));
+      const results = makeResults();
+      setRecipientResults(results);
       setBatchStatus('published');
-      completePublish();
+      onPublished(buildBatches(results));
       publishingRef.current = false;
     }, 900);
   };
@@ -201,7 +243,11 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
     window.setTimeout(() => {
       setItems(previous => previous.map(item => item.status === 'uploading' ? { ...item, status: 'published' } : item));
       setBatchStatus('published');
-      completePublish();
+      const nextResults = recipientResults.length > 0
+        ? recipientResults.map(result => result.status === 'failed' && result.retryable ? { ...result, status: 'success' as const, failureReason: undefined, feedback: 'published' as const } : result)
+        : selectedRecipients.map(recipient => ({ ...recipient, status: 'success' as const, feedback: 'published' as const }));
+      setRecipientResults(nextResults);
+      onPublished(buildBatches(nextResults));
       publishingRef.current = false;
     }, 700);
   };
@@ -211,7 +257,28 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
     setItems([]);
     setMessage('');
     setNotice('');
+    setRecipientResults([]);
+    publicationIdRef.current = `publication-${Date.now()}`;
+    setSelectedRecipientIds(initialSelectedIds);
     setBatchStatus('editing');
+  };
+
+  const retryFailedRecipients = () => {
+    if (publishingRef.current) return;
+    const retryableIds = recipientResults.filter(result => result.status === 'failed' && result.retryable).map(result => result.elderId);
+    if (retryableIds.length === 0) return;
+    publishingRef.current = true;
+    setRecipientResults(previous => previous.map(result => retryableIds.includes(result.elderId) ? { ...result, status: 'publishing' } : result));
+    window.setTimeout(() => {
+      let recovered: RecipientResult[] = [];
+      setRecipientResults(previous => {
+        recovered = previous.map(result => retryableIds.includes(result.elderId) ? { ...result, status: 'success', failureReason: undefined, retryable: undefined, feedback: 'published' } : result) as RecipientResult[];
+        return recovered;
+      });
+      const recoveredResults = recipientResults.map(result => retryableIds.includes(result.elderId) ? { ...result, status: 'success' as const, failureReason: undefined, retryable: undefined, feedback: 'published' as const } : result);
+      onPublished(buildBatches(recoveredResults.filter(result => retryableIds.includes(result.elderId))));
+      publishingRef.current = false;
+    }, 700);
   };
 
   if (!isOpen) return null;
@@ -223,11 +290,23 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
         <header className="flex items-center justify-between border-b border-slate-100 px-4 pb-3 pt-2"><div><span className="text-[10px] font-bold text-blue-600">家庭影像</span><h3 id="photo-share-title" className="mt-0.5 text-base font-black text-slate-900">{title}</h3></div><button type="button" onClick={onClose} aria-label="关闭" className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></header>
 
         {batchStatus === 'published' ? (
-          <div className="flex-1 overflow-y-auto p-5 text-center"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><Check size={27} /></span><h4 className="mt-4 text-lg font-black text-slate-900">{describeItems(items)}已发布</h4><p className="mt-2 text-xs leading-relaxed text-slate-500">{elderName}可在中控屏回看照片或视频。查看和喜欢反馈会显示在首页亲情互动中。</p><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={reset} className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white"><ImagePlus size={15} />继续发影像</button><button type="button" onClick={onContactElder} className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-50 py-3 text-xs font-bold text-orange-700"><Phone size={15} />联系老人</button></div></div>
+          <div className="flex-1 overflow-y-auto p-5">
+            <span className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${recipientResults.some(result => result.status === 'failed') ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}><Check size={27} /></span>
+            <h4 className="mt-4 text-center text-lg font-black text-slate-900">{recipientResults.every(result => result.status === 'success') ? `已发送给${recipientResults.length}位老人` : recipientResults.some(result => result.status === 'success') ? '部分老人发送成功' : '本次发送失败'}</h4>
+            <p className="mt-2 text-center text-xs text-slate-500">{describeItems(items)} · {category}</p>
+            <div className="mt-4 space-y-2">
+              {recipientResults.map(result => <div key={result.elderId} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-left"><div><strong className="text-xs text-slate-800">{result.elderName}</strong><p className={`mt-0.5 text-[9px] ${result.status === 'failed' ? 'text-rose-600' : 'text-slate-400'}`}>{result.status === 'success' ? result.feedback === 'liked' ? '已送达 · 已喜欢' : result.feedback === 'viewed' ? '已送达 · 已查看' : '已送达 · 暂无反馈' : result.status === 'publishing' ? '正在重试…' : result.failureReason}</p></div><span className={`rounded-full px-2 py-1 text-[9px] font-bold ${result.status === 'success' ? 'bg-emerald-100 text-emerald-700' : result.status === 'publishing' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}`}>{result.status === 'success' ? '成功' : result.status === 'publishing' ? '处理中' : result.retryable ? '可重试' : '不可重试'}</span></div>)}
+            </div>
+            {recipientResults.some(result => result.status === 'failed' && result.retryable) && <button type="button" onClick={retryFailedRecipients} className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-3 text-xs font-bold text-white"><RefreshCw size={15} />重试失败老人</button>}
+            <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={reset} className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white"><ImagePlus size={15} />继续发影像</button><button type="button" disabled={!recipientResults.some(result => result.status === 'success')} onClick={() => { const recipient = recipientResults.find(result => result.status === 'success'); if (recipient) onContactElder(recipient); }} className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-50 py-3 text-xs font-bold text-orange-700 disabled:opacity-40"><Phone size={15} />联系老人</button></div>
+          </div>
         ) : (
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            {elderNames.length > 1 && <label className="block"><span className="text-xs font-bold text-slate-700">接收老人</span><select value={elderName} onChange={event => setElderName(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm">{elderNames.map(name => <option key={name}>{name}</option>)}</select></label>}
-            {elderNames.length === 1 && <div className="rounded-xl bg-blue-50 px-3 py-2.5 text-xs text-blue-800">接收人：<strong>{elderName}</strong></div>}
+            <section aria-label="发送给">
+              <div className="flex items-center justify-between"><strong className="text-xs text-slate-700">发送给</strong><span className="text-[9px] text-slate-400">已选{selectedRecipients.length}位</span></div>
+              <div className="mt-2 space-y-2">{recipients.map(recipient => { const disabled = recipient.relationshipStatus !== 'active'; const checked = selectedRecipientIds.includes(recipient.elderId); return <button key={recipient.elderId} type="button" disabled={disabled} onClick={() => setSelectedRecipientIds(previous => checked ? previous.filter(id => id !== recipient.elderId) : [...previous, recipient.elderId])} aria-pressed={checked} className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left ${disabled ? 'border-slate-100 bg-slate-50 opacity-60' : checked ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}><span><strong className="block text-xs text-slate-800">{recipient.elderName}</strong><span className={`mt-0.5 block text-[9px] ${disabled ? 'text-rose-500' : 'text-slate-400'}`}>{disabled ? recipient.unavailableReason || '家庭关系已失效' : recipient.elderId === currentElderId ? '当前老人 · 已有效绑定' : '已有效绑定'}</span></span><span className={`flex h-5 w-5 items-center justify-center rounded-full border ${checked ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-transparent'}`}><Check size={12} /></span></button>; })}</div>
+              {selectedRecipients.length === 0 && <p className="mt-2 text-[10px] font-bold text-rose-600">至少选择一位有效老人后才能发布。</p>}
+            </section>
 
             <div>
               <div className="flex items-center justify-between"><strong className="text-xs text-slate-800">添加照片或视频</strong><span className="text-[10px] text-slate-400">合计最多9项</span></div>
@@ -250,7 +329,7 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ elderNames
               {items.length >= MAX_MEDIA_COUNT && <p className="mt-2 text-[10px] font-bold text-amber-700">已达到9项上限，如需添加请先删除一项。</p>}
             </div>
 
-            <label className="block"><span className="text-xs font-bold text-slate-700">影像分类</span><select value={category} onChange={event => setCategory(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm">{categories.map(item => <option key={item}>{item}</option>)}</select><span className="mt-1 block text-[9px] text-slate-400">分类由系统预设，暂不支持自建。</span></label>
+            <label className="block"><span className="text-xs font-bold text-slate-700">影像分类</span><select value={category} onChange={event => setCategory(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm">{childAlbumCategoryOptions.map(item => <option key={item}>{item}</option>)}</select><span className="mt-1 block text-[9px] text-slate-400">本期使用子女端预设分类，暂不支持自建。</span></label>
             <label className="block"><span className="flex items-center justify-between text-xs font-bold text-slate-700"><span>给老人的话（选填）</span><span className="text-[9px] font-normal text-slate-400">{message.length}/100</span></span><textarea value={message} onChange={event => setMessage(event.target.value)} rows={2} maxLength={100} placeholder="例如：周末我们去公园拍的照片和视频" className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none" /><span className="mt-1 block text-[9px] text-slate-400">附言跟随本次影像发布，不进入家庭留言。</span></label>
 
             {batchStatus === 'partial_failed' && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><div className="flex items-center gap-2 text-xs font-bold text-amber-900"><AlertCircle size={15} />部分影像发布失败</div><p className="mt-1 text-[10px] text-amber-700">已发布{publishedCount}项，失败{failedCount}项。重试只处理失败内容。</p></div>}

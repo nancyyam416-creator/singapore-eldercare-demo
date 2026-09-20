@@ -15,6 +15,12 @@
   align-items: flex-start;
 }
 
+.interaction-acceptance-console.is-reviewing-right-content {
+  right: auto;
+  left: 18px;
+  align-items: flex-start;
+}
+
 .interaction-acceptance-trigger {
   width: 52px;
   height: 52px;
@@ -62,6 +68,11 @@
 }
 
 .interaction-acceptance-console.opens-to-right .interaction-acceptance-panel {
+  right: auto;
+  left: 0;
+}
+
+.interaction-acceptance-console.is-reviewing-right-content .interaction-acceptance-panel {
   right: auto;
   left: 0;
 }
@@ -457,6 +468,7 @@
   background: rgba(31, 111, 66, 0.68);
 }
 
+.interaction-acceptance-wide.is-danger,
 .interaction-acceptance-grid button.is-danger {
   color: #ffb0b4;
   border-color: rgba(255, 78, 86, 0.42);

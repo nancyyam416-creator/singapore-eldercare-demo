@@ -83,21 +83,21 @@ export const initialWeatherLocations = [
 ];
 
 export const initialWeatherQueries = [
-  { id: "WQ-001", locationId: "LOC-E-000128", status: "查询成功", fetchedAt: "2026-07-27 09:30", lastSuccessAt: "2026-07-27 09:30", cacheUpdatedAt: "2026-07-27 09:30", failureType: "", message: "Mock 天气结果可用" },
+  { id: "WQ-001", locationId: "LOC-E-000128", status: "查询成功", fetchedAt: "2026-07-27 09:30", lastSuccessAt: "2026-07-27 09:30", cacheUpdatedAt: "2026-07-27 09:30", failureType: "", message: "天气数据可用" },
   { id: "WQ-002", locationId: "LOC-E-000126", status: "查询失败", fetchedAt: "2026-07-27 09:28", lastSuccessAt: "2026-07-27 08:58", cacheUpdatedAt: "2026-07-27 08:58", failureType: "天气查询失败", message: "请求失败，后台保留最近一次成功缓存" },
   { id: "WQ-003", locationId: "LOC-E-000124", status: "使用缓存", fetchedAt: "2026-07-27 09:25", lastSuccessAt: "2026-07-27 08:55", cacheUpdatedAt: "2026-07-27 08:55", failureType: "刷新失败", message: "更新失败，当前展示最近成功缓存" },
-  { id: "WQ-004", locationId: "LOC-R-00031", status: "查询成功", fetchedAt: "2026-07-27 09:31", lastSuccessAt: "2026-07-27 09:31", cacheUpdatedAt: "2026-07-27 09:31", failureType: "", message: "Mock 天气结果可用" },
+  { id: "WQ-004", locationId: "LOC-R-00031", status: "查询成功", fetchedAt: "2026-07-27 09:31", lastSuccessAt: "2026-07-27 09:31", cacheUpdatedAt: "2026-07-27 09:31", failureType: "", message: "天气数据可用" },
   { id: "WQ-005", locationId: "LOC-R-00029", status: "使用缓存", fetchedAt: "2026-07-27 09:24", lastSuccessAt: "2026-07-27 08:54", cacheUpdatedAt: "2026-07-27 08:54", failureType: "天气查询失败", message: "查询失败，使用伦敦最近成功缓存" },
-  { id: "WQ-006", locationId: "LOC-R-00028", status: "查询成功", fetchedAt: "2026-07-27 09:22", lastSuccessAt: "2026-07-27 09:22", cacheUpdatedAt: "2026-07-27 09:22", failureType: "", message: "Mock 天气结果可用" },
+  { id: "WQ-006", locationId: "LOC-R-00028", status: "查询成功", fetchedAt: "2026-07-27 09:22", lastSuccessAt: "2026-07-27 09:22", cacheUpdatedAt: "2026-07-27 09:22", failureType: "", message: "天气数据可用" },
   { id: "WQ-007", locationId: "LOC-R-00025", status: "查询失败", fetchedAt: "2026-07-27 09:18", lastSuccessAt: "", cacheUpdatedAt: "", failureType: "地区暂不支持", message: "无可用缓存，不展示默认天气" },
 ];
 
 export const initialWeatherRegionIntegrations = [
-  { id: "WRI-SG", countryCode: "SG", countryName: "新加坡", granularity: "国家 / 地区", coverage: "新加坡全境", interfaceMode: "统一天气服务网关（Mock）", interfaceKey: "REGION-SG", accessStatus: "已接入", queryStatus: "正常", cacheStatus: "缓存可用", linkedLocationCount: 9, lastCheckedAt: "2026-07-27 10:28", lastSuccessAt: "2026-07-27 10:28", message: "Mock 查询与缓存链路正常" },
-  { id: "WRI-MY", countryCode: "MY", countryName: "马来西亚", granularity: "国家 / 地区", coverage: "马来西亚", interfaceMode: "统一天气服务网关（Mock）", interfaceKey: "REGION-MY", accessStatus: "已接入", queryStatus: "正常", cacheStatus: "缓存可用", linkedLocationCount: 2, lastCheckedAt: "2026-07-27 10:24", lastSuccessAt: "2026-07-27 10:24", message: "Mock 查询与缓存链路正常" },
-  { id: "WRI-AU", countryCode: "AU", countryName: "澳大利亚", granularity: "国家 / 地区", coverage: "澳大利亚", interfaceMode: "统一天气服务网关（Mock）", interfaceKey: "REGION-AU", accessStatus: "已接入", queryStatus: "使用缓存", cacheStatus: "缓存可用", linkedLocationCount: 1, lastCheckedAt: "2026-07-27 10:18", lastSuccessAt: "2026-07-27 09:52", message: "本次刷新失败，当前使用最近成功缓存" },
-  { id: "WRI-GB", countryCode: "GB", countryName: "英国", granularity: "国家 / 地区", coverage: "英国", interfaceMode: "统一天气服务网关（Mock）", interfaceKey: "REGION-GB", accessStatus: "已接入", queryStatus: "正常", cacheStatus: "缓存可用", linkedLocationCount: 1, lastCheckedAt: "2026-07-27 10:20", lastSuccessAt: "2026-07-27 10:20", message: "Mock 查询与缓存链路正常" },
-  { id: "WRI-JP", countryCode: "JP", countryName: "日本", granularity: "国家 / 地区", coverage: "日本", interfaceMode: "统一天气服务网关（Mock）", interfaceKey: "REGION-JP", accessStatus: "待接入", queryStatus: "不可查询", cacheStatus: "无可用缓存", linkedLocationCount: 1, lastCheckedAt: "2026-07-27 10:16", lastSuccessAt: "—", message: "当前区域尚未完成天气接口接入" },
+  { id: "WRI-SG", countryCode: "SG", countryName: "新加坡", granularity: "国家 / 地区", coverage: "新加坡全境", interfaceMode: "统一天气服务网关", interfaceKey: "REGION-SG", accessStatus: "已接入", queryStatus: "正常", cacheStatus: "缓存可用", linkedLocationCount: 9, lastCheckedAt: "2026-07-27 10:28", lastSuccessAt: "2026-07-27 10:28", message: "查询与缓存链路正常" },
+  { id: "WRI-MY", countryCode: "MY", countryName: "马来西亚", granularity: "国家 / 地区", coverage: "马来西亚", interfaceMode: "统一天气服务网关", interfaceKey: "REGION-MY", accessStatus: "已接入", queryStatus: "正常", cacheStatus: "缓存可用", linkedLocationCount: 2, lastCheckedAt: "2026-07-27 10:24", lastSuccessAt: "2026-07-27 10:24", message: "查询与缓存链路正常" },
+  { id: "WRI-AU", countryCode: "AU", countryName: "澳大利亚", granularity: "国家 / 地区", coverage: "澳大利亚", interfaceMode: "统一天气服务网关", interfaceKey: "REGION-AU", accessStatus: "已接入", queryStatus: "使用缓存", cacheStatus: "缓存可用", linkedLocationCount: 1, lastCheckedAt: "2026-07-27 10:18", lastSuccessAt: "2026-07-27 09:52", message: "本次刷新失败，当前使用最近成功缓存" },
+  { id: "WRI-GB", countryCode: "GB", countryName: "英国", granularity: "国家 / 地区", coverage: "英国", interfaceMode: "统一天气服务网关", interfaceKey: "REGION-GB", accessStatus: "已接入", queryStatus: "正常", cacheStatus: "缓存可用", linkedLocationCount: 1, lastCheckedAt: "2026-07-27 10:20", lastSuccessAt: "2026-07-27 10:20", message: "查询与缓存链路正常" },
+  { id: "WRI-JP", countryCode: "JP", countryName: "日本", granularity: "国家 / 地区", coverage: "日本", interfaceMode: "统一天气服务网关", interfaceKey: "REGION-JP", accessStatus: "待接入", queryStatus: "不可查询", cacheStatus: "无可用缓存", linkedLocationCount: 1, lastCheckedAt: "2026-07-27 10:16", lastSuccessAt: "—", message: "当前区域尚未完成天气接口接入" },
 ];
 
 export const initialWeatherLocationAudits = [

@@ -78,7 +78,17 @@ export type FamilyPhotoScenario =
   | 'publish_failed'
   | 'camera_denied'
   | 'capture_cancelled'
-  | 'video_preview_failed';
+  | 'video_preview_failed'
+  | 'single_elder'
+  | 'multi_select'
+  | 'current_plus_other'
+  | 'no_recipient'
+  | 'recipient_invalid'
+  | 'recipients_all_success'
+  | 'recipients_partial_success'
+  | 'recipients_all_failed'
+  | 'independent_feedback'
+  | 'retry_failed_recipient';
 
 export type FamilyMessageScenario =
   | 'normal'
@@ -87,6 +97,15 @@ export type FamilyMessageScenario =
   | 'voice_error'
   | 'relationship_invalid'
   | 'multi_elder';
+
+export type FamilyCallScenario =
+  | 'outgoing_voice'
+  | 'outgoing_video'
+  | 'incoming_voice'
+  | 'incoming_video'
+  | 'connected_voice'
+  | 'connected_video'
+  | 'unanswered';
 
 export type CareFeedScenario =
   | 'normal'
@@ -248,9 +267,11 @@ export interface FamilyMessage {
   text?: string;
   sentAtUtc: string;
   status: 'sending' | 'delivered' | 'viewed' | 'listened' | 'failed';
-  type: 'text' | 'voice';
+  type: 'text' | 'voice' | 'call';
   durationSeconds?: number;
   failureReason?: string;
+  callMode?: 'voice' | 'video';
+  callResult?: 'completed' | 'cancelled' | 'rejected' | 'unanswered';
 }
 
 export interface FamilyConversation {
@@ -274,8 +295,12 @@ export interface FamilyNotification {
 
 export interface PublishedPhotoBatch {
   id: string;
+  publicationId: string;
+  uploaderId: string;
+  recipientElderId: string;
+  conversationId: string;
   elderName: string;
-  category: string;
+  categoryNameSnapshot: string;
   message?: string;
   publishedAt: string;
   items: Array<{
@@ -286,5 +311,18 @@ export interface PublishedPhotoBatch {
     videoUrl?: string;
     durationSeconds?: number;
   }>;
+  publishStatus: 'published' | 'failed';
+  syncStatus: 'pending' | 'delivered' | 'failed';
+  failureReason?: string;
+  retryable?: boolean;
+  withdrawStatus: 'active' | 'withdrawn';
   feedback: 'published' | 'viewed' | 'liked';
+}
+
+export interface PhotoRecipientOption {
+  elderId: string;
+  elderName: string;
+  conversationId: string;
+  relationshipStatus: 'active' | 'invalid';
+  unavailableReason?: string;
 }

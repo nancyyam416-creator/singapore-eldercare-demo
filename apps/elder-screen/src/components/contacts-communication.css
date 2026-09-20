@@ -143,6 +143,24 @@
 .communication-main__weather em { color: var(--color-text-soft); font-size: 13px; font-style: normal; font-weight: 720; }
 .communication-main__weather.is-missing,
 .communication-main__weather.is-unavailable { border-color: var(--color-line); color: var(--color-text-muted); background: var(--color-panel-raised); }
+.communication-main__service-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  color: var(--color-text-soft);
+}
+.communication-main__service-meta b {
+  padding: 5px 10px;
+  border-radius: var(--radius-round);
+  color: var(--color-green);
+  background: color-mix(in oklch, var(--color-green-dark), transparent 28%);
+  font-size: 14px;
+  font-weight: 900;
+}
+.communication-main__service-meta em { font-size: 15px; font-style: normal; font-weight: 760; }
+.communication-main__service-meta small { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 760; }
+.communication-main__service-meta small svg { width: 17px; height: 17px; color: var(--color-green); }
 .communication-call-actions { display: flex; align-items: center; gap: 14px; }
 .communication-call-actions button { min-height: 80px; display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 20px; color: var(--color-text); font-size: 21px; font-weight: 900; cursor: pointer; }
 .communication-call-actions button svg { width: 28px; height: 28px; }
@@ -157,11 +175,17 @@
 .communication-message__avatar { width: 56px; height: 56px; flex: 0 0 auto; border: 2px solid var(--color-line); border-radius: 50%; object-fit: cover; }
 .communication-message__body { min-width: 0; flex: 1; padding: 17px; border: 2px solid var(--color-line); border-radius: 22px; background: var(--color-panel); }
 .communication-message[data-unread="true"] .communication-message__body { border-color: color-mix(in oklch, var(--color-red), transparent 42%); }
+.communication-message.is-highlighted-family-media .communication-message__body {
+  border-color: var(--color-green);
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-green), transparent 72%), 0 0 28px color-mix(in oklch, var(--color-green), transparent 58%);
+  animation: communication-family-media-highlight 900ms var(--ease-out) 2;
+}
 .communication-message.is-mine .communication-message__body { max-width: 690px; border-color: color-mix(in oklch, var(--color-green), transparent 62%); background: color-mix(in oklch, var(--color-green-dark), transparent 48%); }
 .communication-message__meta { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
 .communication-message__meta strong { font-size: 18px; }
 .communication-message__meta span { color: var(--color-text-muted); font-size: 15px; font-weight: 700; }
 .communication-message__meta i { margin-left: auto; padding: 5px 10px; border-radius: var(--radius-round); color: var(--color-text); background: var(--color-red-deep); font-size: 14px; font-style: normal; font-weight: 900; }
+.communication-message__meta i.is-sent { color: var(--color-green); background: color-mix(in oklch, var(--color-green-dark), transparent 35%); }
 .communication-call-history__content { display: grid; grid-template-columns: 58px minmax(0, 1fr) 180px; align-items: center; gap: 16px; }
 .communication-call-history__content > span { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 17px; color: #ffb0ac; background: color-mix(in oklch, var(--color-red-deep), transparent 24%); }
 .communication-call-history__content > span svg { width: 31px; height: 31px; }
@@ -175,12 +199,53 @@
 .communication-photo-message > span { align-self: end; display: flex; align-items: center; gap: 9px; color: var(--color-green); font-size: 17px; font-weight: 850; }
 .communication-photo-message > span svg { width: 23px; height: 23px; }
 .communication-photo-message p { align-self: start; margin: 0; padding-right: 16px; font-size: 21px; font-weight: 750; line-height: 1.4; }
+
+@keyframes communication-family-media-highlight {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
 .communication-voice-message { display: grid; gap: 16px; }
 .communication-voice-message p { margin: 0; font-size: 23px; font-weight: 750; line-height: 1.55; }
 .communication-voice-message button { min-width: 250px; min-height: 68px; display: flex; align-items: center; justify-content: center; gap: 12px; justify-self: start; border: 2px solid color-mix(in oklch, var(--color-green), transparent 48%); border-radius: 18px; color: var(--color-text); background: var(--color-green-dark); font-size: 20px; font-weight: 900; cursor: pointer; }
 .communication-voice-message button:disabled { opacity: .78; }
 .communication-voice-message button > svg { width: 28px; height: 28px; }
 .communication-message-wave { width: 44px; height: 34px; }
+.communication-text-message {
+  padding: 15px 18px;
+  border-radius: 16px;
+  background: var(--color-canvas-deep);
+}
+.communication-text-message p { margin: 0; font-size: 22px; font-weight: 730; line-height: 1.55; }
+.communication-text-message { display: grid; gap: 14px; }
+.communication-text-message button { min-width: 176px; min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 9px; justify-self: start; border: 2px solid color-mix(in oklch, var(--color-green), transparent 48%); border-radius: 15px; color: var(--color-text); background: var(--color-green-dark); font-size: 18px; font-weight: 900; cursor: pointer; }
+.communication-text-message button:disabled { opacity: .72; }
+.communication-text-message button svg { width: 24px; height: 24px; }
+.communication-call-log { min-height: 62px; display: flex; align-items: center; gap: 14px; padding: 14px 17px; border: 2px solid color-mix(in oklch, var(--color-green), transparent 58%); border-radius: 17px; background: var(--color-canvas-deep); }
+.communication-call-log svg { width: 28px; height: 28px; color: var(--color-green); }
+.communication-call-log strong { font-size: 20px; }
+.communication-message-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in oklch, var(--color-red), transparent 42%);
+  border-radius: 14px;
+  color: #ffaaa6;
+  background: color-mix(in oklch, var(--color-red-deep), transparent 56%);
+  font-size: 16px;
+  font-weight: 820;
+}
+.communication-message-error > svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.communication-message-error.is-delivery-failed { justify-self: start; color: #ffb6b2; }
+.communication-message-error button {
+  min-width: 88px;
+  min-height: 42px;
+  margin-left: auto;
+  border: 1px solid color-mix(in oklch, var(--color-text), transparent 70%);
+  border-radius: 12px;
+  background: var(--color-panel-raised);
+  font-size: 16px;
+}
 .communication-empty { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--color-text-soft); text-align: center; }
 .communication-empty svg { width: 68px; height: 68px; color: var(--color-green); }
 .communication-empty strong { font-size: 27px; }
@@ -203,9 +268,50 @@
 .communication-recorder__active button svg { width: 27px; height: 27px; }
 .communication-recorder__active button:first-of-type { border: 0; background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); }
 .communication-recorder__active button:last-child { border: 2px solid var(--color-line); background: var(--color-panel-raised); }
+.communication-recorder__review {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 210px 180px 130px;
+  align-items: center;
+  gap: 14px;
+}
+.communication-recorder__review > span { display: flex; align-items: center; gap: 13px; color: var(--color-green); }
+.communication-recorder__review > span svg { width: 36px; height: 36px; }
+.communication-recorder__review > span strong { color: var(--color-text); font-size: 22px; }
+.communication-recorder__review button,
+.communication-recorder__failed button {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 2px solid var(--color-line);
+  border-radius: 17px;
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.communication-recorder__review button:first-of-type { border-color: color-mix(in oklch, var(--color-green), transparent 42%); background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); }
+.communication-recorder__review button svg,
+.communication-recorder__failed button svg { width: 24px; height: 24px; }
 .communication-recorder__sent { display: flex; align-items: center; justify-content: center; gap: 16px; color: var(--color-green); }
 .communication-recorder__sent svg { width: 50px; height: 50px; }
 .communication-recorder__sent strong { font-size: 25px; }
+.communication-recorder__sent.is-sending { color: var(--color-text-soft); }
+.communication-recorder__sent.is-sending svg { animation: communication-send-pulse 800ms var(--ease-in-out) infinite alternate; }
+.communication-recorder__failed {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 170px 120px;
+  align-items: center;
+  gap: 16px;
+  color: #ffaaa6;
+}
+.communication-recorder__failed > svg { width: 42px; height: 42px; }
+.communication-recorder__failed > span { display: grid; gap: 4px; }
+.communication-recorder__failed > span strong { color: var(--color-text); font-size: 22px; }
+.communication-recorder__failed > span small { color: var(--color-text-soft); font-size: 15px; font-weight: 750; }
+.communication-recorder__failed button:first-of-type { border-color: color-mix(in oklch, var(--color-green), transparent 44%); background: var(--color-green-dark); }
 
 .communication-photo-viewer { position: fixed; inset: 0; z-index: 85; overflow: hidden; background: var(--color-canvas-deep); }
 .communication-photo-viewer > img { width: 100%; height: 100%; object-fit: contain; }
@@ -233,10 +339,26 @@
 .communication-call-fallback p { margin: 14px 0 28px; color: var(--color-text-soft); font-size: 22px; font-weight: 750; }
 .communication-call-fallback button { width: 100%; height: 74px; border-radius: 18px; color: var(--color-text); font-size: 21px; font-weight: 900; cursor: pointer; }
 .communication-call-fallback button:first-of-type { display: flex; align-items: center; justify-content: center; gap: 12px; border: 0; background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); }
-.communication-call-fallback button:last-child { margin-top: 12px; border: 2px solid var(--color-line); background: var(--color-panel-raised); }
+.communication-incoming-call,
+.communication-connected-call { position: relative; z-index: 3; display: grid; justify-items: center; margin-top: 28px; }
+.communication-incoming-call h2,
+.communication-connected-call h2 { margin: 0; font-size: 38px; }
+.communication-incoming-call p,
+.communication-connected-call p { margin: 12px 0 28px; color: var(--color-text-soft); font-size: 21px; font-weight: 780; }
+.communication-incoming-call > div { display: flex; gap: 34px; }
+.communication-incoming-call button { min-width: 180px; height: 78px; display: flex; align-items: center; justify-content: center; gap: 11px; border: 0; border-radius: var(--radius-round); color: var(--color-text); font-size: 21px; font-weight: 900; cursor: pointer; }
+.communication-incoming-call button svg { width: 29px; height: 29px; }
+.communication-incoming-call .is-reject { background: var(--color-red); }
+.communication-incoming-call .is-accept { background: linear-gradient(150deg, var(--color-green), var(--color-green-deep)); }
+.communication-call-controls { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.communication-call-controls button { width: 132px; height: 104px; display: grid; place-items: center; gap: 5px; border: 2px solid var(--color-line); border-radius: 24px; color: var(--color-text); background: var(--color-panel-raised); font-size: 17px; font-weight: 860; cursor: pointer; }
+.communication-call-controls button svg { width: 31px; height: 31px; }
+.communication-call-controls button.is-active { border-color: var(--color-green); background: var(--color-green-dark); }
+.communication-call-controls button.is-hangup { border-color: transparent; background: var(--color-red); }
 
 @keyframes communication-wave { from { transform: scaleY(.55); opacity: .62; } to { transform: scaleY(1); opacity: 1; } }
 @keyframes communication-call-pulse { 0%, 100% { transform: scale(.88); opacity: .25; } 50% { transform: scale(1.1); opacity: .72; } }
+@keyframes communication-send-pulse { from { opacity: .42; transform: translateX(-4px); } to { opacity: 1; transform: translateX(4px); } }
 
 @media (prefers-reduced-motion: reduce) {
   .contacts-communication *, .contacts-communication *::before, .contacts-communication *::after { animation-duration: var(--dur-fast) !important; animation-iteration-count: 1 !important; transition-duration: var(--dur-fast) !important; scroll-behavior: auto !important; }

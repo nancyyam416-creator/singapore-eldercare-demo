@@ -14,6 +14,7 @@ import {
   HomeActivityScenario,
   FamilyReceiptScenario,
   FamilyMessageScenario,
+  FamilyCallScenario,
   FamilyPhotoScenario,
   FamilyReceiptFilter,
   CareFeedScenario,
@@ -26,12 +27,12 @@ import {
   ChildLoginScenario,
   StoreCategoryScenario
 } from './types';
-import { 
-  initialParentProfile, 
-  initialMedications, 
-  initialHealthStats, 
-  initialActivities, 
-  initialOrders 
+import {
+  initialParentProfile,
+  initialMedications,
+  initialHealthStats,
+  initialActivities,
+  initialOrders
 } from './data/mockData';
 import { IoTControlSandbox } from './components/IoTControlSandbox';
 import { H5AppFrame } from './components/H5AppFrame';
@@ -49,6 +50,7 @@ export default function App() {
   const [homeActivityScenario, setHomeActivityScenario] = useState<HomeActivityScenario>('normal');
   const [familyReceiptScenario, setFamilyReceiptScenario] = useState<FamilyReceiptScenario>('multiple');
   const [familyMessageScenario, setFamilyMessageScenario] = useState<FamilyMessageScenario>('normal');
+  const [familyCallScenario, setFamilyCallScenario] = useState<FamilyCallScenario>('outgoing_voice');
   const [familyPhotoScenario, setFamilyPhotoScenario] = useState<FamilyPhotoScenario>('list_default');
   const [careFeedScenario, setCareFeedScenario] = useState<CareFeedScenario>('normal');
   const [elderStatusCardScenario, setElderStatusCardScenario] = useState<ElderStatusCardScenario>('normal');
@@ -66,6 +68,7 @@ export default function App() {
   const [previewCloseScoreDetailsSignal, setPreviewCloseScoreDetailsSignal] = useState(0);
   const [previewOpenFamilyReceiptsSignal, setPreviewOpenFamilyReceiptsSignal] = useState(0);
   const [previewOpenFamilyMessagesSignal, setPreviewOpenFamilyMessagesSignal] = useState(0);
+  const [previewOpenFamilyCallSignal, setPreviewOpenFamilyCallSignal] = useState(0);
   const [previewOpenFamilyPhotosSignal, setPreviewOpenFamilyPhotosSignal] = useState(0);
   const [previewOpenFamilyNotificationsSignal, setPreviewOpenFamilyNotificationsSignal] = useState(0);
   const [previewOpenHomeSignal, setPreviewOpenHomeSignal] = useState(0);
@@ -78,26 +81,26 @@ export default function App() {
   const [previewOpenRemindersSignal, setPreviewOpenRemindersSignal] = useState(0);
   const [previewOpenLoginSignal, setPreviewOpenLoginSignal] = useState(0);
   const [previewOpenStoreSignal, setPreviewOpenStoreSignal] = useState(0);
-  const [activePreviewPage, setActivePreviewPage] = useState<'login' | 'home' | 'family' | 'care' | 'profile'>('login');
+  const [activePreviewPage, setActivePreviewPage] = useState<'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile'>('login');
   const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos' | 'family_notifications'>('family_photos');
-  
+
   // Real-time Emergency state triggered by the IoT sandbox
   const [emergencyAlert, setEmergencyAlert] = useState<string | null>(null);
 
   const handleTriggerEmergency = (msg: string) => {
     setEmergencyAlert(msg);
-    setHealthStats(prev => ({ 
-      ...prev, 
-      heartRate: 118, 
+    setHealthStats(prev => ({
+      ...prev,
+      heartRate: 118,
       heartRateStatus: 'abnormal'
     }));
   };
 
   const handleClearEmergency = () => {
     setEmergencyAlert(null);
-    setHealthStats(prev => ({ 
-      ...prev, 
-      heartRate: 72, 
+    setHealthStats(prev => ({
+      ...prev,
+      heartRate: 72,
       heartRateStatus: 'normal'
     }));
     // Log the reset
@@ -116,6 +119,7 @@ export default function App() {
     setHomeActivityScenario('normal');
     setFamilyReceiptScenario('multiple');
     setFamilyMessageScenario('normal');
+    setFamilyCallScenario('outgoing_voice');
     setFamilyPhotoScenario('list_default');
     setCareFeedScenario('normal');
     setElderStatusCardScenario('normal');
@@ -135,16 +139,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F4F7F9] text-slate-800 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-      
+
       {/* Main Container Layout */}
       <main className="flex-1 w-full mx-auto p-0 sm:p-4 lg:p-5 flex flex-col justify-center min-h-0">
-        
+
         {/* Formal mobile preview stays focused; simulator is an optional demo tool. */}
         <div className={`flex flex-col lg:flex-row gap-8 items-start justify-center ${showSimulator ? 'max-w-[1440px]' : 'max-w-[830px]'} w-full mx-auto`}>
-          
+
           {/* MOBILE APP */}
           <div className="flex w-full max-w-[450px] flex-col items-center">
-            <H5AppFrame 
+            <H5AppFrame
               parentProfile={parentProfile}
               healthStats={healthStats}
               setHealthStats={setHealthStats}
@@ -160,6 +164,7 @@ export default function App() {
               homeActivityScenario={homeActivityScenario}
               familyReceiptScenario={familyReceiptScenario}
               familyMessageScenario={familyMessageScenario}
+              familyCallScenario={familyCallScenario}
               familyPhotoScenario={familyPhotoScenario}
               careFeedScenario={careFeedScenario}
               elderStatusCardScenario={elderStatusCardScenario}
@@ -175,6 +180,7 @@ export default function App() {
               previewCloseScoreDetailsSignal={previewCloseScoreDetailsSignal}
               previewOpenFamilyReceiptsSignal={previewOpenFamilyReceiptsSignal}
               previewOpenFamilyMessagesSignal={previewOpenFamilyMessagesSignal}
+              previewOpenFamilyCallSignal={previewOpenFamilyCallSignal}
               previewOpenFamilyPhotosSignal={previewOpenFamilyPhotosSignal}
               previewOpenFamilyNotificationsSignal={previewOpenFamilyNotificationsSignal}
               previewOpenHomeSignal={previewOpenHomeSignal}
@@ -205,6 +211,7 @@ export default function App() {
             homeActivityScenario={homeActivityScenario}
             familyReceiptScenario={familyReceiptScenario}
             familyMessageScenario={familyMessageScenario}
+            familyCallScenario={familyCallScenario}
             familyPhotoScenario={familyPhotoScenario}
             careFeedScenario={careFeedScenario}
             elderStatusCardScenario={elderStatusCardScenario}
@@ -221,8 +228,10 @@ export default function App() {
             onHomeActivityScenarioChange={setHomeActivityScenario}
             onFamilyReceiptScenarioChange={setFamilyReceiptScenario}
             onFamilyMessageScenarioChange={setFamilyMessageScenario}
+            onFamilyCallScenarioChange={setFamilyCallScenario}
             onFamilyPhotoScenarioChange={setFamilyPhotoScenario}
             onOpenFamilyMessages={() => setPreviewOpenFamilyMessagesSignal(value => value + 1)}
+            onOpenFamilyCall={() => setPreviewOpenFamilyCallSignal(value => value + 1)}
             onOpenFamilyPhotos={() => setPreviewOpenFamilyPhotosSignal(value => value + 1)}
             onOpenFamilyNotifications={() => setPreviewOpenFamilyNotificationsSignal(value => value + 1)}
             onOpenHome={() => setPreviewOpenHomeSignal(value => value + 1)}
@@ -272,8 +281,8 @@ export default function App() {
               </span>
               <span className="text-3xs text-slate-400 font-medium">不属于正式子女端页面</span>
             </div>
-            
-            <IoTControlSandbox 
+
+            <IoTControlSandbox
               healthStats={healthStats}
               setHealthStats={setHealthStats}
               medications={medications}

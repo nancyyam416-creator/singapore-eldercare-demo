@@ -20,6 +20,7 @@ import {
 } from "./weatherMock";
 import { AcceptanceWorkbench } from "./AcceptanceWorkbench";
 import { CommunityStaffDrawer, CommunityStaffPage, initialCommunityStaff } from "./CommunityStaff";
+import { ServiceCommunicationPage } from "./ServiceCommunication";
 import {
   Activity,
   AlertTriangle,
@@ -65,16 +66,24 @@ const communityMenuGroups = [
       { key: "relations", label: "亲属档案", icon: HeartHandshake },
       { key: "reminders", label: "提醒事项", icon: Bell },
       { key: "emergencyHelp", label: "紧急求助", icon: AlertTriangle },
+      { key: "serviceCommunication", label: "服务沟通", icon: MessageSquareText },
     ],
   },
   {
     label: "运营内容",
     items: [
       { key: "recommendations", label: "推荐策略", icon: Sparkles },
-      { key: "safety", label: "社区内容", icon: MessageSquareText },
+      { key: "services", label: "预约服务", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "社区生活",
+    items: [
+      { key: "communityAnnouncements", label: "社区公告", icon: MessageSquareText },
+      { key: "lifeInformation", label: "生活资讯", icon: BookOpen },
+      { key: "alertItems", label: "警惕事项", icon: AlertTriangle },
       { key: "activities", label: "社区活动", icon: CalendarDays },
       { key: "communityStaff", label: "社区人员", icon: Users },
-      { key: "services", label: "预约服务", icon: ClipboardList },
     ],
   },
   {
@@ -116,6 +125,11 @@ const platformMenuGroups = [
 
 const allMenuGroups = [...communityMenuGroups, ...platformMenuGroups];
 const availableMenuKeys = new Set(allMenuGroups.flatMap((group) => group.items.flatMap((item) => [item.key, ...(item.children || []).map((child) => child.key)])));
+const communityContentTypeByMenu = {
+  communityAnnouncements: "社区公告",
+  lifeInformation: "生活资讯",
+  alertItems: "警惕事项",
+};
 
 const pageMeta = {
   platformOverview: { title: "平台总览", description: "查看全部项目与社区的运行状态和数据范围", add: "" },
@@ -123,9 +137,12 @@ const pageMeta = {
   relations: { title: "亲属档案", description: "查看所有手机号注册用户及其关联的老人", add: "新增联系人" },
   reminders: { title: "提醒事项", description: "维护用药提醒和日常提醒定义，并查看后台详细计划", add: "新建提醒" },
   emergencyHelp: { title: "紧急求助", description: "跟进老人发起的紧急求助、通知送达与事件处理结果", add: "" },
+  serviceCommunication: { title: "服务沟通", description: "查看服务留言、老人查看状态与语音回复", add: "" },
   familyAlbums: { title: "家庭相册", description: "管理照片与视频批次，查看同步、首次查看和喜欢状态", add: "" },
   recommendations: { title: "推荐策略", description: "维护老人端每日推荐内容及自动轮播规则", add: "新增推荐策略" },
-  safety: { title: "社区内容", description: "管理社区资讯内容与社区话题互动", add: "新增内容" },
+  communityAnnouncements: { title: "社区公告", description: "管理当前社区面向老人的公告内容", add: "新增公告" },
+  lifeInformation: { title: "生活资讯", description: "管理当前社区面向老人的生活资讯", add: "新增资讯" },
+  alertItems: { title: "警惕事项", description: "管理当前社区面向老人的警惕事项", add: "新增事项" },
   activities: { title: "社区活动", description: "发布活动并跟踪老人参与意向与触达结果", add: "发布活动" },
   communityStaff: { title: "社区人员", description: "维护面向当前社区老人展示的社区人员与服务联系人", add: "新增人员" },
   services: { title: "预约服务", description: "查看并处理老人通过中控屏提交的上门服务预约", add: "" },
@@ -547,22 +564,14 @@ const initialActivityRegistrations = communityLifeMock.activityParticipationInte
   status: communityParticipationStatusLabels[item.participationStatus],
 }));
 
-const initialAlbumCategories = [
-  { id: "ALB-CAT-001", name: "家庭日常", description: "记录家人生活、聚餐和日常问候影像", sort: 1, status: "启用", updatedAt: "2026-07-26 16:20" },
-  { id: "ALB-CAT-002", name: "节日团聚", description: "生日、节庆和家庭聚会照片或视频", sort: 2, status: "启用", updatedAt: "2026-07-25 11:08" },
-  { id: "ALB-CAT-003", name: "旅行时光", description: "家人旅行、郊游和风景影像记录", sort: 3, status: "启用", updatedAt: "2026-07-24 09:36" },
-  { id: "ALB-CAT-004", name: "成长记录", description: "孩子成长、毕业和重要纪念影像", sort: 4, status: "启用", updatedAt: "2026-07-22 14:12" },
-  { id: "ALB-CAT-005", name: "其他", description: "暂未归入固定主题的家庭影像", sort: 99, status: "停用", updatedAt: "2026-07-20 10:15" },
-];
-
 const initialFamilyAlbumBatches = [
-  { id: "BATCH-20260727-01", uploaderId: "RU-00031", elderlyId: "SG-E-000128", categoryId: "ALB-CAT-001", categoryNameSnapshot: "家庭日常", contentType: "照片和视频", photoCount: 4, videoCount: 2, hasMessage: true, uploadedAt: "2026-07-27 09:18", publishStatus: "已发布", syncStatus: "已同步", successCount: 6, failedCount: 0, lastSyncAt: "2026-07-27 09:19", syncError: "", firstViewedAt: "2026-07-27 09:42", likedMediaCount: 3, lastLikedAt: "2026-07-27 09:46", relationStatus: "有效" },
-  { id: "BATCH-20260726-03", uploaderId: "RU-00030", elderlyId: "SG-E-000127", categoryId: "ALB-CAT-002", categoryNameSnapshot: "节日团聚", contentType: "仅视频", photoCount: 0, videoCount: 3, hasMessage: true, uploadedAt: "2026-07-26 20:36", publishStatus: "已发布", syncStatus: "同步失败", successCount: 0, failedCount: 3, lastSyncAt: "2026-07-26 20:38", syncError: "3 段视频同步失败，等待老人端网络恢复后重试", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
-  { id: "BATCH-20260726-05", uploaderId: "RU-00029", elderlyId: "SG-E-000126", categoryId: "ALB-CAT-003", categoryNameSnapshot: "旅行时光", contentType: "照片和视频", photoCount: 3, videoCount: 2, hasMessage: true, uploadedAt: "2026-07-26 16:10", publishStatus: "已发布", syncStatus: "部分失败", successCount: 4, failedCount: 1, lastSyncAt: "2026-07-26 16:12", syncError: "4 个影像同步成功，1 段视频同步失败", firstViewedAt: "2026-07-26 18:20", likedMediaCount: 1, lastLikedAt: "2026-07-26 18:24", relationStatus: "有效" },
-  { id: "BATCH-20260725-02", uploaderId: "RU-00028", elderlyId: "SG-E-000124", categoryId: "ALB-CAT-004", categoryNameSnapshot: "成长记录", contentType: "仅照片", photoCount: 2, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-25 18:22", publishStatus: "已发布", syncStatus: "同步中", successCount: 1, failedCount: 0, lastSyncAt: "2026-07-25 18:23", syncError: "", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
-  { id: "BATCH-20260724-04", uploaderId: "RU-00027", elderlyId: "SG-E-000123", categoryId: "ALB-CAT-001", categoryNameSnapshot: "家庭日常", contentType: "照片和视频", photoCount: 4, videoCount: 2, hasMessage: false, uploadedAt: "2026-07-24 11:06", publishStatus: "已撤回", syncStatus: "已撤回", successCount: 6, failedCount: 0, lastSyncAt: "2026-07-26 15:20", syncError: "", firstViewedAt: "2026-07-24 11:30", likedMediaCount: 4, lastLikedAt: "2026-07-24 11:31", relationStatus: "有效", withdrawnBy: "赵亚男", withdrawnAt: "2026-07-26 15:20", withdrawalReason: "子女反馈该批次重复上传" },
-  { id: "BATCH-20260723-02", uploaderId: "RU-00029", elderlyId: "SG-E-000124", categoryId: "ALB-CAT-002", categoryNameSnapshot: "节日团聚", contentType: "仅照片", photoCount: 4, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-23 21:15", publishStatus: "已发布", syncStatus: "已同步", successCount: 4, failedCount: 0, lastSyncAt: "2026-07-23 21:17", syncError: "", firstViewedAt: "2026-07-24 07:55", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
-  { id: "BATCH-20260722-01", uploaderId: "RU-00031", elderlyId: "SG-E-000128", categoryId: "ALB-CAT-003", categoryNameSnapshot: "旅行时光", contentType: "仅照片", photoCount: 3, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-22 10:08", publishStatus: "发布失败", syncStatus: "未入队", successCount: 0, failedCount: 3, lastSyncAt: "—", syncError: "Mock 上传批次未完成，没有进入老人端同步队列", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
+  { id: "BATCH-20260727-01", uploaderId: "RU-00031", elderlyId: "SG-E-000128", categoryNameSnapshot: "家庭日常", contentType: "照片和视频", photoCount: 4, videoCount: 2, hasMessage: true, uploadedAt: "2026-07-27 09:18", publishStatus: "已发布", syncStatus: "已同步", successCount: 6, failedCount: 0, lastSyncAt: "2026-07-27 09:19", syncError: "", firstViewedAt: "2026-07-27 09:42", likedMediaCount: 3, lastLikedAt: "2026-07-27 09:46", relationStatus: "有效" },
+  { id: "BATCH-20260726-03", uploaderId: "RU-00030", elderlyId: "SG-E-000127", categoryNameSnapshot: "节日团聚", contentType: "仅视频", photoCount: 0, videoCount: 3, hasMessage: true, uploadedAt: "2026-07-26 20:36", publishStatus: "已发布", syncStatus: "同步失败", successCount: 0, failedCount: 3, lastSyncAt: "2026-07-26 20:38", syncError: "3 段视频同步失败，等待老人端网络恢复后重试", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
+  { id: "BATCH-20260726-05", uploaderId: "RU-00029", elderlyId: "SG-E-000126", categoryNameSnapshot: "旅行时光", contentType: "照片和视频", photoCount: 3, videoCount: 2, hasMessage: true, uploadedAt: "2026-07-26 16:10", publishStatus: "已发布", syncStatus: "部分失败", successCount: 4, failedCount: 1, lastSyncAt: "2026-07-26 16:12", syncError: "4 个影像同步成功，1 段视频同步失败", firstViewedAt: "2026-07-26 18:20", likedMediaCount: 1, lastLikedAt: "2026-07-26 18:24", relationStatus: "有效" },
+  { id: "BATCH-20260725-02", uploaderId: "RU-00028", elderlyId: "SG-E-000124", categoryNameSnapshot: "成长记录", contentType: "仅照片", photoCount: 2, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-25 18:22", publishStatus: "已发布", syncStatus: "同步中", successCount: 1, failedCount: 0, lastSyncAt: "2026-07-25 18:23", syncError: "", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
+  { id: "BATCH-20260724-04", uploaderId: "RU-00027", elderlyId: "SG-E-000123", categoryNameSnapshot: "家庭日常", contentType: "照片和视频", photoCount: 4, videoCount: 2, hasMessage: false, uploadedAt: "2026-07-24 11:06", publishStatus: "已撤回", syncStatus: "已撤回", successCount: 6, failedCount: 0, lastSyncAt: "2026-07-26 15:20", syncError: "", firstViewedAt: "2026-07-24 11:30", likedMediaCount: 4, lastLikedAt: "2026-07-24 11:31", relationStatus: "有效", withdrawnBy: "赵亚男", withdrawnAt: "2026-07-26 15:20", withdrawalReason: "子女反馈该批次重复上传" },
+  { id: "BATCH-20260723-02", uploaderId: "RU-00029", elderlyId: "SG-E-000124", categoryNameSnapshot: "节日团聚", contentType: "仅照片", photoCount: 4, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-23 21:15", publishStatus: "已发布", syncStatus: "已同步", successCount: 4, failedCount: 0, lastSyncAt: "2026-07-23 21:17", syncError: "", firstViewedAt: "2026-07-24 07:55", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
+  { id: "BATCH-20260722-01", uploaderId: "RU-00031", elderlyId: "SG-E-000128", categoryNameSnapshot: "旅行时光", contentType: "仅照片", photoCount: 3, videoCount: 0, hasMessage: true, uploadedAt: "2026-07-22 10:08", publishStatus: "发布失败", syncStatus: "未入队", successCount: 0, failedCount: 3, lastSyncAt: "—", syncError: "上传批次未完成，没有进入老人端同步队列", firstViewedAt: "", likedMediaCount: 0, lastLikedAt: "", relationStatus: "有效" },
 ];
 
 const recommendationTypes = [
@@ -778,7 +787,7 @@ function Overview({ onNavigate, inactivityRule, onEditInactivityRule, scenario, 
         return;
       }
       setUpdatedAt("2026-07-31 15:45:00");
-      setRefreshNotice("Mock 数据已刷新");
+      setRefreshNotice("数据已刷新");
     }, 500);
   };
 
@@ -804,7 +813,7 @@ function Overview({ onNavigate, inactivityRule, onEditInactivityRule, scenario, 
           <h1>运营概览</h1>
           <p>{scope.project} · {scope.name}</p>
           <div className="overview-time-meta">
-            <span>项目当地日期（Mock）：2026年7月31日 · 星期五</span>
+            <span>项目当地日期：2026年7月31日 · 星期五</span>
             <span>IANA 时区：Asia/Singapore (UTC+8)</span>
             <span>最近更新：{scenario === "stale" ? "2026-07-30 09:10:00" : updatedAt}</span>
           </div>
@@ -852,7 +861,7 @@ function Overview({ onNavigate, inactivityRule, onEditInactivityRule, scenario, 
             {[
               ["新增老人", Users, { page: "elderly", drawer: { kind: "elderly", mode: "create" } }],
               ["新建提醒", Bell, { page: "reminders", drawer: { kind: "reminder" } }],
-              ["新增社区内容", BookOpen, { page: "safety", drawer: { kind: "safety", mode: "edit" } }],
+              ["新增社区公告", BookOpen, { page: "communityAnnouncements", drawer: { kind: "safety", mode: "edit", contentType: "社区公告" } }],
               ["录入房间活动传感器", MonitorSmartphone, { page: "sensorDevices", drawer: { kind: "sensorCreate" } }],
               ["查看预约服务", ClipboardList, { page: "services", filter: `${scope.project} / ${scope.name}` }],
               ["发布社区活动", CalendarDays, { page: "activities", drawer: { kind: "activity" } }],
@@ -1418,7 +1427,7 @@ function TabletBindingModal({ record, project, devices, activation, failureSigna
           {currentTablet && stage !== "success" && !confirmUnbind && <button className="danger-outline-button" onClick={() => setConfirmUnbind(true)}>解除绑定</button>}
           {confirmUnbind ? <><button className="secondary-button" onClick={() => setConfirmUnbind(false)}>取消</button><button className="danger-button" onClick={() => onUnbind(currentTablet.id)}>确认解除</button></>
             : currentTablet && stage !== "success" ? <button className="secondary-button" onClick={onClose}>关闭</button>
-              : stage === "waiting" ? <><button className="secondary-button" onClick={() => { setSelectedId(activation?.deviceId || ""); setStage("generate"); }}>重新生成激活码</button><button className="primary-button" disabled={activation?.status !== "待使用"} onClick={() => { setValidationError(""); setStage("identity"); }}>模拟设备校验通过</button></>
+              : stage === "waiting" ? <><button className="secondary-button" onClick={() => { setSelectedId(activation?.deviceId || ""); setStage("generate"); }}>重新生成激活码</button><button className="primary-button" disabled={activation?.status !== "待使用"} onClick={() => { setValidationError(""); setStage("identity"); }}>设备校验通过</button></>
                 : stage === "identity" ? <><button className="secondary-button" onClick={() => setStage("waiting")}>信息不正确</button><button className="primary-button" onClick={confirmIdentity}>确认绑定</button></>
                   : stage === "success" ? <button className="primary-button" onClick={onClose}>完成</button>
                     : <button className="secondary-button" onClick={onClose}>关闭</button>}
@@ -1928,21 +1937,20 @@ function ReminderPlanDrawer({ reminder, elderly, onClose }) {
 }
 
 function TabletAssetDrawer({ device, devices, onClose, onSave }) {
-  const [form, setForm] = useState({ id: "", sn: "", model: "U2G Home 14" });
+  const [form, setForm] = useState({ sn: "", model: "U2G Home 14" });
   const [errors, setErrors] = useState({});
   const save = () => {
     const nextErrors = {};
-    if (!form.id.trim()) nextErrors.id = "请输入设备编号";
-    if (devices.some((item) => item.id.toLowerCase() === form.id.trim().toLowerCase())) nextErrors.id = "该设备编号已存在";
     if (!form.sn.trim()) nextErrors.sn = "请输入设备 SN";
     if (devices.some((item) => item.sn?.toLowerCase() === form.sn.trim().toLowerCase())) nextErrors.sn = "该设备 SN 已存在";
     if (!form.model.trim()) nextErrors.model = "请输入设备型号";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSave({ id: form.id.trim(), sn: form.sn.trim(), model: form.model.trim(), currentVersion: "v2.6.0", versionStatus: "已最新", activationCode: "", activationMethod: "", operator: "", status: "待激活", boundElderlyId: null, boundAt: "", lastOnline: "尚未激活" });
+    const nextNumber = Math.max(20260000, ...devices.map((item) => Number(String(item.id).match(/(\d+)$/)?.[1]) || 0)) + 1;
+    onSave({ id: `TAB-SG-${nextNumber}`, sn: form.sn.trim(), model: form.model.trim(), currentVersion: "v2.6.0", versionStatus: "已最新", activationCode: "", activationMethod: "", operator: "", status: "待激活", boundElderlyId: null, boundAt: "", lastOnline: "尚未激活" });
   };
   if (device) return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer device-detail-drawer" role="dialog" aria-modal="true"><header><div><h2>平板设备详情</h2><p>{formatDisplayId(device.id)} · {device.model}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="device-hero"><span><MonitorSmartphone size={24}/></span><div><h3>{device.model}</h3><p>{formatDisplayId(device.id)} · {device.sn}</p></div><StatusTag>{device.status}</StatusTag></div><section className="detail-section"><h3>设备状态</h3><div className="info-grid"><div><span>设备编号</span><b>{formatDisplayId(device.id)}</b></div><div><span>设备 SN</span><b>{device.sn}</b></div><div><span>当前版本</span><b>{device.currentVersion}</b></div><div><span>版本状态</span><StatusTag>{device.versionStatus}</StatusTag></div><div><span>激活状态</span><b>{device.boundElderlyId ? "已激活" : "待激活"}</b></div><div><span>最近在线</span><b>{device.lastOnline}</b></div><div><span>绑定时间</span><b>{device.boundAt || "尚未绑定"}</b></div><div><span>激活方式</span><b>{device.activationMethod || "尚未激活"}</b></div></div></section><div className="form-tip"><ShieldCheck size={18}/><div><b>平板绑定规则</b><p>平板与老人的激活和解绑需从老人档案或已绑定设备的“管理绑定”入口完成。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer device-detail-drawer" role="dialog" aria-modal="true"><header><div><h2>录入平板设备</h2><p>先登记设备资产，激活时再绑定老人</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>设备信息</h3><label><span>设备编号 *</span><input value={form.id} onChange={(event) => setForm((current) => ({ ...current, id: event.target.value }))} placeholder="例如：TAB-20260034"/>{errors.id && <small className="field-error">{errors.id}</small>}</label><label><span>设备 SN *</span><input value={form.sn} onChange={(event) => setForm((current) => ({ ...current, sn: event.target.value }))} placeholder="例如：SN-TAB-260034"/>{errors.sn && <small className="field-error">{errors.sn}</small>}</label><label><span>设备型号 *</span><input value={form.model} onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}/>{errors.model && <small className="field-error">{errors.model}</small>}</label></div><div className="form-tip"><ShieldCheck size={18}/><div><b>录入后状态</b><p>新设备保存后进入“待激活”，不会自动绑定任何老人。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存设备</button></footer></aside></div>;
+  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer device-detail-drawer" role="dialog" aria-modal="true"><header><div><h2>录入平板设备</h2><p>先登记设备资产，激活时再绑定老人</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>设备信息</h3><label><span>设备 SN *</span><input value={form.sn} onChange={(event) => setForm((current) => ({ ...current, sn: event.target.value }))} placeholder="例如：SN-TAB-260034"/>{errors.sn && <small className="field-error">{errors.sn}</small>}</label><label><span>设备型号 *</span><input value={form.model} onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}/>{errors.model && <small className="field-error">{errors.model}</small>}</label></div><div className="form-tip"><ShieldCheck size={18}/><div><b>录入后状态</b><p>新设备保存后进入“待激活”，不会自动绑定任何老人。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存设备</button></footer></aside></div>;
 }
 
 function ElderlyPickerModal({ records, value, onClose, onConfirm }) {
@@ -2522,13 +2530,12 @@ function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClos
   const livePresentation = getActivityLivePresentation(form);
   return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className={`drawer community-activity-drawer ${readOnly ? "drawer-readonly" : ""}`} role="dialog" aria-modal="true" aria-label={readOnly ? "活动详情" : record ? "编辑活动" : "新增活动"}>
     <header><div><h2>{readOnly ? "活动详情" : record ? "编辑活动" : "新增活动"}</h2><p>{currentProject?.community} · 活动与内容数据相互独立</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
-    <div className="drawer-body"><div className="form-section"><h3>活动内容</h3><label><span>活动名称 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入活动名称"/>{errors.title && <small className="field-error">{errors.title}</small>}</label><label><span>活动分类 *</span><select className="select-control form-select-native" value={form.category} onChange={(event) => update("category", event.target.value)}><option value="">请选择活动分类</option><option>健康活动</option><option>安全讲座</option><option>兴趣活动</option><option>社区交流</option></select>{errors.category && <small className="field-error">{errors.category}</small>}</label><RichTextEditor label="活动详情内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/><div className="activity-cover-field"><span>活动封面</span><div className="activity-cover-upload">{form.cover ? <img src={form.cover} alt="活动封面预览"/> : <span><CalendarDays size={22}/></span>}<div><b>{form.cover ? "已选择活动封面" : "上传活动封面"}</b><small>用于活动列表入口，与详情正文分开维护</small></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => uploadCover(event.target.files?.[0])}/></label></div></div></div>
+    <div className="drawer-body"><div className="form-section"><h3>活动内容</h3><div className="activity-cover-field"><span>活动封面</span><div className="activity-cover-upload">{form.cover ? <img src={form.cover} alt="活动封面预览"/> : <span><CalendarDays size={22}/></span>}<div><b>{form.cover ? "已选择活动封面" : "上传活动封面"}</b><small>用于活动列表入口，与详情正文分开维护</small></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => uploadCover(event.target.files?.[0])}/></label></div></div><label><span>活动名称 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入活动名称"/>{errors.title && <small className="field-error">{errors.title}</small>}</label><label><span>活动分类 *</span><select className="select-control form-select-native" value={form.category} onChange={(event) => update("category", event.target.value)}><option value="">请选择活动分类</option><option>健康活动</option><option>安全讲座</option><option>兴趣活动</option><option>社区交流</option></select>{errors.category && <small className="field-error">{errors.category}</small>}</label><RichTextEditor label="活动详情内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/></div>
       <div className="form-section community-activity-time-section"><h3>时间、地点与报名</h3><div className="form-row"><label><span>开始时间 *</span><input type="datetime-local" value={form.startAt} onChange={(event) => update("startAt", event.target.value)}/></label><label><span>结束时间 *</span><input type="datetime-local" value={form.endAt} onChange={(event) => update("endAt", event.target.value)}/></label></div>{errors.time && <small className="field-error">{errors.time}</small>}<label><span>活动地点 *</span><input value={form.location} onChange={(event) => update("location", event.target.value)} placeholder="请输入活动地点"/>{errors.location && <small className="field-error">{errors.location}</small>}</label><div className="form-row"><label><span>报名开始 *</span><input type="datetime-local" value={form.registrationStartAt} onChange={(event) => update("registrationStartAt", event.target.value)}/></label><label><span>报名截止 *</span><input type="datetime-local" value={form.registrationEndAt} onChange={(event) => update("registrationEndAt", event.target.value)}/></label></div>{errors.registration && <small className="field-error">{errors.registration}</small>}<label><span>名额</span><input type="number" min="1" value={form.capacity} onChange={(event) => update("capacity", Number(event.target.value))}/></label><label><span>联系电话 *</span><input type="tel" value={form.contact} onChange={(event) => update("contact", event.target.value)} placeholder="例如：+65 6273 2288"/>{errors.contact && <small className="field-error">{errors.contact}</small>}</label><small className="field-help">活动状态由报名时间和活动时间自动计算，无需手动选择。</small></div>
       <div className="form-section community-activity-live-section"><div className="form-section-heading"><div><h3>Zoom 直播</h3><p>仅维护活动的 Zoom 会议信息，不在后台控制开始或结束</p></div>{!readOnly && <label className="activity-live-toggle"><input type="checkbox" checked={form.liveEnabled} onChange={(event) => update("liveEnabled", event.target.checked)}/><span>{form.liveEnabled ? "提供直播" : "不提供"}</span></label>}</div>
         {readOnly && <div className="activity-live-summary"><div><span>Zoom 直播状态</span><StatusTag>{livePresentation.label}</StatusTag></div><small>{livePresentation.detail}；状态由 Zoom 同步，社区后台不控制开始或结束。</small></div>}
         {(form.liveEnabled || (readOnly && retainedLiveConfig)) && <div className="activity-live-fields"><label><span>预计开播时间 *</span><input type="datetime-local" value={form.scheduledLiveStartAt} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("scheduledLiveStartAt", event.target.value)}/>{errors.scheduledLiveStartAt && <small className="field-error">{errors.scheduledLiveStartAt}</small>}</label><div className="form-row"><label><span>Zoom 会议 ID *</span><input inputMode="numeric" value={form.zoomMeetingId} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomMeetingId", event.target.value)} placeholder="例如：856 2011 4028"/>{errors.zoomMeetingId && <small className="field-error">{errors.zoomMeetingId}</small>}</label><label><span>Zoom 会议密码</span><input value={form.zoomMeetingPassword} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomMeetingPassword", event.target.value)} placeholder="如会议设置密码则填写"/></label></div><label><span>Zoom 加入链接</span><input value={form.zoomJoinUrl} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomJoinUrl", event.target.value)} placeholder="可选，例如：https://zoom.us/j/85620114028"/><small className="field-help">老人端优先拉起 Zoom App；拉起失败时使用该链接进入 Zoom H5。</small>{errors.zoomJoinUrl && <small className="field-error">{errors.zoomJoinUrl}</small>}</label></div>}
         {!form.liveEnabled && !retainedLiveConfig && <div className="activity-live-empty">当前活动不提供直播，老人端仅展示线下活动信息。</div>}
-        {readOnly && form.liveEnabled && <div className="activity-live-demo"><span>L2 异常演示</span><button onClick={() => { onSetLiveMockState(form.id, "load_failed"); update("liveMockState", "load_failed"); }}>加载失败</button><button onClick={() => { onSetLiveMockState(form.id, "interrupted"); update("liveMockState", "interrupted"); }}>直播中断</button><button onClick={() => { onSetLiveMockState(form.id, "normal"); update("liveMockState", "normal"); }}>恢复正常</button></div>}
       </div>
     </div><footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={save}>保存活动</button>}</footer>
   </aside></div>;
@@ -2561,7 +2568,6 @@ function CommunityTopicPanel({ records, contentRecords, onCreate, onView }) {
   const initialFilters = { query: "", initiator: "全部来源", referenced: "全部", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const [demoState, setDemoState] = useState("normal");
   const rows = records.filter((record) => {
     const keyword = filters.query.trim().toLowerCase();
     const matchesKeyword = !keyword || [record.title, record.body, record.initiatorName, record.referenceSnapshot?.title].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
@@ -2577,7 +2583,7 @@ function CommunityTopicPanel({ records, contentRecords, onCreate, onView }) {
   };
   const reset = () => { setDraftFilters(initialFilters); setFilters(initialFilters); };
   return <>
-    <div className="topic-filter-heading"><span>话题管理</span><label><span>演示状态</span><select className="select-control filter-select" value={demoState} onChange={(event) => setDemoState(event.target.value)}><option value="normal">正常</option><option value="failed">加载失败</option></select></label></div>
+    <div className="topic-filter-heading"><span>话题管理</span></div>
     <div className="filters community-topic-filters">
       <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="话题标题、发起人或引用资讯"/></div></label>
       <label><span>发起来源</span><select className="select-control filter-select" value={draftFilters.initiator} onChange={(event) => setDraftFilters((current) => ({ ...current, initiator: event.target.value }))}><option>全部来源</option><option>后台发起</option><option>老人发起</option></select></label>
@@ -2585,19 +2591,16 @@ function CommunityTopicPanel({ records, contentRecords, onCreate, onView }) {
       <label><span>话题状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>进行中</option><option>已关闭</option></select></label>
       <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
     </div>
-    {demoState === "failed" ? <div className="topic-load-error"><AlertTriangle size={28}/><b>话题列表加载失败</b><span>Mock 请求未返回，已保留当前筛选条件。</span><button className="secondary-button" onClick={() => setDemoState("normal")}><RefreshCw size={15}/>重试</button></div> : <>
-      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个话题</span><span className="toolbar-note">老人发起的 Mock 话题会直接进入当前社区列表</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
-      <div className="table-scroll"><table className="community-topic-table"><thead><tr><th>话题标题</th><th>发起人</th><th>引用生活资讯</th><th>评论数</th><th>创建时间</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+    <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个话题</span><span className="toolbar-note">老人发起的话题会进入当前社区列表</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
+    <div className="table-scroll"><table className="community-topic-table"><thead><tr><th>话题标题</th><th>发起人</th><th>引用生活资讯</th><th>评论数</th><th>创建时间</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
         {rows.map((record) => <tr key={record.id}><td><button className="topic-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.body}</small></button></td><td><div className="stacked-cell"><StatusTag>{record.initiatorType === "elderly" ? "老人发起" : "后台发起"}</StatusTag><small>{record.initiatorName}</small></div></td><td>{record.referenceSnapshot ? <div className="stacked-cell"><b>{record.referenceSnapshot.title}</b><small className={referenceStatus(record) === "已失效" ? "danger-text" : ""}>{referenceStatus(record) === "已失效" ? "引用资讯已失效" : "引用快照已保存"}</small></div> : <span className="muted-text">未引用</span>}</td><td>{record.commentCount} 条</td><td>{record.createdAt}</td><td><StatusTag>{record.status === "open" ? "进行中" : "已关闭"}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button></td></tr>)}
         {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无符合条件的社区话题</div></td></tr>}
-      </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
-    </>}
+    </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
   </>;
 }
 
-function SafetyNewsPage({ records, topics, communityName, onCreate, onView, onEdit, onStatusChange, onCreateTopic, onViewTopic }) {
-  const [activeView, setActiveView] = useState("content");
-  const initialFilters = { query: "", type: "全部类型", status: "全部状态" };
+function SafetyNewsPage({ records, contentType, communityName, onCreate, onView, onEdit, onStatusChange }) {
+  const initialFilters = { query: "", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
   const [confirmTarget, setConfirmTarget] = useState(null);
@@ -2605,8 +2608,8 @@ function SafetyNewsPage({ records, topics, communityName, onCreate, onView, onEd
     const keyword = filters.query.trim().toLowerCase();
     const matchesKeyword = !keyword || [record.title, record.description, record.content].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
     const derivedStatus = getCommunityContentStatus(record);
-    return matchesKeyword
-      && (filters.type === "全部类型" || record.type === filters.type)
+    return record.type === contentType
+      && matchesKeyword
       && (filters.status === "全部状态" || derivedStatus === filters.status);
   });
   const reset = () => {
@@ -2616,35 +2619,31 @@ function SafetyNewsPage({ records, topics, communityName, onCreate, onView, onEd
 
   return (
     <>
-      <div className="page-heading"><div><h1>社区内容</h1><p>管理{communityName}的资讯内容与社区话题互动</p></div><button className="primary-button" onClick={activeView === "content" ? onCreate : onCreateTopic}><Plus size={16}/>{activeView === "content" ? "新增内容" : "发起话题"}</button></div>
+      <div className="page-heading"><div><h1>{contentType}</h1><p>管理{communityName}的{contentType}，内容仅在当前社区内维护</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增{contentType === "生活资讯" ? "资讯" : contentType === "社区公告" ? "公告" : "事项"}</button></div>
       <section className="panel management-panel safety-news-panel">
-        <div className="content-view-tabs"><button className={activeView === "content" ? "active" : ""} onClick={() => setActiveView("content")}><BookOpen size={16}/>资讯内容</button><button className={activeView === "topics" ? "active" : ""} onClick={() => setActiveView("topics")}><MessageSquareText size={16}/>社区话题 <span>{topics.length}</span></button></div>
-        {activeView === "topics" ? <CommunityTopicPanel records={topics} contentRecords={records} onCreate={onCreateTopic} onView={onViewTopic}/> : <>
         <div className="filters safety-news-filters">
           <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="内容标题、摘要或正文"/></div></label>
-          <label><span>内容类型</span><select className="select-control filter-select" value={draftFilters.type} onChange={(event) => setDraftFilters((current) => ({ ...current, type: event.target.value }))}><option>全部类型</option>{communityContentTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
           <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>未发布</option><option>已发布</option><option>已失效</option><option>已停用</option></select></label>
           <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
         </div>
         <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 条内容</span><span className="toolbar-note">仅展示当前社区数据</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
         <div className="table-scroll">
           <table className="safety-news-table">
-            <thead><tr><th>内容标题</th><th>内容类型</th><th>适用对象</th><th>生效 / 失效时间</th><th>展示顺序</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>内容标题</th><th>适用对象</th><th>生效 / 失效时间</th><th>展示顺序</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
-              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td><StatusTag>{record.type}</StatusTag></td><td>{record.audience}</td><td><div className="stacked-cell"><b>{record.publishAt}</b><small>至 {record.validUntil || "长期"}</small></div></td><td>{record.displayOrder}</td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button>{status !== "已失效" && <button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "发布"}</button>}</td></tr>; })}
-              {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无符合条件的内容</div></td></tr>}
+              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td>{record.audience}</td><td><div className="stacked-cell"><b>{record.publishAt}</b><small>至 {record.validUntil || "长期"}</small></div></td><td>{record.displayOrder}</td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button>{status !== "已失效" && <button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "发布"}</button>}</td></tr>; })}
+              {!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前社区暂无符合条件的内容</div></td></tr>}
             </tbody>
           </table>
         </div>
         <div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
-        </>}
       </section>
       {confirmTarget && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭停用确认" onClick={() => setConfirmTarget(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="停用社区内容"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>停用“{confirmTarget.title}”？</h3><p>停用后内容不再进入老人端展示，也不会再出现在推荐策略的可选来源中。</p><div><button className="secondary-button" onClick={() => setConfirmTarget(null)}>取消</button><button className="danger-button" onClick={() => { onStatusChange(confirmTarget.id, "已停用"); setConfirmTarget(null); }}>确认停用</button></div></section></div>}
     </>
   );
 }
 
-function SafetyNewsDrawer({ record, mode = "edit", currentProject, onClose, onSave }) {
+function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告", currentProject, onClose, onSave }) {
   const readOnly = mode === "view";
   const [form, setForm] = useState(() => {
     if (record) {
@@ -2654,7 +2653,7 @@ function SafetyNewsDrawer({ record, mode = "edit", currentProject, onClose, onSa
     return {
       projectId: currentProject?.id,
       title: "",
-      type: "社区公告",
+      type: contentType,
       content: "",
       contentHtml: "<p><br></p>",
       description: "",
@@ -2681,35 +2680,36 @@ function SafetyNewsDrawer({ record, mode = "edit", currentProject, onClose, onSa
     const plainContent = richTextToPlainText(form.contentHtml);
     if (!form.title.trim()) nextErrors.title = "请输入内容标题";
     if (!plainContent) nextErrors.contentHtml = "请输入正文内容";
-    if (!form.publishAt) nextErrors.publishAt = "请选择生效时间";
-    if (form.validUntil && form.publishAt >= form.validUntil) nextErrors.validUntil = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSave({ ...form, title: form.title.trim(), content: plainContent, contentHtml: form.contentHtml, displayOrder: Number(form.displayOrder) });
+    onSave({
+      ...form,
+      title: form.title.trim(),
+      content: plainContent,
+      contentHtml: form.contentHtml,
+      audience: "当前社区全部老人",
+      source: currentProject?.community || form.source,
+      displayOrder: Number(form.displayOrder) || 1,
+      publishAt: form.publishAt || "2026-08-24 10:00",
+      validUntil: form.validUntil || "2026-09-30 23:59",
+    });
   };
 
   return (
     <div className="drawer-layer" role="presentation">
       <button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/>
-      <aside className={`drawer safety-news-drawer ${readOnly ? "drawer-readonly" : ""}`} role="dialog" aria-modal="true" aria-label={readOnly ? "社区内容详情" : record ? "编辑社区内容" : "新增社区内容"}>
-        <header><div><h2>{readOnly ? "社区内容详情" : record ? "编辑社区内容" : "新增社区内容"}</h2><p>{currentProject?.community} · 内容只在当前社区内维护</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
+      <aside className={`drawer safety-news-drawer ${readOnly ? "drawer-readonly" : ""}`} role="dialog" aria-modal="true" aria-label={readOnly ? `${form.type}详情` : record ? `编辑${form.type}` : `新增${form.type}`}>
+        <header><div><h2>{readOnly ? `${form.type}详情` : record ? `编辑${form.type}` : `新增${form.type}`}</h2><p>{currentProject?.community} · 内容只在当前社区内维护</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
         <div className="drawer-body" inert={readOnly ? true : undefined}>
           <div className="form-section safety-content-section">
             <h3>内容信息</h3>
+            <div className="cover-field"><span>封面图片</span><div className="cover-upload-control"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover || "上传封面图片"}</b><small>用于内容列表入口，与正文图片分开维护</small></div></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => update("cover", event.target.files?.[0]?.name || "")}/></label></div></div>
             <label><span>内容标题 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入内容标题"/>{errors.title && <small className="field-error">{errors.title}</small>}</label>
-            <label><span>内容类型 *</span><select className="form-select-native" value={form.type} onChange={(event) => update("type", event.target.value)}>{communityContentTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
             <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/></label>
             <RichTextEditor label="正文内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/>
-            <div className="cover-field"><span>封面图片</span><div className="cover-upload-control"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover || "上传封面图片"}</b><small>用于内容列表入口，与正文图片分开维护</small></div></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => update("cover", event.target.files?.[0]?.name || "")}/></label></div></div>
-          </div>
-          <div className="form-section safety-scope-section">
-            <h3>展示设置</h3>
-            <div className="form-row"><label><span>适用对象 *</span><input value={form.audience} onChange={(event) => update("audience", event.target.value)}/></label><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label></div>
-            <div className="form-row"><label><span>生效时间 *</span><input type="datetime-local" value={form.publishAt.replace(" ", "T")} onChange={(event) => update("publishAt", event.target.value.replace("T", " "))}/>{errors.publishAt && <small className="field-error">{errors.publishAt}</small>}</label><label><span>失效时间</span><input type="datetime-local" value={form.validUntil?.replace(" ", "T") || ""} onChange={(event) => update("validUntil", event.target.value.replace("T", " "))}/>{errors.validUntil && <small className="field-error">{errors.validUntil}</small>}</label></div>
-            <label><span>发布来源</span><input value={form.source} onChange={(event) => update("source", event.target.value)} placeholder="例如：社区运营组"/></label>
           </div>
         </div>
-        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={submit}>保存内容</button>}</footer>
+        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={submit}>{record ? "保存修改" : "发布"}</button>}</footer>
       </aside>
     </div>
   );
@@ -2863,34 +2863,25 @@ function CareScriptDrawer({ condition, record, onClose, onSave }) {
   </aside></div>;
 }
 
-function FamilyAlbumBatchManagementPage({ categories, batches, elderlyRecords, relatives, onAddCategory, onEditCategory, onToggleCategory, onDeleteCategory, onViewBatch }) {
-  const [activeTab, setActiveTab] = useState("batches");
-  const initialFilters = { elderlyId: "全部老人", relativeId: "全部子女", categoryId: "全部分类", contentType: "全部内容类型", date: "", publishStatus: "全部发布状态", syncStatus: "全部同步状态" };
+function FamilyAlbumBatchManagementPage({ batches, elderlyRecords, relatives, onViewBatch }) {
+  const initialFilters = { elderlyId: "全部老人", relativeId: "全部子女", categoryNameSnapshot: "全部分类", contentType: "全部内容类型", date: "", publishStatus: "全部发布状态", syncStatus: "全部同步状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const [categoryAction, setCategoryAction] = useState(null);
-  const categoryMap = new Map(categories.map((item) => [item.id, item]));
+  const categorySnapshots = [...new Set(batches.map((batch) => batch.categoryNameSnapshot).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN"));
   const rows = batches.map((batch) => ({
     ...batch,
     mediaCount: batch.photoCount + batch.videoCount,
     elderly: elderlyRecords.find((item) => item.id === batch.elderlyId),
     uploader: relatives.find((item) => item.id === batch.uploaderId),
-    category: categoryMap.get(batch.categoryId),
   })).filter((batch) => (
     (filters.elderlyId === "全部老人" || batch.elderlyId === filters.elderlyId)
     && (filters.relativeId === "全部子女" || batch.uploaderId === filters.relativeId)
-    && (filters.categoryId === "全部分类" || batch.categoryId === filters.categoryId)
+    && (filters.categoryNameSnapshot === "全部分类" || batch.categoryNameSnapshot === filters.categoryNameSnapshot)
     && (filters.contentType === "全部内容类型" || batch.contentType === filters.contentType)
     && (!filters.date || batch.uploadedAt.startsWith(filters.date))
     && (filters.publishStatus === "全部发布状态" || batch.publishStatus === filters.publishStatus)
     && (filters.syncStatus === "全部同步状态" || batch.syncStatus === filters.syncStatus)
   ));
-  const categoryRows = [...categories].sort((a, b) => a.sort - b.sort).map((category) => {
-    const referencedBatches = batches.filter((batch) => batch.categoryId === category.id);
-    const photoCount = referencedBatches.reduce((sum, batch) => sum + batch.photoCount, 0);
-    const videoCount = referencedBatches.reduce((sum, batch) => sum + batch.videoCount, 0);
-    return { ...category, batchCount: referencedBatches.length, photoCount, videoCount, mediaCount: photoCount + videoCount };
-  });
   const resetFilters = () => { setDraftFilters(initialFilters); setFilters(initialFilters); };
   const syncedCount = batches.filter((batch) => batch.syncStatus === "已同步").length;
   const failedCount = batches.filter((batch) => ["同步失败", "部分失败", "未入队"].includes(batch.syncStatus)).length;
@@ -2900,7 +2891,7 @@ function FamilyAlbumBatchManagementPage({ categories, batches, elderlyRecords, r
   const totalMedia = totalPhotos + totalVideos;
 
   return <>
-    <div className="page-heading"><div><h1>家庭相册</h1><p>不展示家庭影像内容，仅管理照片和视频批次、送达状态与老人互动结果</p></div>{activeTab === "categories" && <button className="primary-button" onClick={onAddCategory}><Plus size={16}/>新增分类</button>}</div>
+    <div className="page-heading"><div><h1>家庭相册</h1><p>查看子女上传的照片和视频批次、分类快照、送达状态与老人互动结果</p></div></div>
     <div className="album-overview-grid">
       <div><span>上传批次</span><b>{batches.length}</b><small>共 {totalMedia} 个影像 · 照片 {totalPhotos} · 视频 {totalVideos}</small></div>
       <div><span>已同步批次</span><b>{syncedCount}</b><small>已送达老人端家庭相册</small></div>
@@ -2908,63 +2899,35 @@ function FamilyAlbumBatchManagementPage({ categories, batches, elderlyRecords, r
       <div><span>老人已查看</span><b>{viewedCount}</b><small>按批次记录首次查看时间</small></div>
     </div>
     <section className="panel album-management-panel">
-      <div className="album-management-tabs">
-        <button className={activeTab === "batches" ? "active" : ""} onClick={() => setActiveTab("batches")}><Images size={16}/>上传批次 <span>{batches.length}</span></button>
-        <button className={activeTab === "categories" ? "active" : ""} onClick={() => setActiveTab("categories")}><SlidersHorizontal size={16}/>相册分类 <span>{categories.length}</span></button>
+      <div className="filters album-batch-filters">
+        <label><span>接收老人</span><select className="select-control filter-select" value={draftFilters.elderlyId} onChange={(event) => setDraftFilters((current) => ({ ...current, elderlyId: event.target.value }))}><option>全部老人</option>{elderlyRecords.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>上传子女</span><select className="select-control filter-select" value={draftFilters.relativeId} onChange={(event) => setDraftFilters((current) => ({ ...current, relativeId: event.target.value }))}><option>全部子女</option>{relatives.filter((item) => item.links.length).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>相册分类</span><select className="select-control filter-select" value={draftFilters.categoryNameSnapshot} onChange={(event) => setDraftFilters((current) => ({ ...current, categoryNameSnapshot: event.target.value }))}><option>全部分类</option>{categorySnapshots.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+        <label><span>内容类型</span><select className="select-control filter-select" value={draftFilters.contentType} onChange={(event) => setDraftFilters((current) => ({ ...current, contentType: event.target.value }))}><option>全部内容类型</option><option>仅照片</option><option>仅视频</option><option>照片和视频</option></select></label>
+        <label className="album-date-filter"><span>上传日期</span><div className="album-date-control"><CalendarDays size={15}/><input aria-label="上传日期" type="date" value={draftFilters.date} onChange={(event) => setDraftFilters((current) => ({ ...current, date: event.target.value }))}/></div></label>
+        <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.publishStatus} onChange={(event) => setDraftFilters((current) => ({ ...current, publishStatus: event.target.value }))}><option>全部发布状态</option><option>已发布</option><option>已撤回</option><option>发布失败</option></select></label>
+        <label><span>同步状态</span><select className="select-control filter-select" value={draftFilters.syncStatus} onChange={(event) => setDraftFilters((current) => ({ ...current, syncStatus: event.target.value }))}><option>全部同步状态</option><option>待同步</option><option>同步中</option><option>已同步</option><option>部分失败</option><option>同步失败</option><option>未入队</option><option>已撤回</option></select></label>
+        <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={resetFilters}><RefreshCw size={15}/>重置</button></div>
       </div>
-      {activeTab === "batches" ? <>
-        <div className="filters album-batch-filters">
-          <label><span>接收老人</span><select className="select-control filter-select" value={draftFilters.elderlyId} onChange={(event) => setDraftFilters((current) => ({ ...current, elderlyId: event.target.value }))}><option>全部老人</option>{elderlyRecords.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>上传子女</span><select className="select-control filter-select" value={draftFilters.relativeId} onChange={(event) => setDraftFilters((current) => ({ ...current, relativeId: event.target.value }))}><option>全部子女</option>{relatives.filter((item) => item.links.length).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>相册分类</span><select className="select-control filter-select" value={draftFilters.categoryId} onChange={(event) => setDraftFilters((current) => ({ ...current, categoryId: event.target.value }))}><option>全部分类</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label><span>内容类型</span><select className="select-control filter-select" value={draftFilters.contentType} onChange={(event) => setDraftFilters((current) => ({ ...current, contentType: event.target.value }))}><option>全部内容类型</option><option>仅照片</option><option>仅视频</option><option>照片和视频</option></select></label>
-          <label className="album-date-filter"><span>上传日期</span><div className="album-date-control"><CalendarDays size={15}/><input aria-label="上传日期" type="date" value={draftFilters.date} onChange={(event) => setDraftFilters((current) => ({ ...current, date: event.target.value }))}/></div></label>
-          <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.publishStatus} onChange={(event) => setDraftFilters((current) => ({ ...current, publishStatus: event.target.value }))}><option>全部发布状态</option><option>已发布</option><option>已撤回</option><option>发布失败</option></select></label>
-          <label><span>同步状态</span><select className="select-control filter-select" value={draftFilters.syncStatus} onChange={(event) => setDraftFilters((current) => ({ ...current, syncStatus: event.target.value }))}><option>全部同步状态</option><option>待同步</option><option>同步中</option><option>已同步</option><option>部分失败</option><option>同步失败</option><option>未入队</option><option>已撤回</option></select></label>
-          <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={resetFilters}><RefreshCw size={15}/>重置</button></div>
-        </div>
-        <div className="table-scroll"><table className="family-album-batch-table"><thead><tr><th>上传子女</th><th>接收老人</th><th>相册分类</th><th>内容类型</th><th>照片数量</th><th>视频数量</th><th>影像总数</th><th>上传时间</th><th>发布状态</th><th>同步状态</th><th>首次查看时间</th><th>已喜欢影像</th><th>最后喜欢时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
-          {rows.map((batch) => <tr key={batch.id}><td><div className="stacked-cell"><b>{batch.uploader?.name || "账号已移除"}</b><small>{batch.uploader?.phone || "—"}</small></div></td><td><div className="stacked-cell"><b>{batch.elderly?.name || "档案已移除"}</b><small>{batch.elderly?.project || "—"}</small></div></td><td><div className="stacked-cell"><b>{batch.categoryNameSnapshot}</b><small>{batch.category?.status === "停用" ? "当前分类已停用" : "分类快照"}</small></div></td><td><StatusTag>{batch.contentType}</StatusTag></td><td><b>{batch.photoCount} 张</b></td><td><b>{batch.videoCount} 个</b></td><td><b>{batch.mediaCount} 个</b></td><td>{batch.uploadedAt}</td><td><StatusTag>{batch.publishStatus}</StatusTag></td><td><div className="stacked-cell"><StatusTag>{batch.syncStatus}</StatusTag><small>{batch.syncError || `${batch.successCount}/${batch.mediaCount} 成功`}</small></div></td><td>{batch.firstViewedAt || "尚未查看"}</td><td><b>{batch.likedMediaCount} 个</b></td><td>{batch.lastLikedAt || "尚无喜欢记录"}</td><td className="sticky-right"><button className="table-action" onClick={() => onViewBatch(batch)}>详情</button></td></tr>)}
-          {!rows.length && <tr><td colSpan="14"><div className="empty-table-state">暂无符合条件的上传批次</div></td></tr>}
-        </tbody></table></div>
-        <div className="pagination"><span>当前展示 {rows.length} 个批次</span></div>
-      </> : <>
-        <div className="table-toolbar album-category-toolbar"><div><span className="result-count">共 {categoryRows.length} 个系统分类</span><span className="toolbar-hint">停用后不再供新批次选择，历史批次保留分类名称快照</span></div></div>
-        <div className="table-scroll"><table className="album-category-table"><thead><tr><th>排序</th><th>分类名称</th><th>分类说明</th><th>引用情况</th><th>状态</th><th>更新时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
-          {categoryRows.map((category) => <tr key={category.id}><td className="mono">{category.sort}</td><td><b>{category.name}</b></td><td>{category.description}</td><td><div className="stacked-cell"><b>{category.batchCount} 批 / {category.mediaCount} 个影像</b><small>照片 {category.photoCount} · 视频 {category.videoCount}</small></div></td><td><button type="button" role="switch" aria-checked={category.status === "启用"} className={`strategy-status-switch ${category.status === "启用" ? "active" : ""}`} onClick={() => onToggleCategory(category.id)}><i/><span>{category.status}</span></button></td><td>{category.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => onEditCategory(category)}>编辑</button><button className="table-action danger-text" onClick={() => setCategoryAction({ category, mediaCount: category.mediaCount, type: category.mediaCount ? "blocked" : "confirm" })}>删除</button></td></tr>)}
-        </tbody></table></div>
-        <div className="pagination"><span>当前展示 {categoryRows.length} 个系统分类</span></div>
-      </>}
+      <div className="table-toolbar"><div><span className="result-count">共 {batches.length} 个上传批次</span><span className="toolbar-hint">相册分类由子女端随批次提交，后台按分类名称快照筛选与展示</span></div></div>
+      <div className="table-scroll"><table className="family-album-batch-table"><thead><tr><th>上传子女</th><th>接收老人</th><th>相册分类</th><th>内容类型</th><th>照片数量</th><th>视频数量</th><th>影像总数</th><th>上传时间</th><th>发布状态</th><th>同步状态</th><th>首次查看时间</th><th>已喜欢影像</th><th>最后喜欢时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {rows.map((batch) => <tr key={batch.id}><td><div className="stacked-cell"><b>{batch.uploader?.name || "账号已移除"}</b><small>{batch.uploader?.phone || "—"}</small></div></td><td><div className="stacked-cell"><b>{batch.elderly?.name || "档案已移除"}</b><small>{batch.elderly?.project || "—"}</small></div></td><td><div className="stacked-cell"><b>{batch.categoryNameSnapshot || "未分类"}</b><small>子女端提交快照</small></div></td><td><StatusTag>{batch.contentType}</StatusTag></td><td><b>{batch.photoCount} 张</b></td><td><b>{batch.videoCount} 个</b></td><td><b>{batch.mediaCount} 个</b></td><td>{batch.uploadedAt}</td><td><StatusTag>{batch.publishStatus}</StatusTag></td><td><div className="stacked-cell"><StatusTag>{batch.syncStatus}</StatusTag><small>{batch.syncError || `${batch.successCount}/${batch.mediaCount} 成功`}</small></div></td><td>{batch.firstViewedAt || "尚未查看"}</td><td><b>{batch.likedMediaCount} 个</b></td><td>{batch.lastLikedAt || "尚无喜欢记录"}</td><td className="sticky-right"><button className="table-action" onClick={() => onViewBatch(batch)}>详情</button></td></tr>)}
+        {!rows.length && <tr><td colSpan="14"><div className="empty-table-state">暂无符合条件的上传批次</div></td></tr>}
+      </tbody></table></div>
+      <div className="pagination"><span>当前展示 {rows.length} 个批次</span></div>
     </section>
-    {categoryAction && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭分类操作提示" onClick={() => setCategoryAction(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true"><span className={`confirm-icon ${categoryAction.type === "blocked" ? "warning" : "danger"}`}><AlertTriangle size={20}/></span><h3>{categoryAction.type === "blocked" ? "该分类不能删除" : `确认删除“${categoryAction.category.name}”？`}</h3><p>{categoryAction.type === "blocked" ? `该分类已有 ${categoryAction.mediaCount} 个影像（照片与视频合计），不能删除。你可以停用该分类，停用后不会影响历史影像记录。` : "该分类尚未被影像引用，删除后将从分类管理中移除。"}</p><div><button className="secondary-button" onClick={() => setCategoryAction(null)}>关闭</button>{categoryAction.type === "blocked" ? categoryAction.category.status === "启用" && <button className="primary-button" onClick={() => { onToggleCategory(categoryAction.category.id); setCategoryAction(null); }}>停用分类</button> : <button className="danger-button" onClick={() => { onDeleteCategory(categoryAction.category.id); setCategoryAction(null); }}>确认删除</button>}</div></section></div>}
   </>;
 }
 
-function FamilyAlbumBatchDetailDrawer({ batch, elderly, uploader, category, onClose }) {
+function FamilyAlbumBatchDetailDrawer({ batch, elderly, uploader, onClose }) {
   const mediaCount = batch.photoCount + batch.videoCount;
   return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer family-album-batch-detail-drawer" role="dialog" aria-modal="true" aria-label="家庭影像批次详情"><header><div><h2>上传批次详情</h2><p>{batch.uploadedAt} · {batch.categoryNameSnapshot}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body">
-    <section className="detail-section"><h3>批次与关系</h3><div className="info-grid"><div><span>上传子女</span><b>{uploader?.name || "账号已移除"}</b></div><div><span>接收老人</span><b>{elderly?.name || "档案已移除"}</b></div><div><span>相册分类</span><b>{batch.categoryNameSnapshot}</b></div><div><span>内容类型</span><StatusTag>{batch.contentType}</StatusTag></div><div><span>照片数量</span><b>{batch.photoCount} 张</b></div><div><span>视频数量</span><b>{batch.videoCount} 个</b></div><div><span>影像总数</span><b>{mediaCount} 个</b></div><div><span>上传时间</span><b>{batch.uploadedAt}</b></div><div><span>关系状态</span><StatusTag>{batch.relationStatus}</StatusTag></div><div><span>当前分类状态</span><StatusTag>{category?.status || "分类已删除"}</StatusTag></div><div className="full"><span>附言情况</span><b>{batch.hasMessage ? "有附言（正文不展示）" : "无附言"}</b></div></div></section>
+    <section className="detail-section"><h3>批次与关系</h3><div className="info-grid"><div><span>上传子女</span><b>{uploader?.name || "账号已移除"}</b></div><div><span>接收老人</span><b>{elderly?.name || "档案已移除"}</b></div><div><span>相册分类</span><b>{batch.categoryNameSnapshot || "未分类"}</b></div><div><span>内容类型</span><StatusTag>{batch.contentType}</StatusTag></div><div><span>照片数量</span><b>{batch.photoCount} 张</b></div><div><span>视频数量</span><b>{batch.videoCount} 个</b></div><div><span>影像总数</span><b>{mediaCount} 个</b></div><div><span>上传时间</span><b>{batch.uploadedAt}</b></div><div><span>关系状态</span><StatusTag>{batch.relationStatus}</StatusTag></div><div className="full"><span>附言情况</span><b>{batch.hasMessage ? "有附言（正文不展示）" : "无附言"}</b></div></div></section>
     <section className="detail-section"><h3>发布与同步</h3><div className="info-grid"><div><span>发布状态</span><StatusTag>{batch.publishStatus}</StatusTag></div><div><span>同步状态</span><StatusTag>{batch.syncStatus}</StatusTag></div><div><span>同步结果</span><b>{batch.successCount} 个成功 / {batch.failedCount} 个失败</b></div><div><span>最近同步</span><b>{batch.lastSyncAt}</b></div>{batch.syncError && <div className="full"><span>异常原因</span><b className="danger-text">{batch.syncError}</b></div>}</div></section>
     <section className="detail-section"><h3>老人互动</h3><div className="info-grid"><div><span>首次查看时间</span><b>{batch.firstViewedAt || "尚未查看"}</b></div><div><span>已喜欢影像数量</span><b>{batch.likedMediaCount} 个</b></div><div><span>最后喜欢时间</span><b>{batch.lastLikedAt || "尚无喜欢记录"}</b></div><div><span>历史互动保留</span><b>是</b></div></div></section>
     {batch.withdrawnAt && <section className="detail-section"><h3>历史状态记录</h3><div className="info-grid"><div><span>记录人</span><b>{batch.withdrawnBy}</b></div><div><span>记录时间</span><b>{batch.withdrawnAt}</b></div><div className="full"><span>状态说明</span><b>{batch.withdrawalReason}</b></div></div></section>}
     <div className="form-tip"><ShieldCheck size={18}/><div><b>家庭隐私保护</b><p>后台仅记录影像数量、同步和互动结果；不展示照片、不播放视频、不展示缩略图或视频封面，也不展示附言正文。后台不能代替老人查看、播放或喜欢影像。</p></div></div>
   </div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
-}
-
-function AlbumCategoryDrawer({ record, categories, onClose, onSave }) {
-  const [form, setForm] = useState({ name: "", description: "", sort: categories.length + 1, status: "启用", ...record });
-  const [errors, setErrors] = useState({});
-  const save = () => {
-    const nextErrors = {};
-    const name = form.name.trim();
-    if (!name) nextErrors.name = "请输入分类名称";
-    if (categories.some((item) => item.id !== record?.id && item.name === name)) nextErrors.name = "分类名称已存在";
-    if (!Number.isInteger(Number(form.sort)) || Number(form.sort) < 1) nextErrors.sort = "排序必须为大于 0 的整数";
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
-    onSave({ ...form, name, description: form.description.trim(), sort: Number(form.sort) });
-  };
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer album-category-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑相册分类" : "新增相册分类"}><header><div><h2>{record ? "编辑相册分类" : "新增相册分类"}</h2><p>系统分类同时适用于子女发布的照片和视频</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>分类信息</h3><label><span>分类名称 *</span><input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：家庭日常"/>{errors.name && <small className="field-error">{errors.name}</small>}</label><label><span>分类说明</span><textarea rows="4" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="说明该分类适合收录的照片与视频内容"/></label><label><span>排序 *</span><input type="number" min="1" step="1" value={form.sort} onChange={(event) => setForm((current) => ({ ...current, sort: event.target.value }))}/>{errors.sort && <small className="field-error">{errors.sort}</small>}</label><label><span>启用状态 *</span><div className="strategy-enable-options"><button type="button" className={form.status === "启用" ? "active" : ""} onClick={() => setForm((current) => ({ ...current, status: "启用" }))}><b>启用</b><small>可供新影像选择</small></button><button type="button" className={form.status === "停用" ? "active" : ""} onClick={() => setForm((current) => ({ ...current, status: "停用" }))}><b>停用</b><small>历史影像继续保留</small></button></div></label></div><div className="form-tip"><ShieldCheck size={18}/><div><b>历史影像分类快照</b><p>分类改名或停用不会改写历史影像保存的分类名称；存在照片或视频引用时不能物理删除。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存分类</button></footer></aside></div>;
 }
 
 function WeatherLocationSummary({ location, query }) {
@@ -3007,7 +2970,7 @@ function WeatherLocationManagementPage({ integrations, onView }) {
         <label><span>查询状态</span><select className="select-control filter-select" value={draftFilters.queryStatus} onChange={(event) => setDraftFilters((current) => ({ ...current, queryStatus: event.target.value }))}><option>全部查询状态</option><option>正常</option><option>使用缓存</option><option>查询失败</option><option>不可查询</option></select></label>
         <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={() => { setDraftFilters(initialFilters); setFilters(initialFilters); }}><RefreshCw size={15}/>重置</button></div>
       </div>
-      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个区域</span><span className="toolbar-hint">当前仅展示 Mock 接入状态，不接入或猜测真实天气供应商</span></div></div>
+      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个区域</span><span className="toolbar-hint">展示各区域天气服务的接入与缓存状态</span></div></div>
       <div className="table-scroll"><table className="weather-location-table weather-region-table"><thead><tr><th>国家 / 地区</th><th>接入范围</th><th>天气接口</th><th>关联标准位置</th><th>接入状态</th><th>查询状态</th><th>最近检测</th><th className="sticky-right">操作</th></tr></thead><tbody>
         {rows.map((row) => <tr key={row.id}><td><div className="weather-region-cell"><span>{row.countryCode}</span><div><b>{row.countryName}</b><small>{row.granularity}</small></div></div></td><td>{row.coverage}</td><td><div className="stacked-cell"><b>{row.interfaceMode}</b><small>{row.interfaceKey}</small></div></td><td>{row.linkedLocationCount} 个</td><td><StatusTag>{row.accessStatus}</StatusTag></td><td><div className="stacked-cell"><StatusTag>{row.queryStatus}</StatusTag><small>{row.cacheStatus}</small></div></td><td><div className="stacked-cell"><b>{row.lastCheckedAt}</b><small>最近成功 {row.lastSuccessAt}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => onView(row)}>详情</button></td></tr>)}
         {!rows.length && <tr><td colSpan="8"><div className="empty-table-state">暂无符合条件的区域接入记录</div></td></tr>}
@@ -3352,14 +3315,6 @@ export function App() {
       return initialCommunityActivities;
     }
   });
-  const [albumCategories, setAlbumCategories] = useState(() => {
-    try {
-      const savedCategories = window.localStorage.getItem("u2g-album-categories-v12");
-      return savedCategories ? JSON.parse(savedCategories) : initialAlbumCategories;
-    } catch {
-      return initialAlbumCategories;
-    }
-  });
   const [familyAlbumBatches] = useState(() => {
     try {
       const savedBatches = window.localStorage.getItem("u2g-family-album-batches-v12");
@@ -3570,10 +3525,6 @@ export function App() {
   }, [serviceCatalog]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-album-categories-v12", JSON.stringify(albumCategories));
-  }, [albumCategories]);
-
-  useEffect(() => {
     window.localStorage.setItem("u2g-family-album-batches-v12", JSON.stringify(familyAlbumBatches));
   }, [familyAlbumBatches]);
 
@@ -3664,33 +3615,6 @@ export function App() {
     setCareScripts((records) => records.map((item) => item.weatherCode === weatherCode
       ? { ...item, status: item.status === "启用" ? "停用" : "启用", updatedAt: "2026-07-27 11:20", operator: "赵亚男" }
       : item));
-  };
-
-  const saveAlbumCategory = (category) => {
-    if (category.id) {
-      setAlbumCategories((records) => records.map((item) => item.id === category.id
-        ? { ...item, ...category, updatedAt: "2026-07-27 11:40" }
-        : item));
-    } else {
-      const nextNumber = Math.max(0, ...albumCategories.map((item) => Number(item.id.split("-").pop()))) + 1;
-      setAlbumCategories((records) => [...records, {
-        ...category,
-        id: `ALB-CAT-${String(nextNumber).padStart(3, "0")}`,
-        updatedAt: "2026-07-27 11:40",
-      }]);
-    }
-    setDrawer(null);
-  };
-
-  const toggleAlbumCategory = (categoryId) => {
-    setAlbumCategories((records) => records.map((item) => item.id === categoryId
-      ? { ...item, status: item.status === "启用" ? "停用" : "启用", updatedAt: "2026-07-27 11:40" }
-      : item));
-  };
-
-  const deleteAlbumCategory = (categoryId) => {
-    if (familyAlbumBatches.some((batch) => batch.categoryId === categoryId)) return;
-    setAlbumCategories((records) => records.filter((item) => item.id !== categoryId));
   };
 
   const saveReminder = (reminder) => {
@@ -4051,16 +3975,18 @@ export function App() {
                 ? <ReminderManagementPage reminders={scopedReminderRecords} elderlyRecords={scopedElderlyRecords} onCreate={() => setDrawer({ kind: "reminder" })} onEdit={(record) => setDrawer({ kind: "reminder", record })} onDelete={deleteReminder} onViewPlan={(record) => setDrawer({ kind: "reminderPlan", record })}/>
               : active === "emergencyHelp"
                 ? <EmergencyHelpPage events={scopedEmergencyEvents} elderlyRecords={scopedElderlyRecords} onOpen={(event) => setDrawer({ kind: "emergencyHelp", eventId: event.id })}/>
+              : active === "serviceCommunication"
+                ? <ServiceCommunicationPage projectId={currentProject?.id} communityName={currentProject?.community || "当前社区"}/>
               : active === "familyAlbums"
-                ? <FamilyAlbumBatchManagementPage categories={albumCategories} batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onAddCategory={() => setDrawer({ kind: "albumCategory" })} onEditCategory={(record) => setDrawer({ kind: "albumCategory", record })} onToggleCategory={toggleAlbumCategory} onDeleteCategory={deleteAlbumCategory} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
+                ? <FamilyAlbumBatchManagementPage batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
               : active === "recommendations"
                 ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} communityName={currentProject?.community} acceptanceScenario={recommendationScenario} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
               : active === "activities"
                 ? <CommunityActivityPage records={communityActivityRecords} registrations={scopedRegistrations} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "activity", mode: "edit" })} onView={(record) => setDrawer({ kind: "activity", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "activity", mode: "edit", record })} onUnpublish={unpublishCommunityActivity} onViewRegistrations={(record) => setDrawer({ kind: "activityRegistrations", record })}/>
               : active === "communityStaff"
                 ? <CommunityStaffPage records={scopedCommunityStaff} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "communityStaff" })} onEdit={(record) => setDrawer({ kind: "communityStaff", record })} onToggle={toggleCommunityStaff} onMove={moveCommunityStaff}/>
-              : active === "safety"
-                ? <SafetyNewsPage records={scopedSafetyNews} topics={scopedCommunityTopics} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "safety", mode: "edit" })} onView={(record) => setDrawer({ kind: "safety", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "safety", mode: "edit", record })} onStatusChange={changeSafetyNewsStatus} onCreateTopic={() => setDrawer({ kind: "communityTopicCreate" })} onViewTopic={(record) => setDrawer({ kind: "communityTopicDetail", topicId: record.id })}/>
+              : communityContentTypeByMenu[active]
+                ? <SafetyNewsPage records={scopedSafetyNews} contentType={communityContentTypeByMenu[active]} communityName={currentProject?.community} onCreate={() => setDrawer({ kind: "safety", mode: "edit", contentType: communityContentTypeByMenu[active] })} onView={(record) => setDrawer({ kind: "safety", mode: "view", record, contentType: record.type })} onEdit={(record) => setDrawer({ kind: "safety", mode: "edit", record, contentType: record.type })} onStatusChange={changeSafetyNewsStatus}/>
               : active === "services"
                 ? <ServiceBookingPage bookings={scopedServiceBookings} categories={scopedServiceCategories} elderlyRecords={scopedElderlyRecords} communityName={currentProject?.community || "当前社区"} onOpen={(record) => setDrawer({ kind: "serviceBooking", record })} onCreateCategory={() => setDrawer({ kind: "serviceCategory" })} onEditCategory={(record) => setDrawer({ kind: "serviceCategory", record })} onMoveCategory={moveServiceCategory} onToggleCategory={toggleServiceCategory}/>
               : active === "projects"
@@ -4084,17 +4010,16 @@ export function App() {
         if (!event) return null;
         return <EmergencyHelpDrawer event={event} elderly={scopedElderlyRecords.find((item) => item.id === event.elderlyId)} onClose={() => setDrawer(null)} onRetry={retryEmergencyNotification} onEnd={endEmergencyEvent}/>;
       })()}
-      {drawer?.kind === "albumCategory" && <AlbumCategoryDrawer key={drawer.record?.id || "new-album-category"} record={drawer.record} categories={albumCategories} onClose={() => setDrawer(null)} onSave={saveAlbumCategory}/>}
       {drawer?.kind === "familyAlbumBatch" && (() => {
         const batch = familyAlbumBatches.find((item) => item.id === drawer.batchId);
         if (!batch) return null;
-        return <FamilyAlbumBatchDetailDrawer batch={batch} elderly={scopedElderlyRecords.find((item) => item.id === batch.elderlyId)} uploader={scopedRelativeAccounts.find((item) => item.id === batch.uploaderId)} category={albumCategories.find((item) => item.id === batch.categoryId)} onClose={() => setDrawer(null)}/>;
+        return <FamilyAlbumBatchDetailDrawer batch={batch} elderly={scopedElderlyRecords.find((item) => item.id === batch.elderlyId)} uploader={scopedRelativeAccounts.find((item) => item.id === batch.uploaderId)} onClose={() => setDrawer(null)}/>;
       })()}
       {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || `new-recommendation-${drawer.presetDate || "default"}`} record={drawer.record} presetDate={drawer.presetDate} safetyNews={scopedSafetyNews} activities={communityActivityRecords} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>}
       {drawer?.kind === "activity" && <CommunityActivityDrawer key={`${drawer.mode}-${drawer.record?.id || "new-activity"}`} mode={drawer.mode} currentProject={currentProject} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCommunityActivity} onSetLiveMockState={setCommunityActivityLiveMockState}/>}
       {drawer?.kind === "activityRegistrations" && <ActivityRegistrationsModal activity={drawer.record} registrations={scopedRegistrations} elderlyRecords={scopedElderlyRecords} onClose={() => setDrawer(null)}/>}
       {drawer?.kind === "communityStaff" && <CommunityStaffDrawer key={drawer.record?.id || `new-community-staff-${currentProjectId}`} record={drawer.record} currentProject={currentProject} nextDisplayOrder={Math.max(0, ...scopedCommunityStaff.map((item) => Number(item.displayOrder) || 0)) + 1} onClose={() => setDrawer(null)} onSave={saveCommunityStaff}/>}
-      {drawer?.kind === "safety" && <SafetyNewsDrawer key={`${drawer.mode}-${drawer.record?.id || "new-community-content"}`} mode={drawer.mode} record={drawer.record} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>}
+      {drawer?.kind === "safety" && <SafetyNewsDrawer key={`${drawer.mode}-${drawer.record?.id || `new-${drawer.contentType || "community-content"}`}`} mode={drawer.mode} record={drawer.record} contentType={drawer.contentType} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>}
       {drawer?.kind === "communityTopicCreate" && <CommunityTopicDrawer currentProject={currentProject} contentRecords={scopedSafetyNews} onClose={() => setDrawer(null)} onSave={saveCommunityTopic}/>}
       {drawer?.kind === "communityTopicDetail" && (() => {
         const topic = communityTopics.find((item) => item.id === drawer.topicId);
@@ -4116,7 +4041,7 @@ export function App() {
       {tabletTarget && <TabletBindingModal record={tabletTarget} project={projects.find((project) => project.name === tabletTarget.project)} devices={tabletDevices} activation={activationRecords.find((item) => item.elderlyId === tabletTarget.id && ["待使用", "激活失败"].includes(item.status))} failureSignal={activationFailureSignal} onGenerate={generateTabletActivation} onFail={failTabletActivation} onActivate={(tabletId, activationId) => activateTablet(tabletTarget.id, tabletId, activationId)} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
       {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.community}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
-      {import.meta.env.DEV && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onActivationFailure={(type) => setActivationFailureSignal((signal) => ({ id: signal.id + 1, type }))} onReset={resetAcceptance}/>}
+      {import.meta.env.DEV && new URLSearchParams(window.location.search).has("acceptance") && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onActivationFailure={(type) => setActivationFailureSignal((signal) => ({ id: signal.id + 1, type }))} onReset={resetAcceptance}/>}
     </div>
   );
 }

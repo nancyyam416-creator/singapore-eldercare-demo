@@ -11,8 +11,11 @@ const acceptanceHierarchy = [
     { id: "emergencyHelp", label: "紧急求助" }, { id: "familyAlbums", label: "家庭相册" },
   ] },
   { id: "content", label: "运营内容", modules: [
-    { id: "recommendations", label: "推荐策略" }, { id: "safety", label: "社区内容" },
-    { id: "activities", label: "社区活动" }, { id: "communityStaff", label: "社区人员" }, { id: "services", label: "预约服务" },
+    { id: "recommendations", label: "推荐策略" }, { id: "services", label: "预约服务" },
+  ] },
+  { id: "community-life", label: "社区生活", modules: [
+    { id: "communityAnnouncements", label: "社区公告" }, { id: "lifeInformation", label: "生活资讯" },
+    { id: "alertItems", label: "警惕事项" }, { id: "activities", label: "社区活动" }, { id: "communityStaff", label: "社区人员" },
   ] },
   { id: "device-data", label: "设备与数据", modules: [
     { id: "tabletDevices", label: "平板设备" }, { id: "sensorDevices", label: "房间活动传感器" },
@@ -131,12 +134,12 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
   return (
     <div ref={shellRef} className={`acceptance-console ${open ? "is-open" : "is-collapsed"}`} style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)` }}>
       {!open ? (
-        <button className="acceptance-launcher" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onClick={toggleOpen}><FlaskConical size={17}/><span>交互验收</span></button>
+        <button className="acceptance-launcher" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onClick={toggleOpen}><FlaskConical size={17}/><span>场景切换</span></button>
       ) : (
-        <aside className="acceptance-workbench" aria-label="交互验收台">
+        <aside className="acceptance-workbench" aria-label="场景切换工具">
           <header className="acceptance-drag-handle" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
-            <div><GripHorizontal size={16}/><span><b>交互验收台</b><small>拖动标题栏移动</small></span></div>
-            <button onPointerDown={(event) => event.stopPropagation()} onClick={toggleOpen} aria-label="收起验收台"><X size={16}/></button>
+            <div><GripHorizontal size={16}/><span><b>场景切换工具</b><small>拖动标题栏移动</small></span></div>
+            <button onPointerDown={(event) => event.stopPropagation()} onClick={toggleOpen} aria-label="收起场景切换工具"><X size={16}/></button>
           </header>
           <div className="acceptance-body">
             <div className="acceptance-hierarchy">
@@ -145,11 +148,11 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>验收场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="验收场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>验收场景</b><p>当前模块未配置额外场景，使用正式页面默认 Mock 数据。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
             {hasActions && <section className="acceptance-action-section"><div className="acceptance-section-title"><span>一次性动作</span><em>平板激活</em></div><p>打开待使用激活码弹窗后，可重复注入失败结果。</p><div className="acceptance-actions"><button onClick={() => onActivationFailure("code_invalid")}>激活码错误</button><button onClick={() => onActivationFailure("offline")}>网络异常</button></div></section>}
           </div>
-          <footer><button onClick={onReset}><RefreshCw size={14}/>重置验收环境</button></footer>
+          <footer><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>
         </aside>
       )}
     </div>

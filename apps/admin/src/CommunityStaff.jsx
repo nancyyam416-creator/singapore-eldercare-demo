@@ -21,7 +21,7 @@ export const staffPortraits = {
 export const initialCommunityStaff = [
   {
     id: "STF-001", projectId: "PRJ-001", photo: staffPortraits.blue, displayName: "林国强", englishName: "Lim Kok Keong", role: "社区事务顾问",
-    phones: ["+65 6773 3273", "+65 8029 9610"], email: "kokkeong.lim@u2g.sg",
+    phones: ["+65 6773 3273"], email: "kokkeong.lim@u2g.sg",
     serviceLocations: [
       { serviceHours: "每周一 20:00–22:00" },
       { serviceHours: "每月第一个周六 10:00–12:00" },
@@ -35,7 +35,7 @@ export const initialCommunityStaff = [
   },
   {
     id: "STF-003", projectId: "PRJ-001", photo: "", displayName: "陈志明", englishName: "Tan Zhi Ming", role: "乐龄活动协调员",
-    phones: ["+65 9339 0533", "+65 6258 1072"], email: "zhiming.tan@u2g.sg",
+    phones: ["+65 9339 0533"], email: "zhiming.tan@u2g.sg",
     serviceLocations: [
       { serviceHours: "每周一 19:00–22:00" },
       { serviceHours: "每周三 14:00–17:00" },
@@ -85,7 +85,7 @@ export function CommunityStaffPage({ records, communityName, onCreate, onEdit, o
         {rows.map((record) => <tr key={record.id}>
           <td><div className="community-staff-person"><StaffAvatar record={record}/><span><b>{record.displayName}</b>{record.englishName && <small>{record.englishName}</small>}</span></div></td>
           <td>{record.role || <span className="muted-text">未填写</span>}</td>
-          <td><div className="stacked-cell"><b>{record.phones[0]}</b>{record.phones.length > 1 && <small>另有 {record.phones.length - 1} 个电话</small>}</div></td>
+          <td><b>{record.phones[0]}</b></td>
           <td><div className="stacked-cell"><b>{record.serviceLocations.length} 个时段</b><small>{record.serviceLocations[0]?.serviceHours || "暂无服务时间"}</small></div></td>
           <td><button type="button" role="switch" aria-checked={record.enabled} aria-label={`${record.displayName}启用状态`} className={`strategy-status-switch ${record.enabled ? "active" : ""}`} onClick={() => onToggle(record.id)}><i/><span>{record.enabled ? "启用" : "停用"}</span></button></td>
           <td><div className="staff-order-control"><button aria-label="上移" onClick={() => onMove(record.id, -1)}><ArrowUp size={14}/></button><b>{record.displayOrder}</b><button aria-label="下移" onClick={() => onMove(record.id, 1)}><ArrowDown size={14}/></button></div></td>
@@ -102,12 +102,12 @@ export function CommunityStaffPage({ records, communityName, onCreate, onEdit, o
 const blankLocation = () => ({ serviceHours: "" });
 
 export function CommunityStaffDrawer({ record, currentProject, nextDisplayOrder = 1, onClose, onSave }) {
-  const [form, setForm] = useState(() => record ? { ...record, phones: [...record.phones], serviceLocations: record.serviceLocations.map((item) => ({ ...item })) } : {
+  const [form, setForm] = useState(() => record ? { ...record, phones: [record.phones[0] || ""], serviceLocations: record.serviceLocations.map((item) => ({ ...item })) } : {
     projectId: currentProject?.id || "", photo: "", displayName: "", englishName: "", role: "", phones: [""], email: "", serviceLocations: [blankLocation()], displayOrder: nextDisplayOrder, enabled: true,
   });
   const [errors, setErrors] = useState({});
   const update = (key, value) => { setForm((current) => ({ ...current, [key]: value })); setErrors((current) => ({ ...current, [key]: "" })); };
-  const updatePhone = (index, value) => update("phones", form.phones.map((phone, phoneIndex) => phoneIndex === index ? value : phone));
+  const updatePhone = (value) => update("phones", [value]);
   const updateLocation = (index, key, value) => update("serviceLocations", form.serviceLocations.map((location, locationIndex) => locationIndex === index ? { ...location, [key]: value } : location));
   const chooseLocalImage = (event) => {
     const file = event.target.files?.[0];
@@ -119,8 +119,8 @@ export function CommunityStaffDrawer({ record, currentProject, nextDisplayOrder 
   const submit = () => {
     const nextErrors = {};
     if (!form.displayName.trim()) nextErrors.displayName = "请输入显示姓名";
-    const phones = form.phones.map((phone) => phone.trim()).filter(Boolean);
-    if (!phones.length) nextErrors.phones = "请至少填写一个联系电话";
+    const phones = [String(form.phones[0] || "").trim()].filter(Boolean);
+    if (!phones.length) nextErrors.phones = "请填写联系电话";
     const locations = form.serviceLocations.map((location) => ({ serviceHours: location.serviceHours.trim() })).filter((location) => location.serviceHours);
     if (!locations.length) nextErrors.serviceLocations = "请至少填写一组服务时间";
     if (!Number.isInteger(Number(form.displayOrder)) || Number(form.displayOrder) < 1) nextErrors.displayOrder = "展示顺序需为大于 0 的整数";
@@ -133,9 +133,9 @@ export function CommunityStaffDrawer({ record, currentProject, nextDisplayOrder 
   return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer community-staff-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑社区人员" : "新增社区人员"}>
     <header><div><h2>{record ? "编辑社区人员" : "新增社区人员"}</h2><p>{currentProject?.community} · 面向当前社区老人展示，不创建登录账号</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
     <div className="drawer-body">
-      <div className="form-section community-staff-photo-section"><h3>人员照片</h3><div className="staff-photo-editor"><StaffAvatar record={form} size="large"/><div><b>{form.photo ? "已选择人员照片" : "未上传时使用默认头像"}</b><p>L2 原型可选择预设 Mock 图片或本地图片预览</p><div className="staff-photo-actions">{Object.entries(staffPortraits).map(([key, photo]) => <button key={key} type="button" className={form.photo === photo ? "selected" : ""} onClick={() => update("photo", photo)}><img src={photo} alt="Mock 人员照片"/></button>)}<label className="secondary-button"><Upload size={14}/>本地图片<input type="file" accept="image/*" onChange={chooseLocalImage}/></label>{form.photo && <button type="button" className="text-button" onClick={() => update("photo", "")}>移除照片</button>}</div></div></div></div>
+      <div className="form-section community-staff-photo-section"><h3>人员照片</h3><div className="staff-photo-editor"><StaffAvatar record={form} size="large"/><div><b>{form.photo ? "已选择人员照片" : "未上传时使用默认头像"}</b><p>可选择预设头像或上传本地图片</p><div className="staff-photo-actions">{Object.entries(staffPortraits).map(([key, photo]) => <button key={key} type="button" className={form.photo === photo ? "selected" : ""} onClick={() => update("photo", photo)}><img src={photo} alt="人员照片"/></button>)}<label className="secondary-button"><Upload size={14}/>本地图片<input type="file" accept="image/*" onChange={chooseLocalImage}/></label>{form.photo && <button type="button" className="text-button" onClick={() => update("photo", "")}>移除照片</button>}</div></div></div></div>
       <div className="form-section"><h3>基础信息</h3><label><span>显示姓名 *</span><input value={form.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="请输入老人端展示姓名"/>{errors.displayName && <small className="field-error">{errors.displayName}</small>}</label><div className="form-row"><label><span>英文名</span><input value={form.englishName} onChange={(event) => update("englishName", event.target.value)} placeholder="选填"/></label><label><span>职务 / 身份</span><input value={form.role} onChange={(event) => update("role", event.target.value)} placeholder="例如：社区服务负责人"/></label></div><label><span>邮箱</span><input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} placeholder="选填；未填写时老人端不展示邮箱行"/>{errors.email && <small className="field-error">{errors.email}</small>}</label></div>
-      <div className="form-section staff-repeat-section"><div className="form-section-heading"><div><h3>联系电话 *</h3><p>至少一个，可继续添加多个号码</p></div><button type="button" className="secondary-button" onClick={() => update("phones", [...form.phones, ""])}><Plus size={14}/>添加电话</button></div>{form.phones.map((phone, index) => <div className="staff-repeat-row" key={`phone-${index}`}><input value={phone} onChange={(event) => updatePhone(index, event.target.value)} placeholder="例如：+65 6273 2288"/><button type="button" aria-label="移除电话" disabled={form.phones.length === 1} onClick={() => update("phones", form.phones.filter((_, phoneIndex) => phoneIndex !== index))}><Trash2 size={15}/></button></div>)}{errors.phones && <small className="field-error">{errors.phones}</small>}</div>
+      <div className="form-section"><h3>联系电话 *</h3><label><input value={form.phones[0] || ""} onChange={(event) => updatePhone(event.target.value)} placeholder="例如：+65 6273 2288"/>{errors.phones && <small className="field-error">{errors.phones}</small>}</label></div>
       <div className="form-section staff-repeat-section"><div className="form-section-heading"><div><h3>服务时间 *</h3><p>人员默认服务当前社区，只需维护对外服务时间</p></div><button type="button" className="secondary-button" onClick={() => update("serviceLocations", [...form.serviceLocations, blankLocation()])}><Plus size={14}/>添加时间</button></div>{form.serviceLocations.map((location, index) => <section className="staff-location-card" key={`location-${index}`}><div className="staff-location-heading"><b>服务时间 {index + 1}</b><button type="button" aria-label="移除服务时间" disabled={form.serviceLocations.length === 1} onClick={() => update("serviceLocations", form.serviceLocations.filter((_, locationIndex) => locationIndex !== index))}><Trash2 size={15}/></button></div><label><span>时间说明</span><input value={location.serviceHours} onChange={(event) => updateLocation(index, "serviceHours", event.target.value)} placeholder="例如：每周一 19:00–21:00"/></label></section>)}{errors.serviceLocations && <small className="field-error">{errors.serviceLocations}</small>}</div>
       <div className="form-section"><h3>展示设置</h3><label><span>展示顺序 *</span><input type="number" min="1" step="1" value={form.displayOrder} onChange={(event) => update("displayOrder", Number(event.target.value))}/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><div className="staff-enabled-options"><button type="button" className={form.enabled ? "selected" : ""} onClick={() => update("enabled", true)}><b>启用</b><span>按展示顺序出现在老人端</span></button><button type="button" className={!form.enabled ? "selected" : ""} onClick={() => update("enabled", false)}><b>停用</b><span>保留配置，老人端不展示</span></button></div></div>
     </div>

@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleEllipsis,
   Heart,
+  House,
   Image,
   ImageOff,
   MessageCircleHeart,
@@ -27,7 +28,6 @@ import {
   X,
 } from "lucide-react";
 import HomeTaskRail from "./HomeTaskRail";
-import NewFamilyMediaOverlay from "./NewFamilyMediaOverlay";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
 import type { MedicationReminder } from "../types";
 import {
@@ -59,6 +59,7 @@ interface MessageItem {
   photoUrl?: string;
   photoUrls?: string[];
   loadFailed?: boolean;
+  deliveryStatus?: "sending" | "failed" | "delivered";
 }
 
 interface AlbumPhotoItem {
@@ -69,7 +70,7 @@ interface AlbumPhotoItem {
   videoUrl?: string;
   senderName?: string;
   uploadTime?: string;
-  categoryName?: string;
+  categoryNameSnapshot?: string;
   batchCaption?: string;
   initialHearts?: number;
 }
@@ -93,7 +94,9 @@ interface ControlCenterHomeProps {
   onTogglePhotoHeart: (photoKey: string, liked: boolean) => void;
   onVideoViewed: (videoId: string) => void;
   onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
+  onOpenReminder: (id: string, minutesUntil: number) => void;
   onOpenAlbum: () => void;
+  onOpenFamilyMediaReminder: () => void;
   onOpenMessages: () => void;
   onOpenSchedule: () => void;
   onOpenCommunity: () => void;
@@ -107,6 +110,7 @@ interface ControlCenterHomeProps {
   acceptanceHeartScenario?: AcceptanceHeartScenario;
   acceptanceRightContentScenario?: AcceptanceRightContentScenario;
   acceptanceRightContentApplySignal?: number;
+  acceptanceRightContentActionSignal?: number;
   acceptanceRevision?: number;
   acceptanceCommand?: { id: number; type: AcceptanceHomeCommand } | null;
   familyWeather: FamilyWeatherSnapshot;
@@ -164,7 +168,9 @@ export default function ControlCenterHome({
   onTogglePhotoHeart,
   onVideoViewed,
   onCompleteReminder,
+  onOpenReminder,
   onOpenAlbum,
+  onOpenFamilyMediaReminder,
   onOpenMessages,
   onOpenSchedule,
   onOpenCommunity,
@@ -178,6 +184,7 @@ export default function ControlCenterHome({
   acceptanceHeartScenario = "not-liked",
   acceptanceRightContentScenario = "default",
   acceptanceRightContentApplySignal = 0,
+  acceptanceRightContentActionSignal = 0,
   acceptanceRevision = 0,
   acceptanceCommand = null,
   familyWeather,
@@ -194,7 +201,6 @@ export default function ControlCenterHome({
   const [viewedVideoIds, setViewedVideoIds] = useState<string[]>([]);
   const [confirmSOS, setConfirmSOS] = useState(false);
   const [isWeatherOpen, setIsWeatherOpen] = useState(false);
-  const [isNewFamilyMediaOpen, setIsNewFamilyMediaOpen] = useState(false);
   const [selectedWeatherId, setSelectedWeatherId] = useState("");
   const [isWeatherOnline, setIsWeatherOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [weatherCareStage, setWeatherCareStage] = useState<WeatherCareStage>("idle");
@@ -209,24 +215,10 @@ export default function ControlCenterHome({
   const swipeStartXRef = useRef<number | null>(null);
   const swipePointerIdRef = useRef<number | null>(null);
   const homePhotoPool = useMemo(() => {
-    let photos = [
-      {
-        id: "home-featured-family",
-        url: "./assets/family-dashboard-source.png",
-        caption: "家人团聚合照",
-        type: "photo" as const,
-        senderName: "全家",
-        uploadTime: "上个月",
-        categoryName: "节日团聚",
-        batchCaption: "一家人团聚时拍下的珍贵合影。",
-        cropClass: "photo-crop--family",
-        initialHearts: 21,
-      },
-      ...albumPhotos.map((photo) => ({
-        ...photo,
-        cropClass: "photo-crop--cover",
-      })),
-    ].slice(0, HOME_ALBUM_MAX_ITEMS);
+    let photos = albumPhotos.map((photo) => ({
+      ...photo,
+      cropClass: "photo-crop--cover",
+    })).slice(0, HOME_ALBUM_MAX_ITEMS);
     const prefersVideo = acceptanceAlbumScenario === "video-failure";
     if (prefersVideo) {
       const firstVideo = photos.find((photo) => photo.type === "video");
@@ -273,10 +265,6 @@ export default function ControlCenterHome({
   const openAlbumFromHome = () => {
     pauseHomeVideo();
     onOpenAlbum();
-  };
-  const openNewFamilyMedia = () => {
-    pauseHomeVideo();
-    setIsNewFamilyMediaOpen(true);
   };
   const currentPhotoLiked = acceptanceHeartScenario === "liked"
     || (acceptanceHeartScenario !== "not-liked" && Boolean(photoHeartStates[currentPhoto.url]));
@@ -383,7 +371,7 @@ export default function ControlCenterHome({
     };
   }, []);
 
-  const unreadCount = messages.filter((item) => !item.played && item.sender !== "您 (我)").length;
+  const unreadCount = messages.filter((item) => !item.played && item.sender !== "您 (我)" && item.deliveryStatus !== "failed").length;
 
   const dateText = useMemo(() => {
     return new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(now);
@@ -528,7 +516,6 @@ export default function ControlCenterHome({
     if (acceptanceCommand.type === "reset-home-overlays") {
       setConfirmSOS(false);
       setIsWeatherOpen(false);
-      setIsNewFamilyMediaOpen(false);
       return;
     }
     if (acceptanceCommand.type === "previous-photo") {
@@ -573,7 +560,7 @@ export default function ControlCenterHome({
               <span className="weather-sun" aria-hidden="true">{weatherIcon(elderWeather.conditionCode)}</span>
               <span className="weather-main">
                 <span><strong>{elderWeather.temperatureC}°C</strong><b>{elderWeather.conditionText}</b></span>
-                <small>{elderLocation.cityName} · 最高{elderWeather.highC}° / 最低{elderWeather.lowC}°</small>
+                <small>{elderLocation.cityName}</small>
               </span>
             </span>
           ) : (
@@ -723,13 +710,15 @@ export default function ControlCenterHome({
           albumUnreadCount={albumUnreadCount}
           missedCallCount={missedCallCount}
           onCompleteReminder={onCompleteReminder}
+          onOpenReminder={onOpenReminder}
           onOpenMessages={onOpenMessages}
           onOpenCommunity={onOpenCommunity}
           onOpenContacts={onOpenContacts}
-          onOpenAlbum={openNewFamilyMedia}
+          onOpenAlbum={onOpenFamilyMediaReminder}
           onOpenRecommendation={onOpenRecommendation}
           acceptanceRightContentScenario={acceptanceRightContentScenario}
           acceptanceRightContentApplySignal={acceptanceRightContentApplySignal}
+          acceptanceRightContentActionSignal={acceptanceRightContentActionSignal}
           acceptanceRevision={acceptanceRevision}
         />
       </section>
@@ -750,16 +739,6 @@ export default function ControlCenterHome({
         </div>
       </nav>
 
-      <NewFamilyMediaOverlay
-        isOpen={isNewFamilyMediaOpen}
-        items={albumPhotos}
-        unreadCount={albumUnreadCount}
-        heartStates={photoHeartStates}
-        onToggleHeart={onTogglePhotoHeart}
-        onViewed={onVideoViewed}
-        onClose={() => setIsNewFamilyMediaOpen(false)}
-      />
-
       {isWeatherOpen && (
         <div className="weather-overview-overlay">
           <section className="weather-overview" role="dialog" aria-modal="true" aria-labelledby="weather-overview-title">
@@ -779,21 +758,33 @@ export default function ControlCenterHome({
                 const isSelected = member.id === selectedWeatherId;
                 const locationLabel = formatMemberLocation(member, familyWeather.elder.location?.countryCode);
                 const cardContent = <>
-                  <span className="weather-city-card__identity"><b>{member.isElder ? "我这里" : member.displayName}</b><small>{member.relationship}</small></span>
+                  {member.isElder && <span className="weather-city-card__local-badge"><House aria-hidden="true" />本人</span>}
+                  <span className="weather-city-card__identity">
+                    <b>{member.isElder ? "我的天气" : member.displayName}</b>
+                    {!member.isElder && <small>{member.relationship}</small>}
+                  </span>
                   <span className="weather-city-card__icon" aria-hidden="true">
                     {weatherIcon(member.weather?.conditionCode)}
                   </span>
                   {isAvailable && member.weather && member.location ? (
                     <>
                       <strong>{member.weather.temperatureC}°C</strong>
-                      <b className="weather-city-card__location"><MapPin aria-hidden="true" />{locationLabel}</b>
+                      <b className="weather-city-card__location">
+                        <MapPin aria-hidden="true" />
+                        <span>{locationLabel}</span>
+                      </b>
                       <span className="weather-city-card__time">当地 {formatWeatherLocalTime(member.location.timeZone)}</span>
                     </>
                   ) : (
                     <>
                       <strong className="weather-city-card__empty-temperature">--</strong>
                       <span className="weather-city-card__empty-copy">{weatherUnavailableText(member)}</span>
-                      {member.location && <b className="weather-city-card__location"><MapPin aria-hidden="true" />{locationLabel}</b>}
+                      {member.location && (
+                        <b className="weather-city-card__location">
+                          <MapPin aria-hidden="true" />
+                          <span>{locationLabel}</span>
+                        </b>
+                      )}
                     </>
                   )}
                   {!member.isElder && isSelected && <CheckCircle2 className="weather-city-card__selected" aria-hidden="true" />}

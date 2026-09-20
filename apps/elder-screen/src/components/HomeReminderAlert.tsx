@@ -9,7 +9,8 @@ interface HomeReminderAlertProps {
   onComplete: () => void;
   onDismiss: () => void;
   currentTime?: Date;
-  autoDismissMs?: number;
+  autoDismissMs?: number | null;
+  shouldSpeak?: boolean;
 }
 
 const spokenReminderKeys = new Set<string>();
@@ -23,9 +24,12 @@ export default function HomeReminderAlert({
   onDismiss,
   currentTime = new Date(),
   autoDismissMs = 60_000,
+  shouldSpeak = true,
 }: HomeReminderAlertProps) {
   const isDailyReminder = reminder.category === "schedule";
-  const title = isDailyReminder ? "马上有一件日常事项" : "马上到服药时间了";
+  const title = isDailyReminder
+    ? minutesUntil > 0 ? "马上有一件日常事项" : "该做事项了"
+    : minutesUntil > 0 ? "马上到服药时间了" : "该用药了";
   const actionLabel = isDailyReminder ? "我已完成" : "我已服药";
   const remainingLabel = minutesUntil > 0 ? `还有 ${minutesUntil} 分钟` : "提醒时间到了";
   const ReminderIcon = isDailyReminder ? CalendarDays : Pill;
@@ -36,6 +40,7 @@ export default function HomeReminderAlert({
   }, [onDismiss]);
 
   useEffect(() => {
+    if (autoDismissMs === null) return;
     const timer = window.setTimeout(() => dismissRef.current(), autoDismissMs);
     return () => window.clearTimeout(timer);
   }, [autoDismissMs, reminder.id]);
@@ -49,7 +54,7 @@ export default function HomeReminderAlert({
       String(currentTime.getDate()).padStart(2, "0"),
     ].join("-");
     const speechKey = `${dayKey}:${reminder.id}`;
-    if (isQuietHours || spokenReminderKeys.has(speechKey)) return;
+    if (!shouldSpeak || isQuietHours || spokenReminderKeys.has(speechKey)) return;
     spokenReminderKeys.add(speechKey);
     speakText(
       isDailyReminder
@@ -61,7 +66,7 @@ export default function HomeReminderAlert({
       },
     );
     return stopSpeech;
-  }, [currentTime, isDailyReminder, reminder.dosage, reminder.id, reminder.name]);
+  }, [currentTime, isDailyReminder, reminder.dosage, reminder.id, reminder.name, shouldSpeak]);
 
   return (
     <div className="home-reminder-alert" role="presentation">
@@ -75,7 +80,7 @@ export default function HomeReminderAlert({
         <header className="home-reminder-alert__header">
           <span className="home-reminder-alert__badge">
             <BellRing aria-hidden="true" />
-            {minutesUntil > 0 ? "提前 5 分钟提醒" : "到点提醒"}
+            {minutesUntil > 0 ? `提前 ${minutesUntil} 分钟提醒` : "到点提醒"}
           </span>
           <span className="home-reminder-alert__remaining">
             <Clock3 aria-hidden="true" />
@@ -102,10 +107,6 @@ export default function HomeReminderAlert({
           </button>
           <button type="button" onClick={onDismiss}>知道了</button>
         </div>
-
-        <p className="home-reminder-alert__note">
-          点“知道了”只关闭弹窗，提醒仍会保留在提醒事项中。
-        </p>
       </section>
     </div>
   );

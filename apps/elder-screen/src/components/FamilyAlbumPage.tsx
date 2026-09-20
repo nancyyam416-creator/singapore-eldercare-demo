@@ -1,31 +1,28 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
   AlertTriangle,
-  Baby,
   Check,
-  Flower2,
   Heart,
   Images,
   ImageOff,
   Pause,
   Play,
   RefreshCw,
-  UsersRound,
   Video,
   Volume2,
 } from "lucide-react";
 import { speakText, stopSpeech } from "../audio/speech";
+import type { FamilyPhoto } from "../types";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario } from "./InteractionAcceptanceConsole";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./family-album-page.css";
 
-type AlbumCategoryId = "all" | "grandchildren" | "reunion" | "daily";
+type AlbumCategoryId = "all" | string;
 type VoiceState = "idle" | "playing" | "finished";
 
 interface AlbumCategory {
   id: AlbumCategoryId;
   name: string;
-  description: string;
   icon: typeof Images;
 }
 
@@ -52,9 +49,12 @@ interface AlbumPhoto {
 interface FamilyAlbumPageProps {
   isOpen: boolean;
   onClose: () => void;
+  photos: FamilyPhoto[];
+  viewedMediaIds: string[];
+  initialMediaId?: string | null;
+  onMediaViewed: (mediaId: string) => void;
   onLogInteraction?: (log: string) => void;
   onStartCallExternal?: (contactName: string) => void;
-  onUnreadCountChange?: (count: number) => void;
   heartStates?: Record<string, boolean>;
   onToggleHeart?: (photoKey: string, liked: boolean) => void;
   acceptanceScenario?: AcceptanceAlbumScenario;
@@ -67,217 +67,28 @@ const categories: AlbumCategory[] = [
   {
     id: "all",
     name: "全部影像",
-    description: "家人分享的照片和视频",
     icon: Images,
-  },
-  {
-    id: "grandchildren",
-    name: "孙辈成长",
-    description: "孩子们的成长与新鲜事",
-    icon: Baby,
-  },
-  {
-    id: "reunion",
-    name: "节日团聚",
-    description: "全家相聚的珍贵回忆",
-    icon: UsersRound,
-  },
-  {
-    id: "daily",
-    name: "日常与花草",
-    description: "平凡日子里的小美好",
-    icon: Flower2,
-  },
-];
-
-const initialPhotos: AlbumPhoto[] = [
-  {
-    id: "snowman-message",
-    categoryId: "grandchildren",
-    url: "./assets/snowman-photo-message.jpg",
-    width: 2400,
-    height: 1744,
-    alt: "孩子们在雪地里一起堆雪人",
-    caption: "爸，这是昨天下雪拍的照片",
-    senderName: "女儿小敏",
-    senderRole: "女儿",
-    uploadTime: "今天 09:12",
-    location: "北京",
-    voiceDuration: 7,
-    initialHearts: 12,
-    unread: true,
-  },
-  {
-    id: "dragon-boat-song-video",
-    categoryId: "grandchildren",
-    url: "https://picsum.photos/seed/familygarden/600/450",
-    width: 1280,
-    height: 900,
-    alt: "重孙女在幼儿园唱端午节儿歌的视频封面",
-    caption: "悦悦在幼儿园唱了端午节儿歌，专门录给爷爷看。",
-    type: "video",
-    videoUrl: "./assets/family-video-mock.mp4",
-    batchCaption: "幼儿园端午节活动的一段家庭视频。",
-    senderName: "女儿小敏",
-    senderRole: "女儿",
-    uploadTime: "今天 10:05",
-    location: "北京",
-    voiceDuration: 0,
-    initialHearts: 15,
-    unread: true,
-  },
-  {
-    id: "granddaughter-card",
-    categoryId: "grandchildren",
-    url: "https://picsum.photos/seed/card/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "孙女画给爷爷的节日贺卡",
-    caption: "小雅画了一张贺卡送给爷爷，祝您每天都开心！",
-    senderName: "女儿小敏",
-    senderRole: "女儿",
-    uploadTime: "07月20日 16:30",
-    location: "北京",
-    voiceDuration: 8,
-    initialHearts: 9,
-    unread: true,
-  },
-  {
-    id: "grandson-piano",
-    categoryId: "grandchildren",
-    url: "https://picsum.photos/seed/piano/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "外孙参加学校钢琴比赛",
-    caption: "小杰参加学校钢琴比赛了，他说下次要弹给爷爷听。",
-    senderName: "儿子小刚",
-    senderRole: "儿子",
-    uploadTime: "07月18日 19:45",
-    location: "上海",
-    voiceDuration: 9,
-    initialHearts: 15,
-    unread: false,
-  },
-  {
-    id: "family-gift-video",
-    categoryId: "reunion",
-    url: "https://picsum.photos/seed/grandsonplay/600/450",
-    width: 1280,
-    height: 900,
-    alt: "家人一起拆礼物的视频封面",
-    caption: "孩子们一起准备了礼物，想让爷爷也看看当时有多热闹。",
-    type: "video",
-    videoUrl: "./assets/family-video-mock.mp4",
-    batchCaption: "家庭聚会当天的一段欢乐视频。",
-    senderName: "儿子小刚",
-    senderRole: "儿子",
-    uploadTime: "07月17日 20:10",
-    location: "上海",
-    voiceDuration: 0,
-    initialHearts: 18,
-    unread: false,
-  },
-  {
-    id: "birthday-reunion",
-    categoryId: "reunion",
-    url: "https://picsum.photos/seed/familyall/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "全家人在寿宴上拍摄的大合影",
-    caption: "这是上个月寿宴的大合影，四世同堂，大家都笑得特别开心。",
-    senderName: "儿子小刚",
-    senderRole: "儿子",
-    uploadTime: "05月22日 18:10",
-    location: "杭州",
-    voiceDuration: 10,
-    initialHearts: 21,
-    unread: false,
-  },
-  {
-    id: "mid-autumn-reunion",
-    categoryId: "reunion",
-    url: "https://picsum.photos/seed/bbq/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "全家人在中秋节聚餐",
-    caption: "去年中秋大家一起赏月，小雅还给爷爷留了一块蛋黄月饼。",
-    senderName: "女儿小敏",
-    senderRole: "女儿",
-    uploadTime: "去年中秋节",
-    location: "北京",
-    voiceDuration: 9,
-    initialHearts: 18,
-    unread: false,
-  },
-  {
-    id: "hydrangea-daily",
-    categoryId: "daily",
-    url: "https://picsum.photos/seed/hydrangea/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "窗边盛开的绣球花",
-    caption: "阳台上的绣球花开了，颜色和您以前种的一样漂亮。",
-    senderName: "女儿小敏",
-    senderRole: "女儿",
-    uploadTime: "07月16日 08:40",
-    location: "北京",
-    voiceDuration: 7,
-    initialHearts: 11,
-    unread: false,
-  },
-  {
-    id: "garden-walk",
-    categoryId: "daily",
-    url: "https://picsum.photos/seed/gardenstroll/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "家人在公园里散步",
-    caption: "周末带孩子们去公园散步了，下次我们陪您一起去。",
-    senderName: "女儿小敏",
-    senderRole: "女儿",
-    uploadTime: "07月13日 15:40",
-    location: "北京",
-    voiceDuration: 8,
-    initialHearts: 14,
-    unread: false,
-  },
-  {
-    id: "mountain-memory",
-    categoryId: "daily",
-    url: "https://picsum.photos/seed/mountain/1280/900",
-    width: 1280,
-    height: 900,
-    alt: "清晨山间的日出风景",
-    caption: "整理旧照片时看到这张山顶日出，想起您以前常讲的旅行故事。",
-    senderName: "儿子小刚",
-    senderRole: "儿子",
-    uploadTime: "07月10日 10:20",
-    location: "杭州",
-    voiceDuration: 10,
-    initialHearts: 17,
-    unread: false,
   },
 ];
 
 const getInitialCategory = (): AlbumCategoryId => {
   if (typeof window === "undefined") return "all";
-  const storedCategory = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
-  return categories.some((category) => category.id === storedCategory)
-    ? (storedCategory as AlbumCategoryId)
-    : "all";
+  return window.localStorage.getItem(CATEGORY_STORAGE_KEY) || "all";
 };
 
 export default function FamilyAlbumPage({
   isOpen,
   onClose,
+  photos: sourcePhotos,
+  viewedMediaIds,
+  initialMediaId = null,
+  onMediaViewed,
   onLogInteraction,
-  onUnreadCountChange,
   heartStates,
   onToggleHeart,
   acceptanceScenario = "default",
   acceptanceHeartScenario = "not-liked",
 }: FamilyAlbumPageProps) {
-  const [photos, setPhotos] = useState(initialPhotos);
   const [selectedCategoryId, setSelectedCategoryId] = useState<AlbumCategoryId>(getInitialCategory);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -289,6 +100,26 @@ export default function FamilyAlbumPage({
   const [viewedVideoIds, setViewedVideoIds] = useState<string[]>([]);
   const pointerStartX = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const photos = useMemo<AlbumPhoto[]>(() => sourcePhotos.map((photo) => ({
+    id: photo.id,
+    categoryId: photo.categoryNameSnapshot || "未分类",
+    url: photo.url,
+    width: photo.width ?? 1280,
+    height: photo.height ?? 900,
+    alt: photo.alt ?? photo.caption,
+    caption: photo.caption,
+    type: photo.type,
+    videoUrl: photo.videoUrl,
+    batchCaption: photo.batchCaption,
+    senderName: photo.senderName ?? "家人",
+    senderRole: "家人",
+    uploadTime: photo.uploadTime ?? photo.date,
+    location: "",
+    voiceDuration: photo.voiceDuration ?? 8,
+    initialHearts: photo.initialHearts ?? 0,
+    unread: !viewedMediaIds.includes(photo.id),
+  })), [sourcePhotos, viewedMediaIds]);
 
   const scenarioPhotos = useMemo(
     () => acceptanceScenario === "empty"
@@ -306,8 +137,21 @@ export default function FamilyAlbumPage({
     [scenarioPhotos, selectedCategoryId],
   );
 
+  const dynamicCategories = useMemo<AlbumCategory[]>(() => [
+    ...categories,
+    ...Array.from(new Set(scenarioPhotos.map((photo) => photo.categoryId).filter(Boolean))).map((name) => ({
+      id: name,
+      name,
+      icon: Images,
+    })),
+  ], [scenarioPhotos]);
+
+  useEffect(() => {
+    if (dynamicCategories.some((category) => category.id === selectedCategoryId)) return;
+    setSelectedCategoryId("all");
+  }, [dynamicCategories, selectedCategoryId]);
+
   const activePhoto = visiblePhotos[currentIndex] ?? visiblePhotos[0];
-  const unreadCount = scenarioPhotos.filter((photo) => photo.unread).length;
 
   const stopVoice = () => {
     stopSpeech();
@@ -444,21 +288,13 @@ export default function FamilyAlbumPage({
   }, [currentIndex, visiblePhotos.length]);
 
   useEffect(() => {
-    onUnreadCountChange?.(unreadCount);
-  }, [onUnreadCountChange, unreadCount]);
-
-  useEffect(() => {
     if (!isOpen || !activePhoto?.unread || activePhoto.type === "video" || acceptanceScenario === "notice-photo") return;
     const timer = window.setTimeout(() => {
-      setPhotos((current) =>
-        current.map((photo) =>
-          photo.id === activePhoto.id ? { ...photo, unread: false } : photo,
-        ),
-      );
+      onMediaViewed(activePhoto.id);
       onLogInteraction?.(`查看了${activePhoto.senderName}分享的新照片`);
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [acceptanceScenario, activePhoto?.id, activePhoto?.unread, isOpen, onLogInteraction]);
+  }, [acceptanceScenario, activePhoto?.id, activePhoto?.unread, isOpen, onLogInteraction, onMediaViewed]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -468,14 +304,16 @@ export default function FamilyAlbumPage({
     setVoiceState("idle");
     setFeedback("");
     const shouldShowVideo = acceptanceScenario === "video-failure" || acceptanceScenario === "notice-video";
-    const firstVideoIndex = initialPhotos.findIndex((item) => item.type === "video");
-    if (shouldShowVideo && firstVideoIndex >= 0) setCurrentIndex(firstVideoIndex);
+    const requestedIndex = initialMediaId ? scenarioPhotos.findIndex((item) => item.id === initialMediaId) : -1;
+    const firstVideoIndex = scenarioPhotos.findIndex((item) => item.type === "video");
+    if (requestedIndex >= 0) setCurrentIndex(requestedIndex);
+    else if (shouldShowVideo && firstVideoIndex >= 0) setCurrentIndex(firstVideoIndex);
     if (shouldShowVideo) setVideoState(acceptanceScenario === "video-failure" ? "failed" : "cover");
     if (shouldShowVideo && firstVideoIndex >= 0) {
-      const videoId = initialPhotos[firstVideoIndex].id;
+      const videoId = scenarioPhotos[firstVideoIndex].id;
       setViewedVideoIds((ids) => ids.filter((id) => id !== videoId));
     }
-  }, [acceptanceScenario, isOpen]);
+  }, [acceptanceScenario, initialMediaId, isOpen, sourcePhotos]);
 
   useEffect(() => {
     if (isOpen) return;
@@ -498,7 +336,7 @@ export default function FamilyAlbumPage({
   const renderCategorySidebar = () => (
     <aside className="family-album-sidebar" aria-label="相册分类">
       <nav className="family-album-categories" aria-label="选择相册分类">
-        {categories.map((category) => {
+        {dynamicCategories.map((category) => {
           const CategoryIcon = category.icon;
           const categoryCount =
             category.id === "all"
@@ -548,7 +386,7 @@ export default function FamilyAlbumPage({
     || (acceptanceHeartScenario !== "not-liked" && Boolean(heartStates?.[activePhoto.url] ?? localHeartStates[activePhoto.url]));
   const isActiveVideo = activePhoto.type === "video";
   const isActivePhotoUnread = !isActiveVideo && (acceptanceScenario === "notice-photo" || activePhoto.unread);
-  const isActiveVideoUnread = isActiveVideo && acceptanceScenario === "notice-video";
+  const isActiveVideoUnread = isActiveVideo && (acceptanceScenario === "notice-video" || activePhoto.unread);
 
   return (
     <main className="family-album-page" aria-label="家庭相册">
@@ -588,7 +426,7 @@ export default function FamilyAlbumPage({
                     setFeedback("视频正在播放");
                     setViewedVideoIds((ids) => {
                       if (ids.includes(activePhoto.id)) return ids;
-                      setPhotos((current) => current.map((item) => item.id === activePhoto.id ? { ...item, unread: false } : item));
+                      onMediaViewed(activePhoto.id);
                       onLogInteraction?.(`查看了${activePhoto.senderName}分享的新视频`);
                       return [...ids, activePhoto.id];
                     });

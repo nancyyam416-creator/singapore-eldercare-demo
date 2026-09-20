@@ -1,0 +1,76 @@
+@import "../../tokens.css";
+
+.family-invitation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: var(--color-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.family-invitation-modal {
+  position: relative;
+  width: min(760px, calc(100vw - 64px));
+  min-height: 720px;
+  max-height: calc(100vh - 64px);
+  display: grid;
+  grid-template-rows: 112px minmax(0, 1fr);
+  overflow: hidden;
+  border: var(--rule-strong) solid var(--color-line);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  background: var(--color-panel);
+  box-shadow: 0 32px 100px rgb(0 0 0 / 56%);
+  font-family: var(--font-body);
+}
+
+.family-invitation-modal button { font-family: inherit; }
+.family-invitation-modal button:focus-visible { outline: 4px solid var(--color-focus); outline-offset: 3px; }
+.family-invitation-modal button:active { transform: scale(.985); }
+
+.family-invitation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 32px;
+  border-bottom: var(--rule-thin) solid var(--color-line);
+  background: var(--color-canvas-deep);
+}
+
+.family-invitation-heading { display: flex; align-items: center; gap: 16px; }
+.family-invitation-heading__icon { width: 58px; height: 58px; display: grid; place-items: center; border: 2px solid color-mix(in oklch, var(--color-green), transparent 58%); border-radius: 18px; color: var(--color-green); background: color-mix(in oklch, var(--color-green-dark), transparent 52%); }
+.family-invitation-heading__icon svg { width: 31px; height: 31px; }
+.family-invitation-heading h2 { margin: 0; font-family: var(--font-display); font-size: 31px; }
+
+.family-invitation-close { width: 58px; height: 58px; display: grid; place-items: center; border: 2px solid var(--color-line); border-radius: 50%; color: var(--color-text-soft); background: var(--color-panel-raised); cursor: pointer; }
+.family-invitation-close:hover { color: var(--color-text); border-color: color-mix(in oklch, var(--color-green), transparent 50%); }
+.family-invitation-close svg { width: 28px; height: 28px; }
+
+.family-invitation-body { min-height: 0; display: grid; place-items: center; padding: 32px; overflow-y: auto; }
+
+.family-invitation-active { width: 100%; display: grid; place-items: center; }
+.family-invitation-qr-panel { width: min(480px, 100%); display: grid; justify-items: center; gap: 10px; text-align: center; }
+.family-invitation-qr { width: 380px; height: 380px; display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; padding: 18px; border-radius: 18px; background: white; box-shadow: 0 20px 50px rgb(0 0 0 / 34%); }
+.family-invitation-qr i { display: block; }
+.family-invitation-qr-panel > h3 { margin: 18px 0 0; font-family: var(--font-display); font-size: 27px; }
+.family-invitation-qr-panel > p { margin: 0; color: var(--color-text-soft); font-size: 16px; font-weight: 700; }
+.family-invitation-expiry { display: inline-flex; align-items: center; gap: 7px; margin-top: 6px; color: var(--color-text-muted); font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.family-invitation-expiry svg { width: 18px; height: 18px; color: var(--color-amber); opacity: .78; }
+
+.family-invitation-state { width: min(620px, 100%); display: grid; justify-items: center; gap: 14px; color: var(--color-text-soft); text-align: center; }
+.family-invitation-state > svg { width: 72px; height: 72px; color: var(--color-green); }
+.family-invitation-state > svg.is-spinning { animation: family-invitation-spin 900ms linear infinite; }
+.family-invitation-state.is-error > svg { color: #ff8f88; }
+.family-invitation-state h3 { margin: 4px 0 0; color: var(--color-text); font-family: var(--font-display); font-size: 34px; }
+.family-invitation-state p { margin: 0; font-size: 19px; font-weight: 750; }
+
+@keyframes family-invitation-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .family-invitation-modal { min-height: 0; }
+  .family-invitation-qr { width: 250px; height: 250px; }
+}

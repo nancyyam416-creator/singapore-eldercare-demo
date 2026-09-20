@@ -1,10 +1,17 @@
-import type { ComponentType } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import {
   CircleOff,
-  Headphones,
+  LoaderCircle,
   Music2,
   Radio,
-  Tv,
+  RefreshCw,
+  Youtube,
   type LucideProps,
 } from "lucide-react";
 import SecondaryPageHeader from "./SecondaryPageHeader";
@@ -18,6 +25,8 @@ interface EntertainmentHubPageProps {
   isOpen: boolean;
   onClose: () => void;
   forceEmpty?: boolean;
+  openShouldFail?: boolean;
+  failureSignal?: number;
 }
 
 interface EntertainmentPresentation {
@@ -31,28 +40,22 @@ const CURRENT_PROJECT_ID = "PRJ-001";
 
 const entertainmentPresentation: Record<string, EntertainmentPresentation> = {
   "ENT-001": {
-    description: "观看经典戏曲和舞台节目",
-    actionLabel: "进入戏曲",
-    icon: Radio,
-    tone: "amber",
+    description: "观看视频和喜爱的节目",
+    actionLabel: "打开 YouTube",
+    icon: Youtube,
+    tone: "red",
   },
   "ENT-002": {
-    description: "收听熟悉的歌曲和音乐",
-    actionLabel: "进入音乐",
+    description: "收听音乐和播客内容",
+    actionLabel: "打开 Spotify",
     icon: Music2,
-    tone: "rose",
+    tone: "green",
   },
   "ENT-003": {
-    description: "收听相声、评书和故事",
-    actionLabel: "进入收听",
-    icon: Headphones,
+    description: "收听新加坡广播电台",
+    actionLabel: "打开 MeRadio",
+    icon: Radio,
     tone: "cyan",
-  },
-  "ENT-004": {
-    description: "观看电视和综合视频节目",
-    actionLabel: "进入电视",
-    icon: Tv,
-    tone: "blue",
   },
 };
 
@@ -65,17 +68,91 @@ const isSafeExternalUrl = (value: string) => {
   }
 };
 
-export default function EntertainmentHubPage({ isOpen, onClose, forceEmpty = false }: EntertainmentHubPageProps) {
+export default function EntertainmentHubPage({
+  isOpen,
+  onClose,
+  forceEmpty = false,
+  openShouldFail = false,
+  failureSignal = 0,
+}: EntertainmentHubPageProps) {
+  const [activeEntry, setActiveEntry] = useState<EntertainmentContentMock | null>(null);
+  const [failedEntry, setFailedEntry] = useState<EntertainmentContentMock | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const retryTimer = useRef<number | null>(null);
+  const activeEntries = useMemo(() => forceEmpty
+    ? []
+    : getActiveEntertainmentContentsForProject(CURRENT_PROJECT_ID), [forceEmpty]);
+
+  useEffect(() => {
+    if (isOpen && openShouldFail) return;
+    if (retryTimer.current) window.clearTimeout(retryTimer.current);
+    if (!isOpen) setActiveEntry(null);
+    setFailedEntry(null);
+    setIsRetrying(false);
+  }, [isOpen, openShouldFail]);
+
+  useEffect(() => () => {
+    if (retryTimer.current) window.clearTimeout(retryTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !openShouldFail || failureSignal <= 0) return;
+    setFailedEntry(activeEntries[0] ?? null);
+    setIsRetrying(false);
+  }, [activeEntries, failureSignal, isOpen, openShouldFail]);
+
   if (!isOpen) return null;
 
-  const activeEntries = forceEmpty
-    ? []
-    : getActiveEntertainmentContentsForProject(CURRENT_PROJECT_ID);
-
   const openEntry = (entry: EntertainmentContentMock) => {
+    if (openShouldFail) {
+      setFailedEntry(entry);
+      setIsRetrying(false);
+      return;
+    }
     if (!isSafeExternalUrl(entry.targetUrl)) return;
-    window.location.assign(entry.targetUrl);
+    setActiveEntry(entry);
   };
+
+  const retryEntry = () => {
+    if (!failedEntry) return;
+    if (retryTimer.current) window.clearTimeout(retryTimer.current);
+    setIsRetrying(true);
+    retryTimer.current = window.setTimeout(() => setIsRetrying(false), 700);
+  };
+
+  if (activeEntry) {
+    const presentation = entertainmentPresentation[activeEntry.id];
+    const EntryIcon = presentation?.icon ?? Radio;
+    const externalHost = new URL(activeEntry.targetUrl).hostname.replace(/^www\./, "");
+
+    return (
+      <main className="entertainment-hub-page entertainment-hub-page--external">
+        <SecondaryPageHeader
+          title={activeEntry.name}
+          icon={<EntryIcon aria-hidden="true" />}
+          onBack={() => setActiveEntry(null)}
+          backLabel="返回休闲娱乐"
+          actions={<span className="entertainment-external-badge">外部内容</span>}
+        />
+        <section className="entertainment-external-frame" aria-label={`${activeEntry.name} 外部内容`}>
+          <div
+            className="entertainment-external-frame__fallback"
+            data-tone={presentation?.tone ?? "green"}
+          >
+            <span><EntryIcon aria-hidden="true" /></span>
+            <strong>{activeEntry.name}</strong>
+            <small>{externalHost}</small>
+          </div>
+          <iframe
+            src={activeEntry.targetUrl}
+            title={activeEntry.name}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="entertainment-hub-page">
@@ -120,6 +197,39 @@ export default function EntertainmentHubPage({ isOpen, onClose, forceEmpty = fal
           );
         })}
       </section>
+
+      {failedEntry && (
+        <div className="entertainment-hub-failure-layer">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="entertainment-open-failure-title"
+            className="entertainment-hub-failure"
+          >
+            <span className="entertainment-hub-failure__icon">
+              {isRetrying
+                ? <LoaderCircle className="is-spinning" aria-hidden="true" />
+                : <CircleOff aria-hidden="true" />}
+            </span>
+            <h2 id="entertainment-open-failure-title">
+              {isRetrying ? "正在重新打开" : "内容暂时无法播放"}
+            </h2>
+            <p>
+              {isRetrying
+                ? `正在尝试打开“${failedEntry.name}”`
+                : `“${failedEntry.name}”暂时无法打开，请稍后再试。`}
+            </p>
+            {!isRetrying && (
+              <div className="entertainment-hub-failure__actions">
+                <button type="button" onClick={() => setFailedEntry(null)}>返回</button>
+                <button type="button" onClick={retryEntry} className="is-primary">
+                  <RefreshCw aria-hidden="true" />再试一次
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

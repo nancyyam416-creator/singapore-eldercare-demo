@@ -19,6 +19,7 @@ import {
   Mic,
   Pause,
   Phone,
+  Video,
   PhoneMissed,
   Play,
   RefreshCw,
@@ -43,7 +44,8 @@ interface H5FamilyTabProps {
   onMessagesChange: React.Dispatch<React.SetStateAction<FamilyMessage[]>>;
   onNotificationsChange: React.Dispatch<React.SetStateAction<FamilyNotification[]>>;
   onOpenPhotoShare: () => void;
-  onContactElder: () => void;
+  onRetryFailedRecipients: (publicationId: string) => void;
+  onContactElder: (mode: 'voice' | 'video', conversation?: FamilyConversation) => void;
 }
 
 type PlaybackState = 'idle' | 'playing' | 'paused' | 'completed' | 'failed';
@@ -91,6 +93,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
   onMessagesChange,
   onNotificationsChange,
   onOpenPhotoShare,
+  onRetryFailedRecipients,
   onContactElder
 }) => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversations[0]?.id ?? null);
@@ -169,13 +172,31 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
     messagesEndRef.current?.scrollIntoView({ block: 'nearest' });
   }, [visibleMessages.length, selectedConversationId]);
 
-  const categoryStats = useMemo(() => Array.from(photoBatches.reduce((result, batch) => {
-    result.set(batch.category, (result.get(batch.category) || 0) + batch.items.length);
+  const photoPublicationGroups = useMemo<Map<string, { batch: PublishedPhotoBatch; recipients: PublishedPhotoBatch[] }>>(() => {
+    const groups = new Map<string, { batch: PublishedPhotoBatch; recipients: PublishedPhotoBatch[] }>();
+    photoBatches.forEach(batch => {
+      const current = groups.get(batch.publicationId);
+      if (current) {
+        current.recipients.push(batch);
+        if (current.batch.publishStatus === 'failed' && batch.publishStatus === 'published') current.batch = batch;
+      } else {
+        groups.set(batch.publicationId, { batch, recipients: [batch] });
+      }
+    });
+    return groups;
+  }, [photoBatches]);
+  const uniquePhotoBatches = useMemo(() => {
+    const batches: PublishedPhotoBatch[] = [];
+    photoPublicationGroups.forEach(group => batches.push(group.batch));
+    return batches;
+  }, [photoPublicationGroups]);
+  const categoryStats = useMemo(() => Array.from(uniquePhotoBatches.reduce((result, batch) => {
+    result.set(batch.categoryNameSnapshot, (result.get(batch.categoryNameSnapshot) || 0) + batch.items.length);
     return result;
-  }, new Map<string, number>())), [photoBatches]);
+  }, new Map<string, number>())), [uniquePhotoBatches]);
   const effectivePhotoScenario = photoListRetryRecovered ? 'list_default' : photoScenario;
-  const displayedPhotoBatches = effectivePhotoScenario === 'list_empty' || effectivePhotoScenario === 'list_offline_empty' ? [] : photoBatches;
-  const visiblePhotoBatches = selectedCategory === '全部' ? displayedPhotoBatches : displayedPhotoBatches.filter(batch => batch.category === selectedCategory);
+  const displayedPhotoBatches = effectivePhotoScenario === 'list_empty' || effectivePhotoScenario === 'list_offline_empty' ? [] : uniquePhotoBatches;
+  const visiblePhotoBatches = selectedCategory === '全部' ? displayedPhotoBatches : displayedPhotoBatches.filter(batch => batch.categoryNameSnapshot === selectedCategory);
   const photoDateGroups = useMemo(() => {
     const formatter = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
     const groups = new Map<string, { label: string; entries: Array<{ batch: PublishedPhotoBatch; item: PublishedPhotoBatch['items'][number] }> }>();
@@ -189,9 +210,9 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
       });
     return Array.from(groups.entries()).map(([dateKey, group]) => ({ dateKey, ...group }));
   }, [visiblePhotoBatches]);
-  const allPhotoEntries = useMemo(() => [...photoBatches]
+  const allPhotoEntries = useMemo(() => [...uniquePhotoBatches]
     .sort((left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime())
-    .flatMap(batch => batch.items.map(item => ({ batch, item }))), [photoBatches]);
+    .flatMap(batch => batch.items.map(item => ({ batch, item }))), [uniquePhotoBatches]);
   const visiblePhotoEntries = useMemo(() => photoDateGroups.flatMap(group => group.entries), [photoDateGroups]);
   const selectedPhotoEntry = allPhotoEntries.find(entry => entry.item.id === selectedPhotoItemId) ?? null;
   const previewEntries = activeSection === 'photos' && visiblePhotoEntries.some(entry => entry.item.id === selectedPhotoItemId)
@@ -310,10 +331,13 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
           {messageScenario === 'multi_elder' && <button type="button" onClick={() => setSelectedConversationId(null)} aria-label="返回留言会话列表" className="rounded-full bg-slate-100 p-2 text-slate-600"><ArrowLeft size={16} /></button>}
           <img src={selectedConversation.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
           <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{selectedConversation.elderName}</strong><span className="text-[9px] text-emerald-600">14寸中控屏在线</span></div>
-          <button type="button" onClick={onContactElder} disabled={relationshipInvalid} className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-700 disabled:bg-slate-100 disabled:text-slate-400"><Phone size={13} />联系老人</button>
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => onContactElder('voice', selectedConversation)} disabled={relationshipInvalid} aria-label="发起语音通话" className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-700 disabled:bg-slate-100 disabled:text-slate-400"><Phone size={14} /></button>
+            <button type="button" onClick={() => onContactElder('video', selectedConversation)} disabled={relationshipInvalid} aria-label="发起视频通话" className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-700 disabled:bg-slate-100 disabled:text-slate-400"><Video size={15} /></button>
+          </div>
         </header>
 
-        {relationshipInvalid && <div className="m-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700"><CircleAlert size={16} className="mt-0.5 shrink-0" /><div><strong className="text-xs">家庭关系已失效</strong><p className="mt-1 text-[10px] leading-relaxed">暂时无法发送新留言，历史记录仍可查看。</p></div></div>}
+        {relationshipInvalid && <div className="m-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700"><CircleAlert size={16} className="mt-0.5 shrink-0" /><div><strong className="text-xs">家庭关系已失效</strong><p className="mt-1 text-[10px] leading-relaxed">暂时无法发送新留言或发起通话，历史记录仍可查看。</p></div></div>}
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4">
           {visibleMessages.length === 0 ? (
@@ -335,13 +359,18 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
                 <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
                   {message.type === 'text' ? (
                     <div className={`rounded-2xl px-3 py-2.5 text-xs leading-relaxed shadow-xs ${mine ? 'rounded-tr-sm bg-blue-600 text-white' : 'rounded-tl-sm bg-white text-slate-800'}`}>{message.text}</div>
-                  ) : (
+                  ) : message.type === 'voice' ? (
                     <button type="button" onClick={() => toggleVoice(message)} className={`flex min-w-32 items-center gap-2 rounded-2xl px-3 py-2.5 text-xs font-bold shadow-xs ${mine ? 'rounded-tr-sm bg-blue-600 text-white' : playback === 'failed' ? 'rounded-tl-sm border border-rose-200 bg-rose-50 text-rose-700' : 'rounded-tl-sm bg-white text-slate-700'}`}>
                       {playback === 'playing' ? <Pause size={15} /> : playback === 'completed' ? <RefreshCw size={14} /> : playback === 'failed' ? <CircleAlert size={15} /> : <Play size={15} />}
                       <span>{playback === 'playing' ? '正在播放' : playback === 'paused' ? '继续播放' : playback === 'completed' ? '重新播放' : playback === 'failed' ? '播放失败，点击重试' : `语音 ${message.durationSeconds}秒`}</span>
                     </button>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 shadow-xs">
+                      {message.callMode === 'video' ? <Video size={15} className="text-blue-600" /> : <Phone size={15} className="text-blue-600" />}
+                      <span>{message.text}</span>
+                    </div>
                   )}
-                  {(endsGroup || message.status === 'failed') && <div className={`mt-1 flex items-center gap-1.5 text-[9px] ${message.status === 'failed' ? 'text-rose-500' : 'text-slate-400'}`}><span>{formatBubbleTime(message.sentAtUtc)}</span>{mine && <span>· {deliveryLabel(message)}</span>}</div>}
+                  {(endsGroup || message.status === 'failed') && <div className={`mt-1 flex items-center gap-1.5 text-[9px] ${message.status === 'failed' ? 'text-rose-500' : 'text-slate-400'}`}><span>{formatBubbleTime(message.sentAtUtc)}</span>{mine && message.type !== 'call' && <span>· {deliveryLabel(message)}</span>}</div>}
                   {message.status === 'failed' && <button type="button" onClick={() => retryMessage(message.id)} className="mt-1 flex items-center gap-1 text-[10px] font-bold text-rose-600"><RefreshCw size={11} />重新发送</button>}
                 </div>
               </div>
@@ -360,7 +389,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
                 {draft.length > 0 && <span className="absolute bottom-1 right-2 text-[8px] text-slate-400">{draft.length}/300</span>}
               </div>
               <button type="button" onPointerDown={startRecording} disabled={relationshipInvalid} aria-label="按住说话" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 disabled:bg-slate-100 disabled:text-slate-300"><Mic size={17} /></button>
-              <button type="button" onClick={() => sendMessage('text')} disabled={!draft.trim() || relationshipInvalid} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white disabled:bg-slate-200"><Send size={17} /></button>
+              <button type="button" onClick={() => sendMessage('text')} disabled={!draft.trim() || relationshipInvalid} aria-label="发送文字留言" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white disabled:bg-slate-200"><Send size={17} /></button>
             </div>
           )}
         </div>
@@ -423,14 +452,6 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
 
   return (
     <div className={activeSection === 'photos' ? 'min-h-full bg-slate-50 p-4 pb-8' : 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 p-4 pb-0'} id="h5-family-tab">
-      <div className="flex shrink-0 items-center gap-2">
-        <div className="grid min-w-0 flex-1 grid-cols-2 rounded-xl bg-slate-200/70 p-1">
-          <button type="button" onClick={() => onSectionChange('messages')} className={`rounded-lg py-2 text-xs font-bold transition ${activeSection === 'messages' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>家庭留言</button>
-          <button type="button" onClick={() => onSectionChange('photos')} className={`rounded-lg py-2 text-xs font-bold transition ${activeSection === 'photos' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>家庭影像</button>
-        </div>
-        <button type="button" onClick={() => onSectionChange('notifications')} aria-label={`消息，${unreadNotificationCount}条未读`} className={`relative flex h-10 shrink-0 items-center gap-1 rounded-xl border px-2.5 text-[10px] font-bold transition ${activeSection === 'notifications' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}><MessageCircle size={14} />消息{unreadNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadNotificationCount}</span>}</button>
-      </div>
-
       {activeSection === 'messages' ? (
         <>{messageScenario === 'multi_elder' && !selectedConversation && <div className="mt-5"><h3 className="text-sm font-extrabold text-slate-900">家庭留言</h3><p className="mt-1 text-[10px] text-slate-500">选择一位老人查看一对一留言</p></div>}{renderMessageArea()}</>
       ) : activeSection === 'notifications' ? (
@@ -438,7 +459,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
       ) : (
         <>
           {effectivePhotoScenario === 'list_offline_cached' && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5"><strong className="text-xs text-amber-800">当前无网络</strong><p className="mt-1 text-[10px] text-amber-700">正在展示上次加载的影像，查看和喜欢状态可能不是最新。</p></div>}
-          {effectivePhotoScenario !== 'list_empty' && effectivePhotoScenario !== 'list_offline_empty' && categoryStats.length >= 2 && <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1"><div className="flex w-max gap-2"><button type="button" onClick={() => setSelectedCategory('全部')} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === '全部' ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>全部 · {photoBatches.reduce((count, batch) => count + batch.items.length, 0)}项</button>{categoryStats.map(([category, count]) => <button key={category} type="button" onClick={() => setSelectedCategory(category)} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === category ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>{category} · {count}项</button>)}</div></div>}
+          {effectivePhotoScenario !== 'list_empty' && effectivePhotoScenario !== 'list_offline_empty' && categoryStats.length >= 2 && <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1"><div className="flex w-max gap-2"><button type="button" onClick={() => setSelectedCategory('全部')} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === '全部' ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>全部 · {uniquePhotoBatches.reduce((count, batch) => count + batch.items.length, 0)}项</button>{categoryStats.map(([category, count]) => <button key={category} type="button" onClick={() => setSelectedCategory(category)} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === category ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>{category} · {count}项</button>)}</div></div>}
           {effectivePhotoScenario === 'list_offline_empty' ? (
             <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-8 text-center"><CircleAlert size={24} className="mx-auto text-amber-500" /><h4 className="mt-3 text-sm font-bold text-slate-800">暂时无法加载家庭影像</h4><p className="mt-1 text-[10px] text-slate-400">请检查网络连接后重试</p><button type="button" onClick={() => setPhotoListRetryRecovered(true)} className="mt-4 rounded-full bg-slate-900 px-4 py-2 text-[10px] font-bold text-white">重新加载</button></div>
           ) : displayedPhotoBatches.length === 0 ? (
@@ -471,6 +492,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
 
       {selectedPhotoEntry && (() => {
         const { batch, item } = selectedPhotoEntry;
+        const recipientRecords = photoPublicationGroups.get(batch.publicationId)?.recipients ?? [batch];
         const meta = feedbackMeta[batch.feedback];
         const StatusIcon = meta.icon;
         const publishedAt = new Date(batch.publishedAt);
@@ -507,17 +529,21 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <strong className="block truncate text-sm">{item.name.replace(/\.[^.]+$/, '')}</strong>
-                  <span className="mt-1 block text-[10px] text-white/55">{batch.category} · 发给{batch.elderName}</span>
+                  <span className="mt-1 block text-[10px] text-white/55">{batch.categoryNameSnapshot} · 发给{batch.elderName}</span>
                 </div>
                 <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${meta.className}`}><StatusIcon size={11} />{meta.label}</span>
               </div>
               {batch.message && <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-white/70">{batch.message}</p>}
+              <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+                {recipientRecords.map(record => <div key={record.id} className="flex items-center justify-between gap-3 text-[10px]"><span className="font-bold text-white/85">{record.elderName}</span><span className={record.publishStatus === 'failed' ? 'text-rose-300' : record.feedback === 'liked' ? 'text-rose-300' : 'text-white/55'}>{record.publishStatus === 'failed' ? record.failureReason || '发送失败' : record.feedback === 'liked' ? '已喜欢' : record.feedback === 'viewed' ? '已查看' : '已送达 · 暂无反馈'}</span></div>)}
+                {recipientRecords.some(record => record.publishStatus === 'failed' && record.retryable) && <button type="button" onClick={() => onRetryFailedRecipients(batch.publicationId)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-[10px] font-bold text-white"><RefreshCw size={13} />重试失败老人</button>}
+              </div>
             </footer>
           </section>
         );
       })()}
 
-      {selectedSystemNotice && <div className="absolute inset-0 z-[75] flex items-end bg-slate-950/45" onClick={() => setSelectedSystemNotice(null)}><section role="dialog" aria-modal="true" onClick={event => event.stopPropagation()} className="w-full rounded-t-[28px] bg-white p-4 shadow-2xl"><div className="flex items-start justify-between"><div><span className="text-[10px] font-bold text-blue-600">{selectedSystemNotice.type === 'missed_call' ? '语音未接' : '服务预约'}</span><h3 className="mt-1 text-base font-black text-slate-900">{selectedSystemNotice.title}</h3></div><button type="button" onClick={() => setSelectedSystemNotice(null)} className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></div><p className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">{selectedSystemNotice.summary}</p>{selectedSystemNotice.type === 'missed_call' && <button type="button" onClick={() => { setSelectedSystemNotice(null); onContactElder(); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white"><Phone size={15} />联系老人</button>}</section></div>}
+      {selectedSystemNotice && <div className="absolute inset-0 z-[75] flex items-end bg-slate-950/45" onClick={() => setSelectedSystemNotice(null)}><section role="dialog" aria-modal="true" onClick={event => event.stopPropagation()} className="w-full rounded-t-[28px] bg-white p-4 shadow-2xl"><div className="flex items-start justify-between"><div><span className="text-[10px] font-bold text-blue-600">{selectedSystemNotice.type === 'missed_call' ? '语音未接' : '服务预约'}</span><h3 className="mt-1 text-base font-black text-slate-900">{selectedSystemNotice.title}</h3></div><button type="button" onClick={() => setSelectedSystemNotice(null)} className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></div><p className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">{selectedSystemNotice.summary}</p>{selectedSystemNotice.type === 'missed_call' && <button type="button" onClick={() => { setSelectedSystemNotice(null); onContactElder('voice', conversations[0]); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white"><Phone size={15} />语音回拨</button>}</section></div>}
     </div>
   );
 };
