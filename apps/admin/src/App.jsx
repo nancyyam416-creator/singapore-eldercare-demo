@@ -234,7 +234,6 @@ const legacySafetyNews = [
 function getCommunityContentStatus(record) {
   if (record.status === "已停用") return "已停用";
   if (record.status === "未发布" || record.publishAt > communityContentMockNow) return "未发布";
-  if (record.validUntil && record.validUntil < communityContentMockNow) return "已失效";
   return "已发布";
 }
 
@@ -507,7 +506,6 @@ const initialSafetyNews = communityLifeMock.communityContents.map((item) => ({
   source: item.source,
   audience: item.audience,
   publishAt: formatMockDateTime(item.publishAt),
-  validUntil: formatMockDateTime(item.validUntil),
   displayOrder: item.displayOrder,
   status: communityContentStatusLabels[item.publishStatus],
   updatedAt: formatMockDateTime(item.updatedAt),
@@ -2623,15 +2621,15 @@ function SafetyNewsPage({ records, contentType, communityName, onCreate, onView,
       <section className="panel management-panel safety-news-panel">
         <div className="filters safety-news-filters">
           <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="内容标题、摘要或正文"/></div></label>
-          <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>未发布</option><option>已发布</option><option>已失效</option><option>已停用</option></select></label>
+          <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>未发布</option><option>已发布</option><option>已停用</option></select></label>
           <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
         </div>
         <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 条内容</span><span className="toolbar-note">仅展示当前社区数据</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
         <div className="table-scroll">
           <table className="safety-news-table">
-            <thead><tr><th>内容标题</th><th>适用对象</th><th>生效 / 失效时间</th><th>展示顺序</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>内容标题</th><th>适用对象</th><th>发布时间</th><th>展示顺序</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
-              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td>{record.audience}</td><td><div className="stacked-cell"><b>{record.publishAt}</b><small>至 {record.validUntil || "长期"}</small></div></td><td>{record.displayOrder}</td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button>{status !== "已失效" && <button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "发布"}</button>}</td></tr>; })}
+              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td>{record.audience}</td><td>{status === "未发布" ? <span className="muted-text">—</span> : record.publishAt}</td><td>{record.displayOrder}</td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button><button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "发布"}</button></td></tr>; })}
               {!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前社区暂无符合条件的内容</div></td></tr>}
             </tbody>
           </table>
@@ -2648,6 +2646,7 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
   const [form, setForm] = useState(() => {
     if (record) {
       const { contentImages = [], ...rest } = record;
+      delete rest.validUntil;
       return { ...rest, contentHtml: record.contentHtml || legacyContentToHtml(record.content, contentImages) };
     }
     return {
@@ -2661,7 +2660,6 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
       source: currentProject?.community || "",
       audience: "当前社区全部老人",
       publishAt: "2026-08-24 10:00",
-      validUntil: "2026-09-30 23:59",
       displayOrder: 1,
       status: "未发布",
     };
@@ -2680,6 +2678,7 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
     const plainContent = richTextToPlainText(form.contentHtml);
     if (!form.title.trim()) nextErrors.title = "请输入内容标题";
     if (!plainContent) nextErrors.contentHtml = "请输入正文内容";
+    if (!Number.isInteger(Number(form.displayOrder)) || Number(form.displayOrder) < 1) nextErrors.displayOrder = "展示顺序必须为大于等于 1 的整数";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     onSave({
@@ -2688,10 +2687,9 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
       content: plainContent,
       contentHtml: form.contentHtml,
       audience: "当前社区全部老人",
-      source: currentProject?.community || form.source,
-      displayOrder: Number(form.displayOrder) || 1,
+      source: `${form.source || ""}`.trim() || currentProject?.community || "",
+      displayOrder: Number(form.displayOrder),
       publishAt: form.publishAt || "2026-08-24 10:00",
-      validUntil: form.validUntil || "2026-09-30 23:59",
     });
   };
 
@@ -2708,8 +2706,13 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
             <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/></label>
             <RichTextEditor label="正文内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/>
           </div>
+          <div className="form-section safety-publish-section">
+            <h3>发布设置</h3>
+            <div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)} placeholder="请输入大于等于 1 的整数"/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><label><span>发布来源</span><input value={form.source} onChange={(event) => update("source", event.target.value)} placeholder={currentProject?.community || "当前社区名称"}/></label></div>
+            <label><span>适用对象</span><input value="当前社区全部老人" disabled/><small className="field-help">本轮适用对象固定为当前社区全部老人，不支持手工选择老人、标签或人群。</small></label>
+          </div>
         </div>
-        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={submit}>{record ? "保存修改" : "发布"}</button>}</footer>
+        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={submit}>{record ? "保存修改" : "保存内容"}</button>}</footer>
       </aside>
     </div>
   );

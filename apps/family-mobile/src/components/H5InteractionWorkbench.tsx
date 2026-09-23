@@ -156,26 +156,17 @@ const familyPhotoListScenarios: Array<{ value: FamilyPhotoScenario; label: strin
 ];
 
 const familyPhotoPublishScenarios: Array<{ value: FamilyPhotoScenario; label: string; description: string; status: string }> = [
-  { value: 'single_elder', label: '单老人默认选中', description: '仅一位有效老人时默认选中，不增加发布步骤。', status: '单老人' },
-  { value: 'multi_select', label: '多老人多选', description: '默认只选当前老人，可勾选其他有效老人。', status: '可多选' },
-  { value: 'current_plus_other', label: '当前老人+其他老人', description: '从当前老人进入，保留默认勾选并追加其他老人。', status: '已选2位' },
+  { value: 'compose_mixed', label: '编辑并选择老人', description: '在同一弹窗中选择有效老人、查看失效关系，并编辑照片或视频。', status: '编辑中' },
   { value: 'no_recipient', label: '未选择老人', description: '保留编辑内容，发布按钮不可用并提示至少选一位。', status: '不可发布' },
-  { value: 'recipient_invalid', label: '关系失效老人', description: '失效老人保留在名单中，不可选并显示原因。', status: '不可选' },
-  { value: 'recipients_all_success', label: '多老人全部成功', description: '同一内容分别发给两位老人，逐位显示成功。', status: '全部成功' },
-  { value: 'recipients_partial_success', label: '多老人部分成功', description: '一位成功、一位失败，成功老人不回滚。', status: '部分成功' },
-  { value: 'recipients_all_failed', label: '多老人全部失败', description: '保留影像和选中老人，区分可重试与关系失效。', status: '全部失败' },
-  { value: 'independent_feedback', label: '分老人独立反馈', description: '爸爸已喜欢、妈妈已查看，两位老人状态互不改写。', status: '独立状态' },
-  { value: 'retry_failed_recipient', label: '仅重试失败老人', description: '重试只向失败老人发送，已成功老人不重复接收。', status: '可重试' },
-  { value: 'compose_empty', label: '编辑中 · 未选择', description: '展示拍照片、拍视频、从手机选择，发布按钮不可用。', status: '编辑中' },
-  { value: 'compose_photo', label: '照片批次', description: '展示照片缩略图、预览、删除、分类和附言。', status: '可发布' },
-  { value: 'compose_video', label: '视频批次', description: '展示视频封面、播放标识、时长与预览播放。', status: '可发布' },
-  { value: 'compose_mixed', label: '混合批次', description: '同批展示照片和视频，合计不超过9项。', status: '可发布' },
+  { value: 'recipients_all_success', label: '发布成功', description: '同一内容发给已选老人，并逐位展示送达结果。', status: '成功' },
+  { value: 'recipients_partial_success', label: '部分老人发送失败', description: '保留成功结果，仅对失败且可重试的老人再次发送。', status: '可重试' },
+  { value: 'recipients_all_failed', label: '全部发送失败', description: '保留影像和收件人，区分网络失败与关系失效。', status: '失败' },
+  { value: 'independent_feedback', label: '老人反馈不同', description: '分别展示老人已喜欢、已查看等独立反馈。', status: '独立反馈' },
   { value: 'compose_max', label: '已选满9项', description: '展示数量上限提示，可删除后继续添加。', status: '达到上限' },
   { value: 'publishing', label: '影像上传中', description: '全部待上传项进入上传中，发布按钮不可重复点击。', status: '上传中' },
   { value: 'partial_retry', label: '单个视频失败', description: '成功内容保留，只重试失败的视频。', status: '部分失败' },
   { value: 'publish_failed', label: '整批发布失败', description: '保留全部影像、分类和附言，可重新发布。', status: '发布失败' },
   { value: 'camera_denied', label: '相机权限拒绝', description: '说明开启权限，并保留“从手机选择”作为替代。', status: '权限异常' },
-  { value: 'capture_cancelled', label: '取消拍摄', description: '不新增内容，继续停留在编辑页。', status: '已取消' },
   { value: 'video_preview_failed', label: '视频预览失败', description: '保留文件并支持删除后重新选择。', status: '预览失败' }
 ];
 
@@ -542,7 +533,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   onChange={event => {
                     const nextTarget = event.target.value as FamilyPhotoAcceptanceTarget;
                     setFamilyPhotoTarget(nextTarget);
-                    onFamilyPhotoScenarioChange(nextTarget === 'list' ? 'list_default' : 'compose_empty');
+                    onFamilyPhotoScenarioChange(nextTarget === 'list' ? 'list_default' : 'compose_mixed');
                     onOpenFamilyPhotos();
                   }}
                 >
