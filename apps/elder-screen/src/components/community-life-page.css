@@ -43,6 +43,7 @@
 }
 
 .community-life-categories {
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -129,7 +130,8 @@
   padding: 24px;
 }
 
-.community-life-info-list > button {
+.community-life-info-list > button,
+.community-life-info-list > article {
   min-height: 236px;
   display: grid;
   grid-template-columns: 136px minmax(0, 1fr) 28px;
@@ -141,6 +143,9 @@
   border: 2px solid var(--color-line);
   border-radius: 22px;
   background: var(--color-panel-raised);
+}
+
+.community-life-info-list > button {
   cursor: pointer;
 }
 
@@ -174,6 +179,48 @@
 .community-life-info-list__copy strong { font-size: 24px; line-height: 1.35; }
 .community-life-info-list__copy p { margin: 0; color: var(--color-text-muted); font-size: 18px; line-height: 1.55; }
 .community-life-info-list > button > svg { align-self: center; width: 28px; color: var(--color-text-muted); }
+
+.community-life-staff-card {
+  grid-template-columns: 136px minmax(0, 1fr) !important;
+}
+
+.community-life-staff-card__portrait {
+  height: 136px;
+  background-color: var(--color-panel-soft);
+  background-image: url("./community-staff-portraits.png");
+  background-repeat: no-repeat;
+  background-size: 300% auto;
+  background-position-y: 18%;
+}
+
+.community-life-staff-card__portrait.is-photo-1 { background-position-x: 0; }
+.community-life-staff-card__portrait.is-photo-2 { background-position-x: 50%; }
+.community-life-staff-card__portrait.is-photo-3 { background-position-x: 100%; }
+.community-life-staff-card__portrait.is-fallback { background-image: none; }
+.community-life-staff-card__portrait.is-fallback svg { width: 58px; height: 58px; color: var(--color-text-muted); }
+
+.community-life-staff-card__details {
+  display: grid !important;
+  justify-content: stretch !important;
+  gap: 7px !important;
+}
+
+.community-life-staff-card__details small {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.community-life-staff-card__details svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--color-green);
+}
 
 .community-life-state {
   flex: 1;

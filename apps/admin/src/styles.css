@@ -1344,7 +1344,7 @@ th.sticky-right { background: #f7f8fa; }
   background: #f8fbff;
 }
 
-.activation-code-card > div:nth-child(2) {
+.activation-code-card > div {
   min-width: 0;
   flex: 1;
   display: flex;
@@ -1367,29 +1367,6 @@ th.sticky-right { background: #f7f8fa; }
 .activation-code-card small {
   color: #94a3b8;
   font-size: 10px;
-}
-
-.fake-qr {
-  width: 88px;
-  height: 88px;
-  flex: 0 0 88px;
-  padding: 9px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  border: 1px solid #dbe3ed;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.fake-qr i {
-  background: #1e293b;
-}
-
-.fake-qr i:nth-child(2),
-.fake-qr i:nth-child(4),
-.fake-qr i:nth-child(8) {
-  background: #fff;
 }
 
 .validation-demo-actions {
@@ -1526,6 +1503,12 @@ th.sticky-right { background: #f7f8fa; }
 .binding-audit-grid b {
   color: #334155;
   font-size: 11px;
+}
+
+.activation-code-value {
+  color: #1d4ed8 !important;
+  font-size: 16px !important;
+  letter-spacing: 0.12em;
 }
 
 .current-binding-card {

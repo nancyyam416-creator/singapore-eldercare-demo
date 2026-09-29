@@ -1498,10 +1498,6 @@ export default function App() {
             setHomeRecommendationKind(null);
             setIsEntertainmentHubOpen(true);
           }}
-          onOpenCommunityStaff={() => {
-            setAcceptanceCommunityStaffScenario("multiple");
-            setIsCommunityStaffOpen(true);
-          }}
           onOpenProfile={() => setIsPersonalProfileOpen(true)}
         />
 

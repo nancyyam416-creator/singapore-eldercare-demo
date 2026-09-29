@@ -3,12 +3,16 @@ import {
   BadgeCheck,
   ChevronRight,
   CircleAlert,
+  CircleUserRound,
+  Clock3,
   Loader2,
+  Mail,
   Mic,
   Megaphone,
   MessageCircle,
   MessageSquareText,
   Newspaper,
+  Phone,
   Plus,
   Quote,
   RefreshCcw,
@@ -16,10 +20,12 @@ import {
   ShieldAlert,
   Sparkles,
   Square,
+  UsersRound,
   X,
   type LucideIcon,
 } from "lucide-react";
 import SecondaryPageHeader from "./SecondaryPageHeader";
+import { getActiveCommunityStaff } from "../community-staff";
 import type { AntiScamTip, CommunityActivity } from "../types";
 import "./community-life-page.css";
 
@@ -42,7 +48,7 @@ export type CommunityLifeAcceptanceScenario =
   | "topic-load-failure";
 
 type CommunityInfoCategory = "announcement" | "life-info";
-type CommunityLifeCategory = CommunityInfoCategory | "topic" | "activity" | "alert";
+type CommunityLifeCategory = CommunityInfoCategory | "community-staff" | "topic" | "activity" | "alert";
 
 interface CommunityLifePageProps {
   isOpen: boolean;
@@ -105,6 +111,7 @@ interface CommunityTopic {
 type VoiceCaptureState = "idle" | "listening" | "processing" | "ready";
 
 const categories: CommunityCategoryDefinition[] = [
+  { id: "community-staff", label: "社区人员", description: "查看社区负责人和服务联系人", icon: UsersRound, tone: "amber" },
   { id: "announcement", label: "社区公告", description: "社区通知与设施安排", icon: Megaphone, tone: "cyan" },
   { id: "life-info", label: "生活资讯", description: "饮食、健康与居家知识", icon: Newspaper, tone: "green" },
   { id: "topic", label: "社区话题", description: "看话题、说想法、留评论", icon: MessageSquareText, tone: "blue" },
@@ -249,7 +256,7 @@ export default function CommunityLifePage({
   onOpenAlert,
   acceptanceScenario = "default",
 }: CommunityLifePageProps) {
-  const [selectedCategory, setSelectedCategory] = useState<CommunityLifeCategory>("announcement");
+  const [selectedCategory, setSelectedCategory] = useState<CommunityLifeCategory>("community-staff");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [topics, setTopics] = useState<CommunityTopic[]>(() => cloneTopics(baseTopics));
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
@@ -265,6 +272,7 @@ export default function CommunityLifePage({
   const [commentState, setCommentState] = useState<"idle" | "submitting" | "error">("idle");
   const [readIds, setReadIds] = useState<string[]>([]);
   const [retrySucceeded, setRetrySucceeded] = useState(false);
+  const communityStaff = useMemo(() => getActiveCommunityStaff(), []);
 
   const effectiveScenario = (acceptanceScenario === "load-failure" || acceptanceScenario === "topic-load-failure") && retrySucceeded
     ? (acceptanceScenario === "topic-load-failure" ? "topic-normal" : "default")
@@ -285,8 +293,10 @@ export default function CommunityLifePage({
   const visibleInfoItems = !isGenericEmpty && !isGenericLoadFailure
     ? communityInfoItems.filter((item) => item.category === selectedCategory)
     : [];
-  const visibleCount = selectedCategory === "activity"
-    ? activities.length
+  const visibleCount = selectedCategory === "community-staff"
+    ? communityStaff.length
+    : selectedCategory === "activity"
+      ? activities.length
     : selectedCategory === "alert"
       ? alerts.length
       : selectedCategory === "topic"
@@ -352,7 +362,7 @@ export default function CommunityLifePage({
         setCommentVoiceState("ready");
       }
     } else {
-      setSelectedCategory("announcement");
+      setSelectedCategory(acceptanceScenario === "default" ? "community-staff" : "announcement");
     }
   }, [acceptanceScenario]);
 
@@ -556,6 +566,26 @@ export default function CommunityLifePage({
                   <span className="community-topic-card__count"><MessageSquareText aria-hidden="true" />{topic.comments.length} 条评论</span>
                   <ChevronRight aria-hidden="true" />
                 </button>
+              ))}
+            </div>
+          ) : selectedCategory === "community-staff" ? (
+            <div className="community-life-info-list">
+              {communityStaff.map((person) => (
+                <article className="community-life-staff-card" key={person.id} aria-label={`${person.displayName}，${person.role}`}>
+                  <span className={`community-life-info-list__media community-life-staff-card__portrait${person.photoIndex === undefined ? " is-fallback" : ` is-photo-${person.photoIndex + 1}`}`}>
+                    {person.photoIndex === undefined && <CircleUserRound aria-hidden="true" />}
+                  </span>
+                  <span className="community-life-info-list__copy">
+                    <span><small>{person.role}</small></span>
+                    <strong>{person.displayName}</strong>
+                    <p>{person.englishName ?? "英文名未提供"}</p>
+                    <span className="community-life-staff-card__details">
+                      <small><Clock3 aria-hidden="true" />{person.serviceTimeSlots.join("；")}</small>
+                      <small><Phone aria-hidden="true" />{person.phoneNumber}</small>
+                      <small><Mail aria-hidden="true" />{person.email ?? "邮箱未提供"}</small>
+                    </span>
+                  </span>
+                </article>
               ))}
             </div>
           ) : (

@@ -8,7 +8,6 @@ import {
   Landmark,
   Radio,
   UserRound,
-  UsersRound,
   X,
 } from "lucide-react";
 import "./more-functions-drawer.css";
@@ -22,7 +21,6 @@ interface MoreFunctionsDrawerProps {
   onOpenCommunity: () => void;
   onOpenSpecialServices: () => void;
   onOpenEntertainment: () => void;
-  onOpenCommunityStaff: () => void;
   onOpenProfile: () => void;
 }
 
@@ -44,7 +42,6 @@ export default function MoreFunctionsDrawer({
   onOpenCommunity,
   onOpenSpecialServices,
   onOpenEntertainment,
-  onOpenCommunityStaff,
   onOpenProfile,
 }: MoreFunctionsDrawerProps) {
   const entries: FunctionEntry[] = [
@@ -95,14 +92,6 @@ export default function MoreFunctionsDrawer({
       icon: Radio,
       tone: "magenta",
       action: onOpenEntertainment,
-    },
-    {
-      id: "community-staff",
-      title: "社区人员",
-      description: "查看社区负责人和服务联系人",
-      icon: UsersRound,
-      tone: "amber",
-      action: onOpenCommunityStaff,
     },
     {
       id: "profile",
