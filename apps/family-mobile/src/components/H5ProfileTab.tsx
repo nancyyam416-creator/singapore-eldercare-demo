@@ -6,6 +6,7 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import {
   ArrowLeft,
+  BellRing,
   CheckCircle,
   ChevronRight,
   KeyRound,
@@ -21,6 +22,7 @@ import { BoundElder, ElderBindingScenario } from '../types';
 import { H5ElderBindingFlow } from './H5ElderBindingFlow';
 
 interface H5ProfileTabProps {
+  onOpenReminders: () => void;
   isLoggedIn: boolean;
   onLogin: () => void;
   onLogout: () => void;
@@ -35,6 +37,7 @@ interface H5ProfileTabProps {
 }
 
 export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
+  onOpenReminders,
   isLoggedIn,
   onLogin,
   onLogout,
@@ -279,22 +282,11 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
 
       {addressSaved && <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-700"><CheckCircle size={15} />常住地址已更新</div>}
 
-      <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-          <ShieldCheck size={16} className="text-blue-600" />
-          <h3 className="text-sm font-extrabold text-slate-900">账号信息</h3>
-        </div>
-        <div className="divide-y divide-slate-100 text-xs">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <span className="text-slate-500">登录方式</span>
-            <span className="font-bold text-slate-800">手机号验证码</span>
-          </div>
-          <div className="px-4 py-3 flex items-center justify-between">
-            <span className="text-slate-500">账号状态</span>
-            <span className="font-bold text-emerald-600">正常</span>
-          </div>
-        </div>
-      </section>
+      <button type="button" onClick={onOpenReminders} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><BellRing size={19} aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">提醒事项</strong><span className="mt-1 block text-xs text-slate-500">管理老人的用药与日常提醒</span></span>
+        <ChevronRight size={17} className="text-slate-300" />
+      </button>
 
       <button
         type="button"

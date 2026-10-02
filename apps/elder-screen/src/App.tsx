@@ -16,6 +16,7 @@ import SpecialServicesPage, { type SpecialServicesAcceptanceScenario } from "./c
 import PersonalProfilePage from "./components/PersonalProfilePage";
 import EntertainmentHubPage from "./components/EntertainmentHubPage";
 import CommunityStaffPage, { type CommunityStaffAcceptanceScenario } from "./components/CommunityStaffPage";
+import TodayOverviewPage from "./components/TodayOverviewPage";
 import ActivationFlow from "./components/ActivationFlow";
 import InteractionAcceptanceConsole, {
   type AcceptanceAlbumScenario,
@@ -375,6 +376,7 @@ export default function App() {
   const [isPersonalProfileOpen, setIsPersonalProfileOpen] = useState(false);
   const [isEntertainmentHubOpen, setIsEntertainmentHubOpen] = useState(false);
   const [isCommunityStaffOpen, setIsCommunityStaffOpen] = useState(false);
+  const [isTodayOverviewOpen, setIsTodayOverviewOpen] = useState(false);
   const [homeRecommendationKind, setHomeRecommendationKind] = useState<"security" | "community" | "service" | "entertainment" | null>(null);
   const [fulfillmentRecords, setFulfillmentRecords] = useState<FulfillmentRecord[]>(createInitialFulfillmentRecords);
 
@@ -615,7 +617,7 @@ export default function App() {
       location: "社区多功能助老俱乐部（同步直播）",
       spotsLeft: 7,
       tag: "健康膳食",
-      imageUrl: "https://loremflickr.com/720/480/senior,healthy-food,class?lock=33",
+      imageUrl: "./assets/community-live-preview.jpg",
       description: "社区健康老师介绍夏季饮食搭配和常见食材选择。",
       contact: "010-6258 8890",
       status: "ongoing",
@@ -733,10 +735,6 @@ export default function App() {
     });
   };
 
-  const handleQuickCompleteReminder = (id: string, fallbackReminder?: MedicationReminder) => {
-    handleCompleteReminder(id, fallbackReminder);
-  };
-
   const handleSendMessage = async (text: string) => {
     const timestamp = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
     const userMsg: ChatMessage = { sender: "user", text, timestamp };
@@ -792,6 +790,7 @@ export default function App() {
     setIsSpecialServicesOpen(false);
     setIsEntertainmentHubOpen(false);
     setIsCommunityStaffOpen(false);
+    setIsTodayOverviewOpen(false);
     setIsMoreModulesOpen(false);
     setHomeReminderAlert(null);
     setReturnToCommunityLife(false);
@@ -1105,6 +1104,7 @@ export default function App() {
     && !isSpecialServicesOpen
     && !isEntertainmentHubOpen
     && !isCommunityStaffOpen
+    && !isTodayOverviewOpen
     && !isMoreModulesOpen;
 
   useEffect(() => {
@@ -1209,8 +1209,8 @@ export default function App() {
               setAcceptanceHeartScenario(liked ? "liked" : "not-liked");
             }}
             onVideoViewed={markFamilyMediaViewed}
-            onCompleteReminder={handleQuickCompleteReminder}
             onOpenReminder={openHomeReminderFromRightContent}
+            onOpenTodayOverview={() => setIsTodayOverviewOpen(true)}
             onOpenAlbum={() => {
               setAlbumInitialMediaId(null);
               setIsAlbumPageOpen(true);
@@ -1256,6 +1256,24 @@ export default function App() {
             acceptanceCommand={acceptanceCommand}
             familyWeather={familyWeather}
           />
+
+        <TodayOverviewPage
+          isOpen={isTodayOverviewOpen}
+          onClose={() => setIsTodayOverviewOpen(false)}
+          onFulfillment={appendFulfillmentRecord}
+          isSecurityRead={safetyReadIds.includes("tip-1")}
+          onOpenSecurity={() => {
+            setIsTodayOverviewOpen(false);
+            setHomeRecommendationKind("security");
+            openSafetyInformation(false);
+          }}
+          isServiceBooked={serviceBookings.some((booking) => booking.serviceId === "cleaning" && booking.status !== "cancelled")}
+          onOpenService={() => {
+            setIsTodayOverviewOpen(false);
+            setHomeRecommendationKind("service");
+            setIsSpecialServicesOpen(true);
+          }}
+        />
 
         {activeHomeReminder && homeReminderAlert && (
           <HomeReminderAlert

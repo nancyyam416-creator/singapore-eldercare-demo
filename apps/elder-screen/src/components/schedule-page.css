@@ -299,6 +299,32 @@
   background: var(--color-panel);
 }
 
+.schedule-reminder-step {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-panel-raised);
+}
+
+.schedule-reminder-step h3,
+.schedule-reminder-step label {
+  color: var(--color-text);
+}
+
+.schedule-reminder-step p {
+  color: var(--color-text-soft);
+}
+
+.schedule-reminder-input {
+  color: var(--color-text);
+  border-color: var(--color-line);
+  background: var(--color-canvas-deep);
+  color-scheme: dark;
+}
+
+.schedule-reminder-input::placeholder {
+  color: var(--color-text-muted);
+}
+
 .voice-guide-step,
 .voice-transcript,
 .voice-listening-example,

@@ -326,8 +326,8 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
     }
 
     return (
-      <div className="-mx-4 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-slate-200 bg-slate-100/70">
-        <header className="z-10 flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+      <div className="-mx-4 flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100/70">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
           {messageScenario === 'multi_elder' && <button type="button" onClick={() => setSelectedConversationId(null)} aria-label="返回留言会话列表" className="rounded-full bg-slate-100 p-2 text-slate-600"><ArrowLeft size={16} /></button>}
           <img src={selectedConversation.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
           <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{selectedConversation.elderName}</strong><span className="text-[9px] text-emerald-600">14寸中控屏在线</span></div>
@@ -451,7 +451,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
   );
 
   return (
-    <div className={activeSection === 'photos' ? 'min-h-full bg-slate-50 p-4 pb-8' : 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 p-4 pb-0'} id="h5-family-tab">
+    <div className={activeSection === 'photos' ? 'min-h-full bg-slate-50 p-4 pb-8' : 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 px-4'} id="h5-family-tab">
       {activeSection === 'messages' ? (
         <>{messageScenario === 'multi_elder' && !selectedConversation && <div className="mt-5"><h3 className="text-sm font-extrabold text-slate-900">家庭留言</h3><p className="mt-1 text-[10px] text-slate-500">选择一位老人查看一对一留言</p></div>}{renderMessageArea()}</>
       ) : activeSection === 'notifications' ? (

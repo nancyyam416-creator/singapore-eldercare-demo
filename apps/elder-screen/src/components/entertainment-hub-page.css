@@ -138,6 +138,15 @@
   background: var(--color-canvas);
 }
 
+.entertainment-external-frame__preview {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center top;
+  background: #fff;
+}
+
 .entertainment-external-frame__fallback {
   --entertainment-accent: var(--color-green);
   position: absolute;

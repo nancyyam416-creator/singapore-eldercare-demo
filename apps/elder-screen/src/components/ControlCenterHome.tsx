@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import HomeTaskRail from "./HomeTaskRail";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
-import type { MedicationReminder } from "../types";
 import {
   formatWeatherLocalTime,
   type FamilyWeatherMember,
@@ -93,8 +92,8 @@ interface ControlCenterHomeProps {
   photoHeartStates: Record<string, boolean>;
   onTogglePhotoHeart: (photoKey: string, liked: boolean) => void;
   onVideoViewed: (videoId: string) => void;
-  onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
   onOpenReminder: (id: string, minutesUntil: number) => void;
+  onOpenTodayOverview: () => void;
   onOpenAlbum: () => void;
   onOpenFamilyMediaReminder: () => void;
   onOpenMessages: () => void;
@@ -167,8 +166,8 @@ export default function ControlCenterHome({
   photoHeartStates,
   onTogglePhotoHeart,
   onVideoViewed,
-  onCompleteReminder,
   onOpenReminder,
+  onOpenTodayOverview,
   onOpenAlbum,
   onOpenFamilyMediaReminder,
   onOpenMessages,
@@ -199,7 +198,6 @@ export default function ControlCenterHome({
   const [photoLoadFailedId, setPhotoLoadFailedId] = useState<string | null>(null);
   const [homeVideoState, setHomeVideoState] = useState<HomeVideoState>("cover");
   const [viewedVideoIds, setViewedVideoIds] = useState<string[]>([]);
-  const [confirmSOS, setConfirmSOS] = useState(false);
   const [isWeatherOpen, setIsWeatherOpen] = useState(false);
   const [selectedWeatherId, setSelectedWeatherId] = useState("");
   const [isWeatherOnline, setIsWeatherOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
@@ -514,7 +512,6 @@ export default function ControlCenterHome({
     if (!acceptanceCommand) return;
 
     if (acceptanceCommand.type === "reset-home-overlays") {
-      setConfirmSOS(false);
       setIsWeatherOpen(false);
       return;
     }
@@ -582,7 +579,7 @@ export default function ControlCenterHome({
           </div>
         </div>
 
-        <button className="sos-button" type="button" onClick={() => setConfirmSOS(true)}>
+        <button className="sos-button" type="button" onClick={onTriggerSOS}>
           <Phone aria-hidden="true" />
           <span>紧急呼叫</span>
         </button>
@@ -709,8 +706,8 @@ export default function ControlCenterHome({
           messages={messages}
           albumUnreadCount={albumUnreadCount}
           missedCallCount={missedCallCount}
-          onCompleteReminder={onCompleteReminder}
           onOpenReminder={onOpenReminder}
+          onOpenTodayOverview={onOpenTodayOverview}
           onOpenMessages={onOpenMessages}
           onOpenCommunity={onOpenCommunity}
           onOpenContacts={onOpenContacts}
@@ -879,18 +876,6 @@ export default function ControlCenterHome({
         </div>
       )}
 
-      {confirmSOS && (
-        <div className="sos-confirm" role="dialog" aria-modal="true" aria-labelledby="sos-title">
-          <div className="sos-dialog">
-            <button type="button" className="dialog-close" onClick={() => setConfirmSOS(false)} aria-label="关闭"><X /></button>
-            <span className="dialog-siren"><Phone /></span>
-            <h2 id="sos-title">确认发出紧急呼叫？</h2>
-            <p>系统将立即联系家人和紧急服务。非紧急情况请点“取消”。</p>
-            <button type="button" className="confirm-call" onClick={() => { setConfirmSOS(false); onTriggerSOS(); }}><Phone />立即呼叫</button>
-            <button type="button" className="cancel-call" onClick={() => setConfirmSOS(false)}>取消</button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

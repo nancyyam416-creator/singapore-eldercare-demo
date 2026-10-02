@@ -47,7 +47,7 @@ const findContext = (moduleId) => {
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onActivationFailure, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -63,7 +63,6 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
   const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : overviewScenario;
   const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
   const hasScenarios = scenarioOptions.length > 0;
-  const hasActions = selectedModule.id === "tabletDevices";
 
   const constrainPosition = useCallback((nextPosition, rect = shellRef.current?.getBoundingClientRect()) => {
     if (!rect) return nextPosition;
@@ -150,7 +149,6 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
 
             {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
-            {hasActions && <section className="acceptance-action-section"><div className="acceptance-section-title"><span>一次性动作</span><em>平板激活</em></div><p>打开待使用激活码弹窗后，可重复注入失败结果。</p><div className="acceptance-actions"><button onClick={() => onActivationFailure("code_invalid")}>激活码错误</button><button onClick={() => onActivationFailure("offline")}>网络异常</button></div></section>}
           </div>
           <footer><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>
         </aside>

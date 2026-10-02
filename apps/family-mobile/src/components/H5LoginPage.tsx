@@ -23,7 +23,7 @@ interface H5LoginPageProps {
 }
 
 const scenarioDefaults: Record<ChildLoginScenario, { countryCode: CountryCode; phone: string; code: string; codeSent: boolean }> = {
-  default: { countryCode: '+65', phone: '', code: '', codeSent: false },
+  default: { countryCode: '+65', phone: '81234567', code: '123456', codeSent: true },
   code_sent: { countryCode: '+65', phone: '81234567', code: '', codeSent: true },
   invalid_phone: { countryCode: '+65', phone: '123', code: '', codeSent: false },
   invalid_code: { countryCode: '+65', phone: '81234567', code: '000000', codeSent: true },

@@ -59,6 +59,21 @@ const entertainmentPresentation: Record<string, EntertainmentPresentation> = {
   },
 };
 
+const entertainmentPreviewImages: Record<string, { src: string; alt: string }> = {
+  "ENT-001": {
+    src: "./assets/youtube-home-preview.png",
+    alt: "YouTube 首页演示截图",
+  },
+  "ENT-002": {
+    src: "./assets/spotify-preview.png",
+    alt: "Spotify 演示截图",
+  },
+  "ENT-003": {
+    src: "./assets/meradio-preview.png",
+    alt: "MeRadio 首页演示截图",
+  },
+};
+
 const isSafeExternalUrl = (value: string) => {
   try {
     const parsed = new URL(value);
@@ -122,6 +137,7 @@ export default function EntertainmentHubPage({
 
   if (activeEntry) {
     const presentation = entertainmentPresentation[activeEntry.id];
+    const previewImage = entertainmentPreviewImages[activeEntry.id];
     const EntryIcon = presentation?.icon ?? Radio;
     const externalHost = new URL(activeEntry.targetUrl).hostname.replace(/^www\./, "");
 
@@ -135,20 +151,22 @@ export default function EntertainmentHubPage({
           actions={<span className="entertainment-external-badge">外部内容</span>}
         />
         <section className="entertainment-external-frame" aria-label={`${activeEntry.name} 外部内容`}>
-          <div
-            className="entertainment-external-frame__fallback"
-            data-tone={presentation?.tone ?? "green"}
-          >
-            <span><EntryIcon aria-hidden="true" /></span>
-            <strong>{activeEntry.name}</strong>
-            <small>{externalHost}</small>
-          </div>
-          <iframe
-            src={activeEntry.targetUrl}
-            title={activeEntry.name}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
+          {previewImage ? (
+            <img
+              className="entertainment-external-frame__preview"
+              src={previewImage.src}
+              alt={previewImage.alt}
+            />
+          ) : (
+            <div
+              className="entertainment-external-frame__fallback"
+              data-tone={presentation?.tone ?? "green"}
+            >
+              <span><EntryIcon aria-hidden="true" /></span>
+              <strong>{activeEntry.name}</strong>
+              <small>{externalHost}</small>
+            </div>
+          )}
         </section>
       </main>
     );

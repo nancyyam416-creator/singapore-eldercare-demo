@@ -66,6 +66,7 @@ import { FamilySection, H5FamilyTab } from './H5FamilyTab';
 import { H5PhotoShareSheet } from './H5PhotoShareSheet';
 import { H5OrdersTab } from './H5OrdersTab';
 import { H5ProfileTab } from './H5ProfileTab';
+import { H5ReminderManager } from './H5ReminderManager';
 import { H5ElderProfileSheet } from './H5ElderProfileSheet';
 import { H5LoginPage } from './H5LoginPage';
 
@@ -120,7 +121,7 @@ interface H5AppFrameProps {
   elderBindingScenario: ElderBindingScenario;
   onPreviewContextChange?: (
     page: 'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile',
-    familyModule?: 'family_messages' | 'family_photos' | 'family_notifications'
+    familyModule?: 'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'elder_binding'
   ) => void;
 }
 
@@ -192,6 +193,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const [showPhotoShare, setShowPhotoShare] = useState(false);
   const [photoShareMounted, setPhotoShareMounted] = useState(false);
   const [familySection, setFamilySection] = useState<FamilySection>('photos');
+  const [showReminders, setShowReminders] = useState(false);
   const [boundElders, setBoundElders] = useState<BoundElder[]>(initialBoundElders);
   const [currentElderId, setCurrentElderId] = useState<string | null>(initialBoundElders[0]?.id ?? null);
   const [initialFamilyConversationId, setInitialFamilyConversationId] = useState<string | null>(null);
@@ -277,15 +279,15 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
       onPreviewContextChange?.('home');
     } else if (activeTab === 'store') {
       onPreviewContextChange?.(
-        familySection === 'photos' ? 'photos' : 'messages',
+        familySection === 'photos' ? 'photos' : familySection === 'notifications' ? 'profile' : 'messages',
         familySection === 'messages' ? 'family_messages' : familySection === 'notifications' ? 'family_notifications' : 'family_photos'
       );
     } else if (activeTab === 'orders') {
       onPreviewContextChange?.('care');
     } else if (activeTab === 'profile') {
-      onPreviewContextChange?.('profile');
+      onPreviewContextChange?.('profile', showReminders ? 'reminders' : 'elder_binding');
     }
-  }, [activeTab, familySection, isLoggedIn, onPreviewContextChange]);
+  }, [activeTab, familySection, showReminders, isLoggedIn, onPreviewContextChange]);
 
   useEffect(() => {
     if (previewOpenLoginSignal > 0) {
@@ -296,11 +298,11 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   }, [previewOpenLoginSignal]);
 
   useEffect(() => {
-    if (previewOpenProfileSignal > 0) setActiveTab('profile');
+    if (previewOpenProfileSignal > 0) { setShowReminders(false); setActiveTab('profile'); }
   }, [previewOpenProfileSignal]);
 
   useEffect(() => {
-    if (previewOpenRemindersSignal > 0) setActiveTab('orders');
+    if (previewOpenRemindersSignal > 0) { setShowReminders(true); setActiveTab('profile'); }
   }, [previewOpenRemindersSignal]);
 
   useEffect(() => {
@@ -467,7 +469,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   };
 
   return (
-    <div className="w-full sm:max-w-[450px] h-[100dvh] sm:h-[1200px] bg-slate-950 rounded-none sm:rounded-[48px] p-0 sm:p-3 shadow-none sm:shadow-2xl relative border-0 sm:border-4 border-slate-800 shrink-0" id="h5-phone-simulator">
+    <div className="w-full sm:max-w-[450px] h-[100dvh] sm:h-[1000px] bg-slate-950 rounded-none sm:rounded-[48px] p-0 sm:p-3 shadow-none sm:shadow-2xl relative border-0 sm:border-4 border-slate-800 shrink-0" id="h5-phone-simulator">
       {/* 1. Phone Top Camera notch */}
       <div className="hidden sm:flex absolute top-4 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-full items-center justify-center z-50">
         <div className="w-3 h-3 bg-slate-900 rounded-full border border-slate-800 ml-1"></div>
@@ -490,17 +492,20 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'photos' ? '家庭影像' : '家庭留言' : activeTab === 'orders' ? '代管家' : '我的'}</h1>
-          {isLoggedIn && activeTab === 'store' && familySection !== 'photos' && (
+          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'photos' ? '家庭影像' : familySection === 'notifications' ? '消息' : '家庭留言' : activeTab === 'orders' ? '预约服务' : showReminders ? '提醒事项' : '我的'}</h1>
+          {isLoggedIn && ((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) && (
             <button
               type="button"
-              onClick={() => setFamilySection(familySection === 'notifications' ? 'messages' : 'notifications')}
-              aria-label={familySection === 'notifications' ? '返回家庭留言' : `消息，${unreadFamilyNotificationCount}条未读`}
+              onClick={() => {
+                if (activeTab === 'store') { setActiveTab('profile'); setShowReminders(false); }
+                else { setFamilySection('notifications'); setActiveTab('store'); }
+              }}
+              aria-label={activeTab === 'store' ? '返回我的' : `消息，${unreadFamilyNotificationCount}条未读`}
               className={`absolute right-4 flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition ${familySection === 'notifications' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               <MessageCircle size={14} />
-              {familySection === 'notifications' ? '返回留言' : '消息'}
-              {familySection !== 'notifications' && unreadFamilyNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}
+              {activeTab === 'store' ? '返回我的' : '消息'}
+              {activeTab === 'profile' && unreadFamilyNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}
             </button>
           )}
         </header>
@@ -659,7 +664,9 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           )}
 
           {isLoggedIn && activeTab === 'profile' && (
+            showReminders ? <div className="p-4"><button type="button" onClick={() => setShowReminders(false)} className="mb-4 text-sm font-bold text-blue-600">‹ 返回我的</button><H5ReminderManager elderName={currentParentProfile.name} elderId={currentBoundElder?.id ?? 'elder-1'} scenario={reminderScenario} /></div> :
             <H5ProfileTab
+              onOpenReminders={() => setShowReminders(true)}
               isLoggedIn={isLoggedIn}
               onLogin={handleLogin}
               onLogout={handleLogout}
@@ -756,9 +763,9 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           <button
             onClick={() => { setActiveTab('store'); setFamilySection('messages'); }}
             disabled={!isLoggedIn}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection !== 'photos' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection === 'messages' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection !== 'photos' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
+            <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection === 'messages' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
             <span className="text-5xs font-extrabold tracking-tight">家庭留言</span>
           </button>
 
@@ -777,14 +784,14 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'orders' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <Settings2 size={18} className={activeTab === 'orders' ? 'stroke-[2.5]' : ''} />
-            <span className="text-5xs font-extrabold tracking-tight">代管家</span>
+            <span className="text-5xs font-extrabold tracking-tight">预约服务</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'profile' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            onClick={() => { setShowReminders(false); setActiveTab('profile'); }}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${(activeTab === 'profile' || (activeTab === 'store' && familySection === 'notifications')) ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <UserRound size={18} className={activeTab === 'profile' ? 'stroke-[2.5]' : ''} />
+            <UserRound size={18} className={(activeTab === 'profile' || (activeTab === 'store' && familySection === 'notifications')) ? 'stroke-[2.5]' : ''} />
             <span className="text-5xs font-extrabold tracking-tight">我的</span>
           </button>
         </nav>}

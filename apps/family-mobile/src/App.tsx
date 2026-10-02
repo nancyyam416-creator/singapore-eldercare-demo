@@ -82,7 +82,7 @@ export default function App() {
   const [previewOpenLoginSignal, setPreviewOpenLoginSignal] = useState(0);
   const [previewOpenStoreSignal, setPreviewOpenStoreSignal] = useState(0);
   const [activePreviewPage, setActivePreviewPage] = useState<'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile'>('login');
-  const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos' | 'family_notifications'>('family_photos');
+  const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'elder_binding'>('family_photos');
 
   // Real-time Emergency state triggered by the IoT sandbox
   const [emergencyAlert, setEmergencyAlert] = useState<string | null>(null);

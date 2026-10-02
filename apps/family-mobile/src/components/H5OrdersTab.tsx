@@ -4,16 +4,16 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { 
+import {
   BellRing,
-  ClipboardList, 
-  User, 
-  MapPin, 
-  Calendar, 
-  Clock, 
-  ChevronRight, 
-  Truck, 
-  Smile, 
+  ClipboardList,
+  User,
+  MapPin,
+  Calendar,
+  Clock,
+  ChevronRight,
+  Truck,
+  Smile,
   Clock3,
   CheckCircle2,
   PlayCircle,
@@ -53,11 +53,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
   openStoreSignal,
   elderProject
 }) => {
-  const [section, setSection] = useState<'reminders' | 'store' | 'services'>('reminders');
-
-  useEffect(() => {
-    if (openReminderSignal > 0) setSection('reminders');
-  }, [openReminderSignal]);
+  const [section, setSection] = useState<'store' | 'services'>('store');
 
   useEffect(() => {
     if (openStoreSignal > 0) setSection('store');
@@ -82,10 +78,10 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
         let nextStatus: Order['status'] = ord.status;
         let logText = '';
         const now = new Date();
-        const timeStr = now.getFullYear() + '-' + 
-          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-          String(now.getDate()).padStart(2, '0') + ' ' + 
-          String(now.getHours()).padStart(2, '0') + ':' + 
+        const timeStr = now.getFullYear() + '-' +
+          String(now.getMonth() + 1).padStart(2, '0') + '-' +
+          String(now.getDate()).padStart(2, '0') + ' ' +
+          String(now.getHours()).padStart(2, '0') + ':' +
           String(now.getMinutes()).padStart(2, '0');
 
         switch (ord.status) {
@@ -146,15 +142,12 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
 
   return (
     <div className="p-4 space-y-4 pb-6" id="h5-orders-tab">
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200/70 p-1">
-        <button type="button" onClick={() => setSection('reminders')} aria-pressed={section === 'reminders'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'reminders' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><BellRing size={14} />提醒事项</button>
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-200/70 p-1">
         <button type="button" onClick={() => setSection('store')} aria-pressed={section === 'store'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'store' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ShoppingBag size={14} />特约服务</button>
         <button type="button" onClick={() => setSection('services')} aria-pressed={section === 'services'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'services' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ClipboardList size={14} />服务记录</button>
       </div>
 
-      {section === 'reminders' ? (
-        <H5ReminderManager elderName={elderName} elderId={elderId} scenario={reminderScenario} />
-      ) : section === 'store' ? (
+      {section === 'store' ? (
         <div className="-mx-4 -mt-2"><H5StoreTab parentProfile={initialParentProfile} elderName={elderName} elderProject={elderProject} scenario={storeCategoryScenario} onAddOrder={order => setOrders(current => [order, ...current])} onSwitchToOrders={() => setSection('services')} /></div>
       ) : (
         <>
@@ -188,7 +181,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
                   <div className="flex items-center gap-1.5">
                     <span className="text-4xs text-slate-500 font-extrabold font-mono">订单号: {ord.id}</span>
                   </div>
-                  
+
                   <span className={`text-5xs font-black border rounded-full px-2.5 py-0.5 flex items-center gap-1 ${statusDetail.color}`}>
                     {statusDetail.icon}
                     {statusDetail.label}

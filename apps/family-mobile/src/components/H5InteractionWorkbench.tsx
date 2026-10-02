@@ -37,7 +37,7 @@ type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
   activePreviewPage: AcceptancePage;
-  activePreviewFamilyModule: 'family_messages' | 'family_photos' | 'family_notifications';
+  activePreviewFamilyModule: 'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'elder_binding';
   homeCareScenario: HomeCareScenario;
   homeActivityScenario: HomeActivityScenario;
   familyReceiptScenario: FamilyReceiptScenario;
@@ -185,7 +185,7 @@ const elderBindingScenarios: Array<{ value: ElderBindingScenario; label: string;
 ];
 
 const loginScenarios: Array<{ value: ChildLoginScenario; label: string; description: string; status: string }> = [
-  { value: 'default', label: '首次打开', description: '默认进入登录页，手机号和验证码均为空。', status: '待登录' },
+  { value: 'default', label: '首次打开', description: '已填入正确的演示手机号和验证码，可直接登录。', status: '可登录' },
   { value: 'code_sent', label: '验证码已发送', description: '手机号校验通过，展示发送结果与演示验证码。', status: '已发送' },
   { value: 'invalid_phone', label: '手机号格式错误', description: '分别校验+65八位号码与+86十一位号码。', status: '格式错误' },
   { value: 'invalid_code', label: '验证码错误', description: '保留手机号并提示重新输入验证码。', status: '验证失败' },
@@ -225,17 +225,17 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
   ],
   messages: [
     { value: 'family_messages', label: '家庭留言' },
-    { value: 'family_calls', label: '音视频通话' },
-    { value: 'family_notifications', label: '消息' }
+    { value: 'family_calls', label: '音视频通话' }
   ],
   photos: [
     { value: 'family_photos', label: '家庭影像' }
   ],
   care: [
-    { value: 'reminders', label: '提醒事项' },
     { value: 'service_store', label: '特约服务' }
   ],
   profile: [
+    { value: 'family_notifications', label: '消息' },
+    { value: 'reminders', label: '提醒事项' },
     { value: 'elder_binding', label: '老人绑定' }
   ]
 };
@@ -373,6 +373,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   const [acceptanceModule, setAcceptanceModule] = useState<AcceptanceModule>('score');
   const [familyPhotoTarget, setFamilyPhotoTarget] = useState<FamilyPhotoAcceptanceTarget>('list');
   const [scoreCategory, setScoreCategory] = useState<ScoreScenarioCategory>('overall');
+  const [isExpanded, setIsExpanded] = useState(false);
   const [scoreSelectionByCategory, setScoreSelectionByCategory] = useState(initialScoreSelection);
 
   useEffect(() => {
@@ -383,9 +384,9 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
         : activePreviewPage === 'home'
         ? 'score'
         : activePreviewPage === 'care'
-          ? 'reminders'
+          ? 'service_store'
         : activePreviewPage === 'profile'
-          ? 'elder_binding'
+          ? activePreviewFamilyModule === 'family_notifications' ? 'family_notifications' : activePreviewFamilyModule === 'reminders' ? 'reminders' : 'elder_binding'
           : activePreviewPage === 'messages' && activePreviewFamilyModule === 'family_messages'
             ? 'family_messages'
             : activePreviewPage === 'messages' && activePreviewFamilyModule === 'family_notifications'
@@ -411,7 +412,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
       : page === 'home'
       ? 'score'
       : page === 'care'
-        ? 'reminders'
+        ? 'service_store'
       : page === 'profile'
         ? 'elder_binding'
         : page === 'messages'
@@ -423,7 +424,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     onCloseFamilyReceipts();
     if (page === 'login') onOpenLogin();
     else if (page === 'home') onOpenHome();
-    else if (page === 'care') onOpenReminders();
+    else if (page === 'care') onOpenStore();
     else if (page === 'profile') onOpenElderBinding();
     else if (page === 'messages') onOpenFamilyMessages();
     else onOpenFamilyPhotos();
@@ -450,19 +451,27 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     }
   };
 
+  if (!isExpanded) {
+    return (
+      <button type="button" onClick={() => setIsExpanded(true)} aria-label="展开交互验收台" aria-expanded={false} className="hidden shrink-0 items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50 lg:flex">
+        <MousePointerClick size={16} className="text-blue-600" />交互验收台 · 展开
+      </button>
+    );
+  }
+
   return (
     <aside
       aria-label="交互验收台"
       className="hidden w-[300px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:flex"
     >
       <header className="flex items-start justify-between border-b border-slate-100 px-4 py-4">
-        <div>
+        <button type="button" onClick={() => setIsExpanded(false)} aria-label="收起交互验收台" aria-expanded={true} className="text-left">
           <div className="flex items-center gap-2">
             <MousePointerClick size={16} className="text-blue-600" />
-            <h2 className="text-sm font-extrabold text-slate-900">交互验收台</h2>
+            <h2 className="text-sm font-extrabold text-slate-900">交互验收台 · 收起</h2>
           </div>
           <p className="mt-1 text-[11px] font-medium text-slate-400">不属于正式移动端页面</p>
-        </div>
+        </button>
         <button
           type="button"
           onClick={resetWorkbench}
@@ -483,7 +492,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             <div>
               <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">一级页面</h3>
               <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭影像'], ['care', '代管家'], ['profile', '我的']] as const).map(([page, label]) => (
+                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭影像'], ['care', '预约服务'], ['profile', '我的']] as const).map(([page, label]) => (
                   <button key={page} type="button" onClick={() => changeAcceptancePage(page)} aria-pressed={acceptancePage === page} className={`rounded-lg px-2 py-2 text-[10px] font-bold ${acceptancePage === page ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>{label}</button>
                 ))}
               </div>
@@ -546,11 +555,11 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
               {acceptancePage === 'home'
                 ? '首页只验证摘要、状态和首页弹层。'
                 : acceptancePage === 'care'
-                  ? '代管家验证提醒事项、特约服务与服务记录。'
+                  ? '预约服务验证特约服务与服务记录。'
                 : acceptancePage === 'profile'
                   ? '我的页面验证老人绑定、切换与异常状态。'
                   : acceptancePage === 'messages'
-                    ? '家庭留言独立底部入口，同时承载音视频通话与消息。'
+                    ? '家庭留言独立底部入口，同时承载音视频通话。'
                     : '家庭影像独立底部入口，承载相册查看与影像发布。'}
             </p>
         </section>

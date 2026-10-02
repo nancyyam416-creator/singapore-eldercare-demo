@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
-  ChevronRight,
   Clock3,
   Flag,
   Image,
@@ -21,13 +20,9 @@ import {
   type HomeRecommendationKind,
   type RecommendationRuntimeState,
 } from "../home-right-content";
-import type { MedicationReminder } from "../types";
 import type {
   AcceptanceRightContentScenario,
 } from "./InteractionAcceptanceConsole";
-import {
-  TODAY_OVERVIEW_RECOMMENDATIONS,
-} from "./TodayOverviewPage";
 
 interface RailReminder {
   id: string;
@@ -68,8 +63,8 @@ interface HomeTaskRailProps {
   messages: RailMessage[];
   albumUnreadCount: number;
   missedCallCount: number;
-  onCompleteReminder: (id: string, fallbackReminder?: MedicationReminder) => void;
   onOpenReminder: (id: string, minutesUntil: number) => void;
+  onOpenTodayOverview: () => void;
   onOpenMessages: () => void;
   onOpenCommunity: () => void;
   onOpenContacts: () => void;
@@ -89,8 +84,8 @@ export default function HomeTaskRail({
   messages,
   albumUnreadCount,
   missedCallCount,
-  onCompleteReminder,
   onOpenReminder,
+  onOpenTodayOverview,
   onOpenMessages,
   onOpenCommunity,
   onOpenContacts,
@@ -104,8 +99,6 @@ export default function HomeTaskRail({
   const [recommendationRuntime, setRecommendationRuntime] = useState<Record<string, RecommendationRuntimeState>>(createRecommendationRuntime);
   const [activeRecommendationId, setActiveRecommendationId] = useState(HOME_RECOMMENDATION_CONFIGS[0].contentId);
   const [isInteractionLocked, setIsInteractionLocked] = useState(false);
-  const [isTodayRecommendationOpen, setIsTodayRecommendationOpen] = useState(false);
-  const [completedOverviewScheduleIds, setCompletedOverviewScheduleIds] = useState<Set<string>>(() => new Set());
   const [frozenRightContentItems, setFrozenRightContentItems] = useState<RightContentItem[] | null>(null);
   const [hasAppliedLockedUpdate, setHasAppliedLockedUpdate] = useState(false);
   const [dailyRecommendationsExpired, setDailyRecommendationsExpired] = useState(false);
@@ -167,8 +160,6 @@ export default function HomeTaskRail({
     setHasAppliedLockedUpdate(false);
     setIsInteractionLocked(acceptanceRightContentScenario === "interaction-locked");
     setFrozenRightContentItems(null);
-    setIsTodayRecommendationOpen(false);
-    setCompletedOverviewScheduleIds(new Set());
     setDailyRecommendationsExpired(acceptanceRightContentScenario === "next-day-exit");
   }, [acceptanceRevision, acceptanceRightContentScenario]);
 
@@ -320,35 +311,6 @@ export default function HomeTaskRail({
           }]
         : [];
 
-  const currentDayKey = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
-  const todayReminderItems = reminders
-    .filter((item) => !item.scheduledAt || item.scheduledAt.slice(0, 10) === currentDayKey)
-    .map((item) => {
-      const elapsedSeconds = (nowTimestamp - reminderTimestamp(item)) / 1000;
-      const status = completedOverviewScheduleIds.has(item.id)
-        ? "completed" as const
-        : item.status === "pending"
-          ? elapsedSeconds < 0
-            ? "not-yet" as const
-            : elapsedSeconds < 30 * 60
-              ? "pending" as const
-              : "unconfirmed" as const
-          : item.status;
-      return {
-        id: item.id,
-        time: item.time,
-        title: item.name,
-        status,
-        category: item.category === "schedule" ? "schedule" as const : "medication" as const,
-        Icon: item.category === "schedule" ? CalendarDays : Pill,
-      };
-    })
-    .sort((first, second) => first.time.localeCompare(second.time));
-
   const familyItems = [
     visibleMissedCallCount > 0 ? {
       id: "family-missed-call",
@@ -426,7 +388,7 @@ export default function HomeTaskRail({
       if (item.reminderIds?.length === 1) {
         onOpenReminder(item.reminderIds[0], item.minutesUntil ?? 0);
       } else {
-        setIsTodayRecommendationOpen(true);
+        onOpenTodayOverview();
       }
     }
     else if (item.kind === "activity") onOpenCommunity();
@@ -464,129 +426,43 @@ export default function HomeTaskRail({
 
   return (
     <aside className="task-rail" aria-label="首页右侧内容">
-      <section className={`primary-task${isTodayRecommendationOpen ? " is-overview-open" : ""}`}>
-        {isTodayRecommendationOpen ? (
-          <section className="home-today-popover" aria-label="今日全览内容">
-            <header>
-              <div>
-                <strong>今日全览</strong>
-              </div>
-            </header>
-            <div className="home-today-scroll">
-              <section className="home-today-section" aria-label="提醒事项">
-                <div className="home-today-section-title">
-                  <Clock3 aria-hidden="true" />
-                  <strong>提醒事项</strong>
-                </div>
-                <div className="home-today-list is-schedule">
-                  {todayReminderItems.map((item) => {
-                    const currentStatus = completedOverviewScheduleIds.has(item.id) ? "completed" : item.status;
-                    const statusLabel = {
-                      "not-yet": "未到时间",
-                      pending: "待完成",
-                      completed: "已完成",
-                      unconfirmed: item.category === "medication" ? "用药尚未确认" : "事项尚未完成",
-                      expired: "已过期",
-                    }[currentStatus];
-                    const isActionable = currentStatus === "pending"
-                      || currentStatus === "unconfirmed"
-                      || currentStatus === "expired";
-                    const actionLabel = item.category === "medication" ? "服药" : "完成";
-                    return (
-                      <article
-                        key={item.id}
-                        className={`is-${currentStatus}`}
-                      >
-                        <div className={`home-today-schedule-summary${isActionable ? " has-action" : ""}`}>
-                          <time>{item.time}</time>
-                          <span className="home-today-item-icon"><item.Icon aria-hidden="true" /></span>
-                          <strong>{item.title}</strong>
-                          <small>{statusLabel}</small>
-                          {isActionable && (
-                            <button
-                            type="button"
-                            className="home-today-schedule-action"
-                            onClick={() => {
-                              setCompletedOverviewScheduleIds((current) => new Set(current).add(item.id));
-                              onCompleteReminder(item.id);
-                            }}
-                            >
-                              {actionLabel}
-                            </button>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="home-today-section" aria-label="今日值得看">
-                <div className="home-today-section-title">
-                  <ShieldAlert aria-hidden="true" />
-                  <strong>今日值得看</strong>
-                </div>
-                <div className="home-today-list is-recommendation">
-                  {TODAY_OVERVIEW_RECOMMENDATIONS.map((recommendation) => (
-                    <button
-                      key={recommendation.id}
-                      type="button"
-                      className={`is-${recommendation.kind}`}
-                      onClick={() => {
-                        setIsTodayRecommendationOpen(false);
-                        onOpenRecommendation(recommendation.kind, recommendation.id);
-                      }}
-                    >
-                      <span className="home-today-item-icon"><recommendation.Icon aria-hidden="true" /></span>
-                      <span className="home-today-item-copy">
-                        <small>{recommendation.eyebrow}</small>
-                        <strong>{recommendation.title}</strong>
-                      </span>
-                      <ChevronRight aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </section>
-        ) : (
-          <div
-            className="right-content-deck"
-            onPointerDown={() => beginContentInteraction(mergedItems)}
-            onPointerUp={finishContentInteraction}
-            onPointerCancel={finishContentInteraction}
+      <section className="primary-task">
+        <div
+          className="right-content-deck"
+          onPointerDown={() => beginContentInteraction(mergedItems)}
+          onPointerUp={finishContentInteraction}
+          onPointerCancel={finishContentInteraction}
+        >
+          <button
+            type="button"
+            className={`medicine-orb ${contentClass(primaryContent)}`}
+            onClick={() => activateContent(primaryContent)}
+            disabled={primaryContent.source === "empty"}
+            aria-label={`${sourceLabel[primaryContent.source]}：${primaryContent.title} ${primaryContent.subtitle}`}
           >
-            <button
-              type="button"
-              className={`medicine-orb ${contentClass(primaryContent)}`}
-              onClick={() => activateContent(primaryContent)}
-              disabled={primaryContent.source === "empty"}
-              aria-label={`${sourceLabel[primaryContent.source]}：${primaryContent.title} ${primaryContent.subtitle}`}
-            >
-              {primaryContent.count && primaryContent.count > 0 && (
-                <span className="recommendation-count" aria-hidden="true">{primaryContent.count}</span>
-              )}
-              <primaryContent.Icon aria-hidden="true" />
-              <strong>{primaryContent.title}</strong>
-              <small>{primaryContent.subtitle}</small>
-            </button>
-
-            {acceptanceRightContentScenario === "interaction-locked" && !hasAppliedLockedUpdate && (
-              <div className="right-content-pending" role="status">
-                <Clock3 aria-hidden="true" />正在查看，新留言将在操作结束后显示
-              </div>
+            {primaryContent.count && primaryContent.count > 0 && (
+              <span className="recommendation-count" aria-hidden="true">{primaryContent.count}</span>
             )}
-          </div>
-        )}
+            <primaryContent.Icon aria-hidden="true" />
+            <strong>{primaryContent.title}</strong>
+            <small>{primaryContent.subtitle}</small>
+          </button>
+
+          {acceptanceRightContentScenario === "interaction-locked" && !hasAppliedLockedUpdate && (
+            <div className="right-content-pending" role="status">
+              <Clock3 aria-hidden="true" />正在查看，新留言将在操作结束后显示
+            </div>
+          )}
+        </div>
         <div className="today-overview-entry-group">
           <button
             type="button"
-            className={`today-overview-button${isTodayRecommendationOpen ? " is-open" : ""}`}
-            onClick={() => setIsTodayRecommendationOpen((isOpen) => !isOpen)}
-            aria-label={isTodayRecommendationOpen ? "收起首页今日全览" : "在首页展开今日全览"}
+            className="today-overview-button"
+            onClick={onOpenTodayOverview}
+            aria-label="全屏打开今日全览"
           >
             <CalendarDays aria-hidden="true" />
-            <strong>{isTodayRecommendationOpen ? "收起全览" : "今日全览"}</strong>
+            <strong>今日全览</strong>
           </button>
         </div>
       </section>

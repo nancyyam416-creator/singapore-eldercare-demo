@@ -235,7 +235,7 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
           </header>
           <div className={`community-live-room__stage${livePlaybackState !== "playing" ? " has-error" : ""}`}>
             {livePlaybackState === "playing" ? <>
-              <img src={liveActivity.imageUrl} alt="" referrerPolicy="no-referrer" />
+              <img src="./assets/community-live-preview.jpg" alt="社区活动现场直播画面" />
               <div className="community-live-room__shade" />
               <span className="community-live-room__badge"><i />直播中</span>
               <div className="community-live-room__copy"><Video aria-hidden="true" /><h2>{liveActivity.title}</h2><p>正在播放社区活动现场画面</p></div>

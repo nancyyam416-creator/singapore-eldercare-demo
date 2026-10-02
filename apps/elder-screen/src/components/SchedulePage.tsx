@@ -24,7 +24,7 @@ import "./schedule-page.css";
 type ScheduleKind = "medication" | "life";
 type ReminderStatus = "pending" | "completed" | "unconfirmed" | "expired";
 type RepeatRule = "once" | "daily" | "weekly";
-const SHOW_QUICK_ADD = false;
+const SHOW_QUICK_ADD = true;
 
 interface ScheduleItem {
   id: string;
@@ -75,15 +75,7 @@ interface SpeechRecognitionLike {
 }
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-type VoiceStage = "guide" | "listening" | "review" | "error" | "unsupported";
-
-interface VoiceReminderDraft {
-  kind: "medication" | "life";
-  title: string;
-  detail: string;
-  date: string;
-  time: string;
-}
+type VoiceStage = "guide" | "listening" | "error" | "unsupported";
 
 declare global {
   interface Window {
@@ -132,66 +124,6 @@ const addDays = (date: Date, days: number) => {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
-};
-
-const chineseNumberToValue = (source: string) => {
-  if (/^\d+$/.test(source)) return Number(source);
-  const digits: Record<string, number> = {
-    零: 0,
-    一: 1,
-    二: 2,
-    两: 2,
-    三: 3,
-    四: 4,
-    五: 5,
-    六: 6,
-    七: 7,
-    八: 8,
-    九: 9,
-  };
-  if (source === "十") return 10;
-  if (source.includes("十")) {
-    const [tens, ones] = source.split("十");
-    return (tens ? digits[tens] : 1) * 10 + (ones ? digits[ones] : 0);
-  }
-  return digits[source];
-};
-
-const parseVoiceReminder = (transcript: string, today: Date): VoiceReminderDraft | null => {
-  const normalized = transcript.replace(/[，。,.]/g, "").replace(/\s+/g, "");
-  const timeMatch = normalized.match(
-    /(凌晨|早上|早晨|上午|中午|下午|傍晚|晚上)?([零一二三四五六七八九十两\d]{1,3})[点时](?:([零一二三四五六七八九十两\d]{1,3})分?)?/,
-  );
-  if (!timeMatch) return null;
-
-  const period = timeMatch[1] ?? "";
-  let hour = chineseNumberToValue(timeMatch[2]);
-  const minute = timeMatch[3] ? chineseNumberToValue(timeMatch[3]) : 0;
-  if (hour === undefined || minute === undefined || hour > 23 || minute > 59) return null;
-  if (["下午", "傍晚", "晚上"].includes(period) && hour < 12) hour += 12;
-  if (period === "中午" && hour < 11) hour += 12;
-  if (period === "凌晨" && hour === 12) hour = 0;
-
-  const daysLater = normalized.includes("后天") ? 2 : normalized.includes("明天") ? 1 : 0;
-  const kind: VoiceReminderDraft["kind"] = /吃药|服药|药片|用药/.test(normalized)
-    ? "medication"
-    : "life";
-  const title = normalized
-    .replace(/^小[Uu优][，,]?/, "")
-    .replace(/请?提醒我/, "")
-    .replace(/今天|明天|后天/g, "")
-    .replace(timeMatch[0], "")
-    .replace(/到时候|记得|一下/g, "")
-    .trim();
-  const fallbackTitle = kind === "medication" ? "按时服药" : "我的提醒";
-
-  return {
-    kind,
-    title: title || fallbackTitle,
-    detail: kind === "medication" ? "请按医嘱服用，到时间会大声提醒您。" : "到时间会大声提醒您。",
-    date: dateKey(addDays(today, daysLater)),
-    time: `${pad(hour)}:${pad(minute)}`,
-  };
 };
 
 const createDefaultItems = (reminders: MedicationReminder[], today: Date): ScheduleItem[] => {
@@ -255,7 +187,8 @@ export default function SchedulePage({
   const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
   const [voiceStage, setVoiceStage] = useState<VoiceStage>("guide");
   const [voiceTranscript, setVoiceTranscript] = useState("");
-  const [voiceDraft, setVoiceDraft] = useState<VoiceReminderDraft | null>(null);
+  const [voiceDate, setVoiceDate] = useState(todayKey);
+  const [voiceTime, setVoiceTime] = useState("09:00");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -464,21 +397,32 @@ export default function SchedulePage({
     setToast("正在播报剩余事项");
   };
 
-  const closeVoiceAssistant = () => {
-    recognitionRef.current?.abort();
+  const cancelVoiceRecognition = () => {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    recognition.abort();
     recognitionRef.current = null;
+  };
+
+  const closeVoiceAssistant = () => {
+    cancelVoiceRecognition();
     setShowVoiceAssistant(false);
     setVoiceStage("guide");
     setVoiceTranscript("");
-    setVoiceDraft(null);
   };
 
   const startVoiceCreate = () => {
+    cancelVoiceRecognition();
     setVoiceStage("guide");
     setVoiceTranscript("");
-    setVoiceDraft(null);
+    setVoiceDate(selectedDateKey < todayKey ? todayKey : selectedDateKey);
+    setVoiceTime("09:00");
     setShowVoiceAssistant(true);
-    speak("用说话添加提醒。点一下开始说话，然后说完整一句，例如，明天下午三点提醒我去复诊。");
+    speak("请先设置提醒日期和时间，再录音或填写提醒内容。");
   };
 
   const beginVoiceRecognition = () => {
@@ -489,7 +433,7 @@ export default function SchedulePage({
       return;
     }
 
-    recognitionRef.current?.abort();
+    cancelVoiceRecognition();
     const recognition = new Recognition();
     recognitionRef.current = recognition;
     let receivedResult = false;
@@ -498,22 +442,18 @@ export default function SchedulePage({
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.onstart = () => {
-      setVoiceTranscript("");
-      setVoiceDraft(null);
       setVoiceStage("listening");
     };
     recognition.onresult = (event) => {
       receivedResult = true;
       const result = event.results[event.results.length - 1]?.[0]?.transcript?.trim() ?? "";
-      const parsed = parseVoiceReminder(result, today);
       setVoiceTranscript(result);
-      setVoiceDraft(parsed);
-      if (parsed) {
-        setVoiceStage("review");
-        speak(`我听到的是，${result}。请确认是否添加。`);
+      if (result) {
+        setVoiceStage("guide");
+        speak(`我听到的提醒内容是，${result}。请检查时间和内容后确认添加。`);
       } else {
         setVoiceStage("error");
-        speak("我没有听清提醒时间，请再说一次完整的日期、时间和事情。");
+        speak("我没有听清提醒内容，请再说一次。");
       }
     };
     recognition.onerror = (event) => {
@@ -525,7 +465,7 @@ export default function SchedulePage({
       recognitionRef.current = null;
       if (!receivedResult && !recognitionFailed) {
         setVoiceStage("error");
-        speak("刚才没有听到声音，请靠近一些再说一次。");
+        speak("刚才没有听到提醒内容，请靠近一些再说一次。");
       }
     };
 
@@ -538,39 +478,34 @@ export default function SchedulePage({
   };
 
   const confirmVoiceReminder = () => {
-    if (!voiceDraft) return;
+    const title = voiceTranscript.trim();
+    if (!title) {
+      setToast("请先录音或填写提醒内容");
+      return;
+    }
     setItems((current) => [
       ...current,
       {
         id: `voice-${Date.now()}`,
-        kind: voiceDraft.kind,
-        title: voiceDraft.title,
-        detail: voiceDraft.detail,
-        date: voiceDraft.date,
-        time: voiceDraft.time,
+        kind: "life",
+        title,
+        detail: "到时间会大声提醒您。",
+        date: voiceDate,
+        time: voiceTime,
         status: "pending",
         repeat: "once",
       },
     ]);
-    setSelectedDateKey(voiceDraft.date);
-    setCalendarMonth(new Date(`${voiceDraft.date}T00:00:00`));
+    setSelectedDateKey(voiceDate);
+    setCalendarMonth(new Date(`${voiceDate}T00:00:00`));
     closeVoiceAssistant();
-    setToast("语音提醒已添加");
+    setToast("提醒已添加");
     speak("提醒已经添加，到时间我会大声提醒您。");
   };
 
   const switchVoiceToManual = () => {
     closeVoiceAssistant();
     openCreate();
-  };
-
-  const useVoiceAcceptanceExample = () => {
-    const transcript = "明天下午三点提醒我去复诊";
-    const draft = parseVoiceReminder(transcript, today);
-    setVoiceTranscript(transcript);
-    setVoiceDraft(draft);
-    setVoiceStage(draft ? "review" : "error");
-    if (draft) speak(`我听到的是，${transcript}。请确认是否添加。`);
   };
 
   if (!isOpen) return null;
@@ -642,30 +577,21 @@ export default function SchedulePage({
 
           {SHOW_QUICK_ADD && (
             <>
-              <div className="schedule-quick-add grid grid-cols-[1fr_152px] gap-3">
+              <div className="schedule-quick-add">
                 <button
                   type="button"
                   onClick={startVoiceCreate}
-                  className="schedule-voice-entry min-h-[112px] rounded-[24px] border-2 border-[#16824F] bg-[#14533C] px-5 text-left text-white shadow-md flex items-center gap-4 hover:bg-[#0F6B40]"
+                  className="schedule-voice-entry min-h-[112px] w-full rounded-[24px] border-2 border-[#16824F] bg-[#14533C] px-5 text-left text-white shadow-md flex items-center gap-4 hover:bg-[#0F6B40]"
                 >
                   <span className="w-16 h-16 shrink-0 rounded-full bg-white text-[#16824F] flex items-center justify-center shadow-sm">
-                    <Mic className="w-9 h-9" />
+                    <Plus className="w-9 h-9" />
                   </span>
                   <span className="min-w-0">
-                    <strong className="block text-[22px] leading-tight font-black">点一下，用说话添加提醒</strong>
-                    <span className="mt-2 block text-[15px] leading-snug font-bold text-white/85">例如：“明天下午3点提醒我去复诊”</span>
+                    <strong className="block text-[22px] leading-tight font-black">添加提醒</strong>
+                    <span className="mt-2 block text-[15px] leading-snug font-bold text-white/85">先设置时间，再录音或填写事项</span>
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={openCreate}
-                  className="schedule-manual-entry min-h-[112px] rounded-[24px] border-2 border-[#DDD7CE] bg-white text-[#315B49] text-[18px] font-black flex flex-col items-center justify-center gap-2 hover:bg-[#F7F4EF]"
-                >
-                  <Plus className="w-8 h-8" />
-                  手动填写
-                </button>
               </div>
-              <p className="text-center text-[14px] leading-none font-black text-gray-500">点击绿色按钮后，按提示说一句完整的话即可</p>
             </>
           )}
         </section>
@@ -771,11 +697,11 @@ export default function SchedulePage({
                   <Mic className="w-8 h-8" />
                 </span>
                 <div>
-                  <h2 id="voice-reminder-title" className="text-[29px] leading-none font-black text-[#1C2C24]">用说话添加提醒</h2>
-                  <p className="mt-2 text-[17px] font-bold text-[#476557]">不用填写表格，说一句完整的话就可以</p>
+                  <h2 id="voice-reminder-title" className="text-[29px] leading-none font-black text-[#1C2C24]">添加提醒</h2>
+                  <p className="mt-2 text-[17px] font-bold text-[#476557]">先设置时间，再填写或录音输入提醒内容</p>
                 </div>
               </div>
-              <button type="button" onClick={closeVoiceAssistant} aria-label="关闭语音添加提醒" className="w-12 h-12 rounded-full bg-white border-2 border-[#D9E3DD] text-gray-600 flex items-center justify-center">
+              <button type="button" onClick={closeVoiceAssistant} aria-label="关闭添加提醒" className="w-12 h-12 rounded-full bg-white border-2 border-[#D9E3DD] text-gray-600 flex items-center justify-center">
                 <X className="w-7 h-7" />
               </button>
             </header>
@@ -783,30 +709,68 @@ export default function SchedulePage({
             <div className="p-8">
               {voiceStage === "guide" && (
                 <>
-                  <div className="grid grid-cols-3 gap-3" aria-label="语音添加提醒的三个步骤">
-                    {[
-                      ["1", "点开始说话"],
-                      ["2", "说时间和事情"],
-                      ["3", "听结果再确认"],
-                    ].map(([step, label]) => (
-                      <div key={step} className="voice-guide-step rounded-[20px] bg-[#F4F7F5] px-4 py-4 flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-full bg-[#14533C] text-white text-[18px] font-black flex items-center justify-center">{step}</span>
-                        <strong className="text-[18px] font-black text-[#314A3F]">{label}</strong>
+                  <div className="grid grid-cols-2 gap-5">
+                    <section className="schedule-reminder-step rounded-[24px] border-2 p-5" aria-labelledby="quick-reminder-time-title">
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 h-10 rounded-full bg-[#14533C] text-white text-[19px] font-black flex items-center justify-center">1</span>
+                        <div>
+                          <h3 id="quick-reminder-time-title" className="text-[21px] font-black text-[#1C2C24]">设置提醒时间</h3>
+                          <p className="mt-1 text-[14px] font-bold text-[#567064]">日期和时间由您选择</p>
+                        </div>
                       </div>
-                    ))}
+                      <label htmlFor="quick-reminder-date" className="mt-5 block text-[15px] font-black text-[#315B49]">提醒日期</label>
+                      <input
+                        id="quick-reminder-date"
+                        type="date"
+                        min={todayKey}
+                        value={voiceDate}
+                        onChange={(event) => setVoiceDate(event.target.value)}
+                        className="schedule-reminder-input mt-2 h-14 w-full rounded-2xl border-2 px-4 text-[18px] font-black outline-none focus:border-[#16824F]"
+                      />
+                      <label htmlFor="quick-reminder-time" className="mt-4 block text-[15px] font-black text-[#315B49]">提醒时间</label>
+                      <input
+                        id="quick-reminder-time"
+                        type="time"
+                        value={voiceTime}
+                        onChange={(event) => setVoiceTime(event.target.value)}
+                        className="schedule-reminder-input mt-2 h-14 w-full rounded-2xl border-2 px-4 text-[21px] font-black outline-none focus:border-[#16824F]"
+                      />
+                    </section>
+
+                    <section className="schedule-reminder-step rounded-[24px] border-2 p-5" aria-labelledby="quick-reminder-content-title">
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 h-10 rounded-full bg-[#14533C] text-white text-[19px] font-black flex items-center justify-center">2</span>
+                        <div>
+                          <h3 id="quick-reminder-content-title" className="text-[21px] font-black text-[#1C2C24]">填写提醒事项</h3>
+                          <p className="mt-1 text-[14px] font-bold text-[#6E675E]">可以自己填写，也可以录音</p>
+                        </div>
+                      </div>
+                      <label htmlFor="quick-reminder-content" className="mt-5 block text-[15px] font-black text-[#4D4943]">提醒内容</label>
+                      <textarea
+                        id="quick-reminder-content"
+                        value={voiceTranscript}
+                        onChange={(event) => setVoiceTranscript(event.target.value)}
+                        placeholder="例如：去社区医院复诊"
+                        rows={3}
+                        className="schedule-reminder-input mt-2 w-full resize-none rounded-2xl border-2 px-4 py-3 text-[18px] font-bold leading-relaxed outline-none focus:border-[#16824F]"
+                      />
+                      <button type="button" onClick={beginVoiceRecognition} className="mt-4 h-14 w-full rounded-2xl border-2 border-[#16824F] bg-white text-[17px] font-black text-[#14533C] flex items-center justify-center gap-3 hover:bg-[#F2FAF5]">
+                        <Mic className="w-7 h-7" />{voiceTranscript.trim() ? "重新录音" : "录音填写提醒内容"}
+                      </button>
+                    </section>
                   </div>
-                  <div className="voice-example mt-6 rounded-[24px] border-2 border-[#F0D190] bg-[#FFFAEE] px-6 py-5 text-center">
-                    <p className="text-[17px] font-black text-[#8B6219]">可以照着这样说</p>
-                    <p className="mt-2 text-[27px] leading-snug font-black text-[#2B382F]">“明天下午3点，提醒我去复诊”</p>
+
+                  <div className="mt-5 grid grid-cols-[190px_1fr] gap-4">
+                    <button type="button" onClick={closeVoiceAssistant} className="h-[70px] rounded-[20px] border-2 border-[#CFC8BD] bg-white text-[19px] font-black text-gray-600">取消</button>
+                    <button
+                      type="button"
+                      onClick={confirmVoiceReminder}
+                      disabled={!voiceTranscript.trim() || !voiceDate || !voiceTime}
+                      className="h-[70px] rounded-[20px] bg-[#16824F] text-white text-[21px] font-black flex items-center justify-center gap-3 disabled:cursor-not-allowed disabled:bg-[#B8C4BD]"
+                    >
+                      <Check className="w-7 h-7" />确认添加
+                    </button>
                   </div>
-                  <button type="button" onClick={beginVoiceRecognition} className="mt-6 w-full h-[100px] rounded-[26px] bg-[#16824F] text-white text-[27px] font-black shadow-lg flex items-center justify-center gap-4 hover:bg-[#0F6B40]">
-                    <Mic className="w-10 h-10" />
-                    点一下，开始说话
-                  </button>
-                  <button type="button" onClick={useVoiceAcceptanceExample} className="mt-3 w-full h-14 rounded-2xl border-2 border-[#BFCBC4] bg-white text-[#315B49] text-[17px] font-black">
-                    使用示例查看确认步骤
-                  </button>
-                  <p className="mt-4 text-center text-[16px] font-bold text-gray-500">系统听完后会先让您确认，不会直接添加</p>
                 </>
               )}
 
@@ -822,37 +786,11 @@ export default function SchedulePage({
                       <i className="w-1.5 rounded-full bg-[#16824F] animate-wave-short" />
                     </span>
                   </div>
-                  <h3 className="mt-6 text-[31px] font-black text-[#1C2C24]">正在听，请开始说</h3>
-                  <p className="mt-3 text-[20px] font-bold text-gray-600">请把日期、时间和事情一起说完整</p>
-                  <p className="voice-listening-example mt-5 rounded-2xl bg-[#F4F7F5] px-5 py-4 text-[19px] font-black text-[#476557]">例如：明天下午3点，提醒我去复诊</p>
+                  <h3 className="mt-6 text-[31px] font-black text-[#1C2C24]">正在听提醒内容</h3>
+                  <p className="mt-3 text-[20px] font-bold text-gray-600">只需要说要做的事情，不用再说时间</p>
+                  <p className="voice-listening-example mt-5 rounded-2xl bg-[#F4F7F5] px-5 py-4 text-[19px] font-black text-[#476557]">例如：去社区医院复诊</p>
                   <button type="button" onClick={() => recognitionRef.current?.stop()} className="mt-6 h-14 min-w-[190px] rounded-2xl border-2 border-[#D6DDD8] bg-white px-6 text-[18px] font-black text-gray-600">我说完了</button>
                 </div>
-              )}
-
-              {voiceStage === "review" && voiceDraft && (
-                <>
-                  <div className="voice-transcript rounded-[22px] bg-[#F4F7F5] px-6 py-5">
-                    <p className="text-[16px] font-black text-gray-500">我听到您说</p>
-                    <p className="mt-2 text-[24px] leading-snug font-black text-[#263A31]">“{voiceTranscript}”</p>
-                  </div>
-                  <div className="voice-draft mt-5 rounded-[24px] border-2 border-[#8AC6A3] bg-[#F2FAF5] p-6">
-                    <p className="text-[18px] font-black text-[#256F4F]">将为您添加这条提醒</p>
-                    <div className="mt-4 grid grid-cols-[170px_1fr] gap-x-5 gap-y-3 text-[21px]">
-                      <span className="font-bold text-gray-500">类型</span><strong>{voiceDraft.kind === "medication" ? "用药提醒" : "日常提醒"}</strong>
-                      <span className="font-bold text-gray-500">日期</span><strong>{formatShortDate(voiceDraft.date)}</strong>
-                      <span className="font-bold text-gray-500">时间</span><strong>{voiceDraft.time}</strong>
-                      <span className="font-bold text-gray-500">提醒内容</span><strong>{voiceDraft.title}</strong>
-                    </div>
-                  </div>
-                  <div className="mt-6 grid grid-cols-[1fr_220px] gap-4">
-                    <button type="button" onClick={confirmVoiceReminder} className="h-[84px] rounded-[24px] bg-[#16824F] text-white text-[24px] font-black flex items-center justify-center gap-3">
-                      <Check className="w-8 h-8" />确认添加
-                    </button>
-                    <button type="button" onClick={beginVoiceRecognition} className="h-[84px] rounded-[24px] border-2 border-[#BFCBC4] bg-white text-[#315B49] text-[20px] font-black flex items-center justify-center gap-3">
-                      <RotateCcw className="w-7 h-7" />重新说
-                    </button>
-                  </div>
-                </>
               )}
 
               {(voiceStage === "error" || voiceStage === "unsupported") && (
@@ -860,26 +798,19 @@ export default function SchedulePage({
                   <span className="voice-error-icon mx-auto w-20 h-20 rounded-full bg-[#FFF2E7] text-[#B76500] flex items-center justify-center">
                     <Mic className="w-10 h-10" />
                   </span>
-                  <h3 className="mt-5 text-[28px] font-black text-[#1C2C24]">{voiceStage === "unsupported" ? "暂时不能使用语音输入" : "刚才没有听清"}</h3>
+                  <h3 className="mt-5 text-[28px] font-black text-[#1C2C24]">{voiceStage === "unsupported" ? "暂时不能录音" : "刚才没有听清提醒内容"}</h3>
                   <p className="mt-3 text-[19px] leading-relaxed font-bold text-gray-600">
-                    {voiceStage === "unsupported" ? "请检查麦克风权限，或改用手动填写。" : "请再说一次，并把日期、时间和事情一起说出来。"}
+                    {voiceStage === "unsupported" ? "可以返回直接填写提醒内容。" : "只需要重新说要做的事情。"}
                   </p>
-                  {voiceTranscript && <p className="voice-error-transcript mt-4 rounded-2xl bg-[#F4F7F5] px-5 py-4 text-[18px] font-bold text-gray-600">刚才听到：“{voiceTranscript}”</p>}
                   {voiceStage === "error" && (
                     <button type="button" onClick={beginVoiceRecognition} className="mt-6 w-full h-[82px] rounded-[24px] bg-[#16824F] text-white text-[24px] font-black flex items-center justify-center gap-3">
-                      <RotateCcw className="w-8 h-8" />再说一次
+                      <RotateCcw className="w-8 h-8" />重新录音
                     </button>
                   )}
-                  {voiceStage === "unsupported" && (
-                    <button type="button" onClick={useVoiceAcceptanceExample} className="mt-6 w-full h-[72px] rounded-[22px] bg-[#16824F] text-white text-[21px] font-black">使用示例继续添加</button>
-                  )}
+                  <button type="button" onClick={() => setVoiceStage("guide")} className="mt-4 h-14 min-w-[240px] rounded-2xl border-2 border-[#D6DDD8] bg-white px-6 text-[18px] font-black text-[#476557]">
+                    返回填写提醒内容
+                  </button>
                 </div>
-              )}
-
-              {voiceStage !== "listening" && voiceStage !== "review" && (
-                <button type="button" onClick={switchVoiceToManual} className="voice-manual-fallback mt-5 mx-auto min-w-[240px] h-14 rounded-2xl border-2 border-[#D6DDD8] bg-white px-6 text-[18px] font-black text-[#476557] flex items-center justify-center gap-2">
-                  <PenLine className="w-6 h-6" />改为手动填写
-                </button>
               )}
             </div>
           </section>

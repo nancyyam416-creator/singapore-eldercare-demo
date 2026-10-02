@@ -3,6 +3,7 @@ import activityTaichiCover from "./activity-taichi.svg";
 import activitySafetyCover from "./activity-safety.svg";
 import activityMusicCover from "./activity-music.svg";
 import activityHealthCover from "./activity-health.svg";
+import u2gLogo from "./u2g-logo.png";
 import communityLifeMock from "./communityLifeMock.json";
 import serviceCategoryMock from "./serviceCategoryMock.json";
 import {
@@ -1286,13 +1287,12 @@ function ElderlyDrawer({ mode: initialMode, record, projects, tablet, activation
   );
 }
 
-function TabletBindingModal({ record, project, devices, activation, failureSignal, onGenerate, onActivate, onFail, onClose, onUnbind }) {
+function TabletBindingModal({ record, project, devices, activation, onGenerate, onClose, onUnbind }) {
   const currentTablet = devices.find((device) => device.boundElderlyId === record.id);
   const availableDevices = devices.filter((device) => !device.boundElderlyId);
   const [selectedId, setSelectedId] = useState(activation?.deviceId || "");
   const [stage, setStage] = useState(currentTablet ? "bound" : activation?.status === "待使用" || activation?.status === "激活失败" ? "waiting" : "generate");
   const [confirmUnbind, setConfirmUnbind] = useState(false);
-  const [validationError, setValidationError] = useState("");
   const selectedDevice = availableDevices.find((device) => device.id === selectedId);
 
   const generateActivation = () => {
@@ -1310,31 +1310,11 @@ function TabletBindingModal({ record, project, devices, activation, failureSigna
       createdAt: format(createdAt),
       operator: "赵亚男",
     });
-    setValidationError("");
     setStage("waiting");
   };
 
-  const confirmIdentity = () => {
-    setStage("syncing");
-    window.setTimeout(() => {
-      onActivate(activation.deviceId, activation.id);
-      setStage("success");
-    }, 900);
-  };
-
-  const failActivation = (message) => {
-    setValidationError(message);
-    if (activation?.status === "待使用") onFail(activation.id);
-  };
-  useEffect(() => {
-    if (!failureSignal?.id || stage !== "waiting") return;
-    failActivation(failureSignal.type === "offline"
-      ? "当前网络未连接，本次激活已标记为失败，可检查网络后重新生成。"
-      : "激活码不正确，本次激活已标记为失败，可重新生成激活码。");
-  }, [failureSignal?.id]);
-
-  const steps = ["指定对象", "设备校验", "身份确认", "数据同步", "激活完成"];
-  const stageIndex = { generate: 0, waiting: 1, identity: 2, syncing: 3, success: 4 }[stage] ?? 4;
+  const steps = ["指定对象", "生成激活码"];
+  const stageIndex = stage === "generate" ? 0 : steps.length;
   const locationReady = Boolean(record.address && record.address !== "待补充" && project?.timezone);
   const activationDevice = devices.find((device) => device.id === activation?.deviceId) || selectedDevice;
 
@@ -1342,10 +1322,10 @@ function TabletBindingModal({ record, project, devices, activation, failureSigna
     <div className="modal-layer tablet-modal-layer">
       <button className="modal-backdrop" aria-label="关闭" onClick={onClose}/>
       <div className="tablet-binding-dialog" role="dialog" aria-modal="true">
-        <header><div><h3>{currentTablet && stage !== "success" ? "平板绑定详情" : "激活老人平板"}</h3><p>{record.name} · {formatDisplayId(record.id)} · {record.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></header>
+        <header><div><h3>{currentTablet ? "平板绑定详情" : "激活老人平板"}</h3><p>{record.name} · {formatDisplayId(record.id)} · {record.project}</p></div><button className="icon-button" onClick={onClose}><X size={18}/></button></header>
         <div className="tablet-dialog-body">
-          {(!currentTablet || stage === "success") && <div className="activation-stepper">{steps.map((item, index) => <div className={index < stageIndex ? "done" : index === stageIndex ? "active" : ""} key={item}><i>{index < stageIndex ? "✓" : index + 1}</i><span>{item}</span></div>)}</div>}
-          {currentTablet && stage !== "success" ? (
+          {!currentTablet && <div className="activation-stepper">{steps.map((item, index) => <div className={index < stageIndex ? "done" : index === stageIndex ? "active" : ""} key={item}><i>{index < stageIndex ? "✓" : index + 1}</i><span>{item}</span></div>)}</div>}
+          {currentTablet ? (
             <>
             <div className="current-binding-card">
               <div><MonitorSmartphone size={20}/><span><b>{currentTablet.model}</b><small>{formatDisplayId(currentTablet.id)} · {currentTablet.sn} · 最近登录 {currentTablet.lastOnline}</small></span></div>
@@ -1370,25 +1350,19 @@ function TabletBindingModal({ record, project, devices, activation, failureSigna
             <>
               <div className="activation-code-card"><div><span>6 位平板激活码</span><strong>{activation?.code || "------"}</strong><small>生成时间 {activation?.createdAt}</small></div><StatusTag>{activation?.status || "待使用"}</StatusTag></div>
               <div className="activation-device-preview"><div><span>指定老人</span><b>{record.name}</b></div><div><span>目标设备编号</span><b>{formatDisplayId(activation?.deviceId)}</b></div><div><span>设备 SN</span><b>{activation?.deviceSn || activationDevice?.sn}</b></div><div><span>设备型号</span><b>{activationDevice?.model || "—"}</b></div></div>
-              {validationError && <div className="activation-error">{validationError}</div>}
+              <div className="binding-rule-note"><ShieldCheck size={17}/><p>激活码已生成，请在目标平板上输入该激活码完成使用。</p></div>
             </>
-          ) : stage === "identity" ? (
-            <div className="identity-confirm-card"><span className="profile-avatar">{record.name.slice(-1)}</span><div><span>请确认使用人</span><h4>{record.name}</h4><p>{record.project} · {record.community}</p><small>{record.address.slice(0, 12)}****</small></div><StatusTag>待确认</StatusTag></div>
-          ) : stage === "syncing" ? (
-            <div className="syncing-panel"><span className="sync-spinner"><RefreshCw size={22}/></span><h4>正在准备老人平板</h4><p>正在同步老人基础信息、子女关系、联系人、提醒、居住地址与首页配置……</p><div><span className="done">老人身份已同步</span><span>居住地址与时区同步中</span><span>首页配置待同步</span></div></div>
           ) : (
-            <div className="activation-success"><span><ShieldCheck size={26}/></span><h4>设备激活成功</h4><p>{record.name} 的身份、家人与基础配置已同步。</p><div><b>{selectedId}</b><StatusTag>已激活</StatusTag></div></div>
+            null
           )}
           {confirmUnbind && <div className="unbind-warning"><b>确认解除当前平板？</b><p>解除后该平板将无法进入老人首页，也不再接收该老人的提醒和家庭配置；老人档案、已绑定子女、历史记录及其他设备不受影响。</p></div>}
         </div>
         <footer>
-          {currentTablet && stage !== "success" && !confirmUnbind && <button className="danger-outline-button" onClick={() => setConfirmUnbind(true)}>解除绑定</button>}
+          {currentTablet && !confirmUnbind && <button className="danger-outline-button" onClick={() => setConfirmUnbind(true)}>解除绑定</button>}
           {confirmUnbind ? <><button className="secondary-button" onClick={() => setConfirmUnbind(false)}>取消</button><button className="danger-button" onClick={() => onUnbind(currentTablet.id)}>确认解除</button></>
-            : currentTablet && stage !== "success" ? <button className="secondary-button" onClick={onClose}>关闭</button>
-              : stage === "waiting" ? <><button className="secondary-button" onClick={() => { setSelectedId(activation?.deviceId || ""); setStage("generate"); }}>重新生成激活码</button><button className="primary-button" disabled={activation?.status !== "待使用"} onClick={() => { setValidationError(""); setStage("identity"); }}>设备校验通过</button></>
-                : stage === "identity" ? <><button className="secondary-button" onClick={() => setStage("waiting")}>信息不正确</button><button className="primary-button" onClick={confirmIdentity}>确认绑定</button></>
-                  : stage === "success" ? <button className="primary-button" onClick={onClose}>完成</button>
-                    : <button className="secondary-button" onClick={onClose}>关闭</button>}
+            : currentTablet ? <button className="secondary-button" onClick={onClose}>关闭</button>
+              : stage === "waiting" ? <button className="primary-button" onClick={onClose}>关闭</button>
+                : <button className="secondary-button" onClick={onClose}>关闭</button>}
         </footer>
       </div>
     </div>
@@ -3140,7 +3114,6 @@ export function App() {
   const [overviewScenario, setOverviewScenario] = useState("normal");
   const [recommendationScenario, setRecommendationScenario] = useState("normal");
   const [acceptanceResetSignal, setAcceptanceResetSignal] = useState(0);
-  const [activationFailureSignal, setActivationFailureSignal] = useState({ id: 0, type: "" });
   const [collapsed, setCollapsed] = useState(false);
   const [elderlyRecords, setElderlyRecords] = useState(() => {
     try {
@@ -3411,7 +3384,7 @@ export function App() {
   const resetAcceptance = () => {
     setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setRecommendationScenario("normal"); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
     setElderlyDetailId(null); setRelativeDetailId(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext("");
-    setActivationFailureSignal({ id: 0, type: "" }); setAcceptanceResetSignal((value) => value + 1);
+    setAcceptanceResetSignal((value) => value + 1);
     window.scrollTo({ top: 0, behavior: "auto" });
   };
   const navigateFromAcceptance = (moduleId) => {
@@ -3830,21 +3803,6 @@ export function App() {
     setActivationRecords((records) => [activation, ...records.map((item) => (item.elderlyId === activation.elderlyId || item.deviceId === activation.deviceId) && item.status === "待使用" ? { ...item, status: "已作废" } : item)]);
   };
 
-  const failTabletActivation = (activationId) => {
-    setActivationRecords((records) => records.map((item) => item.id === activationId ? { ...item, status: "激活失败" } : item));
-  };
-
-  const activateTablet = (elderlyId, tabletId, activationId) => {
-    const activation = activationRecords.find((item) => item.id === activationId);
-    const boundAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
-    setTabletDevices((devices) => devices.map((device) => {
-      if (device.boundElderlyId === elderlyId) return { ...device, boundElderlyId: null, boundAt: "", status: "待激活", lastOnline: "尚未激活" };
-      if (device.id === tabletId) return { ...device, boundElderlyId: elderlyId, boundAt, status: "在线", lastOnline: "刚刚", activationCode: activation?.code || "", operator: "赵亚男" };
-      return device;
-    }));
-    setActivationRecords((records) => records.map((item) => item.id === activationId ? { ...item, status: "已使用", usedAt: boundAt, deviceId: tabletId } : item));
-  };
-
   const unbindTablet = (tabletId) => {
     setTabletDevices((devices) => devices.map((device) => device.id === tabletId ? { ...device, boundElderlyId: null, boundAt: "", status: "待激活", lastOnline: "尚未激活" } : device));
     setTabletTarget(null);
@@ -3905,7 +3863,7 @@ export function App() {
   return (
     <div className={`app-shell admin-style-theme ${collapsed ? "collapsed" : ""} ${platformMode === "platform" ? "platform-mode" : "community-mode"}`}>
       <aside className="sidebar">
-        <div className="brand"><div className="brand-mark"><HeartHandshake size={21}/></div><div className="brand-copy"><strong>U2G 乐龄服务平台</strong><span>{platformMode === "platform" ? "平台管理端" : "社区运营端"}</span></div></div>
+        <div className="brand"><div className="brand-mark"><img className="brand-logo" src={u2gLogo} alt="U2G"/></div><div className="brand-copy"><strong>U2G 乐龄服务平台</strong><span>{platformMode === "platform" ? "平台管理端" : "社区运营端"}</span></div></div>
         <nav>{currentMenuGroups.map((group) => <div className="menu-group" key={group.label}><div className="menu-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const childActive = item.children?.some((child) => child.key === active); return item.children ? <div className={`submenu-group ${childActive ? "has-active" : ""}`} key={item.key}><button title={item.label} className="submenu-parent" onClick={() => setDeviceMenuOpen((open) => !open)}><Icon size={18}/><span>{item.label}</span><ChevronDown className={`submenu-chevron ${deviceMenuOpen ? "open" : ""}`} size={14}/></button>{deviceMenuOpen && <div className="submenu">{item.children.map((child) => <button title={child.label} className={`submenu-button ${active === child.key ? "active" : ""}`} key={child.key} onClick={() => { setActive(child.key); setOverviewContext(""); }}><span>{child.label}</span>{active === child.key && <i/>}</button>)}</div>}</div> : <button title={item.label} className={active === item.key ? "active" : ""} key={item.key} onClick={() => { setActive(item.key); setOverviewContext(""); if (item.key === "elderly") setElderlyDetailId(null); if (item.key === "relations") setRelativeDetailId(null); }}><Icon size={18}/><span>{item.label}</span>{active === item.key && <i/>}</button>; })}</div>)}</nav>
         <div className="sidebar-footer"><button onClick={() => setCollapsed(!collapsed)}><Menu size={18}/><span>收起菜单</span></button></div>
       </aside>
@@ -3999,10 +3957,10 @@ export function App() {
       {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>}
       {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
       {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>}
-      {tabletTarget && <TabletBindingModal record={tabletTarget} project={projects.find((project) => project.name === tabletTarget.project)} devices={tabletDevices} activation={activationRecords.find((item) => item.elderlyId === tabletTarget.id && ["待使用", "激活失败"].includes(item.status))} failureSignal={activationFailureSignal} onGenerate={generateTabletActivation} onFail={failTabletActivation} onActivate={(tabletId, activationId) => activateTablet(tabletTarget.id, tabletId, activationId)} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
+      {tabletTarget && <TabletBindingModal record={tabletTarget} project={projects.find((project) => project.name === tabletTarget.project)} devices={tabletDevices} activation={activationRecords.find((item) => item.elderlyId === tabletTarget.id && item.status === "待使用")} onGenerate={generateTabletActivation} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
       {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.community}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
-      {import.meta.env.DEV && new URLSearchParams(window.location.search).has("acceptance") && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onActivationFailure={(type) => setActivationFailureSignal((signal) => ({ id: signal.id + 1, type }))} onReset={resetAcceptance}/>}
+      {import.meta.env.DEV && new URLSearchParams(window.location.search).has("acceptance") && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
     </div>
   );
 }
