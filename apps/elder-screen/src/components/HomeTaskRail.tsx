@@ -20,6 +20,7 @@ import {
   type HomeRecommendationKind,
   type RecommendationRuntimeState,
 } from "../home-right-content";
+import { getActiveFamilyRelationships } from "../elder-profile";
 import type {
   AcceptanceRightContentScenario,
 } from "./InteractionAcceptanceConsole";
@@ -55,6 +56,7 @@ interface RightContentItem {
   recommendation?: HomeRecommendationConfig;
   reminderIds?: string[];
   minutesUntil?: number;
+  messageSender?: string;
 }
 
 interface HomeTaskRailProps {
@@ -65,7 +67,7 @@ interface HomeTaskRailProps {
   missedCallCount: number;
   onOpenReminder: (id: string, minutesUntil: number) => void;
   onOpenTodayOverview: () => void;
-  onOpenMessages: () => void;
+  onOpenMessages: (sender?: string) => void;
   onOpenCommunity: () => void;
   onOpenContacts: () => void;
   onOpenAlbum: () => void;
@@ -77,6 +79,7 @@ interface HomeTaskRailProps {
 }
 
 const senderRelation = (sender?: string) => sender?.match(/^(女儿|儿子|孙女|孙子|老伴)/)?.[1] ?? sender ?? "家人";
+const activeFamilyContactNames = new Set(getActiveFamilyRelationships().map((relationship) => relationship.displayName));
 
 export default function HomeTaskRail({
   now,
@@ -221,27 +224,26 @@ export default function HomeTaskRail({
     "activity-updated",
     "activity-cancelled",
   ].includes(acceptanceRightContentScenario);
-  const realUnreadMessages = messages.filter((item) => (
+  const familyUnreadMessages = messages.filter((item) => (
     !item.played
     && item.sender !== "您 (我)"
     && item.deliveryStatus !== "failed"
     && item.type !== "photo"
     && item.type !== "call_log"
+    && activeFamilyContactNames.has(item.sender)
   ));
-  const serviceMessageSenders = new Set(["林佳慧", "社区服务站"]);
-  const hasServiceUnread = realUnreadMessages.some((item) => serviceMessageSenders.has(item.sender));
-  const hasFamilyUnread = realUnreadMessages.some((item) => !serviceMessageSenders.has(item.sender));
+  const familyUnreadSenderNames = [...new Set(familyUnreadMessages.map((item) => item.sender))];
   const messageCount = acceptanceRightContentScenario === "new-message"
-    ? Math.max(3, realUnreadMessages.length)
+    ? Math.max(3, familyUnreadMessages.length)
     : acceptanceRightContentScenario === "time-and-family"
-      ? Math.max(2, realUnreadMessages.length)
+      ? Math.max(2, familyUnreadMessages.length)
       : acceptanceRightContentScenario === "interaction-locked"
-        ? hasAppliedLockedUpdate ? Math.max(2, realUnreadMessages.length) : 0
-        : suppressLivePools || ["new-album", "new-album-invalid-relation"].includes(acceptanceRightContentScenario) || acceptanceRightContentScenario === "missed-call"
+        ? hasAppliedLockedUpdate ? Math.max(2, familyUnreadMessages.length) : 0
+        : suppressLivePools || acceptanceRightContentScenario === "new-album" || acceptanceRightContentScenario === "missed-call"
           ? 0
-          : realUnreadMessages.length;
-  const visibleAlbumUnreadCount = ["new-album", "new-album-invalid-relation"].includes(acceptanceRightContentScenario)
-    ? Math.max(2, albumUnreadCount)
+          : familyUnreadMessages.length;
+  const visibleAlbumUnreadCount = acceptanceRightContentScenario === "new-album"
+    ? albumUnreadCount
     : suppressLivePools || ["new-message", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
       ? 0
       : albumUnreadCount;
@@ -261,7 +263,7 @@ export default function HomeTaskRail({
       ))
     : [];
   const currentTaskCount = Math.max(1, currentTaskGroup.length);
-  const timeItems: RightContentItem[] = suppressLivePools || ["new-message", "new-album", "new-album-invalid-relation", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
+  const timeItems: RightContentItem[] = suppressLivePools || ["new-message", "new-album", "missed-call", "interaction-locked"].includes(acceptanceRightContentScenario)
     ? []
     : acceptanceRightContentScenario === "activity-updated"
       ? [{
@@ -325,14 +327,11 @@ export default function HomeTaskRail({
       id: "family-messages",
       source: "family" as const,
       kind: "message" as const,
-      title: hasServiceUnread && !hasFamilyUnread
-        ? "服务人员给您留言了"
-        : hasServiceUnread && hasFamilyUnread
-          ? "您有新的留言"
-          : "家人给您留言了",
-      subtitle: messageCount > 1 ? `共${messageCount}条新留言` : senderRelation(realUnreadMessages[0]?.sender),
+      title: "家人给您留言了",
+      subtitle: messageCount > 1 ? `共${messageCount}条新留言` : senderRelation(familyUnreadMessages[0]?.sender),
       count: messageCount,
       Icon: MessageCircleHeart,
+      messageSender: familyUnreadSenderNames.length === 1 ? familyUnreadSenderNames[0] : undefined,
     } : null,
     visibleAlbumUnreadCount > 0 ? {
       id: "family-album",
@@ -393,7 +392,7 @@ export default function HomeTaskRail({
     }
     else if (item.kind === "activity") onOpenCommunity();
     else if (item.kind === "missed-call") onOpenContacts();
-    else if (item.kind === "message") onOpenMessages();
+    else if (item.kind === "message") onOpenMessages(item.messageSender);
     else if (item.kind === "album") onOpenAlbum();
     else if (item.kind === "empty") return;
     else {

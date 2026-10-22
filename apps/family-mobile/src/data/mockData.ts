@@ -146,7 +146,7 @@ export const initialFamilyNotifications: FamilyNotification[] = [
   {
     id: 'notice-photo-liked',
     type: 'photo_feedback',
-    title: '爸爸喜欢了你分享的家庭影像',
+    title: '爸爸喜欢了你分享的家庭相册内容',
     summary: '家庭聚会 · 3张照片和1段视频',
     occurredAt: '2026-07-28T08:08:00+08:00',
     read: false,

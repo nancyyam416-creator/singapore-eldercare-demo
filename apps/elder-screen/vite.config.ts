@@ -19,7 +19,6 @@ if (requestedPortArgument && Number(requestedPortArgument) !== FIXED_PORT) {
 
 export default defineConfig(() => {
   return {
-    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -30,9 +29,6 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       port: FIXED_PORT,
       strictPort: true,
-      // The Express middleware preview must not open Vite's default HMR port.
-      hmr: false,
-      ws: false as const,
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },

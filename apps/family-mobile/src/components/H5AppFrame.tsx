@@ -492,7 +492,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'photos' ? '家庭影像' : familySection === 'notifications' ? '消息' : '家庭留言' : activeTab === 'orders' ? '预约服务' : showReminders ? '提醒事项' : '我的'}</h1>
+          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'photos' ? '家庭相册' : familySection === 'notifications' ? '消息' : '家庭留言' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>
           {isLoggedIn && ((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) && (
             <button
               type="button"
@@ -775,7 +775,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection === 'photos' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <Images size={18} className={activeTab === 'store' && familySection === 'photos' ? 'stroke-[2.5]' : ''} />
-            <span className="text-5xs font-extrabold tracking-tight">家庭影像</span>
+            <span className="text-5xs font-extrabold tracking-tight">家庭相册</span>
           </button>
 
           <button

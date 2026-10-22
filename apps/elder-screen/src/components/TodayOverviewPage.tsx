@@ -171,6 +171,7 @@ export default function TodayOverviewPage({
 
   const sortedSchedules = useMemo(() => defaultSchedules
     .map((item) => ({ ...item, status: scheduleStatuses[item.id] ?? item.status }))
+    .filter((item) => item.status !== "expired")
     .sort((first, second) => first.time.localeCompare(second.time)), [scheduleStatuses]);
 
   const sortedRecommendations = useMemo(() => [...recommendations].sort((first, second) => first.priority - second.priority), []);

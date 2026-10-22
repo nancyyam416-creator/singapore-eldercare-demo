@@ -19,7 +19,6 @@ if (requestedPortArgument && Number(requestedPortArgument) !== FIXED_PORT) {
 
 export default defineConfig(() => {
   return {
-    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

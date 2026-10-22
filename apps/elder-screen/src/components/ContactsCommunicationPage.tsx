@@ -46,11 +46,25 @@ interface ContactsCommunicationPageProps {
   onAddMessage: (message: FamilyMessage) => void;
   onMarkRead: (messageId: string) => void;
   onClearMissedCalls: () => void;
-  familyMediaFocusRequest?: { id: number; contactId: string; mediaId: string } | null;
+  familyMediaFocusRequest?: FamilyMediaFocusRequest | null;
   onFamilyMediaViewed?: (mediaId: string) => void;
   onOpenFamilyMedia?: (mediaId: string) => void;
   acceptanceScenario?: ServiceConversationAcceptanceScenario;
   acceptanceActionSignal?: number;
+  initialContactName?: string | null;
+}
+
+export interface FamilyMediaFocusRequest {
+  id: number;
+  contactId: string;
+  mediaId: string;
+  historicalContact?: {
+    sourceRelationshipId?: string;
+    name: string;
+    relation: string;
+    avatar: string;
+    weatherUserId?: string;
+  };
 }
 
 export type ServiceConversationAcceptanceScenario =
@@ -73,6 +87,8 @@ interface CommunicationContact {
   serviceHours?: string;
   phone?: string;
   weatherUserId?: string;
+  isHistorical?: boolean;
+  sourceRelationshipId?: string;
 }
 
 type RecorderState = "idle" | "recording" | "review" | "sending" | "sent" | "failed";
@@ -168,6 +184,7 @@ export default function ContactsCommunicationPage({
   onOpenFamilyMedia,
   acceptanceScenario = "off",
   acceptanceActionSignal = 0,
+  initialContactName = null,
 }: ContactsCommunicationPageProps) {
   const [selectedContactId, setSelectedContactId] = useState("daughter");
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
@@ -205,20 +222,41 @@ export default function ContactsCommunicationPage({
   const isMessageViewed = (message: FamilyMessage) => message.played
     && !(acceptanceScenario === "playback-failure" && message.id === "MSG-002" && !scenarioHeardMessageIds.has(message.id));
 
-  const contactsWithUnread = useMemo(() => CONTACTS.map((contact, index) => {
+  const availableContacts = useMemo(() => {
+    const historicalContact = familyMediaFocusRequest?.historicalContact;
+    if (!historicalContact) return CONTACTS;
+    return [
+      ...CONTACTS.filter((contact) => contact.group !== "family" || contact.id !== historicalContact.sourceRelationshipId),
+      {
+        id: familyMediaFocusRequest.contactId,
+        name: historicalContact.name,
+        relation: historicalContact.relation,
+        avatar: historicalContact.avatar,
+        group: "family" as const,
+        weatherUserId: historicalContact.weatherUserId,
+        isHistorical: true,
+        sourceRelationshipId: historicalContact.sourceRelationshipId,
+      },
+    ];
+  }, [familyMediaFocusRequest]);
+
+  const contactsWithUnread = useMemo(() => availableContacts.map((contact, index) => {
     const unread = messages.filter((message) => message.sender === contact.name && message.deliveryStatus !== "failed" && !isMessageViewed(message)).length;
-    const missedCalls = contact.id === "daughter" ? missedCallCount : 0;
+    const missedCalls = contact.id === "daughter" && !contact.isHistorical ? missedCallCount : 0;
     return { ...contact, unread, missedCalls, originalIndex: index };
-  }), [acceptanceScenario, messages, missedCallCount, scenarioHeardMessageIds]);
+  }), [acceptanceScenario, availableContacts, messages, missedCallCount, scenarioHeardMessageIds]);
 
   const visibleContacts = useMemo(
-    () => hasBoundFamily ? contactsWithUnread : contactsWithUnread.filter((contact) => contact.group !== "family"),
+    () => hasBoundFamily
+      ? contactsWithUnread
+      : contactsWithUnread.filter((contact) => contact.group !== "family" || contact.isHistorical),
     [contactsWithUnread, hasBoundFamily],
   );
 
   const familyContacts = useMemo(() => visibleContacts
-    .filter((contact) => contact.group === "family")
+    .filter((contact) => contact.group === "family" && !contact.isHistorical)
     .sort((first, second) => (second.missedCalls + second.unread) - (first.missedCalls + first.unread) || first.originalIndex - second.originalIndex), [visibleContacts]);
+  const historicalContacts = useMemo(() => visibleContacts.filter((contact) => contact.isHistorical), [visibleContacts]);
   const serviceContacts = useMemo(() => visibleContacts.filter((contact) => contact.group === "service"), [visibleContacts]);
   const selectedContact = visibleContacts.find((contact) => contact.id === selectedContactId) ?? visibleContacts[0];
   const contactMessages = messages.filter((message) =>
@@ -248,6 +286,12 @@ export default function ContactsCommunicationPage({
       beginConnectedCall();
     }, acceptanceScenario === "call-timeout" ? 1800 : 1500);
   };
+
+  useEffect(() => {
+    if (!isOpen || !initialContactName) return;
+    const familyContact = CONTACTS.find((contact) => contact.group === "family" && contact.name === initialContactName);
+    if (familyContact) setSelectedContactId(familyContact.id);
+  }, [initialContactName, isOpen]);
 
   useEffect(() => {
     if (missedCallCount > 0) setMissedCallHistoryCount(missedCallCount);
@@ -339,27 +383,18 @@ export default function ContactsCommunicationPage({
     setSelectedContactId(familyMediaFocusRequest.contactId);
     setHighlightedFamilyMediaId(familyMediaFocusRequest.mediaId);
 
-    let observer: IntersectionObserver | null = null;
     const timer = window.setTimeout(() => {
       const timeline = timelineRef.current;
       const target = timeline?.querySelector<HTMLElement>(`[data-family-media-id="${familyMediaFocusRequest.mediaId}"]`);
       if (!timeline || !target) return;
       target.scrollIntoView({ behavior: "smooth", block: "center" });
-      observer = new IntersectionObserver((entries) => {
-        const visibleEntry = entries.find((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6);
-        if (!visibleEntry) return;
-        onFamilyMediaViewed?.(familyMediaFocusRequest.mediaId);
-        observer?.disconnect();
-      }, { root: timeline, threshold: 0.6 });
-      observer.observe(target);
     }, 120);
     const highlightTimer = window.setTimeout(() => setHighlightedFamilyMediaId(null), 3600);
     return () => {
       window.clearTimeout(timer);
       window.clearTimeout(highlightTimer);
-      observer?.disconnect();
     };
-  }, [familyMediaFocusRequest?.id, isOpen]);
+  }, [familyMediaFocusRequest?.id, isOpen, visibleContacts]);
 
   useEffect(() => () => {
     stopSpeech();
@@ -414,7 +449,7 @@ export default function ContactsCommunicationPage({
     setPlaybackFailedMessageId(null);
     setPlayingMessageId(message.id);
     speak(message.content, () => finishPlayback(message));
-    playbackTimerRef.current = window.setTimeout(() => finishPlayback(message), Math.max((message.duration ?? 5) * 900, 2600));
+    playbackTimerRef.current = window.setTimeout(() => finishPlayback(message), Math.max((message.duration ?? 5) * 1000 + 250, 2800));
   };
 
   const openPhotoMessage = (message: FamilyMessage) => {
@@ -423,6 +458,7 @@ export default function ContactsCommunicationPage({
   };
 
   const startCall = (mode: "video" | "voice") => {
+    if (selectedContact.isHistorical) return;
     runOutgoingCall(selectedContact, mode);
   };
 
@@ -472,6 +508,7 @@ export default function ContactsCommunicationPage({
   };
 
   const startRecording = () => {
+    if (selectedContact.isHistorical) return;
     if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
     if (sentTimerRef.current) window.clearTimeout(sentTimerRef.current);
     setRecorderHighlighted(false);
@@ -536,10 +573,12 @@ export default function ContactsCommunicationPage({
   };
 
   const renderContact = (contact: typeof contactsWithUnread[number]) => {
-    const weather = contact.group === "family"
+    const weather = contact.group === "family" && !contact.isHistorical
       ? getWeatherSummary(contact.weatherUserId ? familyWeatherByUserId.get(contact.weatherUserId) : undefined, elderTimeZone)
       : null;
-    const contactSummary = contact.missedCalls > 0
+    const contactSummary = contact.isHistorical
+      ? "关系已失效 · 仅可查看"
+      : contact.missedCalls > 0
       ? `${contact.missedCalls}次未接来电${contact.unread > 0 ? ` · ${contact.unread}条未读留言` : ""}`
       : contact.unread > 0 ? `${contact.unread}条新留言` : contact.group === "service"
         ? `${contact.relation} · ${contact.serviceHours?.replace("服务时间 ", "")}`
@@ -550,9 +589,9 @@ export default function ContactsCommunicationPage({
       <button
       key={contact.id}
       type="button"
-      className={`communication-contact is-${contact.group} ${selectedContact.id === contact.id ? "is-selected" : ""}`}
+      className={`communication-contact is-${contact.group}${contact.isHistorical ? " is-historical" : ""} ${selectedContact.id === contact.id ? "is-selected" : ""}`}
       onClick={() => selectContact(contact)}
-      aria-label={`${contact.name}，${weatherLabel ? `${weatherLabel}，` : ""}${contact.missedCalls > 0 ? `${contact.missedCalls}次未接来电，` : ""}${contact.unread > 0 ? `${contact.unread}条未读留言` : "没有未读留言"}`}
+      aria-label={`${contact.name}，${contact.isHistorical ? "关系已失效，仅可查看，" : ""}${weatherLabel ? `${weatherLabel}，` : ""}${contact.missedCalls > 0 ? `${contact.missedCalls}次未接来电，` : ""}${contact.unread > 0 ? `${contact.unread}条未读留言` : "没有未读留言"}`}
     >
       <span className="communication-contact__avatar">
         <img src={contact.avatar} alt="" referrerPolicy="no-referrer" />
@@ -575,7 +614,7 @@ export default function ContactsCommunicationPage({
     );
   };
 
-  const selectedWeather = selectedContact.group === "family"
+  const selectedWeather = selectedContact.group === "family" && !selectedContact.isHistorical
     ? getWeatherSummary(selectedContact.weatherUserId ? familyWeatherByUserId.get(selectedContact.weatherUserId) : undefined, elderTimeZone)
     : null;
 
@@ -601,6 +640,12 @@ export default function ContactsCommunicationPage({
               邀请家人
             </button>
           </section>
+          {historicalContacts.length > 0 && (
+            <section className="communication-contact-group--historical">
+              <h3>历史联系人</h3>
+              <div>{historicalContacts.map(renderContact)}</div>
+            </section>
+          )}
           <section className="communication-contact-group--service">
             <h3>服务保障</h3>
             <div>{serviceContacts.map(renderContact)}</div>
@@ -630,9 +675,12 @@ export default function ContactsCommunicationPage({
                     <small><Phone aria-hidden="true" />联系电话 {selectedContact.phone}</small>
                   </span>
                 )}
+                {selectedContact.isHistorical && (
+                  <span className="communication-main__history-status">关系已失效 · 仅可查看</span>
+                )}
               </span>
             </span>
-            {selectedContact.group === "family" && (
+            {selectedContact.group === "family" && !selectedContact.isHistorical && (
               <div className="communication-call-actions">
                 <button type="button" className="communication-call-secondary" onClick={() => startCall("voice")}><Phone aria-hidden="true" />语音通话</button>
                 <button type="button" className="communication-call-primary" onClick={() => startCall("video")}><Video aria-hidden="true" />视频通话</button>
@@ -641,7 +689,7 @@ export default function ContactsCommunicationPage({
           </header>
 
           <div className="communication-timeline" ref={timelineRef}>
-            <div className="communication-timeline__label"><Clock3 aria-hidden="true" />{selectedContact.group === "service" ? "留言记录" : "通话与留言"}</div>
+            <div className="communication-timeline__label"><Clock3 aria-hidden="true" />{selectedContact.group === "service" ? "留言记录" : selectedContact.isHistorical ? "历史通话与留言" : "通话与留言"}</div>
             {Array.from({ length: selectedMissedCallHistoryCount }, (_, index) => (
               <article key={`missed-${index}`} className="communication-message communication-call-history" data-unread={selectedContact.missedCalls > 0 ? "true" : "false"}>
                 <img className="communication-message__avatar" src={selectedContact.avatar} alt="" referrerPolicy="no-referrer" />
@@ -654,13 +702,13 @@ export default function ContactsCommunicationPage({
                   <div className="communication-call-history__content">
                     <span><PhoneMissed aria-hidden="true" /></span>
                     <p><strong>1次未接来电</strong><small>您没有接听</small></p>
-                    <button type="button" onClick={() => startCall("voice")}><Phone aria-hidden="true" />回拨语音</button>
+                    {!selectedContact.isHistorical && <button type="button" onClick={() => startCall("voice")}><Phone aria-hidden="true" />回拨语音</button>}
                   </div>
                 </div>
               </article>
             ))}
             {selectedMessages.length === 0 && selectedMissedCallHistoryCount === 0 ? (
-              <div className="communication-empty"><MessageCircleHeart aria-hidden="true" /><strong>还没有留言</strong><span>{selectedContact.group === "service" ? "可以在下方录制一段语音咨询。" : "可以直接打电话，或在下方给对方留段语音。"}</span></div>
+              <div className="communication-empty"><MessageCircleHeart aria-hidden="true" /><strong>还没有留言</strong><span>{selectedContact.isHistorical ? "这段历史会话仅供查看。" : selectedContact.group === "service" ? "可以在下方录制一段语音咨询。" : "可以直接打电话，或在下方给对方留段语音。"}</span></div>
             ) : selectedMessages.map((message) => {
               const isMine = message.sender === "您 (我)";
               const isPlaying = playingMessageId === message.id;
@@ -740,6 +788,12 @@ export default function ContactsCommunicationPage({
           </div>
 
           <footer className={`communication-recorder is-${recorderState} ${recorderHighlighted ? "is-highlighted" : ""}`}>
+            {selectedContact.isHistorical ? (
+              <div className="communication-recorder__readonly">
+                <CircleAlert aria-hidden="true" />
+                <span><strong>历史会话仅可查看</strong><small>家庭关系已失效，不能发送新留言或发起新通话。</small></span>
+              </div>
+            ) : <>
             {recorderState === "idle" && (
               <button type="button" onClick={startRecording}><Mic aria-hidden="true" /><span><strong>点一下开始录制语音留言</strong><small>不用一直按住，录好后再确认发送</small></span></button>
             )}
@@ -773,6 +827,7 @@ export default function ContactsCommunicationPage({
                 <button type="button" onClick={cancelRecording}>取消</button>
               </div>
             )}
+            </>}
           </footer>
         </section>
       </div>

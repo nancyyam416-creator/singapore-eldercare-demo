@@ -7,7 +7,7 @@ const DRAG_THRESHOLD = 5;
 const acceptanceHierarchy = [
   { id: "workbench", label: "工作台", modules: [{ id: "overview", label: "运营概览", objectLabel: "页面整体" }] },
   { id: "elder-service", label: "老人服务", modules: [
-    { id: "elderly", label: "老人档案" }, { id: "relations", label: "亲属档案" }, { id: "reminders", label: "提醒事项" },
+    { id: "elderly", label: "老人档案" }, { id: "relations", label: "亲属档案" },
     { id: "emergencyHelp", label: "紧急求助" }, { id: "familyAlbums", label: "家庭相册" },
   ] },
   { id: "content", label: "运营内容", modules: [
@@ -41,13 +41,20 @@ const recommendationScenarios = [
   { value: "empty", label: "今日暂无内容", description: "今日没有可展示推荐，日历和右侧预览展示空状态。", status: "空状态" },
 ];
 
+const elderlyScenarios = [
+  { value: "normal", label: "默认档案", description: "展示当前社区的老人档案列表。", status: "默认" },
+  { value: "activationPending", label: "地址缺失生成激活码", description: "地址缺失仅提示，选择设备后仍可生成6位激活码。", status: "非阻断" },
+  { value: "activationSuccess", label: "老人端完成激活", description: "激活码变为已使用，设备已激活并成为老人当前平板。", status: "跨端成功" },
+  { value: "unbindFailure", label: "解绑失败可重试", description: "首次解除失败，保留原绑定关系并提供重试入口。", status: "失败" },
+];
+
 const clamp = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
 const findContext = (moduleId) => {
   const page = acceptanceHierarchy.find((item) => item.modules.some((module) => module.id === moduleId)) || acceptanceHierarchy[0];
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -59,8 +66,10 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
     ? overviewScenarios
     : selectedModule.id === "recommendations"
       ? recommendationScenarios
+      : selectedModule.id === "elderly"
+        ? elderlyScenarios
       : [];
-  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : overviewScenario;
+  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : overviewScenario;
   const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
   const hasScenarios = scenarioOptions.length > 0;
 
@@ -147,7 +156,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
           </div>
           <footer><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>

@@ -1749,7 +1749,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
         ]
       : [
         { time: effectiveScenario === 'inactivity' ? '12:20' : '18:16', type: '空间动态', text: effectiveScenario === 'inactivity' ? '客厅最后一次检测到活动' : `在${healthStats.location}检测到活动`, status: '已记录', tone: effectiveScenario === 'inactivity' ? 'amber' : 'space' },
-        { time: '16:08', type: '亲情互动', text: '老人喜欢你发的家庭影像', status: '已互动', tone: 'interaction' },
+        { time: '16:08', type: '亲情互动', text: '老人喜欢你发的家庭相册内容', status: '已互动', tone: 'interaction' },
         { time: '15:30', type: '预约服务', text: '上门理疗服务', status: '已预约', tone: 'service' },
         { time: '14:00', type: '其他事项', text: '午间测量事项', status: '已完成', tone: 'task' },
         { time: '09:30', type: '活动', text: '社区健康讲座', status: '已报名', tone: 'activity' },
@@ -2427,7 +2427,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
 
             <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-3">
               <button type="button" onClick={() => { setShowFamilyReceipts(false); onOpenFamilyMessages(); }} className="rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white">家庭留言</button>
-              <button type="button" onClick={() => { setShowFamilyReceipts(false); onOpenFamilyPhotos(); }} className="rounded-xl bg-rose-50 py-2.5 text-xs font-bold text-rose-700">家庭影像</button>
+              <button type="button" onClick={() => { setShowFamilyReceipts(false); onOpenFamilyPhotos(); }} className="rounded-xl bg-rose-50 py-2.5 text-xs font-bold text-rose-700">家庭相册</button>
             </div>
           </section>
         </div>

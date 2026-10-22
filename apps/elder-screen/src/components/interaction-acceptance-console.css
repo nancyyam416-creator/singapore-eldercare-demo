@@ -15,12 +15,6 @@
   align-items: flex-start;
 }
 
-.interaction-acceptance-console.is-reviewing-right-content {
-  right: auto;
-  left: 18px;
-  align-items: flex-start;
-}
-
 .interaction-acceptance-trigger {
   width: 52px;
   height: 52px;
@@ -68,11 +62,6 @@
 }
 
 .interaction-acceptance-console.opens-to-right .interaction-acceptance-panel {
-  right: auto;
-  left: 0;
-}
-
-.interaction-acceptance-console.is-reviewing-right-content .interaction-acceptance-panel {
   right: auto;
   left: 0;
 }
@@ -289,6 +278,12 @@
 .interaction-acceptance-scenario-list > button.is-active small { color: #bfeab8; }
 .interaction-acceptance-primary-action { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 8px; border: 1px solid #69df58; border-radius: 10px; color: #efffec; background: rgba(31, 111, 66, 0.72); font-size: 11px; font-weight: 900; cursor: pointer; }
 .interaction-acceptance-primary-action svg { width: 16px; height: 16px; }
+.interaction-acceptance-secondary-action { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; border: 1px solid rgba(126, 151, 177, 0.34); border-radius: 10px; color: #c7d5e5; background: #13253b; font-size: 11px; font-weight: 850; cursor: pointer; }
+.interaction-acceptance-secondary-action svg { width: 15px; height: 15px; }
+.activation-contract-status { display: grid; gap: 6px; margin: 0; }
+.activation-contract-status > div { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 9px; border: 1px solid rgba(126, 151, 177, 0.22); border-radius: 9px; background: #13253b; }
+.activation-contract-status dt { color: #8fa2b8; font-size: 10px; font-weight: 800; }
+.activation-contract-status dd { min-width: 0; margin: 0; overflow: hidden; color: #efffec; font-size: 10px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .weather-acceptance-target,
 .weather-acceptance-status-grid,
 .weather-acceptance-actions { display: grid; gap: 6px; }

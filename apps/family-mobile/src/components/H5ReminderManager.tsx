@@ -106,8 +106,11 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario]);
 
+  const medicationDetailMissing = draftType === 'medication' && !draftDetail.trim();
+  const canSaveReminder = Boolean(draftTitle.trim()) && !medicationDetailMissing && !(draftRepeat === 'weekly' && draftWeekdays.length === 0);
+
   const saveReminder = () => {
-    if (!draftTitle.trim() || (draftRepeat === 'weekly' && draftWeekdays.length === 0)) return;
+    if (!canSaveReminder) return;
     if (editingReminder) {
       setReminders(current => current.map(item => item.id === editingReminder.id
         ? { ...item, type: draftType, title: draftTitle.trim(), detail: draftDetail.trim(), date: draftDate, time: draftTime, repeat: draftRepeat, weekdays: draftRepeat === 'weekly' ? draftWeekdays : undefined }
@@ -150,7 +153,7 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10"><UserRound size={20} /></div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-bold text-slate-400">当前管理对象</span>
+            <span className="text-[9px] font-bold text-slate-400">提醒接收老人</span>
             <h2 className="mt-0.5 text-sm font-black">{elderName}</h2>
             <p className="mt-0.5 text-[10px] text-slate-300">全部时间按老人当地时间 · Asia/Shanghai</p>
           </div>
@@ -162,7 +165,7 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
           <div>
             <div className="flex items-center gap-2"><BellRing size={16} className="text-blue-600" /><h3 className="text-sm font-black text-slate-900">提醒事项</h3></div>
-            <p className="mt-1 text-[10px] text-slate-500">用药提醒和日常提醒统一管理</p>
+            <p className="mt-1 text-[10px] text-slate-500">设置的提醒将在这位老人的中控屏上展示</p>
           </div>
           <button type="button" onClick={() => openEditor()} className="flex items-center gap-1 rounded-full bg-blue-600 px-3 py-2 text-[10px] font-extrabold text-white"><Plus size={13} />新增</button>
         </div>
@@ -241,7 +244,7 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
                 </div>
               </div>
               <label className="block"><span className="mb-1.5 block text-[10px] font-bold text-slate-600">提醒名称</span><input value={draftTitle} onChange={event => setDraftTitle(event.target.value)} maxLength={30} placeholder={draftType === 'medication' ? '例如：晚间降压药' : '例如：测量血压'} className="w-full rounded-xl border border-slate-200 px-3 py-3 text-xs outline-none focus:border-blue-400" /></label>
-              <label className="block"><span className="mb-1.5 block text-[10px] font-bold text-slate-600">补充说明（选填）</span><input value={draftDetail} onChange={event => setDraftDetail(event.target.value)} maxLength={50} placeholder="药品剂量或事项说明" className="w-full rounded-xl border border-slate-200 px-3 py-3 text-xs outline-none focus:border-blue-400" /></label>
+              <label className="block"><span className="mb-1.5 block text-[10px] font-bold text-slate-600">{draftType === 'medication' ? '剂量或用法（至少填写一项）' : '补充说明（选填）'}</span><input value={draftDetail} onChange={event => setDraftDetail(event.target.value)} required={draftType === 'medication'} maxLength={50} placeholder={draftType === 'medication' ? '填写剂量或服用说明' : '填写事项说明'} className="w-full rounded-xl border border-slate-200 px-3 py-3 text-xs outline-none focus:border-blue-400" />{medicationDetailMissing && <span className="mt-2 block text-[10px] text-amber-700">请至少填写剂量或用法，不能留空。</span>}</label>
               <div className="grid grid-cols-2 gap-2">
                 <label><span className="mb-1.5 block text-[10px] font-bold text-slate-600">开始日期</span><input type="date" value={draftDate} onChange={event => setDraftDate(event.target.value)} className="w-full rounded-xl border border-slate-200 px-2 py-3 text-xs outline-none" /></label>
                 <label><span className="mb-1.5 block text-[10px] font-bold text-slate-600">提醒时间</span><input type="time" value={draftTime} onChange={event => setDraftTime(event.target.value)} className="w-full rounded-xl border border-slate-200 px-2 py-3 text-xs outline-none" /></label>
@@ -255,7 +258,7 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
               {draftRepeat === 'weekly' && (
                 <div><span className="mb-2 block text-[10px] font-bold text-slate-600">选择星期（必选）</span><div className="grid grid-cols-7 gap-1">{weekdayOptions.map(day => { const selected = draftWeekdays.includes(day.value); return <button key={day.value} type="button" onClick={() => setDraftWeekdays(current => selected ? current.filter(value => value !== day.value) : [...current, day.value])} className={`aspect-square rounded-full text-[10px] font-bold ${selected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{day.label}</button>; })}</div>{draftWeekdays.length === 0 && <p className="mt-2 text-[9px] font-semibold text-amber-700">每周提醒至少选择一个星期</p>}</div>
               )}
-              <button type="button" disabled={!draftTitle.trim() || (draftRepeat === 'weekly' && draftWeekdays.length === 0)} onClick={saveReminder} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400">{editingReminder ? '保存修改' : '创建提醒'}</button>
+              <button type="button" disabled={!canSaveReminder} onClick={saveReminder} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400">{editingReminder ? '保存修改' : '创建提醒'}</button>
             </div>
           </section>
         </div>
@@ -266,7 +269,7 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
           <section role="alertdialog" aria-modal="true" aria-label="删除提醒确认" className="w-full rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600"><Trash2 size={18} /></div>
             <h3 className="mt-4 text-base font-black text-slate-900">删除“{deleteTarget.title}”？</h3>
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">删除后该提醒会从当前列表移除，并且不再产生后续提醒。</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。</p>
             {deleteError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-[10px] font-bold text-rose-700">{deleteError}</p>}
             <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => { setDeleteTarget(null); setDeleteError(''); }} className="rounded-xl bg-slate-100 py-3 text-xs font-bold text-slate-600">取消</button><button type="button" onClick={deleteReminder} className="rounded-xl bg-rose-600 py-3 text-xs font-bold text-white">{deleteError ? '重试删除' : '确认删除'}</button></div>
           </section>

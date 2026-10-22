@@ -187,7 +187,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
           <div className="rounded-2xl bg-blue-600 p-5 text-white">
             <UsersRound size={26} />
             <h3 className="mt-3 text-lg font-black">开始家庭守护</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-blue-100">绑定后即可查看老人的照护状态，并使用亲情留言和家庭影像。</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-blue-100">绑定后即可查看老人的照护状态，并使用家庭留言和家庭相册。</p>
           </div>
           <button type="button" onClick={simulateScan} className="flex w-full items-center gap-3 rounded-2xl border border-blue-200 bg-white p-4 text-left shadow-xs">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><ScanLine size={22} /></span>

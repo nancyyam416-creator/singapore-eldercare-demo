@@ -187,7 +187,7 @@
 .community-life-staff-card__portrait {
   height: 136px;
   background-color: var(--color-panel-soft);
-  background-image: url("./community-staff-portraits.png");
+  background-image: url("/assets/community-staff-portraits.png");
   background-repeat: no-repeat;
   background-size: 300% auto;
   background-position-y: 18%;

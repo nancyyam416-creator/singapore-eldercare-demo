@@ -461,13 +461,13 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
           {effectivePhotoScenario === 'list_offline_cached' && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5"><strong className="text-xs text-amber-800">当前无网络</strong><p className="mt-1 text-[10px] text-amber-700">正在展示上次加载的影像，查看和喜欢状态可能不是最新。</p></div>}
           {effectivePhotoScenario !== 'list_empty' && effectivePhotoScenario !== 'list_offline_empty' && categoryStats.length >= 2 && <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1"><div className="flex w-max gap-2"><button type="button" onClick={() => setSelectedCategory('全部')} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === '全部' ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>全部 · {uniquePhotoBatches.reduce((count, batch) => count + batch.items.length, 0)}项</button>{categoryStats.map(([category, count]) => <button key={category} type="button" onClick={() => setSelectedCategory(category)} className={`rounded-full px-3 py-2 text-[10px] font-bold ${selectedCategory === category ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>{category} · {count}项</button>)}</div></div>}
           {effectivePhotoScenario === 'list_offline_empty' ? (
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-8 text-center"><CircleAlert size={24} className="mx-auto text-amber-500" /><h4 className="mt-3 text-sm font-bold text-slate-800">暂时无法加载家庭影像</h4><p className="mt-1 text-[10px] text-slate-400">请检查网络连接后重试</p><button type="button" onClick={() => setPhotoListRetryRecovered(true)} className="mt-4 rounded-full bg-slate-900 px-4 py-2 text-[10px] font-bold text-white">重新加载</button></div>
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-8 text-center"><CircleAlert size={24} className="mx-auto text-amber-500" /><h4 className="mt-3 text-sm font-bold text-slate-800">暂时无法加载家庭相册</h4><p className="mt-1 text-[10px] text-slate-400">请检查网络连接后重试</p><button type="button" onClick={() => setPhotoListRetryRecovered(true)} className="mt-4 rounded-full bg-slate-900 px-4 py-2 text-[10px] font-bold text-white">重新加载</button></div>
           ) : displayedPhotoBatches.length === 0 ? (
             <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Images size={22} className="mx-auto text-slate-300" /><h4 className="mt-3 text-sm font-bold text-slate-800">还没有发布影像</h4><p className="mt-1 text-[10px] text-slate-400">把照片或视频分享给老人吧</p></div>
           ) : (
             <div className="mt-4 space-y-5">
               {photoDateGroups.map(group => (
-                <section key={group.dateKey} aria-label={`${group.label}家庭影像`}>
+                <section key={group.dateKey} aria-label={`${group.label}家庭相册`}>
                   <div className="mb-2 flex items-center justify-between px-0.5">
                     <h3 className="text-xs font-extrabold text-slate-800">{group.label}</h3>
                     <span className="text-[9px] font-medium text-slate-400">{group.entries.length}项</span>

@@ -287,7 +287,7 @@ export const H5PhotoShareSheet: React.FC<H5PhotoShareSheetProps> = ({ recipients
     <div className="absolute inset-0 z-[85] flex items-end bg-slate-950/50" role="presentation" onClick={onClose}>
       <section role="dialog" aria-modal="true" aria-labelledby="photo-share-title" onClick={event => event.stopPropagation()} className="flex max-h-[94%] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl">
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-200" />
-        <header className="flex items-center justify-between border-b border-slate-100 px-4 pb-3 pt-2"><div><span className="text-[10px] font-bold text-blue-600">家庭影像</span><h3 id="photo-share-title" className="mt-0.5 text-base font-black text-slate-900">{title}</h3></div><button type="button" onClick={onClose} aria-label="关闭" className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></header>
+        <header className="flex items-center justify-between border-b border-slate-100 px-4 pb-3 pt-2"><div><span className="text-[10px] font-bold text-blue-600">家庭相册</span><h3 id="photo-share-title" className="mt-0.5 text-base font-black text-slate-900">{title}</h3></div><button type="button" onClick={onClose} aria-label="关闭" className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={16} /></button></header>
 
         {batchStatus === 'published' ? (
           <div className="flex-1 overflow-y-auto p-5">

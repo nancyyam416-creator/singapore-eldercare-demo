@@ -39,6 +39,11 @@ import type { EmergencyAcceptanceScenario } from "./EmergencyModal";
 import type { SpecialServicesAcceptanceScenario } from "./SpecialServicesPage";
 import type { CommunityStaffAcceptanceScenario } from "./CommunityStaffPage";
 import type { ServiceConversationAcceptanceScenario } from "./ContactsCommunicationPage";
+import {
+  activationScenarioDefinitions,
+  type ActivationAcceptanceScenario,
+  type ActivationContractState,
+} from "../activation-contract";
 import "./interaction-acceptance-console.css";
 
 export type AcceptanceTaskContentScenario = "medicine" | "schedule";
@@ -51,13 +56,25 @@ export type AcceptanceAlbumScenario =
   | "single"
   | "load-failure";
 export type AcceptanceHeartScenario = "not-liked" | "sending" | "liked" | "failure";
-export type AcceptanceReminderScenario = "default" | "due-popup" | "due" | "not-yet" | "empty" | "all-completed" | "unconfirmed" | "action-failure";
+export type AcceptanceReminderScenario =
+  | "default"
+  | "due-popup"
+  | "due"
+  | "not-yet"
+  | "empty"
+  | "all-completed"
+  | "unconfirmed-today"
+  | "expired-history"
+  | "elder-created"
+  | "other-created"
+  | "medication-validation"
+  | "external-repeat"
+  | "action-failure";
 export type AcceptanceRightContentScenario =
   | "default"
   | "recommendations-only"
   | "new-message"
   | "new-album"
-  | "new-album-invalid-relation"
   | "missed-call"
   | "time-and-family"
   | "p1-due"
@@ -85,6 +102,7 @@ export type AcceptanceRightContentScenario =
   | "third-party-entertainment-failure"
   | "no-content"
   | "interaction-locked";
+export type AcceptanceRightContentCondition = "relationship-valid" | "relationship-invalid";
 export type AcceptanceCommunityScenario =
   | "default"
   | "empty"
@@ -125,10 +143,13 @@ interface InteractionAcceptanceConsoleProps {
   heartScenario: AcceptanceHeartScenario;
   reminderScenario: AcceptanceReminderScenario;
   rightContentScenario: AcceptanceRightContentScenario;
+  rightContentCondition: AcceptanceRightContentCondition;
   communityScenario: AcceptanceCommunityScenario;
   serviceScenario: SpecialServicesAcceptanceScenario;
   communityStaffScenario: CommunityStaffAcceptanceScenario;
   serviceConversationScenario: ServiceConversationAcceptanceScenario;
+  activationScenario: ActivationAcceptanceScenario;
+  activationContractState: ActivationContractState;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
@@ -142,10 +163,12 @@ interface InteractionAcceptanceConsoleProps {
   onSetHeartScenario: (scenario: AcceptanceHeartScenario) => void;
   onSetReminderScenario: (scenario: AcceptanceReminderScenario) => void;
   onSetRightContentScenario: (scenario: AcceptanceRightContentScenario) => void;
+  onSetRightContentCondition: (condition: AcceptanceRightContentCondition) => void;
   onSetCommunityScenario: (scenario: AcceptanceCommunityScenario) => void;
   onSetServiceScenario: (scenario: SpecialServicesAcceptanceScenario) => void;
   onSetCommunityStaffScenario: (scenario: CommunityStaffAcceptanceScenario) => void;
   onSetServiceConversationScenario: (scenario: ServiceConversationAcceptanceScenario) => void;
+  onSetActivationScenario: (scenario: ActivationAcceptanceScenario) => void;
   onActivateRightContent: () => void;
   onOpenEntertainmentFailure: () => void;
   onApplyRightContentUpdate: () => void;
@@ -153,12 +176,14 @@ interface InteractionAcceptanceConsoleProps {
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
   onOpenEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
   onOpenActivation: () => void;
+  onResetActivation: () => void;
   onReset: () => void;
 }
 
 type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services" | "community-staff" | "service-messages" | "activation";
 type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "community-staff" | "contacts" | "activation";
 type WeatherAcceptanceTarget = "home" | "detail";
+type RightContentAcceptanceObject = "family" | "medication" | "schedule" | "activity" | "recommendation";
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
   { id: "weather", label: "家庭天气" },
@@ -200,8 +225,7 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   default: { label: "默认单按钮", description: "合并时间提醒、家庭互动和内容推荐，只展示当前最高优先级内容。" },
   "recommendations-only": { label: "查看推荐内容", description: "点击右侧推荐，进入对应内容。" },
   "new-message": { label: "家人给您留言了", description: "右侧显示未读数量；点击后进入通讯录查看留言，已查看内容不再计数。" },
-  "new-album": { label: "家人分享了新影像", description: "点击后进入上传人的一对一会话，并定位最早一条未查看影像记录；记录进入可视区后只更新该条状态。" },
-  "new-album-invalid-relation": { label: "影像上传人关系失效", description: "找不到上传人家庭关系时保留未查看状态，提示无法打开，不跳转其他联系人。" },
+  "new-album": { label: "家人分享了新影像", description: "点击后进入上传人的一对一会话，并定位最早一条未查看影像记录；打开对应影像详情后更新该条状态。" },
   "missed-call": { label: "您有未接来电", description: "右侧显示未接次数；点击后进入通讯录查看通话记录。" },
   "time-and-family": { label: "时间与家庭同时产生", description: "两类内容同时进入候选，由同一个大按钮展示当前优先项。" },
   "p1-due": { label: "该用药了", description: "到达执行时间后显示到点弹窗；关闭弹窗后提醒仍保留在右侧，点击单条提醒直达确认界面。" },
@@ -231,31 +255,55 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "interaction-locked": { label: "操作中暂不换位", description: "正在操作右侧内容时先记录新留言，结束后再应用新排序。" },
 };
 
-const rightContentInteractionScenarios: AcceptanceRightContentScenario[] = [
-  "recommendations-only",
-  "new-message",
-  "new-album",
-  "new-album-invalid-relation",
-  "missed-call",
-  "p1-due",
-  "medication-upcoming",
-  "medication-grace-period",
-  "medication-grouped",
-  "schedule-upcoming",
-  "schedule-due",
-  "schedule-grace-period",
-  "schedule-grouped",
-  "activity-upcoming",
-  "activity-started",
-  "third-party-entertainment",
-  "no-content",
+const rightContentConditionLabels: Record<AcceptanceRightContentCondition, { label: string; description: string }> = {
+  "relationship-valid": {
+    label: "上传人关系有效",
+    description: "首页提醒不变；点击后进入上传人的当前一对一会话，可继续留言或通话。",
+  },
+  "relationship-invalid": {
+    label: "上传人关系已失效",
+    description: "首页提醒不变；点击后进入原历史会话，历史影像可查看，会话只读。",
+  },
+};
+
+const rightContentAcceptanceObjects: Array<{
+  id: RightContentAcceptanceObject;
+  label: string;
+  scenarios: AcceptanceRightContentScenario[];
+}> = [
+  {
+    id: "family",
+    label: "家庭互动",
+    scenarios: ["new-message", "new-album", "missed-call"],
+  },
+  {
+    id: "medication",
+    label: "用药",
+    scenarios: ["p1-due", "medication-upcoming", "medication-grace-period", "medication-grouped"],
+  },
+  {
+    id: "schedule",
+    label: "日常事项",
+    scenarios: ["schedule-upcoming", "schedule-due", "schedule-grace-period", "schedule-grouped"],
+  },
+  {
+    id: "activity",
+    label: "社区活动",
+    scenarios: ["activity-upcoming", "activity-started"],
+  },
+  {
+    id: "recommendation",
+    label: "内容推荐",
+    scenarios: ["recommendations-only", "third-party-entertainment", "no-content"],
+  },
 ];
+
+const rightContentInteractionScenarios = rightContentAcceptanceObjects.flatMap((item) => item.scenarios);
 
 const rightContentActionLabels: Partial<Record<AcceptanceRightContentScenario, string>> = {
   "recommendations-only": "打开推荐内容",
   "new-message": "查看家人留言",
   "new-album": "定位未查看影像",
-  "new-album-invalid-relation": "查看关系失效结果",
   "missed-call": "查看未接来电",
   "p1-due": "打开用药确认",
   "medication-upcoming": "打开用药确认",
@@ -296,7 +344,12 @@ const reminderLabels: Record<AcceptanceReminderScenario, string> = {
   due: "待完成",
   "not-yet": "未到时间",
   "all-completed": "已完成",
-  unconfirmed: "未确认/已过期",
+  "unconfirmed-today": "当日未确认",
+  "expired-history": "次日已过期只读",
+  "elder-created": "本人创建可编辑删除",
+  "other-created": "他端创建只读",
+  "medication-validation": "用药剂量/用法校验",
+  "external-repeat": "外部日期与重复规则",
   "action-failure": "确认失败",
   empty: "空列表",
 };
@@ -474,10 +527,13 @@ export default function InteractionAcceptanceConsole({
   heartScenario,
   reminderScenario,
   rightContentScenario,
+  rightContentCondition,
   communityScenario,
   serviceScenario,
   communityStaffScenario,
   serviceConversationScenario,
+  activationScenario,
+  activationContractState,
   onShowHome,
   onShowAlbum,
   onShowReminders,
@@ -491,10 +547,12 @@ export default function InteractionAcceptanceConsole({
   onSetHeartScenario,
   onSetReminderScenario,
   onSetRightContentScenario,
+  onSetRightContentCondition,
   onSetCommunityScenario,
   onSetServiceScenario,
   onSetCommunityStaffScenario,
   onSetServiceConversationScenario,
+  onSetActivationScenario,
   onActivateRightContent,
   onOpenEntertainmentFailure,
   onApplyRightContentUpdate,
@@ -502,6 +560,7 @@ export default function InteractionAcceptanceConsole({
   onHomeCommand,
   onOpenEmergencyScenario,
   onOpenActivation,
+  onResetActivation,
   onReset,
 }: InteractionAcceptanceConsoleProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -519,13 +578,24 @@ export default function InteractionAcceptanceConsole({
   const selectedPage = acceptancePageOptions.find((page) => page.id === activePage) ?? acceptancePageOptions[0];
   const selectedPageSections = acceptanceSectionOptions.filter((section) => selectedPage.sections.includes(section.id));
   const albumScenarioOptions = activePage === "family-album" ? familyAlbumScenarios : homeAlbumScenarios;
-  const rightContentActionLabel = rightContentActionLabels[rightContentScenario];
+  const selectedRightContentObject = rightContentAcceptanceObjects.find((item) => item.scenarios.includes(rightContentScenario))
+    ?? rightContentAcceptanceObjects[rightContentAcceptanceObjects.length - 1];
+  const rightContentActionLabel = rightContentScenario === "new-album" && rightContentCondition === "relationship-invalid"
+    ? "打开历史会话"
+    : rightContentActionLabels[rightContentScenario];
+  const selectedActivationScenario = activationScenarioDefinitions[activationScenario];
 
   useEffect(() => {
     if (activeSection === "task-progress" && !rightContentInteractionScenarios.includes(rightContentScenario)) {
       onSetRightContentScenario("recommendations-only");
     }
   }, [activeSection, onSetRightContentScenario, rightContentScenario]);
+
+  useEffect(() => {
+    if (rightContentScenario !== "new-album" && rightContentCondition !== "relationship-valid") {
+      onSetRightContentCondition("relationship-valid");
+    }
+  }, [onSetRightContentCondition, rightContentCondition, rightContentScenario]);
 
   useEffect(() => {
     if (activeSection === "service-messages" && serviceConversationScenario === "off") {
@@ -545,6 +615,13 @@ export default function InteractionAcceptanceConsole({
     onReset();
     setActiveSection(sectionId);
     setWeatherAcceptanceTarget("home");
+  };
+  const changeRightContentObject = (objectId: RightContentAcceptanceObject) => {
+    const nextObject = rightContentAcceptanceObjects.find((item) => item.id === objectId);
+    if (nextObject) {
+      onSetRightContentCondition("relationship-valid");
+      onSetRightContentScenario(nextObject.scenarios[0]);
+    }
   };
   const resetWorkbench = () => {
     setActivePage("home");
@@ -611,7 +688,7 @@ export default function InteractionAcceptanceConsole({
 
   return (
     <aside
-      className={`interaction-acceptance-console${isOpen ? " is-open" : ""}${opensToRight ? " opens-to-right" : ""}${opensUpward ? " opens-upward" : ""}${activeSection === "task-progress" ? " is-reviewing-right-content" : ""}`}
+      className={`interaction-acceptance-console${isOpen ? " is-open" : ""}${opensToRight ? " opens-to-right" : ""}${opensUpward ? " opens-upward" : ""}`}
       aria-label="交互验收台"
       style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)` }}
     >
@@ -667,6 +744,23 @@ export default function InteractionAcceptanceConsole({
               <ChevronDown aria-hidden="true" />
               </span>
             </label>
+            {activeSection === "task-progress" && (
+              <label className="interaction-acceptance-module-picker">
+                <span>三级对象</span>
+                <span className="interaction-acceptance-module-picker__select">
+                  <select
+                    value={selectedRightContentObject.id}
+                    onChange={(event) => changeRightContentObject(event.target.value as RightContentAcceptanceObject)}
+                    aria-label="选择首页右侧验收对象"
+                  >
+                    {rightContentAcceptanceObjects.map((item) => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown aria-hidden="true" />
+                </span>
+              </label>
+            )}
           </section>
 
           <div className="interaction-acceptance-section">
@@ -731,7 +825,7 @@ export default function InteractionAcceptanceConsole({
                   </button>
                 ))}
               </div>
-              <p className="interaction-acceptance-note">“未确认/已过期”共用补打卡交互；老人端仅验收用药提醒、日常提醒及单次执行状态。</p>
+              <p className="interaction-acceptance-note">未确认仅可在当天补打卡；已过期只在历史日期保留并只读。创建来源仅用于权限判断，不显示在提醒卡片上。</p>
             </section>}
 
             {activeSection === "weather" && <section>
@@ -811,10 +905,13 @@ export default function InteractionAcceptanceConsole({
                   <span className="interaction-acceptance-module-picker__select">
                     <select
                       value={rightContentScenario}
-                      onChange={(event) => onSetRightContentScenario(event.target.value as AcceptanceRightContentScenario)}
+                      onChange={(event) => {
+                        onSetRightContentCondition("relationship-valid");
+                        onSetRightContentScenario(event.target.value as AcceptanceRightContentScenario);
+                      }}
                       aria-label="选择首页右侧可见状态"
                     >
-                      {rightContentInteractionScenarios.map((scenario) => (
+                      {selectedRightContentObject.scenarios.map((scenario) => (
                         <option key={scenario} value={scenario}>{rightContentScenarioLabels[scenario].label}</option>
                       ))}
                     </select>
@@ -826,6 +923,30 @@ export default function InteractionAcceptanceConsole({
                   <p>{rightContentScenarioLabels[rightContentScenario].description}</p>
                 </div>
               </div>
+
+              {rightContentScenario === "new-album" && (
+                <div className="interaction-acceptance-field">
+                  <h2><ShieldAlert aria-hidden="true" />交互条件</h2>
+                  <label className="interaction-acceptance-module-picker">
+                    <span className="interaction-acceptance-module-picker__select">
+                      <select
+                        value={rightContentCondition}
+                        onChange={(event) => onSetRightContentCondition(event.target.value as AcceptanceRightContentCondition)}
+                        aria-label="选择家庭影像交互条件"
+                      >
+                        {(Object.keys(rightContentConditionLabels) as AcceptanceRightContentCondition[]).map((condition) => (
+                          <option key={condition} value={condition}>{rightContentConditionLabels[condition].label}</option>
+                        ))}
+                      </select>
+                      <ChevronDown aria-hidden="true" />
+                    </span>
+                  </label>
+                  <div className="interaction-acceptance-current" aria-live="polite">
+                    <strong>{rightContentConditionLabels[rightContentCondition].label}</strong>
+                    <p>{rightContentConditionLabels[rightContentCondition].description}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="interaction-acceptance-field">
                 <h2><BellRing aria-hidden="true" />可执行动作</h2>
@@ -852,7 +973,6 @@ export default function InteractionAcceptanceConsole({
                 {!rightContentActionLabel && rightContentScenario === "no-content" && (
                   <p className="interaction-acceptance-note">当前为空状态，没有可执行的内容入口。</p>
                 )}
-                <p className="interaction-acceptance-note">上方切换右侧展示状态；这里执行正式页面对应的点击动作并查看结果。</p>
                 {rightContentScenario === "interaction-locked" && (
                   <div className="interaction-acceptance-context-action">
                     <span>当前场景动作</span>
@@ -977,10 +1097,43 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "activation" && <section>
               <div className="interaction-acceptance-field">
-                <h2><TabletSmartphone aria-hidden="true" />设备激活</h2>
-                <p>仅在本模块提供设备激活验收入口。</p>
+                <h2><TabletSmartphone aria-hidden="true" />激活场景</h2>
+                <label className="interaction-acceptance-module-picker">
+                  <span className="interaction-acceptance-module-picker__select">
+                    <select
+                      value={activationScenario}
+                      onChange={(event) => onSetActivationScenario(event.target.value as ActivationAcceptanceScenario)}
+                      aria-label="选择设备激活场景"
+                    >
+                      {(Object.keys(activationScenarioDefinitions) as ActivationAcceptanceScenario[]).map((scenario) => (
+                        <option key={scenario} value={scenario}>{activationScenarioDefinitions[scenario].label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
+                </label>
+                <div className="interaction-acceptance-current" aria-live="polite">
+                  <strong>{selectedActivationScenario.label} · {selectedActivationScenario.code}</strong>
+                  <p>{selectedActivationScenario.description}</p>
+                </div>
+              </div>
+              <div className="interaction-acceptance-field">
+                <h2><DatabaseBackup aria-hidden="true" />跨端契约状态</h2>
+                <dl className="activation-contract-status">
+                  <div><dt>激活码</dt><dd>{activationContractState.activationCode.status}</dd></div>
+                  <div><dt>目标设备</dt><dd>{activationContractState.device.status}</dd></div>
+                  <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
+                  <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>
+                  <div><dt>可重复使用</dt><dd>{activationContractState.activationCode.reusable ? "是" : "否"}</dd></div>
+                </dl>
+              </div>
+              <div className="interaction-acceptance-field">
+                <h2><BellRing aria-hidden="true" />可执行动作</h2>
                 <button type="button" className="interaction-acceptance-primary-action" onClick={onOpenActivation}>
                   <TabletSmartphone aria-hidden="true" />进入设备激活验收
+                </button>
+                <button type="button" className="interaction-acceptance-secondary-action" onClick={onResetActivation}>
+                  <RefreshCcw aria-hidden="true" />重置当前激活场景
                 </button>
               </div>
             </section>}

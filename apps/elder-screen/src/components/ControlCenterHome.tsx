@@ -96,7 +96,7 @@ interface ControlCenterHomeProps {
   onOpenTodayOverview: () => void;
   onOpenAlbum: () => void;
   onOpenFamilyMediaReminder: () => void;
-  onOpenMessages: () => void;
+  onOpenMessages: (sender?: string) => void;
   onOpenSchedule: () => void;
   onOpenCommunity: () => void;
   onOpenRecommendation: (kind: "security" | "community" | "service" | "entertainment", contentId?: string) => void;
@@ -224,11 +224,11 @@ export default function ControlCenterHome({
     }
     if (acceptanceAlbumScenario === "single") return photos.slice(0, 1);
     if (acceptanceAlbumScenario === "load-failure") {
-      return [{ ...photos[0], url: "./assets/acceptance-missing-photo.jpg" }];
+      return [{ ...photos[0], url: "/assets/acceptance-missing-photo.jpg" }];
     }
     if (acceptanceAlbumScenario === "video-failure") {
       return photos.map((photo, index) => index === 0 && photo.type === "video"
-        ? { ...photo, videoUrl: "./assets/acceptance-missing-family-video.mp4" }
+        ? { ...photo, videoUrl: "/assets/acceptance-missing-family-video.mp4" }
         : photo);
     }
     return photos;

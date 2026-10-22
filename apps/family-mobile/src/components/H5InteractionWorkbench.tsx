@@ -144,12 +144,12 @@ const familyReceiptScenarios: Array<{ value: FamilyReceiptScenario; label: strin
   { value: 'message_only', label: '仅有家庭留言', description: '首页只展示老人发来的语音留言摘要', status: '1类互动' },
   { value: 'photo_like_only', label: '仅有影像反馈', description: '首页只展示老人查看或喜欢照片、视频的反馈', status: '1类互动' },
   { value: 'no_interaction', label: '暂无互动', description: '今天及历史均无可展示的互动记录', status: '空状态' },
-  { value: 'loading', label: '互动加载中', description: '正在读取留言和家庭影像反馈记录', status: '加载中' },
+  { value: 'loading', label: '互动加载中', description: '正在读取留言和家庭相册反馈记录', status: '加载中' },
   { value: 'data_error', label: '互动读取失败', description: '记录暂时不可用，可稍后重新加载', status: '读取失败' }
 ];
 
 const familyPhotoListScenarios: Array<{ value: FamilyPhotoScenario; label: string; description: string; status: string }> = [
-  { value: 'list_default', label: '家庭影像列表', description: '照片与视频按日期倒序展开，点击单项进入全屏相册预览。', status: '正常' },
+  { value: 'list_default', label: '家庭相册列表', description: '照片与视频按日期倒序展开，点击单项进入全屏相册预览。', status: '正常' },
   { value: 'list_empty', label: '影像列表为空', description: '没有发布记录时展示空页面和发布入口。', status: '空状态' },
   { value: 'list_offline_cached', label: '无网络 · 有缓存', description: '保留上次加载的影像，并提示反馈状态可能不是最新。', status: '离线可查看' },
   { value: 'list_offline_empty', label: '无网络 · 无缓存', description: '展示网络异常页面和重新加载操作。', status: '加载失败' }
@@ -228,7 +228,7 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
     { value: 'family_calls', label: '音视频通话' }
   ],
   photos: [
-    { value: 'family_photos', label: '家庭影像' }
+    { value: 'family_photos', label: '家庭相册' }
   ],
   care: [
     { value: 'service_store', label: '特约服务' }
@@ -492,7 +492,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             <div>
               <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">一级页面</h3>
               <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭影像'], ['care', '预约服务'], ['profile', '我的']] as const).map(([page, label]) => (
+                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭相册'], ['care', '预约服务'], ['profile', '我的']] as const).map(([page, label]) => (
                   <button key={page} type="button" onClick={() => changeAcceptancePage(page)} aria-pressed={acceptancePage === page} className={`rounded-lg px-2 py-2 text-[10px] font-bold ${acceptancePage === page ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>{label}</button>
                 ))}
               </div>
@@ -546,7 +546,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                     onOpenFamilyPhotos();
                   }}
                 >
-                  <option value="list">家庭影像列表</option>
+                  <option value="list">家庭相册列表</option>
                   <option value="publish">发布影像弹窗</option>
                 </select>
               </div>
@@ -560,7 +560,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   ? '我的页面验证老人绑定、切换与异常状态。'
                   : acceptancePage === 'messages'
                     ? '家庭留言独立底部入口，同时承载音视频通话。'
-                    : '家庭影像独立底部入口，承载相册查看与影像发布。'}
+                    : '家庭相册独立底部入口，承载相册查看与内容发布。'}
             </p>
         </section>
 
@@ -1076,7 +1076,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             )}
 
             {acceptanceModule === 'family_photos' && familyPhotoTarget === 'list' && (
-              <section aria-label="家庭影像列表状态">
+              <section aria-label="家庭相册列表状态">
                 <div className="mb-2">
                   <h3 className="text-[11px] font-extrabold text-slate-500">列表状态</h3>
                   <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">点击后直接在手机界面查看对应效果。</p>

@@ -109,6 +109,6 @@
 @media (max-width: 1050px) {
   .activation-shell { grid-template-columns: 300px minmax(0, 1fr); }
   .activation-shell__summary { padding: 30px 26px; }
-  .activation-progress > div { min-width: 130px; }
+  .activation-progress > div { min-width: 130px; font-size: 14px; }
   .activation-sync-list, .activation-success-list { grid-template-columns: 1fr; }
 }

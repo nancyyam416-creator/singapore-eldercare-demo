@@ -61,15 +61,15 @@ const entertainmentPresentation: Record<string, EntertainmentPresentation> = {
 
 const entertainmentPreviewImages: Record<string, { src: string; alt: string }> = {
   "ENT-001": {
-    src: "./assets/youtube-home-preview.png",
+    src: "/assets/youtube-home-preview.png",
     alt: "YouTube 首页演示截图",
   },
   "ENT-002": {
-    src: "./assets/spotify-preview.png",
+    src: "/assets/spotify-preview.png",
     alt: "Spotify 演示截图",
   },
   "ENT-003": {
-    src: "./assets/meradio-preview.png",
+    src: "/assets/meradio-preview.png",
     alt: "MeRadio 首页演示截图",
   },
 };

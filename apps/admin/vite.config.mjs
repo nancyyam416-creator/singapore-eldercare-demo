@@ -16,7 +16,6 @@ if (requestedPortArgument && Number(requestedPortArgument) !== FIXED_PORT) {
 }
 
 export default defineConfig({
-  base: "./",
   optimizeDeps: {
     include: ["react", "react-dom/client"],
   },

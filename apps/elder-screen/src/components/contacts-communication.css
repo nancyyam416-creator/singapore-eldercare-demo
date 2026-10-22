@@ -44,6 +44,7 @@
 .communication-sidebar section h3 { margin: 0; padding: 11px 10px; color: var(--color-text-muted); font-size: 17px; letter-spacing: .08em; }
 .communication-sidebar section > div { display: grid; gap: 10px; }
 .communication-contact-group--service { margin-top: 18px; padding-top: 12px; border-top: var(--rule-thin) solid var(--color-line); }
+.communication-contact-group--historical { margin-top: 18px; padding-top: 12px; border-top: var(--rule-thin) solid var(--color-line); }
 .communication-family-empty {
   min-height: 170px;
   display: flex;
@@ -80,6 +81,8 @@
 .communication-contact.is-family { min-height: 142px; }
 .communication-contact:hover { background: var(--color-panel-raised); }
 .communication-contact.is-selected { border-color: color-mix(in oklch, var(--color-green), transparent 50%); background: color-mix(in oklch, var(--color-green-dark), transparent 64%); }
+.communication-contact.is-historical { border-color: color-mix(in oklch, var(--color-text-muted), transparent 62%); background: color-mix(in oklch, var(--color-panel-raised), transparent 34%); }
+.communication-contact.is-historical.is-selected { border-color: color-mix(in oklch, var(--color-green), transparent 48%); }
 .communication-contact__avatar { position: relative; width: 72px; height: 72px; }
 .communication-contact__avatar img { width: 100%; height: 100%; border: 3px solid var(--color-line); border-radius: 50%; object-fit: cover; }
 .communication-contact__copy { min-width: 0; display: grid; gap: 7px; }
@@ -161,6 +164,16 @@
 .communication-main__service-meta em { font-size: 15px; font-style: normal; font-weight: 760; }
 .communication-main__service-meta small { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 760; }
 .communication-main__service-meta small svg { width: 17px; height: 17px; color: var(--color-green); }
+.communication-main__history-status {
+  justify-self: start;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in oklch, var(--color-text-muted), transparent 48%);
+  border-radius: var(--radius-round);
+  color: var(--color-text-soft);
+  background: var(--color-panel-raised);
+  font-size: 15px;
+  font-weight: 850;
+}
 .communication-call-actions { display: flex; align-items: center; gap: 14px; }
 .communication-call-actions button { min-height: 80px; display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 20px; color: var(--color-text); font-size: 21px; font-weight: 900; cursor: pointer; }
 .communication-call-actions button svg { width: 28px; height: 28px; }
@@ -312,6 +325,21 @@
 .communication-recorder__failed > span strong { color: var(--color-text); font-size: 22px; }
 .communication-recorder__failed > span small { color: var(--color-text-soft); font-size: 15px; font-weight: 750; }
 .communication-recorder__failed button:first-of-type { border-color: color-mix(in oklch, var(--color-green), transparent 44%); background: var(--color-green-dark); }
+.communication-recorder__readonly {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border: 2px solid color-mix(in oklch, var(--color-text-muted), transparent 58%);
+  border-radius: 24px;
+  color: var(--color-text-soft);
+  background: var(--color-panel-raised);
+}
+.communication-recorder__readonly > svg { width: 34px; height: 34px; flex: 0 0 auto; color: var(--color-text-muted); }
+.communication-recorder__readonly > span { display: grid; gap: 6px; }
+.communication-recorder__readonly strong { color: var(--color-text); font-size: 23px; }
+.communication-recorder__readonly small { font-size: 16px; font-weight: 750; }
 
 .communication-photo-viewer { position: fixed; inset: 0; z-index: 85; overflow: hidden; background: var(--color-canvas-deep); }
 .communication-photo-viewer > img { width: 100%; height: 100%; object-fit: contain; }

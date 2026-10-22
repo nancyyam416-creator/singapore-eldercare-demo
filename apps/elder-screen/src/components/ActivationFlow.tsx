@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
@@ -11,13 +11,23 @@ import {
   X,
 } from "lucide-react";
 import { elderProfileMock } from "../elder-profile";
+import {
+  activationScenarioDefinitions,
+  getActivationAttemptError,
+  type ActivationAcceptanceScenario,
+  type ActivationContractState,
+  type ActivationError,
+} from "../activation-contract";
 import "./activation-flow.css";
 
 type ActivationStep = "code" | "identity" | "syncing" | "success";
-type ActivationError = "invalid" | "used" | "revoked" | "deviceMismatch" | "network" | "alreadyBound" | "familyBindingCode" | null;
 
 interface ActivationFlowProps {
   onComplete: () => void;
+  scenario: ActivationAcceptanceScenario;
+  contractState: ActivationContractState;
+  resetSignal: number;
+  onActivationCommitted: () => void;
 }
 
 const elderProfile = {
@@ -26,8 +36,6 @@ const elderProfile = {
   address: elderProfileMock.address ?? "未完善",
   avatar: elderProfileMock.name.slice(0, 1),
 };
-
-const currentDeviceId = "U2G-TAB-2026-031";
 
 const errorMessages: Record<Exclude<ActivationError, null>, string> = {
   invalid: "激活码不正确，请检查后重新输入。",
@@ -46,16 +54,14 @@ const progressSteps = [
   { key: "success", label: "完成" },
 ] as const;
 
-const defaultActivationCode = "628315";
-const familyBindingCode = "886688";
-
-export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
+export default function ActivationFlow({ scenario, contractState, resetSignal, onActivationCommitted, onComplete }: ActivationFlowProps) {
   const [step, setStep] = useState<ActivationStep>("code");
-  const [code, setCode] = useState(defaultActivationCode);
+  const [code, setCode] = useState(activationScenarioDefinitions[scenario].code);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<ActivationError>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [syncedCount, setSyncedCount] = useState(0);
+  const onActivationCommittedRef = useRef(onActivationCommitted);
 
   const currentStepIndex = progressSteps.findIndex((item) => item.key === step);
   const syncItems = useMemo(
@@ -64,13 +70,29 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
   );
 
   useEffect(() => {
+    onActivationCommittedRef.current = onActivationCommitted;
+  }, [onActivationCommitted]);
+
+  useEffect(() => {
+    setStep("code");
+    setCode(activationScenarioDefinitions[scenario].code);
+    setIsChecking(false);
+    setError(null);
+    setShowHelp(false);
+    setSyncedCount(0);
+  }, [resetSignal, scenario]);
+
+  useEffect(() => {
     if (step !== "syncing") return;
 
     setSyncedCount(0);
     const timers = syncItems.map((_, index) =>
       window.setTimeout(() => setSyncedCount(index + 1), 500 + index * 520),
     );
-    const finishTimer = window.setTimeout(() => setStep("success"), 2850);
+    const finishTimer = window.setTimeout(() => {
+      onActivationCommittedRef.current();
+      setStep("success");
+    }, 2850);
 
     return () => {
       timers.forEach(window.clearTimeout);
@@ -90,17 +112,12 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
     setError(null);
     window.setTimeout(() => {
       setIsChecking(false);
-      if (code === defaultActivationCode) {
+      const nextError = getActivationAttemptError(scenario, code, contractState);
+      if (!nextError) {
         setStep("identity");
         return;
       }
-      if (code === familyBindingCode) setError("familyBindingCode");
-      else if (code === "222222") setError("used");
-      else if (code === "333333") setError("revoked");
-      else if (code === "444444") setError("deviceMismatch");
-      else if (code === "000000") setError("network");
-      else if (code === "555555") setError("alreadyBound");
-      else setError("invalid");
+      setError(nextError);
     }, 850);
   };
 
@@ -153,7 +170,7 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
                 <div className="activation-device-status" aria-label="当前设备状态">
                   <div>
                     <TabletSmartphone aria-hidden="true" />
-                    <span><small>当前设备编号</small><strong>{currentDeviceId}</strong></span>
+                    <span><small>当前设备编号</small><strong>{contractState.device.id}</strong></span>
                   </div>
                   <div>
                     <Wifi aria-hidden="true" />
@@ -202,9 +219,9 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
                 <p>请看一下姓名和社区是否正确。</p>
 
                 <div className="activation-profile-card">
-                  <div className="activation-profile-card__avatar">{elderProfile.avatar}</div>
+                  <div className="activation-profile-card__avatar">{contractState.elderly.name.slice(0, 1)}</div>
                   <div>
-                    <h3>{elderProfile.name}<span>本人</span></h3>
+                    <h3>{contractState.elderly.name}<span>本人</span></h3>
                     <strong>{elderProfile.community}</strong>
                     <p>{elderProfile.address}</p>
                   </div>
@@ -215,7 +232,7 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
                     type="button"
                     onClick={() => {
                       setStep("code");
-                      setCode(defaultActivationCode);
+                      setCode(activationScenarioDefinitions[scenario].code);
                       setError(null);
                     }}
                   >
@@ -250,7 +267,7 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
               <section className="activation-step activation-step--success">
                 <span className="activation-step__status-icon"><Check aria-hidden="true" /></span>
                 <h2>设备激活成功</h2>
-                <p>{elderProfile.name}，欢迎使用 U2G 高龄智慧服务。</p>
+                <p>{contractState.elderly.name}，欢迎使用 U2G 高龄智慧服务。</p>
                 <div className="activation-success-list">
                   {["个人信息已准备", "提醒日程已准备", "首页服务已准备"].map((item) => (
                     <div key={item}><CheckCircle2 aria-hidden="true" /><span>{item}</span></div>
@@ -270,7 +287,7 @@ export default function ActivationFlow({ onComplete }: ActivationFlowProps) {
             <span className="activation-modal__icon"><CircleHelp aria-hidden="true" /></span>
             <h2 id="activation-help-title">无法激活？</h2>
             <p>请让家人或工作人员检查激活码。如果仍然无法激活，请联系服务人员处理。</p>
-            <div className="activation-help-device"><span>联系服务人员时，请告知设备编号</span><strong>{currentDeviceId}</strong></div>
+            <div className="activation-help-device"><span>联系服务人员时，请告知设备编号</span><strong>{contractState.device.id}</strong></div>
             <button type="button" className="activation-primary-action" onClick={() => setShowHelp(false)}>我知道了</button>
           </section>
         </div>

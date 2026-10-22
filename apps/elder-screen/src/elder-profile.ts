@@ -55,4 +55,8 @@ export const getActiveFamilyRelationships = () => Array.from(
   ).values(),
 );
 
+export const getFamilyRelationshipById = (relationshipId?: string) => relationshipId
+  ? familyRelationshipMocks.find((relationship) => relationship.id === relationshipId)
+  : undefined;
+
 export const getActiveFamilyRelationshipCount = () => getActiveFamilyRelationships().length;

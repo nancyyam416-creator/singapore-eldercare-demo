@@ -9,6 +9,9 @@ export interface MedicationReminder {
   priority?: 'P0' | 'P1' | 'P2';
   category?: 'medication' | 'schedule';
   ctaTitle?: string;
+  repeat?: 'once' | 'daily' | 'weekly';
+  creationSource?: 'elder' | 'child' | 'admin';
+  creatorName?: string;
 }
 
 export type FulfillmentKind = 'medication' | 'schedule' | 'message' | 'activity' | 'service' | 'content';

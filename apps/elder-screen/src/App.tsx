@@ -5,7 +5,7 @@ import EmergencyModal, { type EmergencyAcceptanceScenario } from "./components/E
 import SmartAssistantModal from "./components/SmartAssistantModal";
 import MedicationCelebration from "./components/MedicationCelebration";
 import HomeReminderAlert, { resetHomeReminderSpeechTracking } from "./components/HomeReminderAlert";
-import ContactsPage, { type ServiceConversationAcceptanceScenario } from "./components/ContactsCommunicationPage";
+import ContactsPage, { type FamilyMediaFocusRequest, type ServiceConversationAcceptanceScenario } from "./components/ContactsCommunicationPage";
 import FamilyAlbumPage from "./components/FamilyAlbumPage";
 import SchedulePage from "./components/SchedulePage";
 import MoreFunctionsDrawer from "./components/MoreFunctionsDrawer";
@@ -23,6 +23,7 @@ import InteractionAcceptanceConsole, {
   type AcceptanceHomeCommand,
   type AcceptanceHeartScenario,
   type AcceptanceReminderScenario,
+  type AcceptanceRightContentCondition,
   type AcceptanceRightContentScenario,
   type AcceptanceTaskContentScenario,
   type AcceptanceCommunityScenario,
@@ -32,8 +33,13 @@ import {
   type FamilyWeatherMockScenario,
 } from "./weather/familyWeather";
 import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord, SpecialServiceBooking } from "./types";
-import { elderProfileMock, getActiveFamilyRelationshipCount, getActiveFamilyRelationships } from "./elder-profile";
+import { elderProfileMock, getActiveFamilyRelationshipCount, getFamilyRelationshipById } from "./elder-profile";
 import { SERVICE_COMMUNICATION_FIXTURES, secondsFromDuration } from "./service-communication-fixture";
+import {
+  completeActivationContractState,
+  createInitialActivationContractState,
+  type ActivationAcceptanceScenario,
+} from "./activation-contract";
 import "./control-center.css";
 
 const createInitialFulfillmentRecords = (): FulfillmentRecord[] => {
@@ -70,7 +76,7 @@ const readStoredServiceBookings = () => {
 const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
   {
     id: "photo-snowman-message",
-    url: "./assets/snowman-photo-message.jpg",
+    url: "/assets/snowman-photo-message.jpg",
     caption: "爸，这是昨天下雪拍的照片",
     date: "今天 09:12 · 女儿小敏上传",
     type: "photo",
@@ -90,7 +96,7 @@ const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
     caption: "重孙女在幼儿园录制了端午节儿歌祝福视频。",
     date: "今天 10:05 · 女儿小敏上传",
     type: "video",
-    videoUrl: "./assets/family-video-mock.mp4",
+    videoUrl: "/assets/family-video-mock.mp4",
     senderName: "女儿小敏",
     uploaderRelationshipId: "daughter",
     publishedAt: "2026-09-20T10:05:00+08:00",
@@ -138,7 +144,7 @@ const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
     caption: "外孙小杰参加学校钢琴大赛，获得了一等奖。",
     date: "上周五 19:45 · 儿子小刚上传",
     type: "video",
-    videoUrl: "./assets/family-video-mock.mp4",
+    videoUrl: "/assets/family-video-mock.mp4",
     senderName: "儿子小刚",
     uploaderRelationshipId: "son",
     publishedAt: "2026-09-12T19:45:00+08:00",
@@ -186,6 +192,27 @@ const createInitialFamilyMediaViewedAt = () => Object.fromEntries(
   INITIAL_FAMILY_PHOTOS.map((photo) => [photo.id, photo.viewedAt ?? null]),
 ) as Record<string, string | null>;
 
+const createHistoricalFamilyMediaFocusRequest = (
+  photo: FamilyPhoto,
+  mediaMessage: FamilyMessage,
+  requestId = 0,
+): FamilyMediaFocusRequest => {
+  const uploadRelationship = getFamilyRelationshipById(photo.uploaderRelationshipId);
+  const uploadSenderName = photo.senderName ?? mediaMessage.sender;
+  return {
+    id: requestId,
+    contactId: `history-${photo.uploaderRelationshipId ?? uploadSenderName}`,
+    mediaId: photo.id,
+    historicalContact: {
+      sourceRelationshipId: photo.uploaderRelationshipId,
+      name: uploadSenderName,
+      relation: uploadRelationship?.relationship ?? "家人",
+      avatar: uploadRelationship?.avatar ?? mediaMessage.avatar,
+      weatherUserId: uploadRelationship?.weatherUserId,
+    },
+  };
+};
+
 const createDefaultReminders = (): MedicationReminder[] => [
   {
     id: "med-1",
@@ -195,6 +222,9 @@ const createDefaultReminders = (): MedicationReminder[] => [
     dosage: "降压药1片，维生素D1片 (温水送服)",
     status: "completed",
     takenAt: "08:15",
+    repeat: "daily",
+    creationSource: "child",
+    creatorName: "女儿小敏",
   },
   {
     id: "med-2",
@@ -203,6 +233,9 @@ const createDefaultReminders = (): MedicationReminder[] => [
     name: "阿司匹林肠溶片 (保护心脏)",
     dosage: "1片 (饭后半小时服用)",
     status: "pending",
+    repeat: "daily",
+    creationSource: "admin",
+    creatorName: "社区健康管家",
   },
   {
     id: "med-3",
@@ -211,6 +244,9 @@ const createDefaultReminders = (): MedicationReminder[] => [
     name: "阿托伐他汀钙片 + 血脂平胶囊",
     dosage: "他汀1片，血脂平2粒 (睡前服用)",
     status: "pending",
+    repeat: "weekly",
+    creationSource: "elder",
+    creatorName: "本人",
   },
   {
     id: "schedule-self-walk",
@@ -221,6 +257,9 @@ const createDefaultReminders = (): MedicationReminder[] => [
     status: "pending",
     category: "schedule",
     ctaTitle: "该去散步啦",
+    repeat: "daily",
+    creationSource: "elder",
+    creatorName: "本人",
   },
 ];
 
@@ -231,7 +270,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     avatar: "https://picsum.photos/seed/xiaomin/120/120",
     type: "photo",
     content: "爸，这是昨天下雪拍的照片",
-    photoUrl: "./assets/snowman-photo-message.jpg",
+    photoUrl: "/assets/snowman-photo-message.jpg",
     familyMediaId: "photo-snowman-message",
     familyMediaType: "photo",
     duration: 7,
@@ -328,6 +367,7 @@ export default function App() {
 
   // 1.2. Contacts Modal State
   const [isContactsOpen, setIsContactsOpen] = useState(false);
+  const [contactsInitialSender, setContactsInitialSender] = useState<string | null>(null);
 
   // 1.5. Smart Voice Assistant Modal State
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
@@ -354,7 +394,7 @@ export default function App() {
   // 1.9. Family Album Secondary Page State
   const [isAlbumPageOpen, setIsAlbumPageOpen] = useState(false);
   const [familyMediaViewedAt, setFamilyMediaViewedAt] = useState<Record<string, string | null>>(createInitialFamilyMediaViewedAt);
-  const [familyMediaFocusRequest, setFamilyMediaFocusRequest] = useState<{ id: number; contactId: string; mediaId: string } | null>(null);
+  const [familyMediaFocusRequest, setFamilyMediaFocusRequest] = useState<FamilyMediaFocusRequest | null>(null);
   const [albumInitialMediaId, setAlbumInitialMediaId] = useState<string | null>(null);
   const [familyMediaOpenError, setFamilyMediaOpenError] = useState("");
   const [missedCallCount, setMissedCallCount] = useState(0);
@@ -391,10 +431,14 @@ export default function App() {
   const [acceptanceHeartScenario, setAcceptanceHeartScenario] = useState<AcceptanceHeartScenario>("not-liked");
   const [acceptanceReminderScenario, setAcceptanceReminderScenario] = useState<AcceptanceReminderScenario>("default");
   const [acceptanceRightContentScenario, setAcceptanceRightContentScenario] = useState<AcceptanceRightContentScenario>("default");
+  const [acceptanceRightContentCondition, setAcceptanceRightContentCondition] = useState<AcceptanceRightContentCondition>("relationship-valid");
   const [acceptanceCommunityScenario, setAcceptanceCommunityScenario] = useState<AcceptanceCommunityScenario>("default");
   const [acceptanceSpecialServicesScenario, setAcceptanceSpecialServicesScenario] = useState<SpecialServicesAcceptanceScenario>("default");
   const [acceptanceCommunityStaffScenario, setAcceptanceCommunityStaffScenario] = useState<CommunityStaffAcceptanceScenario>("multiple");
   const [acceptanceServiceConversationScenario, setAcceptanceServiceConversationScenario] = useState<ServiceConversationAcceptanceScenario>("off");
+  const [acceptanceActivationScenario, setAcceptanceActivationScenario] = useState<ActivationAcceptanceScenario>("success");
+  const [activationContractState, setActivationContractState] = useState(createInitialActivationContractState);
+  const [activationResetSignal, setActivationResetSignal] = useState(0);
   const [communityLifeAcceptanceScenario, setCommunityLifeAcceptanceScenario] = useState<CommunityLifeAcceptanceScenario>("default");
   const [communityActivityAcceptanceScenario, setCommunityActivityAcceptanceScenario] = useState<CommunityActivityAcceptanceScenario>("default");
   const [acceptanceRightContentApplySignal, setAcceptanceRightContentApplySignal] = useState(0);
@@ -550,12 +594,12 @@ export default function App() {
       .sort((first, second) => (first.publishedAt ?? "").localeCompare(second.publishedAt ?? ""))[0];
     if (!firstUnread) return;
 
-    const relationshipId = acceptanceRightContentScenario === "new-album-invalid-relation"
-      ? "removed-family-relationship"
-      : firstUnread.uploaderRelationshipId;
-    const relationship = getActiveFamilyRelationships().find((item) => item.id === relationshipId);
-    const mediaMessageExists = messages.some((message) => message.familyMediaId === firstUnread.id);
-    if (!relationship || !mediaMessageExists) {
+    const mediaMessage = messages.find((message) => message.familyMediaId === firstUnread.id);
+    const uploadRelationship = getFamilyRelationshipById(firstUnread.uploaderRelationshipId);
+    const relationshipIsHistorical = acceptanceRightContentCondition === "relationship-invalid"
+      || uploadRelationship?.active === false;
+    const uploadSenderName = firstUnread.senderName ?? mediaMessage?.sender;
+    if (!mediaMessage || !uploadSenderName) {
       setFamilyMediaOpenError("暂时无法打开这条家庭影像");
       window.setTimeout(() => setFamilyMediaOpenError(""), 3200);
       return;
@@ -563,11 +607,13 @@ export default function App() {
 
     setFamilyMediaOpenError("");
     setAlbumInitialMediaId(null);
-    setFamilyMediaFocusRequest((current) => ({
-      id: (current?.id ?? 0) + 1,
-      contactId: relationship.id,
-      mediaId: firstUnread.id,
-    }));
+    setFamilyMediaFocusRequest((current) => relationshipIsHistorical
+      ? createHistoricalFamilyMediaFocusRequest(firstUnread, mediaMessage, (current?.id ?? 0) + 1)
+      : {
+          id: (current?.id ?? 0) + 1,
+          contactId: uploadRelationship?.id ?? firstUnread.uploaderRelationshipId ?? uploadSenderName,
+          mediaId: firstUnread.id,
+        });
     setIsContactsOpen(true);
   };
 
@@ -575,7 +621,7 @@ export default function App() {
     if (!photos.some((photo) => photo.id === mediaId)) return;
     markFamilyMediaViewed(mediaId);
     setAlbumInitialMediaId(mediaId);
-    setFamilyMediaFocusRequest(null);
+    setFamilyMediaFocusRequest((current) => current?.historicalContact ? current : null);
     setIsContactsOpen(false);
     setIsAlbumPageOpen(true);
   };
@@ -617,7 +663,7 @@ export default function App() {
       location: "社区多功能助老俱乐部（同步直播）",
       spotsLeft: 7,
       tag: "健康膳食",
-      imageUrl: "./assets/community-live-preview.jpg",
+      imageUrl: "/assets/community-live-preview.jpg",
       description: "社区健康老师介绍夏季饮食搭配和常见食材选择。",
       contact: "010-6258 8890",
       status: "ongoing",
@@ -878,12 +924,13 @@ export default function App() {
     const defaults = createDefaultReminders();
     const markMessagesRead = createDefaultMessages().map((message) => ({ ...message, played: true }));
     setAcceptanceRightContentScenario(scenario);
+    setAcceptanceRightContentCondition("relationship-valid");
     setAcceptanceRightContentApplySignal(0);
     setAcceptanceRightContentActionSignal(0);
     setAcceptanceEntertainmentFailureSignal(0);
     setMissedCallCount(scenario === "missed-call" ? 2 : 0);
     setUnreadFamilyMedia(
-      scenario === "new-album" || scenario === "new-album-invalid-relation"
+      scenario === "new-album"
         ? ["photo-snowman-message", "video-1"]
         : scenario === "time-and-family"
           ? ["photo-snowman-message"]
@@ -892,7 +939,7 @@ export default function App() {
     setMessages(
       scenario === "new-message" || scenario === "interaction-locked"
         ? createDefaultMessages().map((message, index) => ({ ...message, played: index > 2 }))
-        : scenario === "new-album" || scenario === "new-album-invalid-relation"
+        : scenario === "new-album"
           ? markMessagesRead.map((message) => ({
               ...message,
               played: message.familyMediaId
@@ -905,10 +952,10 @@ export default function App() {
     );
 
     if (scenario === "p1-due") {
-      setAcceptanceTimeOverride("13:00");
+      setAcceptanceTimeOverride("2026-09-18T13:00:00+08:00");
       setReminders(defaults);
     } else if (scenario === "medication-upcoming" || scenario === "medication-grouped") {
-      setAcceptanceTimeOverride("12:40");
+      setAcceptanceTimeOverride("2026-09-18T12:40:00+08:00");
       setReminders(scenario === "medication-grouped"
         ? [
             ...defaults,
@@ -936,10 +983,10 @@ export default function App() {
         ? { ...reminder, status: "expired" as const }
         : reminder));
     } else if (scenario === "schedule-due") {
-      setAcceptanceTimeOverride("17:00");
+      setAcceptanceTimeOverride("2026-09-18T17:00:00+08:00");
       setReminders(defaults);
     } else if (scenario === "schedule-upcoming" || scenario === "schedule-grouped") {
-      setAcceptanceTimeOverride("16:40");
+      setAcceptanceTimeOverride("2026-09-18T16:40:00+08:00");
       setReminders(scenario === "schedule-grouped"
         ? [
             ...defaults,
@@ -968,32 +1015,33 @@ export default function App() {
         ? { ...reminder, status: "expired" as const }
         : reminder));
     } else if (scenario === "activity-started") {
-      setAcceptanceTimeOverride("13:10");
+      setAcceptanceTimeOverride("2026-09-18T13:10:00+08:00");
       setReminders(defaults);
     } else if (scenario === "activity-upcoming") {
-      setAcceptanceTimeOverride("12:40");
+      setAcceptanceTimeOverride("2026-09-18T12:40:00+08:00");
       setReminders(defaults);
     } else if (scenario === "activity-updated" || scenario === "activity-cancelled") {
-      setAcceptanceTimeOverride("13:10");
+      setAcceptanceTimeOverride("2026-09-18T13:10:00+08:00");
       setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
     } else if (scenario === "reminder-daytime") {
-      setAcceptanceTimeOverride("14:00");
+      setAcceptanceTimeOverride("2026-09-18T14:00:00+08:00");
       setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
     } else if (scenario === "reminder-nighttime") {
-      setAcceptanceTimeOverride("22:30");
+      setAcceptanceTimeOverride("2026-09-18T22:30:00+08:00");
       setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
     } else if (scenario === "next-day-exit") {
       setAcceptanceTimeOverride("2026-09-16T00:00:00+08:00");
       setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
     } else if (scenario === "time-and-family") {
-      setAcceptanceTimeOverride("12:40");
+      setAcceptanceTimeOverride("2026-09-18T12:40:00+08:00");
       setReminders(defaults);
     } else {
-      setAcceptanceTimeOverride("10:00");
+      setAcceptanceTimeOverride("2026-09-18T10:00:00+08:00");
       setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
     }
     setAcceptanceRevision((revision) => revision + 1);
     showHomeForAcceptance();
+    setFamilyMediaFocusRequest(null);
     if (scenario === "p1-due") {
       setHomeReminderAlert({
         reminderId: "med-2",
@@ -1061,18 +1109,33 @@ export default function App() {
     setIsCommunityStaffOpen(true);
   };
 
+  const resetActivationScenario = (scenario: ActivationAcceptanceScenario = acceptanceActivationScenario) => {
+    setAcceptanceActivationScenario(scenario);
+    setActivationContractState(createInitialActivationContractState());
+    setActivationResetSignal((signal) => signal + 1);
+    window.localStorage.removeItem("u2g-tablet-activated-v1");
+    setIsDeviceActivated(false);
+  };
+
   const resetAcceptanceState = () => {
     showHomeForAcceptance();
+    window.localStorage.setItem("u2g-tablet-activated-v1", "true");
+    setIsDeviceActivated(true);
     setAcceptanceTimeOverride(null);
     setAcceptanceAlbumScenario("default");
     setFamilyMediaViewedAt(createInitialFamilyMediaViewedAt());
     setAcceptanceHeartScenario("not-liked");
     setAcceptanceReminderScenario("default");
     setAcceptanceRightContentScenario("default");
+    setAcceptanceRightContentCondition("relationship-valid");
+    setFamilyMediaFocusRequest(null);
     setAcceptanceCommunityScenario("default");
     setAcceptanceSpecialServicesScenario("default");
     setAcceptanceCommunityStaffScenario("multiple");
     setAcceptanceServiceConversationScenario("off");
+    setAcceptanceActivationScenario("success");
+    setActivationContractState(createInitialActivationContractState());
+    setActivationResetSignal((signal) => signal + 1);
     setCommunityLifeAcceptanceScenario("default");
     setCommunityActivityAcceptanceScenario("default");
     setAcceptanceRightContentApplySignal(0);
@@ -1177,21 +1240,74 @@ export default function App() {
     setHomeReminderAlert(null);
   };
 
-  if (!isDeviceActivated) {
-    return (
-      <TabletSimulator>
-        <ActivationFlow
-          onComplete={() => {
-            window.localStorage.setItem("u2g-tablet-activated-v1", "true");
-            setIsDeviceActivated(true);
-          }}
-        />
-      </TabletSimulator>
-    );
-  }
+  const renderAcceptanceConsole = () => (
+    <InteractionAcceptanceConsole
+      weatherScenario={familyWeatherScenario}
+      albumScenario={acceptanceAlbumScenario}
+      heartScenario={acceptanceHeartScenario}
+      reminderScenario={acceptanceReminderScenario}
+      rightContentScenario={acceptanceRightContentScenario}
+      rightContentCondition={acceptanceRightContentCondition}
+      communityScenario={acceptanceCommunityScenario}
+      serviceScenario={acceptanceSpecialServicesScenario}
+      communityStaffScenario={acceptanceCommunityStaffScenario}
+      serviceConversationScenario={acceptanceServiceConversationScenario}
+      activationScenario={acceptanceActivationScenario}
+      activationContractState={activationContractState}
+      onShowHome={showHomeForAcceptance}
+      onShowAlbum={() => {
+        showHomeForAcceptance();
+        setIsAlbumPageOpen(true);
+      }}
+      onShowReminders={() => {
+        showHomeForAcceptance();
+        setIsSchedulePageOpen(true);
+      }}
+      onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
+      onShowServices={() => openAcceptanceSpecialServicesScenario(acceptanceSpecialServicesScenario)}
+      onShowCommunityStaff={() => openAcceptanceCommunityStaffScenario(acceptanceCommunityStaffScenario)}
+      onShowContacts={(scenario) => {
+        showHomeForAcceptance();
+        setIsContactsOpen(true);
+        if (scenario === "call-timeout") setAcceptanceServiceConversationActionSignal((signal) => signal + 1);
+      }}
+      onSetWeatherScenario={handleAcceptanceWeatherScenario}
+      onOpenWeatherScenario={openAcceptanceWeatherScenario}
+      onSetAlbumScenario={handleAcceptanceAlbumScenario}
+      onSetHeartScenario={setAcceptanceHeartScenario}
+      onSetReminderScenario={setAcceptanceReminderScenario}
+      onSetRightContentScenario={handleAcceptanceRightContentScenario}
+      onSetRightContentCondition={setAcceptanceRightContentCondition}
+      onSetCommunityScenario={openAcceptanceCommunityScenario}
+      onSetServiceScenario={openAcceptanceSpecialServicesScenario}
+      onSetCommunityStaffScenario={openAcceptanceCommunityStaffScenario}
+      onSetServiceConversationScenario={setAcceptanceServiceConversationScenario}
+      onSetActivationScenario={resetActivationScenario}
+      onActivateRightContent={() => {
+        setAcceptanceEntertainmentFailureSignal(0);
+        setAcceptanceRightContentActionSignal((signal) => signal + 1);
+      }}
+      onOpenEntertainmentFailure={() => {
+        handleAcceptanceRightContentScenario("third-party-entertainment");
+        setAcceptanceEntertainmentFailureSignal((signal) => signal + 1);
+        setIsEntertainmentHubOpen(true);
+      }}
+      onApplyRightContentUpdate={() => setAcceptanceRightContentApplySignal((signal) => signal + 1)}
+      onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
+      onHomeCommand={sendAcceptanceCommand}
+      onOpenEmergencyScenario={openAcceptanceEmergencyScenario}
+      onOpenActivation={() => {
+        window.localStorage.removeItem("u2g-tablet-activated-v1");
+        setIsDeviceActivated(false);
+      }}
+      onResetActivation={() => resetActivationScenario()}
+      onReset={resetAcceptanceState}
+    />
+  );
 
   return (
     <>
+      {isDeviceActivated ? (
       <TabletSimulator>
         <div className="relative w-full h-full overflow-hidden">
           <ControlCenterHome
@@ -1216,7 +1332,10 @@ export default function App() {
               setIsAlbumPageOpen(true);
             }}
             onOpenFamilyMediaReminder={openFamilyMediaReminder}
-            onOpenMessages={() => setIsContactsOpen(true)}
+            onOpenMessages={(sender) => {
+              setContactsInitialSender(sender ?? null);
+              setIsContactsOpen(true);
+            }}
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
             onOpenCommunity={() => {
               setHomeRecommendationKind(null);
@@ -1309,13 +1428,15 @@ export default function App() {
           isOpen={isContactsOpen}
           onClose={() => {
             setIsContactsOpen(false);
-            setFamilyMediaFocusRequest(null);
+            setContactsInitialSender(null);
+            setFamilyMediaFocusRequest((current) => current?.historicalContact ? current : null);
           }}
           hasBoundFamily={hasBoundFamily}
           messages={messages}
           missedCallCount={missedCallCount}
           acceptanceScenario={acceptanceServiceConversationScenario}
           acceptanceActionSignal={acceptanceServiceConversationActionSignal}
+          initialContactName={contactsInitialSender}
           familyMediaFocusRequest={familyMediaFocusRequest}
           onFamilyMediaViewed={markFamilyMediaViewed}
           onOpenFamilyMedia={openFamilyMediaDetail}
@@ -1521,69 +1642,26 @@ export default function App() {
 
         </div>
       </TabletSimulator>
-      {familyMediaOpenError && (
+      ) : (
+        <TabletSimulator>
+          <ActivationFlow
+            scenario={acceptanceActivationScenario}
+            contractState={activationContractState}
+            resetSignal={activationResetSignal}
+            onActivationCommitted={() => setActivationContractState(completeActivationContractState())}
+            onComplete={() => {
+              window.localStorage.setItem("u2g-tablet-activated-v1", "true");
+              setIsDeviceActivated(true);
+            }}
+          />
+        </TabletSimulator>
+      )}
+      {isDeviceActivated && familyMediaOpenError && (
         <div className="family-media-open-error" role="status" aria-live="polite">
           {familyMediaOpenError}
         </div>
       )}
-      <InteractionAcceptanceConsole
-        weatherScenario={familyWeatherScenario}
-        albumScenario={acceptanceAlbumScenario}
-        heartScenario={acceptanceHeartScenario}
-        reminderScenario={acceptanceReminderScenario}
-        rightContentScenario={acceptanceRightContentScenario}
-        communityScenario={acceptanceCommunityScenario}
-        serviceScenario={acceptanceSpecialServicesScenario}
-        communityStaffScenario={acceptanceCommunityStaffScenario}
-        serviceConversationScenario={acceptanceServiceConversationScenario}
-        onShowHome={showHomeForAcceptance}
-        onShowAlbum={() => {
-          showHomeForAcceptance();
-          setIsAlbumPageOpen(true);
-        }}
-        onShowReminders={() => {
-          showHomeForAcceptance();
-          setIsSchedulePageOpen(true);
-        }}
-        onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
-        onShowServices={() => openAcceptanceSpecialServicesScenario(acceptanceSpecialServicesScenario)}
-        onShowCommunityStaff={() => openAcceptanceCommunityStaffScenario(acceptanceCommunityStaffScenario)}
-        onShowContacts={(scenario) => {
-          showHomeForAcceptance();
-          setIsContactsOpen(true);
-          if (scenario === "call-timeout") {
-            setAcceptanceServiceConversationActionSignal((signal) => signal + 1);
-          }
-        }}
-        onSetWeatherScenario={handleAcceptanceWeatherScenario}
-        onOpenWeatherScenario={openAcceptanceWeatherScenario}
-        onSetAlbumScenario={handleAcceptanceAlbumScenario}
-        onSetHeartScenario={setAcceptanceHeartScenario}
-        onSetReminderScenario={setAcceptanceReminderScenario}
-        onSetRightContentScenario={handleAcceptanceRightContentScenario}
-        onSetCommunityScenario={openAcceptanceCommunityScenario}
-        onSetServiceScenario={openAcceptanceSpecialServicesScenario}
-        onSetCommunityStaffScenario={openAcceptanceCommunityStaffScenario}
-        onSetServiceConversationScenario={setAcceptanceServiceConversationScenario}
-        onActivateRightContent={() => {
-          setAcceptanceEntertainmentFailureSignal(0);
-          setAcceptanceRightContentActionSignal((signal) => signal + 1);
-        }}
-        onOpenEntertainmentFailure={() => {
-          handleAcceptanceRightContentScenario("third-party-entertainment");
-          setAcceptanceEntertainmentFailureSignal((signal) => signal + 1);
-          setIsEntertainmentHubOpen(true);
-        }}
-        onApplyRightContentUpdate={() => setAcceptanceRightContentApplySignal((signal) => signal + 1)}
-        onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
-        onHomeCommand={sendAcceptanceCommand}
-        onOpenEmergencyScenario={openAcceptanceEmergencyScenario}
-        onOpenActivation={() => {
-          window.localStorage.removeItem("u2g-tablet-activated-v1");
-          setIsDeviceActivated(false);
-        }}
-        onReset={resetAcceptanceState}
-      />
+      {renderAcceptanceConsole()}
     </>
   );
 }

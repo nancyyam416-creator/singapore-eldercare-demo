@@ -187,11 +187,11 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
       <div className="min-h-full bg-slate-50 p-4 pb-8">
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setProfileView('main')} className="rounded-full bg-white p-2 text-slate-600 shadow-xs" aria-label="返回"><ArrowLeft size={18} /></button>
-          <div><h2 className="text-base font-black text-slate-900">常住地址</h2><p className="text-[10px] text-slate-500">完善个人资料，便于家庭成员识别</p></div>
+          <div><h2 className="text-base font-black text-slate-900">我的常住地址</h2><p className="text-[10px] text-slate-500">填写您作为子女本人的居住地址</p></div>
         </div>
         <div className="mt-5 space-y-4">
           <label className="block rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-700">详细地址</span><textarea value={draftAddress} onChange={event => setDraftAddress(event.target.value)} rows={4} maxLength={120} placeholder="请输入国家、城市及详细地址" className="mt-3 w-full resize-none rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-900 outline-none focus:ring-2 focus:ring-blue-100" /><span className="mt-2 block text-right text-[10px] text-slate-400">{draftAddress.length}/120</span></label>
-          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">常住地址属于个人资料，可随时修改。家庭成员仅在获得相应权限后查看。</p>
+          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">此处保存的是子女本人的常住地址，不是老人的居住地址。修改后不会更改老人的地址。</p>
           <button type="button" disabled={!draftAddress.trim()} onClick={saveAddress} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400">保存地址</button>
         </div>
       </div>
@@ -235,6 +235,18 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
         </div>
       </section>
 
+      <section aria-labelledby="personal-information-heading" className="space-y-3">
+        <h2 id="personal-information-heading" className="px-1 text-sm font-extrabold text-slate-900">个人资料</h2>
+        <button type="button" onClick={openAddressEditor} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><MapPin size={19} /></span>
+          <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">我的常住地址</strong><span className="mt-1 block text-xs text-slate-500">子女本人居住地址</span><span className="mt-1 block truncate text-xs text-slate-500">{residenceAddress || '待完善'}</span></span>
+          <ChevronRight size={17} className="text-slate-300" />
+        </button>
+        {addressSaved && <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-700"><CheckCircle size={15} />我的常住地址已更新</div>}
+      </section>
+
+      <section aria-labelledby="family-management-heading" className="space-y-3">
+        <h2 id="family-management-heading" className="px-1 text-sm font-extrabold text-slate-900">家人管理</h2>
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <Link2 size={16} className="text-blue-600" />
@@ -274,19 +286,12 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
         </div>
       </section>
 
-      <button type="button" onClick={openAddressEditor} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><MapPin size={19} /></span>
-        <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">常住地址</strong><span className="mt-1 block truncate text-xs text-slate-500">{residenceAddress || '待完善'}</span></span>
-        <ChevronRight size={17} className="text-slate-300" />
-      </button>
-
-      {addressSaved && <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-700"><CheckCircle size={15} />常住地址已更新</div>}
-
       <button type="button" onClick={onOpenReminders} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><BellRing size={19} aria-hidden="true" /></span>
-        <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">提醒事项</strong><span className="mt-1 block text-xs text-slate-500">管理老人的用药与日常提醒</span></span>
+        <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">给老人设置提醒</strong><span className="mt-1 block text-xs text-slate-500">在老人中控屏提醒用药和日常事项</span></span>
         <ChevronRight size={17} className="text-slate-300" />
       </button>
+      </section>
 
       <button
         type="button"
