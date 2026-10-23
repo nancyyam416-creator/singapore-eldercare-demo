@@ -21,6 +21,7 @@ import {
   weatherMockApi,
 } from "./weatherMock";
 import { AcceptanceWorkbench } from "./AcceptanceWorkbench";
+import { ComponentCenter } from "./ComponentCenter";
 import { AdminConfirm } from "./AdminOverlay";
 import {
   CommunityMembersPage,
@@ -1649,6 +1650,7 @@ function ProjectPage({ projects, members, roles, onSave, onToggle, onSaveMember,
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(undefined);
   const [memberProjectId, setMemberProjectId] = useState("");
+  const [toggleTarget, setToggleTarget] = useState(null);
   const filtered = projects.filter((project) => `${project.name}${project.contact}`.toLowerCase().includes(query.trim().toLowerCase()));
   const memberProject = projects.find((project) => project.id === memberProjectId);
   return (
@@ -1657,12 +1659,22 @@ function ProjectPage({ projects, members, roles, onSave, onToggle, onSaveMember,
       <section className="panel management-panel project-management">
         <div className="filters"><label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="社区名称或联系人"/></div></label></div>
         <div className="table-scroll"><table className="project-table"><thead><tr><th>社区名称</th><th>项目位置</th><th>联系人</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-          {filtered.map((project) => <tr key={project.id}><td><div className="project-name-cell"><span><Building2 size={17}/></span><div><b>{project.name}</b></div></div></td><td><div className="stacked-cell"><b>{project.address || "地址待补充"}</b><small>{project.country || "国家/地区待补充"}</small></div></td><td><div className="stacked-cell"><b>{project.contact || "待补充"}</b><small>{project.phone || "电话待补充"}</small></div></td><td><StatusTag>{project.status}</StatusTag></td><td className="sticky-right project-actions"><button className="table-action" onClick={() => setMemberProjectId(project.id)}>成员管理</button><button className="table-action" onClick={() => setEditing(project)}>编辑</button><button className={`table-action ${project.status === "启用" ? "danger-text" : ""}`} onClick={() => onToggle(project.id)}>{project.status === "启用" ? "停用" : "启用"}</button></td></tr>)}
+          {filtered.map((project) => <tr key={project.id}><td><div className="project-name-cell"><span><Building2 size={17}/></span><div><b>{project.name}</b></div></div></td><td><div className="stacked-cell"><b>{project.address || "地址待补充"}</b><small>{project.country || "国家/地区待补充"}</small></div></td><td><div className="stacked-cell"><b>{project.contact || "待补充"}</b><small>{project.phone || "电话待补充"}</small></div></td><td><StatusTag>{project.status}</StatusTag></td><td className="sticky-right project-actions"><button className="table-action" onClick={() => setMemberProjectId(project.id)}>成员管理</button><button className="table-action" onClick={() => setEditing(project)}>编辑</button><button className={`table-action ${project.status === "启用" ? "danger-text" : ""}`} onClick={() => setToggleTarget(project)}>{project.status === "启用" ? "停用" : "启用"}</button></td></tr>)}
         </tbody></table></div>
         <div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div>
       </section>
       {editing !== undefined && <ProjectDrawer project={editing} adminMember={members.find((member) => member.projectId === editing?.id && roles.find((role) => role.id === member.roleId)?.isAdmin)} allMembers={members} onClose={() => setEditing(undefined)} onSave={(project, adminMember) => { onSave(project, adminMember); setEditing(undefined); }}/>}
       {memberProject && <CommunityMembersPage currentProject={memberProject} projects={projects} roles={roles} users={members} onClose={() => setMemberProjectId("")} onSave={onSaveMember} onToggle={onToggleMember}/>}
+      {toggleTarget && <AdminConfirm
+        title={`确认${toggleTarget.status === "启用" ? "停用" : "启用"}「${toggleTarget.name}」？`}
+        description={toggleTarget.status === "启用" ? "停用后该社区运营入口不可用，相关社区后台用户不能继续进入该社区。" : "启用后将恢复该社区的运营入口及相关后台账号访问。"}
+        impacts={toggleTarget.status === "启用" ? ["老人档案、设备绑定和历史业务记录保留，不做删除。", "后续可通过重新启用恢复运营入口。"] : []}
+        danger={toggleTarget.status === "启用"}
+        confirmLabel={`确认${toggleTarget.status === "启用" ? "停用" : "启用"}`}
+        loadingLabel={`${toggleTarget.status === "启用" ? "停用" : "启用"}中…`}
+        onClose={() => setToggleTarget(null)}
+        onConfirm={async () => { await onToggle(toggleTarget.id); setToggleTarget(null); }}
+      />}
     </>
   );
 }
@@ -2973,7 +2985,7 @@ function AuditLogDetailDrawer({ record, onClose }) {
   return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭日志详情" onClick={onClose}/><aside className="drawer audit-log-drawer" role="dialog" aria-modal="true" aria-label="操作日志详情"><header><div><h2>日志详情</h2></div><button className="icon-button" aria-label="关闭" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><section className="detail-section"><h3>操作信息</h3><div className="info-grid"><div><span>操作时间</span><b>{record.time}</b></div><div><span>操作结果</span><b className={`audit-result ${record.result === "成功" ? "success" : "failed"}`}>{record.result}</b></div><div><span>操作人</span><b>{record.operator}</b></div><div><span>所属账号 / 角色</span><b>{record.accountRole}</b></div><div><span>功能模块</span><b>{record.module}</b></div><div><span>操作类型</span><b>{record.action}</b></div><div className="full"><span>操作对象</span><b>{record.target}</b></div><div className="full"><span>IP / 终端</span><b>{record.client}</b></div></div></section><section className="detail-section"><h3>变更摘要</h3><div className="audit-change-grid"><div><span>变更前</span><p>{record.before}</p></div><div><span>变更后</span><p>{record.after}</p></div></div></section><section className="detail-section"><h3>操作摘要</h3><p className="audit-summary-detail">{record.summary}</p>{record.failureReason && <div className="audit-failure-note"><b>失败原因</b><p>{record.failureReason}</p></div>}</section></div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
 }
 
-function OperationLogPage() {
+function OperationLogPage({ records = initialPlatformAuditLogs }) {
   const [query, setQuery] = useState("");
   const [operator, setOperator] = useState("");
   const [module, setModule] = useState("全部模块");
@@ -2982,9 +2994,9 @@ function OperationLogPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selected, setSelected] = useState(null);
-  const modules = [...new Set(initialPlatformAuditLogs.map((record) => record.module))];
-  const actions = [...new Set(initialPlatformAuditLogs.map((record) => record.action))];
-  const filtered = initialPlatformAuditLogs.filter((record) => {
+  const modules = [...new Set(records.map((record) => record.module))];
+  const actions = [...new Set(records.map((record) => record.action))];
+  const filtered = records.filter((record) => {
     const keyword = query.trim().toLowerCase();
     const keywordMatched = !keyword || `${record.operator}${record.target}`.toLowerCase().includes(keyword);
     const operatorMatched = !operator.trim() || record.operator.includes(operator.trim());
@@ -3055,7 +3067,6 @@ function CareScriptManagementPage({ scripts, onEdit, onToggle }) {
         <label><span>状态</span><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>启用</option><option>停用</option><option>未配置</option></select></label>
         <div className="filter-actions"><button className="primary-button"><Search size={15}/>查询</button><button className="secondary-button" onClick={() => { setQuery(""); setStatus("全部状态"); }}><RefreshCw size={15}/>重置</button></div>
       </div>
-      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 种天气情况</span><span className="toolbar-hint">相同天气情况再次维护时直接编辑当前记录，不新增重复话术</span></div></div>
       <div className="table-scroll"><table className="care-script-table"><thead><tr><th>天气情况</th><th>当前话术</th><th>变量预览</th><th>版本</th><th>状态</th><th>最后更新</th><th className="sticky-right">操作</th></tr></thead><tbody>
         {rows.map((item) => <tr key={item.code}><td><div className="care-weather-cell"><span><CloudSun size={17}/></span><div><b>{item.name}</b><small>{item.description}</small></div></div></td><td>{item.script ? <p className="care-script-copy">{item.script.template}</p> : <span className="muted-value">尚未配置话术</span>}</td><td>{item.script ? <p className="care-script-preview-text">{careScriptMockApi.renderTemplate(item.script.template, previewVariables)}</p> : "—"}</td><td>{item.script ? `V${item.script.version}` : "—"}</td><td>{item.script ? <button type="button" role="switch" aria-checked={item.script.status === "启用"} className={`strategy-status-switch ${item.script.status === "启用" ? "active" : ""}`} onClick={() => onToggle(item.script.weatherCode)}><i/><span>{item.script.status}</span></button> : <StatusTag>未配置</StatusTag>}</td><td>{item.script ? <div className="stacked-cell"><b>{item.script.updatedAt}</b><small>{item.script.operator}</small></div> : "—"}</td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item, item.script)}>{item.script ? "编辑" : "配置"}</button></td></tr>)}
         {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">没有符合条件的天气情况</div></td></tr>}
@@ -3375,6 +3386,9 @@ function CreateDrawer({ page, onClose }) {
 }
 
 export function App() {
+  const acceptanceParams = new URLSearchParams(window.location.search);
+  const acceptanceMode = import.meta.env.DEV && acceptanceParams.has("acceptance");
+  const componentCenterMode = acceptanceMode && acceptanceParams.has("component-center");
   const [platformMode, setPlatformMode] = useState("community");
   const [active, setActive] = useState("overview");
   const [overviewScenario, setOverviewScenario] = useState("normal");
@@ -3410,6 +3424,14 @@ export function App() {
       });
     } catch {
       return initialProjects;
+    }
+  });
+  const [operationLogs, setOperationLogs] = useState(() => {
+    try {
+      const savedLogs = window.localStorage.getItem("u2g-platform-operation-logs-v1");
+      return savedLogs ? JSON.parse(savedLogs) : initialPlatformAuditLogs;
+    } catch {
+      return initialPlatformAuditLogs;
     }
   });
   const [tabletDevices, setTabletDevices] = useState(() => {
@@ -3738,6 +3760,10 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem("u2g-projects", JSON.stringify(projects));
   }, [projects]);
+
+  useEffect(() => {
+    window.localStorage.setItem("u2g-platform-operation-logs-v1", JSON.stringify(operationLogs));
+  }, [operationLogs]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-tablet-devices", JSON.stringify(tabletDevices));
@@ -4202,8 +4228,20 @@ export function App() {
     }
   };
 
-  const toggleProject = (id) => {
-    setProjects((items) => items.map((project) => project.id === id ? { ...project, status: project.status === "启用" ? "停用" : "启用" } : project));
+  const toggleProject = async (id) => {
+    const project = projects.find((item) => item.id === id);
+    if (!project) throw new Error("社区不存在或已被移除，请刷新后重试。");
+    const previousStatus = project.status;
+    const nextStatus = previousStatus === "启用" ? "停用" : "启用";
+    const operatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    if (project.statusChangeFailureOnce) {
+      setProjects((items) => items.map((item) => item.id === id ? { ...item, statusChangeFailureOnce: false } : item));
+      setOperationLogs((items) => [{ id: `LOG-${Date.now()}`, time: operatedAt, operator: "赵亚男", accountRole: "platform.admin / 平台管理员", module: "项目与社区", action: nextStatus === "停用" ? "停用" : "启用", target: project.name, summary: `${nextStatus}社区运营入口`, result: "失败", client: "10.10.2.18 · Chrome / macOS", before: `状态：${previousStatus}`, after: "无变更", failureReason: "状态更新失败，请重试" }, ...items]);
+      throw new Error("状态更新失败，原状态已保留，请重试。");
+    }
+    setProjects((items) => items.map((item) => item.id === id ? { ...item, status: nextStatus } : item));
+    setOperationLogs((items) => [{ id: `LOG-${Date.now()}`, time: operatedAt, operator: "赵亚男", accountRole: "platform.admin / 平台管理员", module: "项目与社区", action: nextStatus === "停用" ? "停用" : "启用", target: project.name, summary: `${nextStatus}社区运营入口`, result: "成功", client: "10.10.2.18 · Chrome / macOS", before: `状态：${previousStatus}`, after: `状态：${nextStatus}`, failureReason: "" }, ...items]);
   };
 
   const saveCommunityMember = (member) => {
@@ -4389,7 +4427,7 @@ export function App() {
                     : active === "leisureEntertainment"
                       ? <LeisureEntertainmentPage entries={leisureEntertainmentEntries} onChange={setLeisureEntertainmentEntries} scenario={leisureEntertainmentScenario} resetSignal={acceptanceResetSignal} onDirtyChange={setLeisureEntertainmentDirty}/>
                     : active === "logs"
-                      ? <OperationLogPage/>
+                      ? <OperationLogPage records={operationLogs}/>
                     : <ManagementPage page={active} onCreate={() => setDrawer({ kind: "generic" })}/>}
         </main>
       </div>
@@ -4434,7 +4472,8 @@ export function App() {
       {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.name}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
       {pendingNavigation && <div className="modal-layer"><button className="modal-backdrop" aria-label="继续编辑" onClick={() => setPendingNavigation(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="离开休闲娱乐配置"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>离开当前页面？</h3><p>当前休闲娱乐配置尚未保存。离开后，本次修改将不会保留。</p><div><button className="secondary-button" onClick={() => setPendingNavigation(null)}>继续编辑</button><button className="danger-button" onClick={confirmPendingNavigation}>放弃修改并离开</button></div></section></div>}
-      {import.meta.env.DEV && new URLSearchParams(window.location.search).has("acceptance") && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
+      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
+      {componentCenterMode && <ComponentCenter/>}
     </div>
   );
 }

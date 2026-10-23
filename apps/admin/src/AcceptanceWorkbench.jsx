@@ -1,4 +1,4 @@
-import { ChevronDown, FlaskConical, GripHorizontal, RefreshCw, X } from "lucide-react";
+import { Boxes, ChevronDown, FlaskConical, GripHorizontal, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const VIEWPORT_MARGIN = 8;
@@ -176,7 +176,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
             {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
           </div>
-          <footer><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>
+          <footer><a className="acceptance-component-center-link" href="?acceptance&component-center"><Boxes size={14}/>后台组件中心</a><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>
         </aside>
       )}
     </div>
