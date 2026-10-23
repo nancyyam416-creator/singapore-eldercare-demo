@@ -70,8 +70,8 @@
 
 .sos-button {
   justify-self: end;
-  min-width: 160px;
-  height: 58px;
+  min-width: 190px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -81,13 +81,13 @@
   color: var(--color-text);
   background: var(--color-red-deep);
   box-shadow: 0 0 28px color-mix(in oklch, var(--color-red), transparent 55%);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 850;
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-normal) var(--ease-out);
 }
 .sos-button:hover { background: var(--color-red); }
-.sos-button svg { width: 27px; height: 27px; fill: currentColor; }
+.sos-button svg { width: 29px; height: 29px; fill: currentColor; }
 
 .control-workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1440px) minmax(0, 480px); }
 .family-stage { position: relative; overflow: hidden; background: var(--color-canvas-deep); }

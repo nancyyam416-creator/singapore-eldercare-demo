@@ -1,5 +1,6 @@
-import { ArrowDown, ArrowUp, Plus, Trash2, Upload, UserRound, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2, Upload, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AdminDrawer } from "./AdminOverlay";
 
 const createPortrait = (background, shirt, skin, hair) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
@@ -130,15 +131,16 @@ export function CommunityStaffDrawer({ record, currentProject, nextDisplayOrder 
     onSave({ ...form, displayName: form.displayName.trim(), englishName: form.englishName.trim(), role: form.role.trim(), phones, email: form.email.trim(), serviceLocations: locations, displayOrder: Number(form.displayOrder) });
   };
 
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer community-staff-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑社区人员" : "新增社区人员"}>
-    <header><div><h2>{record ? "编辑社区人员" : "新增社区人员"}</h2><p>{currentProject?.community} · 面向当前社区老人展示，不创建登录账号</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
-    <div className="drawer-body">
+  return <AdminDrawer
+    title={record ? "编辑社区人员" : "新增社区人员"}
+    className="community-staff-drawer"
+    onClose={onClose}
+    footer={<><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={submit}>保存人员</button></>}
+  >
       <div className="form-section community-staff-photo-section"><h3>人员照片</h3><div className="staff-photo-editor"><StaffAvatar record={form} size="large"/><div><b>{form.photo ? "已选择人员照片" : "未上传时使用默认头像"}</b><p>可选择预设头像或上传本地图片</p><div className="staff-photo-actions">{Object.entries(staffPortraits).map(([key, photo]) => <button key={key} type="button" className={form.photo === photo ? "selected" : ""} onClick={() => update("photo", photo)}><img src={photo} alt="人员照片"/></button>)}<label className="secondary-button"><Upload size={14}/>本地图片<input type="file" accept="image/*" onChange={chooseLocalImage}/></label>{form.photo && <button type="button" className="text-button" onClick={() => update("photo", "")}>移除照片</button>}</div></div></div></div>
       <div className="form-section"><h3>基础信息</h3><label><span>显示姓名 *</span><input value={form.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="请输入老人端展示姓名"/>{errors.displayName && <small className="field-error">{errors.displayName}</small>}</label><div className="form-row"><label><span>英文名</span><input value={form.englishName} onChange={(event) => update("englishName", event.target.value)} placeholder="选填"/></label><label><span>职务 / 身份</span><input value={form.role} onChange={(event) => update("role", event.target.value)} placeholder="例如：社区服务负责人"/></label></div><label><span>邮箱</span><input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} placeholder="选填；未填写时老人端不展示邮箱行"/>{errors.email && <small className="field-error">{errors.email}</small>}</label></div>
       <div className="form-section"><h3>联系电话 *</h3><label><input value={form.phones[0] || ""} onChange={(event) => updatePhone(event.target.value)} placeholder="例如：+65 6273 2288"/>{errors.phones && <small className="field-error">{errors.phones}</small>}</label></div>
       <div className="form-section staff-repeat-section"><div className="form-section-heading"><div><h3>服务时间 *</h3><p>人员默认服务当前社区，只需维护对外服务时间</p></div><button type="button" className="secondary-button" onClick={() => update("serviceLocations", [...form.serviceLocations, blankLocation()])}><Plus size={14}/>添加时间</button></div>{form.serviceLocations.map((location, index) => <section className="staff-location-card" key={`location-${index}`}><div className="staff-location-heading"><b>服务时间 {index + 1}</b><button type="button" aria-label="移除服务时间" disabled={form.serviceLocations.length === 1} onClick={() => update("serviceLocations", form.serviceLocations.filter((_, locationIndex) => locationIndex !== index))}><Trash2 size={15}/></button></div><label><span>时间说明</span><input value={location.serviceHours} onChange={(event) => updateLocation(index, "serviceHours", event.target.value)} placeholder="例如：每周一 19:00–21:00"/></label></section>)}{errors.serviceLocations && <small className="field-error">{errors.serviceLocations}</small>}</div>
       <div className="form-section"><h3>展示设置</h3><label><span>展示顺序 *</span><input type="number" min="1" step="1" value={form.displayOrder} onChange={(event) => update("displayOrder", Number(event.target.value))}/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><div className="staff-enabled-options"><button type="button" className={form.enabled ? "selected" : ""} onClick={() => update("enabled", true)}><b>启用</b><span>按展示顺序出现在老人端</span></button><button type="button" className={!form.enabled ? "selected" : ""} onClick={() => update("enabled", false)}><b>停用</b><span>保留配置，老人端不展示</span></button></div></div>
-    </div>
-    <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={submit}>保存人员</button></footer>
-  </aside></div>;
+  </AdminDrawer>;
 }

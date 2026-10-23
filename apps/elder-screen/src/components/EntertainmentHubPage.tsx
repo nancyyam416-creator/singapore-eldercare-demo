@@ -3,16 +3,12 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentType,
 } from "react";
 import {
   CircleOff,
   LoaderCircle,
-  Music2,
   Radio,
   RefreshCw,
-  Youtube,
-  type LucideProps,
 } from "lucide-react";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import {
@@ -30,9 +26,7 @@ interface EntertainmentHubPageProps {
 }
 
 interface EntertainmentPresentation {
-  description: string;
   actionLabel: string;
-  icon: ComponentType<LucideProps>;
   tone: string;
 }
 
@@ -40,24 +34,25 @@ const CURRENT_PROJECT_ID = "PRJ-001";
 
 const entertainmentPresentation: Record<string, EntertainmentPresentation> = {
   "ENT-001": {
-    description: "观看视频和喜爱的节目",
     actionLabel: "打开 YouTube",
-    icon: Youtube,
     tone: "red",
   },
   "ENT-002": {
-    description: "收听音乐和播客内容",
     actionLabel: "打开 Spotify",
-    icon: Music2,
     tone: "green",
   },
   "ENT-003": {
-    description: "收听新加坡广播电台",
     actionLabel: "打开 MeRadio",
-    icon: Radio,
     tone: "cyan",
   },
 };
+
+function EntertainmentIcon({ entry }: { entry: EntertainmentContentMock }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [entry.iconData]);
+  if (!entry.iconData || failed) return <CircleOff aria-label="图标不可用"/>;
+  return <img src={entry.iconData} alt={`${entry.name}图标`} onError={() => setFailed(true)}/>;
+}
 
 const entertainmentPreviewImages: Record<string, { src: string; alt: string }> = {
   "ENT-001": {
@@ -138,14 +133,13 @@ export default function EntertainmentHubPage({
   if (activeEntry) {
     const presentation = entertainmentPresentation[activeEntry.id];
     const previewImage = entertainmentPreviewImages[activeEntry.id];
-    const EntryIcon = presentation?.icon ?? Radio;
     const externalHost = new URL(activeEntry.targetUrl).hostname.replace(/^www\./, "");
 
     return (
       <main className="entertainment-hub-page entertainment-hub-page--external">
         <SecondaryPageHeader
           title={activeEntry.name}
-          icon={<EntryIcon aria-hidden="true" />}
+          icon={<EntertainmentIcon entry={activeEntry}/>}
           onBack={() => setActiveEntry(null)}
           backLabel="返回休闲娱乐"
           actions={<span className="entertainment-external-badge">外部内容</span>}
@@ -162,7 +156,7 @@ export default function EntertainmentHubPage({
               className="entertainment-external-frame__fallback"
               data-tone={presentation?.tone ?? "green"}
             >
-              <span><EntryIcon aria-hidden="true" /></span>
+              <span><EntertainmentIcon entry={activeEntry}/></span>
               <strong>{activeEntry.name}</strong>
               <small>{externalHost}</small>
             </div>
@@ -188,12 +182,9 @@ export default function EntertainmentHubPage({
           </div>
         ) : activeEntries.map((entry) => {
           const presentation = entertainmentPresentation[entry.id] ?? {
-            description: "按一下打开娱乐内容",
             actionLabel: "进入",
-            icon: Radio,
             tone: "blue",
           };
-          const EntryIcon = presentation.icon;
 
           return (
             <button
@@ -204,11 +195,11 @@ export default function EntertainmentHubPage({
               onClick={() => openEntry(entry)}
             >
               <span className="entertainment-hub-card__icon">
-                <EntryIcon aria-hidden="true" />
+                <EntertainmentIcon entry={entry}/>
               </span>
               <span className="entertainment-hub-card__copy">
                 <strong>{entry.name}</strong>
-                <small>{presentation.description}</small>
+                <small>{entry.description || "按一下打开娱乐内容"}</small>
               </span>
               <span className="entertainment-hub-card__action">{presentation.actionLabel}</span>
             </button>

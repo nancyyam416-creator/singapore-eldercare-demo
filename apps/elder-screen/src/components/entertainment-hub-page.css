@@ -81,6 +81,14 @@
 
 .entertainment-hub-card__icon svg { width: 36px; height: 36px; }
 
+.entertainment-hub-card__icon img,
+.entertainment-external-frame__fallback span img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
 .entertainment-hub-card__copy {
   min-width: 0;
   display: grid;

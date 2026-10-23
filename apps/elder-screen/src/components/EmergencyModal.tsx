@@ -1,145 +1,160 @@
-import React, { useState, useEffect } from "react";
-import { CheckCircle2, RefreshCw, ShieldAlert, XCircle, Siren, UserRoundCheck, WifiOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BellRing, Check, CheckCircle2, Clock3, Headphones, PhoneCall, RefreshCw, UserRoundCheck, UsersRound, X } from "lucide-react";
+import {
+  createEmergencyAssistanceEvent,
+  type EmergencyAcceptanceScenario,
+  type EmergencyAssistanceEvent,
+  type EmergencyAssistanceStatus,
+} from "../emergency-assistance";
 
-export type EmergencyAcceptanceScenario = "default" | "connected" | "call-failure";
+export type { EmergencyAcceptanceScenario } from "../emergency-assistance";
+
+type AssistanceStage = "confirm" | "contacting" | "connected" | "callback" | "processing" | "follow-up" | "completed";
 
 interface EmergencyModalProps {
   isOpen: boolean;
   onDismiss: () => void;
   scenario?: EmergencyAcceptanceScenario;
+  event: EmergencyAssistanceEvent | null;
+  onEventChange: (event: EmergencyAssistanceEvent | null) => void;
 }
 
-export default function EmergencyModal({ isOpen, onDismiss, scenario = "default" }: EmergencyModalProps) {
-  const [countdown, setCountdown] = useState(10);
+const getInitialStage = (event: EmergencyAssistanceEvent | null): AssistanceStage => {
+  if (!event) return "confirm";
+  if (event.status === "待接听") return "contacting";
+  if (event.status === "未接通" || event.status === "待回拨") return "callback";
+  if (event.status === "需跟进") return "follow-up";
+  if (event.status === "已完成") return "completed";
+  return "processing";
+};
+
+export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-connected", event, onEventChange }: EmergencyModalProps) {
+  const [stage, setStage] = useState<AssistanceStage>("confirm");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
-    setCountdown(10);
+    setRetryCount(0);
+    setStage(getInitialStage(event));
+  }, [isOpen, scenario]);
 
-    const timer = window.setInterval(() => {
-      setCountdown((current) => {
-        if (current <= 1) {
-          window.clearInterval(timer);
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen || stage !== "contacting" || !event) return;
+    const timer = window.setTimeout(() => {
+      if (scenario === "no-answer" && retryCount === 0) {
+        onEventChange({ ...event, status: "待回拨", callCenter: { ...event.callCenter, status: "未接通", answeredAt: "" } });
+        setStage("callback");
+        return;
+      }
+      onEventChange({ ...event, status: "处理中", callCenter: { ...event.callCenter, status: "已接听", answeredAt: "2026-07-28 09:42:24" } });
+      setStage("connected");
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [event, isOpen, onEventChange, retryCount, scenario, stage]);
 
   if (!isOpen) return null;
 
-  const isResultScenario = scenario !== "default";
+  const createEvent = () => {
+    onEventChange(createEmergencyAssistanceEvent(scenario, "待接听"));
+    setStage("contacting");
+  };
+
+  const updateEventStatus = (status: EmergencyAssistanceStatus) => {
+    if (!event) return;
+    onEventChange({
+      ...event,
+      status,
+      callCenter: { ...event.callCenter, status: status === "已完成" ? "已完成" : status === "需跟进" ? "需跟进" : "处理中" },
+      completedAt: status === "已完成" ? "2026-07-28 10:06:35" : event.completedAt,
+    });
+  };
+
+  const retryContact = () => {
+    if (!event) return;
+    setRetryCount((count) => count + 1);
+    onEventChange({ ...event, status: "待接听", callCenter: { ...event.callCenter, status: "待接听" } });
+    setStage("contacting");
+  };
+
+  const deliveredCount = event?.notifications.filter((item) => item.deliveryStatus === "已送达").length ?? 0;
+  const failedCount = event?.notifications.filter((item) => item.deliveryStatus === "发送失败").length ?? 0;
+
+  if (stage === "confirm") {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#071018]/85 p-8 backdrop-blur-md select-none">
+        <section className="w-full max-w-[760px] overflow-hidden rounded-[34px] border-2 border-[#D86A5C] bg-[#F9F7F2] text-[#192B25] shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="assistance-confirm-title">
+          <div className="flex flex-col items-center px-12 pb-11 pt-10 text-center">
+            <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#FCE9E5] text-[#C2473B]"><PhoneCall className="h-12 w-12" aria-hidden="true" /></div>
+            <p className="mb-2 text-[18px] font-black text-[#A43E35]">紧急协助</p>
+            <h2 id="assistance-confirm-title" className="text-[38px] font-black tracking-tight">需要现在联系帮助吗？</h2>
+            <p className="mt-5 max-w-[600px] text-[22px] font-bold leading-relaxed text-[#52635C]">将联系乐龄呼叫中心，并通知已绑定子女。</p>
+            <div className="mt-8 grid w-full grid-cols-2 gap-4">
+              <div className="rounded-2xl border-2 border-[#D8E8E1] bg-[#EFF8F4] p-5 text-left">
+                <Headphones className="mb-3 h-8 w-8 text-[#18704D]" /><strong className="block text-[20px] font-black">呼叫中心会接听</strong><span className="mt-1 block text-[16px] font-bold text-[#607169]">由工作人员了解情况并跟进</span>
+              </div>
+              <div className="rounded-2xl border-2 border-[#DCE4EE] bg-[#F2F6FA] p-5 text-left">
+                <UsersRound className="mb-3 h-8 w-8 text-[#376A94]" /><strong className="block text-[20px] font-black">子女会同步知情</strong><span className="mt-1 block text-[16px] font-bold text-[#607169]">已绑定子女可配合后续处理</span>
+              </div>
+            </div>
+            <button type="button" onClick={createEvent} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#C93F34] py-6 text-[26px] font-black text-white shadow-lg transition active:scale-[0.98]"><PhoneCall className="h-7 w-7" />确认联系</button>
+            <button type="button" onClick={onDismiss} className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-[#D8D5CE] bg-white py-5 text-[22px] font-black text-[#46554F] transition active:scale-[0.98]"><X className="h-6 w-6" />点错了，取消</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const presentation = {
+    contacting: { icon: PhoneCall, eyebrow: "正在联系", title: "正在联系乐龄呼叫中心", description: "请稍候，工作人员接听后会与您说话。", tone: "text-[#F2C96D] bg-[#392F1B] border-[#7A632D]" },
+    connected: { icon: UserRoundCheck, eyebrow: "已接通", title: "已接通，正在沟通", description: "请保持设备开启，工作人员正在了解您的情况。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
+    callback: { icon: Clock3, eyebrow: "暂未接通", title: "等待呼叫中心回拨", description: "这次联系暂时无人接听，您可以重新联系，也可等待回拨。", tone: "text-[#F2C96D] bg-[#392F1B] border-[#7A632D]" },
+    processing: { icon: Headphones, eyebrow: "处理中", title: "呼叫中心正在处理", description: "本次协助已在跟进，请不要重复发起。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
+    "follow-up": { icon: BellRing, eyebrow: "需要后续跟进", title: "工作人员会继续联系您", description: "乐龄呼叫中心已记录情况，后续会再与您确认。", tone: "text-[#89C7F0] bg-[#152D40] border-[#326D96]" },
+    completed: { icon: CheckCircle2, eyebrow: "已完成", title: "本次协助已完成", description: "呼叫中心已完成处理，您可以放心返回首页。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
+  }[stage];
+  const StatusIcon = presentation.icon;
 
   return (
-    <div className="fixed inset-0 bg-red-950/95 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-8 select-none text-white font-sans animate-fade-in">
-      
-      {/* Heavy glowing warning beacons */}
-      <div className="absolute top-10 left-10 flex items-center gap-3 bg-red-500/20 border border-red-500/30 px-6 py-3 rounded-full">
-        <Siren className="w-6 h-6 text-red-400 animate-bounce" />
-        <span className="text-sm font-black tracking-wide text-red-200">
-          {scenario === "connected" ? "紧急求助已接通" : scenario === "call-failure" ? "紧急呼叫未成功" : "一键紧急救助响应中"}
-        </span>
-      </div>
-
-      <div className="absolute top-10 right-10 flex items-center gap-3 bg-emerald-500/20 border border-emerald-500/30 px-6 py-3 rounded-full">
-        <UserRoundCheck className="w-5 h-5 text-emerald-300" />
-        <span className="text-sm font-bold tracking-wide text-emerald-200">
-          {scenario === "connected" ? "救助人员正在处理" : scenario === "call-failure" ? "等待重新呼叫" : "安全守护专员已就绪"}
-        </span>
-      </div>
-
-      <div className="max-w-[850px] w-full text-center flex flex-col items-center">
-        
-        {/* Pulsing Emergency Beacon Card */}
-        <div className="relative w-32 h-32 rounded-full bg-red-500/20 flex items-center justify-center mb-6 border-2 border-red-500/30 animate-sos-pulse">
-          <ShieldAlert className="w-16 h-16 text-white" />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#061018]/95 p-8 text-white backdrop-blur-md select-none">
+      <section className="w-full max-w-[920px] overflow-hidden rounded-[34px] border-2 border-[#274558] bg-[#0D1B27] shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="assistance-status-title">
+        <header className="flex items-center justify-between border-b border-[#294052] px-8 py-5">
+          <div className="flex items-center gap-3 text-[19px] font-black"><PhoneCall className="h-6 w-6 text-[#F06E62]" />紧急协助</div>
+          <span className="rounded-full border border-[#355267] bg-[#142534] px-4 py-2 text-[15px] font-black text-[#B8C9D5]">{event?.status ?? "待接听"}</span>
+        </header>
+        <div className="px-10 pb-9 pt-10 text-center">
+          <div className={`mx-auto flex h-28 w-28 items-center justify-center rounded-full border-2 ${presentation.tone}`}><StatusIcon className={`h-14 w-14 ${stage === "contacting" ? "animate-pulse" : ""}`} /></div>
+          <p className="mt-6 text-[18px] font-black text-[#7FCBA8]">{presentation.eyebrow}</p>
+          <h2 id="assistance-status-title" className="mt-2 text-[40px] font-black tracking-tight">{presentation.title}</h2>
+          <p className="mx-auto mt-4 max-w-[720px] text-[21px] font-bold leading-relaxed text-[#B9C7D0]">{presentation.description}</p>
+          <div className="mt-8 grid grid-cols-2 gap-4 text-left">
+            <div className="rounded-2xl border border-[#315066] bg-[#132433] p-5">
+              <div className="flex items-center gap-3 text-[18px] font-black"><Headphones className="h-6 w-6 text-[#6AC79D]" />乐龄呼叫中心</div>
+              <p className="mt-2 text-[16px] font-bold text-[#AFC0CB]">{stage === "callback" ? "首次未接通，已进入待回拨" : stage === "contacting" ? "正在呼叫，请稍候" : "主要负责了解情况和后续处理"}</p>
+            </div>
+            <div className="rounded-2xl border border-[#315066] bg-[#132433] p-5">
+              <div className="flex items-center gap-3 text-[18px] font-black"><UsersRound className="h-6 w-6 text-[#75B8E5]" />已同步通知子女</div>
+              <p className="mt-2 text-[16px] font-bold text-[#AFC0CB]">{failedCount > 0 ? `${deliveredCount} 人已送达，${failedCount} 人暂未送达；不影响呼叫中心继续处理` : `${deliveredCount || 2} 人已收到通知，可配合后续处理`}</p>
+            </div>
+          </div>
+          {stage === "callback" ? (
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              <button type="button" onClick={retryContact} className="flex items-center justify-center gap-3 rounded-2xl bg-[#C9483D] py-5 text-[22px] font-black transition active:scale-[0.98]"><RefreshCw className="h-6 w-6" />重新联系</button>
+              <button type="button" onClick={onDismiss} className="flex items-center justify-center gap-3 rounded-2xl border-2 border-[#385267] bg-[#172A39] py-5 text-[22px] font-black transition active:scale-[0.98]"><Clock3 className="h-6 w-6" />返回首页等待回拨</button>
+            </div>
+          ) : stage === "processing" ? (
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              <button type="button" onClick={() => { updateEventStatus("需跟进"); setStage("follow-up"); }} className="flex items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><RefreshCw className="h-6 w-6" />刷新处理进展</button>
+              <button type="button" onClick={onDismiss} className="rounded-2xl border-2 border-[#385267] bg-[#172A39] py-5 text-[22px] font-black transition active:scale-[0.98]">返回首页</button>
+            </div>
+          ) : stage === "follow-up" ? (
+            <button type="button" onClick={onDismiss} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><Check className="h-6 w-6" />我知道了，返回首页</button>
+          ) : stage === "completed" ? (
+            <button type="button" onClick={onDismiss} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><Check className="h-6 w-6" />返回首页</button>
+          ) : stage === "connected" ? (
+            <button type="button" onClick={onDismiss} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><Check className="h-6 w-6" />我知道了，保持联络</button>
+          ) : null}
         </div>
-
-        {/* Big Warning Texts */}
-        <h2 className="text-5xl font-black tracking-wider mb-2">
-          {scenario === "connected" ? "紧急呼叫已接通" : scenario === "call-failure" ? "紧急呼叫未成功" : "已触发一键紧急呼救"}
-        </h2>
-        <p className="text-red-200 text-lg font-bold tracking-wide max-w-[620px] mx-auto leading-relaxed">
-          {scenario === "connected"
-            ? "救助人员已收到您的求助，请保持设备开启并按照工作人员提示等待救援。"
-            : scenario === "call-failure"
-              ? "当前网络或呼叫服务异常，系统没有成功发出求助，请立即重新呼叫。"
-              : "系统正在向您的家人和 120 急救中心发起紧急求助，请不要离开屏幕。"}
-        </p>
-
-        {/* First-call countdown, followed by an ongoing-call state */}
-        <div
-          className="my-10 font-sans flex flex-col items-center justify-center gap-4"
-          role="status"
-          aria-live="polite"
-        >
-          {scenario === "connected" ? (
-            <>
-              <CheckCircle2 className="h-14 w-14 text-emerald-300" aria-hidden="true" />
-              <strong className="text-4xl font-black text-white tracking-wide">救助人员正在处理</strong>
-              <span className="text-xl font-bold text-emerald-200">请保持通话并留在安全位置</span>
-            </>
-          ) : scenario === "call-failure" ? (
-            <>
-              <WifiOff className="h-14 w-14 text-amber-300" aria-hidden="true" />
-              <strong className="text-4xl font-black text-white tracking-wide">求助尚未发出</strong>
-              <span className="text-xl font-bold text-amber-200">请重新呼叫，或使用电话拨打 120</span>
-            </>
-          ) : countdown > 0 ? (
-            <>
-              <span className="text-xl font-bold text-red-200">首轮呼叫剩余</span>
-              <div className="flex items-baseline justify-center gap-3">
-                <strong className="text-8xl font-black text-white leading-none tabular-nums">
-                  {countdown}
-                </strong>
-                <span className="text-3xl font-black text-red-200">秒</span>
-              </div>
-              <span className="text-xl font-bold text-red-200">正在呼叫，请稍候</span>
-            </>
-          ) : (
-            <>
-              <span className="relative flex h-10 w-10" aria-hidden="true">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-300 opacity-70" />
-                <span className="relative inline-flex h-10 w-10 rounded-full bg-red-400" />
-              </span>
-              <strong className="text-4xl font-black text-white tracking-wide">
-                暂未接通，正在继续呼叫
-              </strong>
-              <span className="text-xl font-bold text-red-200">
-                请不要离开，继续等待联系
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* Simple family notification status */}
-        <div className="w-[620px] bg-black/40 border border-white/5 rounded-2xl px-6 py-5 mb-10 text-center">
-          <p className="text-red-100 text-lg font-bold tracking-wide">
-            {scenario === "connected"
-              ? "救助正在处理中，请保持设备开启。"
-              : scenario === "call-failure"
-                ? "求助尚未发出，请不要关闭设备。"
-                : "求助仍在进行，请保持设备开启。"}
-          </p>
-        </div>
-
-        {/* Cancel Button - Large tactile safe touch box */}
-        <button
-          onClick={onDismiss}
-          className="flex items-center justify-center gap-3.5 px-12 py-5 bg-white text-red-950 font-black text-xl rounded-2xl shadow-2xl hover:bg-gray-100 active:scale-95 transition-all cursor-pointer"
-        >
-          {scenario === "call-failure" ? <RefreshCw className="w-6 h-6 text-red-700" /> : <XCircle className="w-6 h-6 text-red-700" />}
-          <span>{scenario === "call-failure" ? "返回并重新呼叫" : isResultScenario ? "完成并返回首页" : "误触，点击取消呼救"}</span>
-        </button>
-
-        {!isResultScenario && <span className="text-xs text-red-300 mt-4 tracking-wider">
-          温馨提示：点击取消将向家人发送“误触报平安”短信，请放心点击。
-        </span>}
-      </div>
-
+      </section>
     </div>
   );
 }

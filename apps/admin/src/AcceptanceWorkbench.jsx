@@ -8,7 +8,7 @@ const acceptanceHierarchy = [
   { id: "workbench", label: "工作台", modules: [{ id: "overview", label: "运营概览", objectLabel: "页面整体" }] },
   { id: "elder-service", label: "老人服务", modules: [
     { id: "elderly", label: "老人档案" }, { id: "relations", label: "亲属档案" },
-    { id: "emergencyHelp", label: "紧急求助" }, { id: "familyAlbums", label: "家庭相册" },
+    { id: "emergencyHelp", label: "紧急协助" }, { id: "familyAlbums", label: "家庭相册" },
   ] },
   { id: "content", label: "运营内容", modules: [
     { id: "recommendations", label: "推荐策略" }, { id: "services", label: "预约服务" },
@@ -19,11 +19,16 @@ const acceptanceHierarchy = [
   ] },
   { id: "device-data", label: "设备与数据", modules: [
     { id: "tabletDevices", label: "平板设备" }, { id: "sensorDevices", label: "房间活动传感器" },
-    { id: "activity", label: "房间活动" }, { id: "weatherLocations", label: "天气位置" }, { id: "careScripts", label: "关怀话术" },
+    { id: "activity", label: "房间活动" },
+  ] },
+  { id: "platform-public", label: "平台公共能力", modules: [
+    { id: "careScripts", label: "关怀话术" },
+    { id: "leisureEntertainment", label: "休闲娱乐", objectLabel: "页面整体" },
   ] },
   { id: "system", label: "系统管理", modules: [
-    { id: "projects", label: "项目与社区" }, { id: "accounts", label: "账号与角色" },
-    { id: "logs", label: "操作日志" }, { id: "settings", label: "基础配置" },
+    { id: "projects", label: "项目与社区" },
+    { id: "userManagement", label: "用户管理" }, { id: "roleManagement", label: "角色管理" },
+    { id: "logs", label: "操作日志" },
   ] },
 ];
 
@@ -48,13 +53,23 @@ const elderlyScenarios = [
   { value: "unbindFailure", label: "解绑失败可重试", description: "首次解除失败，保留原绑定关系并提供重试入口。", status: "失败" },
 ];
 
+const leisureEntertainmentScenarios = [
+  { value: "normal", label: "正常列表", description: "按展示顺序展示 YouTube、Spotify 和 MeRadio。", status: "默认" },
+  { value: "empty", label: "空列表", description: "平台尚未配置任何娱乐入口。", status: "空状态" },
+  { value: "invalidUrl", label: "URL 格式错误", description: "YouTube 入口 URL 缺少 http/https 协议。", status: "校验失败" },
+  { value: "whitelistNotCover", label: "白名单未覆盖", description: "YouTube 的入口 URL 未被自身白名单覆盖。", status: "校验失败" },
+  { value: "duplicateEntry", label: "重复入口", description: "列表中存在同名且相同 URL 的重复入口。", status: "校验失败" },
+  { value: "inactive", label: "停用状态", description: "Spotify 已停用，配置保留但不再供老人端和推荐引用。", status: "停用" },
+  { value: "saveSuccess", label: "保存成功", description: "列表保持正常数据并展示保存成功反馈。", status: "成功" },
+];
+
 const clamp = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
 const findContext = (moduleId) => {
   const page = acceptanceHierarchy.find((item) => item.modules.some((module) => module.id === moduleId)) || acceptanceHierarchy[0];
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, leisureEntertainmentScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -68,8 +83,10 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
       ? recommendationScenarios
       : selectedModule.id === "elderly"
         ? elderlyScenarios
+        : selectedModule.id === "leisureEntertainment"
+          ? leisureEntertainmentScenarios
       : [];
-  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : overviewScenario;
+  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
   const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
   const hasScenarios = scenarioOptions.length > 0;
 
@@ -156,7 +173,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
           </div>
           <footer><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>

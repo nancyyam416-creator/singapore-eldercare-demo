@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, CheckCircle2, MessageSquareText, Mic, Pause, Play, RefreshCw, Search, Send, Square, UserRound } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, MessageSquareText, Mic, Pause, Play, RefreshCw, Search, Send, Square, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export const serviceCommunicationFixture = [
@@ -147,21 +147,13 @@ export function ServiceCommunicationPage({ projectId, communityName }) {
     window.setTimeout(() => setPlayingId((current) => current === messageId ? "" : current), 1200);
   };
 
-  const hasActiveFilters = Boolean(query.trim()) || elderlyFilter !== "全部老人" || contactType !== "全部类型" || status !== "全部状态";
-  const resetFilters = () => {
-    setQuery("");
-    setElderlyFilter("全部老人");
-    setContactType("全部类型");
-    setStatus("全部状态");
-  };
-
   return <>
     <div className="page-heading"><div><h1>服务沟通</h1><p>管理{communityName}服务人员与老人之间的文字及语音留言</p></div></div>
     <section className="panel service-communication-panel">
       <div className="service-conversation-sidebar">
         <div className="service-conversation-filters">
-          <div className="service-filter-heading"><b>筛选会话</b><button type="button" disabled={!hasActiveFilters} onClick={resetFilters}>清除</button></div>
-          <div className="input-wrap"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索老人或服务联系人"/></div>
+          <div className="service-filter-heading"><b>筛选会话</b></div>
+          <div className="service-search-control"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索老人或服务联系人"/>{query && <button type="button" aria-label="清除搜索" onClick={() => setQuery("")}><X size={14}/></button>}</div>
           <div className="service-filter-row">
             <label className="service-filter-elder"><span>老人</span><select className="select-control" aria-label="老人筛选" value={elderlyFilter} onChange={(event) => setElderlyFilter(event.target.value)}>{elderlyOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label><span>联系人</span><select className="select-control" aria-label="联系人类型筛选" value={contactType} onChange={(event) => setContactType(event.target.value)}><option value="全部类型">全部联系人</option><option>个人服务人员</option><option>服务机构</option></select></label>

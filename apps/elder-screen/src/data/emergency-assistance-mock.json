@@ -1,0 +1,34 @@
+{
+  "contractVersion": "1.0",
+  "deliveryLevel": "L3",
+  "eventId": "SOS-20260728001",
+  "elderlyId": "SG-E-000128",
+  "elderlyName": "陈美玲",
+  "startedAt": "2026-07-28 09:42:18",
+  "sourceDevice": "客厅平板",
+  "sourceDeviceId": "TAB-SG-20260031",
+  "callCenter": {
+    "name": "乐龄呼叫中心",
+    "agent": "呼叫中心 01",
+    "lastAttemptAt": "2026-07-28 09:42:22",
+    "answeredAt": "2026-07-28 09:42:24"
+  },
+  "children": [
+    {
+      "id": "SOS-N-001",
+      "name": "陈伟强",
+      "relation": "儿子",
+      "deliveryStatus": "已送达",
+      "viewedAt": "2026-07-28 09:43:05"
+    },
+    {
+      "id": "SOS-N-002",
+      "name": "陈丽华",
+      "relation": "女儿",
+      "deliveryStatus": "发送失败",
+      "viewedAt": ""
+    }
+  ],
+  "statusSemantics": ["待接听", "未接通", "待回拨", "处理中", "需跟进", "已完成", "已取消"],
+  "scenarioIds": ["normal-connected", "no-answer", "partial-notification-failure", "processing", "completed"]
+}

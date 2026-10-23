@@ -581,7 +581,7 @@ export default function ControlCenterHome({
 
         <button className="sos-button" type="button" onClick={onTriggerSOS}>
           <Phone aria-hidden="true" />
-          <span>紧急呼叫</span>
+          <span>紧急协助</span>
         </button>
       </header>
 

@@ -40,6 +40,11 @@ import {
   createInitialActivationContractState,
   type ActivationAcceptanceScenario,
 } from "./activation-contract";
+import {
+  createEmergencyAssistanceEvent,
+  isEmergencyAssistanceActive,
+  type EmergencyAssistanceEvent,
+} from "./emergency-assistance";
 import "./control-center.css";
 
 const createInitialFulfillmentRecords = (): FulfillmentRecord[] => {
@@ -363,7 +368,8 @@ export default function App() {
 
   // 1. SOS Emergency State
   const [isSOSOpen, setIsSOSOpen] = useState(false);
-  const [emergencyAcceptanceScenario, setEmergencyAcceptanceScenario] = useState<EmergencyAcceptanceScenario>("default");
+  const [emergencyAcceptanceScenario, setEmergencyAcceptanceScenario] = useState<EmergencyAcceptanceScenario>("normal-connected");
+  const [emergencyAssistanceEvent, setEmergencyAssistanceEvent] = useState<EmergencyAssistanceEvent | null>(null);
 
   // 1.2. Contacts Modal State
   const [isContactsOpen, setIsContactsOpen] = useState(false);
@@ -910,6 +916,13 @@ export default function App() {
   const openAcceptanceEmergencyScenario = (scenario: EmergencyAcceptanceScenario) => {
     showHomeForAcceptance();
     setEmergencyAcceptanceScenario(scenario);
+    if (scenario === "processing") {
+      setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "处理中"));
+    } else if (scenario === "completed") {
+      setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "已完成"));
+    } else {
+      setEmergencyAssistanceEvent(null);
+    }
     setIsSOSOpen(true);
   };
 
@@ -1133,6 +1146,8 @@ export default function App() {
     setAcceptanceSpecialServicesScenario("default");
     setAcceptanceCommunityStaffScenario("multiple");
     setAcceptanceServiceConversationScenario("off");
+    setEmergencyAcceptanceScenario("normal-connected");
+    setEmergencyAssistanceEvent(null);
     setAcceptanceActivationScenario("success");
     setActivationContractState(createInitialActivationContractState());
     setActivationResetSignal((signal) => signal + 1);
@@ -1295,6 +1310,8 @@ export default function App() {
       onApplyRightContentUpdate={() => setAcceptanceRightContentApplySignal((signal) => signal + 1)}
       onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
       onHomeCommand={sendAcceptanceCommand}
+      emergencyScenario={emergencyAcceptanceScenario}
+      onSetEmergencyScenario={setEmergencyAcceptanceScenario}
       onOpenEmergencyScenario={openAcceptanceEmergencyScenario}
       onOpenActivation={() => {
         window.localStorage.removeItem("u2g-tablet-activated-v1");
@@ -1364,7 +1381,11 @@ export default function App() {
             onOpenContacts={() => setIsContactsOpen(true)}
             onOpenAssistant={() => setIsAssistantOpen(true)}
             onOpenMore={() => setIsMoreModulesOpen(true)}
-            onTriggerSOS={() => setIsSOSOpen(true)}
+            onTriggerSOS={() => {
+              setEmergencyAcceptanceScenario("normal-connected");
+              if (!isEmergencyAssistanceActive(emergencyAssistanceEvent)) setEmergencyAssistanceEvent(null);
+              setIsSOSOpen(true);
+            }}
             acceptanceTimeOverride={acceptanceTimeOverride}
             acceptanceAlbumScenario={acceptanceAlbumScenario}
             acceptanceHeartScenario={acceptanceHeartScenario}
@@ -1417,9 +1438,10 @@ export default function App() {
         <EmergencyModal
           isOpen={isSOSOpen}
           scenario={emergencyAcceptanceScenario}
+          event={emergencyAssistanceEvent}
+          onEventChange={setEmergencyAssistanceEvent}
           onDismiss={() => {
             setIsSOSOpen(false);
-            setEmergencyAcceptanceScenario("default");
           }}
         />
 

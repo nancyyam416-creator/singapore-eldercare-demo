@@ -22,12 +22,12 @@ import {
   PanelRightOpen,
   Pill,
   Play,
+  PhoneCall,
   RefreshCcw,
   ShieldAlert,
   Siren,
   Sparkles,
   TabletSmartphone,
-  UserRoundCheck,
   UserMinus,
   UsersRound,
   Video,
@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import type { FamilyWeatherMockScenario } from "../weather/familyWeather";
 import type { EmergencyAcceptanceScenario } from "./EmergencyModal";
+import { emergencyScenarioDefinitions } from "../emergency-assistance";
 import type { SpecialServicesAcceptanceScenario } from "./SpecialServicesPage";
 import type { CommunityStaffAcceptanceScenario } from "./CommunityStaffPage";
 import type { ServiceConversationAcceptanceScenario } from "./ContactsCommunicationPage";
@@ -150,6 +151,7 @@ interface InteractionAcceptanceConsoleProps {
   serviceConversationScenario: ServiceConversationAcceptanceScenario;
   activationScenario: ActivationAcceptanceScenario;
   activationContractState: ActivationContractState;
+  emergencyScenario: EmergencyAcceptanceScenario;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
@@ -174,6 +176,7 @@ interface InteractionAcceptanceConsoleProps {
   onApplyRightContentUpdate: () => void;
   onOpenHomeReminderAlert: (category: AcceptanceTaskContentScenario, minutesUntil?: number, autoDismissMs?: number) => void;
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
+  onSetEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
   onOpenEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
   onOpenActivation: () => void;
   onResetActivation: () => void;
@@ -187,7 +190,7 @@ type RightContentAcceptanceObject = "family" | "medication" | "schedule" | "acti
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
   { id: "weather", label: "家庭天气" },
-  { id: "emergency", label: "紧急呼叫" },
+  { id: "emergency", label: "紧急协助" },
   { id: "album", label: "家庭影像" },
   { id: "task-progress", label: "首页右侧" },
   { id: "reminders", label: "今日提醒" },
@@ -534,6 +537,7 @@ export default function InteractionAcceptanceConsole({
   serviceConversationScenario,
   activationScenario,
   activationContractState,
+  emergencyScenario,
   onShowHome,
   onShowAlbum,
   onShowReminders,
@@ -558,6 +562,7 @@ export default function InteractionAcceptanceConsole({
   onApplyRightContentUpdate,
   onOpenHomeReminderAlert,
   onHomeCommand,
+  onSetEmergencyScenario,
   onOpenEmergencyScenario,
   onOpenActivation,
   onResetActivation,
@@ -717,7 +722,7 @@ export default function InteractionAcceptanceConsole({
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
           >
-            <div><Sparkles aria-hidden="true" /><span><strong>交互验收台</strong><small>L2 Mock 数据 · 执行动作后保持展开</small></span></div>
+            <div><Sparkles aria-hidden="true" /><span><strong>交互验收台</strong><small>L3 Mock 交互 · 执行动作后保持展开</small></span></div>
             <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setIsOpen(false)} aria-label="收起交互验收台"><PanelRightClose /></button>
           </header>
 
@@ -888,14 +893,32 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "emergency" && <section>
               <div className="interaction-acceptance-field">
-                <h2><Siren aria-hidden="true" />紧急呼叫</h2>
-                <p>只展示主流程中难以稳定触发的呼叫结果</p>
-                <div className="interaction-acceptance-grid is-two-columns">
-                  <button type="button" onClick={() => onOpenEmergencyScenario("connected")}><UserRoundCheck />已接通</button>
-                  <button type="button" className="is-danger" onClick={() => onOpenEmergencyScenario("call-failure")}><CloudOff />呼叫失败</button>
+                <h2><Siren aria-hidden="true" />交互条件</h2>
+                <label className="interaction-acceptance-module-picker">
+                  <span className="interaction-acceptance-module-picker__select">
+                    <select
+                      value={emergencyScenario}
+                      onChange={(event) => onSetEmergencyScenario(event.target.value as EmergencyAcceptanceScenario)}
+                      aria-label="选择紧急协助交互条件"
+                    >
+                      {(Object.entries(emergencyScenarioDefinitions) as Array<[EmergencyAcceptanceScenario, { label: string; description: string }]>).map(([scenarioId, definition]) => (
+                        <option key={scenarioId} value={scenarioId}>{definition.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
+                </label>
+                <div className="interaction-acceptance-current" aria-live="polite">
+                  <strong>{emergencyScenarioDefinitions[emergencyScenario].label}</strong>
+                  <p>{emergencyScenarioDefinitions[emergencyScenario].description}</p>
                 </div>
               </div>
-              <p className="interaction-acceptance-note">呼叫确认、倒计时、继续呼叫和误触操作已在正常页面体现，不在验收台重复设置。</p>
+              <div className="interaction-acceptance-field">
+                <h2>交互动作</h2>
+                <button type="button" className="is-primary" onClick={() => onOpenEmergencyScenario(emergencyScenario)}>
+                  <PhoneCall aria-hidden="true" />打开紧急协助流程
+                </button>
+              </div>
             </section>}
 
             {activeSection === "task-progress" && <section>
