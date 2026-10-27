@@ -27,28 +27,13 @@ export const initialBoundElders: BoundElder[] = [
     project: '孝心关怀中心 · 静安社区',
     maskedAddress: '上海市静安区万航渡路***号',
     relationshipStatus: 'active'
+  },
+  {
+    id: 'elder-mother', name: '李惠兰', age: 72,
+    avatar: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=150&h=150&q=80',
+    relation: '女儿', project: '长宁社区', maskedAddress: '新加坡 · 武吉知马 **号', relationshipStatus: 'active'
   }
 ];
-
-const mockBindingCandidateWang: Omit<BoundElder, 'relation' | 'relationshipStatus'> = {
-  id: 'elder-wang-jianguo',
-  name: '王建国',
-  age: 76,
-  avatar: 'https://images.unsplash.com/photo-1581579438747-1dc8d17bbce4?auto=format&fit=crop&w=150&h=150&q=80',
-  project: '清华园社区养老服务项目',
-  maskedAddress: '清华园社区 · 12号楼 · **01室'
-};
-
-// L2 固定 Mock 白名单：与老人端当前可循环生成的四个演示码保持一致。
-// 子女端不尝试做实时跨端校验，仅按该白名单返回确定的 Mock 老人。
-export const mockBindingCandidatesByCode: Record<string, Omit<BoundElder, 'relation' | 'relationshipStatus'>> = {
-  '735281': mockBindingCandidateWang,
-  '846193': mockBindingCandidateWang,
-  '592407': mockBindingCandidateWang,
-  '318654': mockBindingCandidateWang
-};
-
-export const defaultMockBindingSuccessCode = '735281';
 
 export const initialFamilyConversations: FamilyConversation[] = [
   {

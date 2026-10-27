@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   Heart,
   ShoppingBag,
@@ -24,7 +24,7 @@ import {
   ArrowRight,
   House,
   MessageCircle,
-  Images,
+  BellRing,
   Mic,
   MicOff,
   Video,
@@ -63,6 +63,7 @@ import {
 import { initialBoundElders, initialChildResidenceAddress, initialFamilyConversations, initialFamilyMessages, initialFamilyNotifications, initialPublishedPhotoBatches } from '../data/mockData';
 import { H5MonitorTab } from './H5MonitorTab';
 import { FamilySection, H5FamilyTab } from './H5FamilyTab';
+import { createBindingState, familyBindingReducer, getBoundElders } from '../data/familyBinding';
 import { H5PhotoShareSheet } from './H5PhotoShareSheet';
 import { H5OrdersTab } from './H5OrdersTab';
 import { H5ProfileTab } from './H5ProfileTab';
@@ -194,8 +195,11 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const [photoShareMounted, setPhotoShareMounted] = useState(false);
   const [familySection, setFamilySection] = useState<FamilySection>('photos');
   const [showReminders, setShowReminders] = useState(false);
-  const [boundElders, setBoundElders] = useState<BoundElder[]>(initialBoundElders);
+  const [bindingState, bindingDispatch] = useReducer(familyBindingReducer, elderBindingScenario, createBindingState);
+  const boundElders = useMemo(() => getBoundElders(bindingState), [bindingState]);
+  const activeBoundElders = boundElders.filter(elder => elder.relationshipStatus === 'active');
   const [currentElderId, setCurrentElderId] = useState<string | null>(initialBoundElders[0]?.id ?? null);
+  const [showElderSwitcher, setShowElderSwitcher] = useState(false);
   const [initialFamilyConversationId, setInitialFamilyConversationId] = useState<string | null>(null);
   const [photoBatches, setPhotoBatches] = useState<PublishedPhotoBatch[]>(initialPublishedPhotoBatches);
   const latestPhotoFeedback = useMemo(() => {
@@ -217,7 +221,12 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
     ? familyMessages
     : familyMessages.filter(message => message.conversationId === initialFamilyConversations[0]?.id);
   const unreadFamilyNotificationCount = familyNotifications.filter(notification => !notification.read).length;
-  const currentBoundElder = boundElders.find(elder => elder.id === currentElderId) ?? boundElders[0];
+  const currentBoundElder = activeBoundElders.find(elder => elder.id === currentElderId) ?? activeBoundElders[0];
+  useEffect(() => {
+    if (!boundElders.some(elder => elder.id === currentElderId && elder.relationshipStatus === 'active')) {
+      setCurrentElderId(boundElders.find(elder => elder.relationshipStatus === 'active')?.id ?? null);
+    }
+  }, [boundElders, currentElderId]);
   const currentParentProfile = currentBoundElder
     ? { ...parentProfile, name: currentBoundElder.name, age: currentBoundElder.age, avatar: currentBoundElder.avatar }
     : parentProfile;
@@ -309,14 +318,13 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
     if (previewOpenStoreSignal > 0) setActiveTab('orders');
   }, [previewOpenStoreSignal]);
 
-  const handleBindElder = (elder: BoundElder) => {
-    if (boundElders.some(item => item.id === elder.id)) return false;
-    setBoundElders(current => [...current, elder]);
-    setCurrentElderId(elder.id);
-    return true;
-  };
+  useEffect(() => {
+    bindingDispatch({ type: 'reset', scenario: elderBindingScenario });
+    setCurrentElderId(elderBindingScenario === 'no_elder' || elderBindingScenario === 'relationship_removed' ? null : initialBoundElders[0].id);
+  }, [elderBindingScenario]);
 
   const enterElderHome = (elderId: string) => {
+    if (!activeBoundElders.some(elder => elder.id === elderId)) return;
     setCurrentElderId(elderId);
     setActiveTab('monitor');
   };
@@ -342,7 +350,8 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
       setFamilyMessages(initialFamilyMessages);
       setFamilyNotifications(initialFamilyNotifications);
       setPhotoBatches(initialPublishedPhotoBatches);
-      setBoundElders(initialBoundElders);
+      bindingDispatch({ type: 'reset', scenario: 'bound' });
+      setShowReminders(false);
       setCurrentElderId(initialBoundElders[0]?.id ?? null);
       setCallState('idle');
       setCallTarget(null);
@@ -460,7 +469,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
   const handleLogin = () => {
     setIsLoggedIn(true);
-    setActiveTab(elderBindingScenario === 'no_elder' ? 'profile' : 'monitor');
+    setActiveTab(activeBoundElders.length === 0 ? 'profile' : 'monitor');
   };
 
   const handleLogout = () => {
@@ -492,7 +501,15 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'photos' ? '家庭相册' : familySection === 'notifications' ? '消息' : '家庭留言' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>
+          {isLoggedIn && activeTab === 'store' && familySection !== 'notifications' ? (
+            <div role="tablist" aria-label="家庭内容" className="flex rounded-xl bg-slate-100 p-1">
+              {(['messages', 'photos'] as const).map(section => (
+                <button key={section} type="button" role="tab" aria-selected={familySection === section} onClick={() => setFamilySection(section)} className={`rounded-lg px-5 py-1 text-xs font-bold ${familySection === section ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>
+                  {section === 'messages' ? '家庭留言' : '家庭相册'}
+                </button>
+              ))}
+            </div>
+          ) : <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? '消息' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>}
           {isLoggedIn && ((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) && (
             <button
               type="button"
@@ -575,7 +592,14 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             <H5LoginPage scenario={loginScenario} onLoginSuccess={handleLogin} />
           )}
 
-          {isLoggedIn && activeTab === 'monitor' && (
+          {isLoggedIn && !currentBoundElder && (activeTab !== 'profile' || showReminders) && (
+            <div className="space-y-3 p-6 text-center">
+              <h2 className="text-base font-bold text-slate-900">暂无有效家庭关系</h2>
+              <p className="text-xs leading-relaxed text-slate-500">请先添加家人。待老人本人确认后，才可查看该老人的照护信息和使用相关功能。</p>
+              <button type="button" onClick={() => { setShowReminders(false); setActiveTab('profile'); }} className="rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white">前往家人管理</button>
+            </div>
+          )}
+          {isLoggedIn && currentBoundElder && activeTab === 'monitor' && (
             <H5MonitorTab
               healthStats={healthStats}
               setHealthStats={setHealthStats}
@@ -585,6 +609,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               setActivities={setActivities}
               orders={orders}
               parentProfile={currentParentProfile}
+              onSwitchElder={activeBoundElders.length > 1 ? () => setShowElderSwitcher(true) : undefined}
               onSwitchToOrders={() => setActiveTab('orders')}
               onOpenElderProfile={() => {
                 setElderProfileRadarExpanded(true);
@@ -622,7 +647,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {isLoggedIn && activeTab === 'store' && (
+          {isLoggedIn && currentBoundElder && activeTab === 'store' && (
             <H5FamilyTab
               conversations={initialFamilyConversations}
               messages={scopedFamilyMessages}
@@ -647,7 +672,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {isLoggedIn && activeTab === 'orders' && (
+          {isLoggedIn && currentBoundElder && activeTab === 'orders' && (
             <H5OrdersTab
               orders={orders}
               setOrders={setOrders}
@@ -663,19 +688,19 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {isLoggedIn && activeTab === 'profile' && (
-            showReminders ? <div className="p-4"><button type="button" onClick={() => setShowReminders(false)} className="mb-4 text-sm font-bold text-blue-600">‹ 返回我的</button><H5ReminderManager elderName={currentParentProfile.name} elderId={currentBoundElder?.id ?? 'elder-1'} scenario={reminderScenario} /></div> :
+          {isLoggedIn && activeTab === 'profile' && (!showReminders || currentBoundElder) && (
+            showReminders ? <div className="p-4"><H5ReminderManager elderName={currentParentProfile.name} elderId={currentBoundElder?.id ?? 'elder-1'} scenario={reminderScenario} /></div> :
             <H5ProfileTab
-              onOpenReminders={() => setShowReminders(true)}
               isLoggedIn={isLoggedIn}
               onLogin={handleLogin}
               onLogout={handleLogout}
               residenceAddress={residenceAddress}
               onSaveResidenceAddress={setResidenceAddress}
-              boundElders={elderBindingScenario === 'no_elder' ? [] : boundElders}
+              boundElders={boundElders}
+              bindingState={bindingState}
+              bindingDispatch={bindingDispatch}
               currentElderId={currentElderId}
               bindingScenario={elderBindingScenario}
-              onBindElder={handleBindElder}
               onSwitchElder={setCurrentElderId}
               onEnterElderHome={enterElderHome}
             />
@@ -683,7 +708,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         </div>
 
-        {isLoggedIn && activeTab === 'store' && familySection === 'photos' && (
+        {isLoggedIn && currentBoundElder && activeTab === 'store' && familySection === 'photos' && (
           <button
             type="button"
             onClick={openPhotoShare}
@@ -694,7 +719,24 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           </button>
         )}
 
-        {isLoggedIn && showElderProfile && (
+        {isLoggedIn && showElderSwitcher && (
+          <div className="absolute inset-0 z-50 flex items-end bg-slate-950/40" onClick={() => setShowElderSwitcher(false)}>
+            <section role="dialog" aria-modal="true" aria-label="切换家人" onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setShowElderSwitcher(false); }} className="w-full rounded-t-3xl bg-white p-5 pb-8 shadow-xl">
+              <div className="mb-4 flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">切换家人</h2><button autoFocus type="button" aria-label="关闭切换家人" onClick={() => setShowElderSwitcher(false)} className="rounded-full bg-slate-100 p-2 text-slate-500"><X size={18} /></button></div>
+              <div className="max-h-80 space-y-2 overflow-y-auto">
+                {activeBoundElders.map(elder => (
+                  <button key={elder.id} type="button" aria-pressed={elder.id === currentBoundElder?.id} onClick={() => { setCurrentElderId(elder.id); setShowElderSwitcher(false); contentScrollRef.current?.scrollTo({ top: 0 }); }} className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${elder.id === currentBoundElder?.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'}`}>
+                    <img src={elder.avatar} alt="" className="h-11 w-11 rounded-full object-cover" />
+                    <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{elder.name}</span><span className="text-xs text-slate-500">我是{elder.relation}</span></span>
+                    {elder.id === currentBoundElder?.id && <span className="text-xs font-bold text-blue-600">当前查看</span>}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {isLoggedIn && currentBoundElder && showElderProfile && (
           <H5ElderProfileSheet
             parentProfile={currentParentProfile}
             dataScenario={elderProfileDataScenario}
@@ -706,7 +748,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           />
         )}
 
-        {isLoggedIn && photoShareMounted && (
+        {isLoggedIn && currentBoundElder && photoShareMounted && (
           <H5PhotoShareSheet
             key={familyPhotoScenario}
             recipients={photoRecipients}
@@ -743,7 +785,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
             <div className="flex w-full items-center justify-center gap-10">
               {callState === 'incoming' && <button type="button" onClick={() => { setCallConnected(true); setCallState('connected'); }} className="flex flex-col items-center gap-2 text-xs"><span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500"><Phone className="fill-current" /></span>接听</button>}
-              {callState === 'outgoing' && <button type="button" onClick={() => { setCallConnected(true); setCallState('connected'); }} className="rounded-full border border-white/20 px-4 py-2 text-xs text-white/70">模拟接通</button>}
+              {callState === 'outgoing' && <button type="button" onClick={() => { setCallConnected(true); setCallState('connected'); }} className="rounded-full border border-white/20 px-4 py-2 text-xs text-white/70">接通</button>}
               <button type="button" onClick={() => finishMockCall(callState === 'incoming' ? 'rejected' : callState === 'unanswered' ? 'unanswered' : callState === 'outgoing' ? 'cancelled' : callConnected ? 'completed' : 'cancelled')} className="flex flex-col items-center gap-2 text-xs"><span className="flex h-16 w-16 rotate-[135deg] items-center justify-center rounded-full bg-rose-600"><Phone className="fill-current" /></span>{callState === 'incoming' ? '拒绝' : callState === 'unanswered' ? '返回会话' : callState === 'outgoing' ? '取消' : '挂断'}</button>
             </div>
           </section>
@@ -763,19 +805,19 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
           <button
             onClick={() => { setActiveTab('store'); setFamilySection('messages'); }}
             disabled={!isLoggedIn}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection === 'messages' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection !== 'notifications' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection === 'messages' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
-            <span className="text-5xs font-extrabold tracking-tight">家庭留言</span>
+            <span className="text-5xs font-extrabold tracking-tight">家庭</span>
           </button>
 
           <button
-            onClick={() => { setActiveTab('store'); setFamilySection('photos'); }}
+            onClick={() => { setActiveTab('profile'); setShowReminders(true); }}
             disabled={!isLoggedIn}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection === 'photos' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'profile' && showReminders ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <Images size={18} className={activeTab === 'store' && familySection === 'photos' ? 'stroke-[2.5]' : ''} />
-            <span className="text-5xs font-extrabold tracking-tight">家庭相册</span>
+            <BellRing size={18} className={activeTab === 'profile' && showReminders ? 'stroke-[2.5]' : ''} />
+            <span className="text-5xs font-extrabold tracking-tight">提醒事项</span>
           </button>
 
           <button
@@ -789,9 +831,9 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
           <button
             onClick={() => { setShowReminders(false); setActiveTab('profile'); }}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${(activeTab === 'profile' || (activeTab === 'store' && familySection === 'notifications')) ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <UserRound size={18} className={(activeTab === 'profile' || (activeTab === 'store' && familySection === 'notifications')) ? 'stroke-[2.5]' : ''} />
+            <UserRound size={18} className={((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) ? 'stroke-[2.5]' : ''} />
             <span className="text-5xs font-extrabold tracking-tight">我的</span>
           </button>
         </nav>}

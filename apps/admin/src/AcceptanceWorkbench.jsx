@@ -8,7 +8,7 @@ const acceptanceHierarchy = [
   { id: "workbench", label: "工作台", modules: [{ id: "overview", label: "运营概览", objectLabel: "页面整体" }] },
   { id: "elder-service", label: "老人服务", modules: [
     { id: "elderly", label: "老人档案" }, { id: "relations", label: "亲属档案" },
-    { id: "emergencyHelp", label: "紧急协助" }, { id: "familyAlbums", label: "家庭相册" },
+    { id: "emergencyHelp", label: "在线协助" }, { id: "familyAlbums", label: "家庭相册" },
   ] },
   { id: "content", label: "运营内容", modules: [
     { id: "recommendations", label: "推荐策略" }, { id: "services", label: "预约服务" },
@@ -18,12 +18,15 @@ const acceptanceHierarchy = [
     { id: "alertItems", label: "警惕事项" }, { id: "activities", label: "社区活动" }, { id: "communityStaff", label: "社区人员" },
   ] },
   { id: "device-data", label: "设备与数据", modules: [
-    { id: "tabletDevices", label: "平板设备" }, { id: "sensorDevices", label: "房间活动传感器" },
-    { id: "activity", label: "房间活动" },
+    { id: "tabletDevices", label: "平板设备" },
   ] },
   { id: "platform-public", label: "平台公共能力", modules: [
     { id: "careScripts", label: "关怀话术" },
     { id: "leisureEntertainment", label: "休闲娱乐", objectLabel: "页面整体" },
+  ] },
+  { id: "platform-device", label: "平台设备管理", modules: [
+    { id: "platformTabletDevices", label: "平板设备" },
+    { id: "tabletOta", label: "平板 OTA 升级" },
   ] },
   { id: "system", label: "系统管理", modules: [
     { id: "projects", label: "项目与社区" },
@@ -33,10 +36,10 @@ const acceptanceHierarchy = [
 ];
 
 const overviewScenarios = [
-  { value: "normal", label: "正常", description: "展示完整指标、待关注线索与趋势数据。", status: "默认" },
-  { value: "noAttention", label: "暂无待关注", description: "待关注指标和列表为空。", status: "空状态" },
-  { value: "partial", label: "部分来源失败", description: "提醒来源失败，其他模块继续展示。", status: "部分失败" },
-  { value: "allFailed", label: "全部来源失败", description: "指标不以 0 代替失败数据。", status: "失败" },
+  { value: "normal", label: "正常", description: "展示纯展示指标与无活动、在线协助、房间传感器离线待办。", status: "默认" },
+  { value: "noAttention", label: "暂无待处理", description: "待处理列表展示空状态，顶部快照指标不切换为错误结果。", status: "空状态" },
+  { value: "partial", label: "部分来源失败", description: "待办来源部分失败，顶部快照指标保持纯展示。", status: "部分失败" },
+  { value: "allFailed", label: "全部来源失败", description: "待处理模块展示失败态，顶部快照指标不随错误场景切换。", status: "失败" },
   { value: "stale", label: "数据过旧", description: "展示固定的过期更新时间与警示。", status: "边界" },
   { value: "noProject", label: "当前账号无项目", description: "展示无数据权限的页面级空状态。", status: "权限" },
 ];
@@ -48,8 +51,10 @@ const recommendationScenarios = [
 
 const elderlyScenarios = [
   { value: "normal", label: "默认档案", description: "展示当前社区的老人档案列表。", status: "默认" },
-  { value: "activationPending", label: "地址缺失生成激活码", description: "地址缺失仅提示，选择设备后仍可生成6位激活码。", status: "非阻断" },
-  { value: "activationSuccess", label: "老人端完成激活", description: "激活码变为已使用，设备已激活并成为老人当前平板。", status: "跨端成功" },
+  { value: "tabletUnbound", label: "平板未绑定", description: "无目标设备且无有效激活记录，展示绑定入口。", status: "空状态" },
+  { value: "tabletPending", label: "平板待激活", description: "已指定设备并生成激活码，尚未完成激活。", status: "待处理" },
+  { value: "tabletActivated", label: "平板已激活", description: "设备已绑定当前老人，展示在线状态与使用信息。", status: "成功" },
+  { value: "tabletActivationFailed", label: "平板激活失败", description: "展示失败原因，并提供重新发起激活入口。", status: "失败" },
   { value: "unbindFailure", label: "解绑失败可重试", description: "首次解除失败，保留原绑定关系并提供重试入口。", status: "失败" },
 ];
 

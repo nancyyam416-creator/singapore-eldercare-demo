@@ -3,6 +3,7 @@ import Lottie from "lottie-react";
 import {
   Check,
   CheckCircle2,
+  ChevronRight,
   CircleAlert,
   CloudRain,
   CloudSun,
@@ -33,7 +34,12 @@ import {
   familyWeatherMockApi,
   type FamilyWeatherMember,
 } from "../weather/familyWeather";
-import FamilyInvitationModal from "./FamilyInvitationModal";
+import FamilyRelationshipRequestsModal, {
+  getFamilyRelationshipPendingCount,
+  type FamilyRelationshipApprovedContact,
+  type FamilyRelationshipRequestCondition,
+  type FamilyRelationshipRequestScenario,
+} from "./FamilyRelationshipRequestsModal";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./contacts-communication.css";
 
@@ -51,6 +57,9 @@ interface ContactsCommunicationPageProps {
   onOpenFamilyMedia?: (mediaId: string) => void;
   acceptanceScenario?: ServiceConversationAcceptanceScenario;
   acceptanceActionSignal?: number;
+  familyRequestScenario?: FamilyRelationshipRequestScenario;
+  familyRequestCondition?: FamilyRelationshipRequestCondition;
+  familyRequestActionSignal?: number;
   initialContactName?: string | null;
 }
 
@@ -184,6 +193,9 @@ export default function ContactsCommunicationPage({
   onOpenFamilyMedia,
   acceptanceScenario = "off",
   acceptanceActionSignal = 0,
+  familyRequestScenario = "pending",
+  familyRequestCondition = "network-normal",
+  familyRequestActionSignal = 0,
   initialContactName = null,
 }: ContactsCommunicationPageProps) {
   const [selectedContactId, setSelectedContactId] = useState("daughter");
@@ -201,7 +213,9 @@ export default function ContactsCommunicationPage({
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
-  const [isFamilyInvitationOpen, setIsFamilyInvitationOpen] = useState(false);
+  const [isFamilyRequestsOpen, setIsFamilyRequestsOpen] = useState(false);
+  const [familyRequestPendingCount, setFamilyRequestPendingCount] = useState(() => getFamilyRelationshipPendingCount(familyRequestScenario));
+  const [approvedFamilyContacts, setApprovedFamilyContacts] = useState<CommunicationContact[]>([]);
   const [missedCallHistoryCount, setMissedCallHistoryCount] = useState(0);
   const [highlightedFamilyMediaId, setHighlightedFamilyMediaId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -211,6 +225,7 @@ export default function ContactsCommunicationPage({
   const callDurationTimerRef = useRef<number | null>(null);
   const sentTimerRef = useRef<number | null>(null);
   const lastAcceptanceActionSignalRef = useRef(0);
+  const lastFamilyRequestActionSignalRef = useRef(0);
   const localMessageSequenceRef = useRef(1);
   const familyWeatherSnapshot = useMemo(() => familyWeatherMockApi.getSnapshot("default"), []);
   const familyWeatherByUserId = useMemo(
@@ -224,9 +239,10 @@ export default function ContactsCommunicationPage({
 
   const availableContacts = useMemo(() => {
     const historicalContact = familyMediaFocusRequest?.historicalContact;
-    if (!historicalContact) return CONTACTS;
+    const currentContacts = [...CONTACTS, ...approvedFamilyContacts];
+    if (!historicalContact) return currentContacts;
     return [
-      ...CONTACTS.filter((contact) => contact.group !== "family" || contact.id !== historicalContact.sourceRelationshipId),
+      ...currentContacts.filter((contact) => contact.group !== "family" || contact.id !== historicalContact.sourceRelationshipId),
       {
         id: familyMediaFocusRequest.contactId,
         name: historicalContact.name,
@@ -238,7 +254,23 @@ export default function ContactsCommunicationPage({
         sourceRelationshipId: historicalContact.sourceRelationshipId,
       },
     ];
-  }, [familyMediaFocusRequest]);
+  }, [approvedFamilyContacts, familyMediaFocusRequest]);
+
+  useEffect(() => {
+    setFamilyRequestPendingCount(getFamilyRelationshipPendingCount(familyRequestScenario));
+    setApprovedFamilyContacts([]);
+    setIsFamilyRequestsOpen(false);
+  }, [familyRequestScenario]);
+
+  useEffect(() => {
+    if (familyRequestActionSignal <= 0) {
+      lastFamilyRequestActionSignalRef.current = 0;
+      return;
+    }
+    if (!isOpen || lastFamilyRequestActionSignalRef.current === familyRequestActionSignal) return;
+    lastFamilyRequestActionSignalRef.current = familyRequestActionSignal;
+    setIsFamilyRequestsOpen(true);
+  }, [familyRequestActionSignal, isOpen]);
 
   const contactsWithUnread = useMemo(() => availableContacts.map((contact, index) => {
     const unread = messages.filter((message) => message.sender === contact.name && message.deliveryStatus !== "failed" && !isMessageViewed(message)).length;
@@ -270,6 +302,16 @@ export default function ContactsCommunicationPage({
     .map((message) => message.id)
     .join("|");
   const selectedMissedCallHistoryCount = selectedContact.id === "daughter" ? missedCallHistoryCount : 0;
+
+  const addApprovedFamilyContact = (contact: FamilyRelationshipApprovedContact) => {
+    setApprovedFamilyContacts((current) => current.some((item) => item.id === contact.id)
+      ? current
+      : [...current, {
+          ...contact,
+          group: "family",
+          detail: "刚刚完成家庭关系确认",
+        }]);
+  };
 
   const runOutgoingCall = (contact: CommunicationContact, mode: "video" | "voice") => {
     setCallContact(contact);
@@ -628,17 +670,24 @@ export default function ContactsCommunicationPage({
 
       <div className="contacts-communication__workspace">
         <aside className="communication-sidebar" aria-label="联系人列表">
+          <button type="button" className="communication-family-requests" onClick={() => setIsFamilyRequestsOpen(true)}>
+            <span className="communication-family-requests__icon"><UserPlus aria-hidden="true" /></span>
+            <span className="communication-family-requests__copy">
+              <strong>家人申请</strong>
+              <small>{familyRequestPendingCount > 0 ? `${familyRequestPendingCount}条申请等待您确认` : "查看申请记录"}</small>
+            </span>
+            <span className="communication-family-requests__aside">
+              {familyRequestPendingCount > 0 && <b aria-label={`${familyRequestPendingCount}条待确认申请`}>{familyRequestPendingCount}</b>}
+              <ChevronRight aria-hidden="true" />
+            </span>
+          </button>
           <section>
             <h3>亲情圈</h3>
             <div>
               {familyContacts.length > 0
                 ? familyContacts.map(renderContact)
-                : <div className="communication-family-empty"><UserPlus aria-hidden="true" /><strong>暂无已绑定家人</strong><span>可通过下方入口邀请家人</span></div>}
+                : <div className="communication-family-empty"><UserPlus aria-hidden="true" /><strong>暂无已绑定家人</strong><span>家人需要先在手机端发起申请</span></div>}
             </div>
-            <button type="button" className="communication-invite-family" onClick={() => setIsFamilyInvitationOpen(true)}>
-              <UserPlus aria-hidden="true" />
-              邀请家人
-            </button>
           </section>
           {historicalContacts.length > 0 && (
             <section className="communication-contact-group--historical">
@@ -883,9 +932,13 @@ export default function ContactsCommunicationPage({
         </section>
       )}
 
-      <FamilyInvitationModal
-        isOpen={isFamilyInvitationOpen}
-        onClose={() => setIsFamilyInvitationOpen(false)}
+      <FamilyRelationshipRequestsModal
+        isOpen={isFamilyRequestsOpen}
+        onClose={() => setIsFamilyRequestsOpen(false)}
+        scenario={familyRequestScenario}
+        condition={familyRequestCondition}
+        onPendingCountChange={setFamilyRequestPendingCount}
+        onApproved={addApprovedFamilyContact}
       />
     </main>
   );

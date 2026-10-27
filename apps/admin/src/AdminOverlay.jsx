@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 
 function useOverlayLifecycle(onClose, { closeDisabled = false, containerRef } = {}) {
   useEffect(() => {
@@ -42,6 +42,26 @@ export function AdminDrawer({ title, ariaLabel, className = "", onClose, childre
       <div className="drawer-body">{children}</div>
       {footer && <footer className="admin-overlay-footer">{footer}</footer>}
     </aside>
+  </div>;
+}
+
+export function AdminModal({ title, ariaLabel, className = "", onClose, children, footer }) {
+  const titleId = useId();
+  const closeButtonRef = useRef(null);
+  const dialogRef = useRef(null);
+  useOverlayLifecycle(onClose, { containerRef: dialogRef });
+  useEffect(() => closeButtonRef.current?.focus(), []);
+
+  return <div className={`modal-layer ${className}`.trim()}>
+    <button className="modal-backdrop" aria-label="关闭弹窗" onClick={onClose}/>
+    <section ref={dialogRef} className="admin-modal-dialog" role="dialog" aria-modal="true" aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : titleId}>
+      <header className="admin-overlay-header">
+        <h2 id={titleId}>{title}</h2>
+        <button ref={closeButtonRef} type="button" className="icon-button" aria-label="关闭" onClick={onClose}><X size={19}/></button>
+      </header>
+      <div className="admin-modal-body">{children}</div>
+      {footer && <footer className="admin-overlay-footer">{footer}</footer>}
+    </section>
   </div>;
 }
 
@@ -103,5 +123,14 @@ export function AdminConfirm({
         {onConfirm && <button type="button" className={activeSeverity === "danger" ? "danger-button" : "primary-button"} disabled={activeLoading} onClick={submit}>{activeLoading ? loadingLabel : confirmLabel}</button>}
       </div>
     </section>
+  </div>;
+}
+
+export function AdminToast({ message, actionLabel, onAction, onClose, tone = "success" }) {
+  return <div className={`admin-toast tone-${tone}`} role="status" aria-live="polite">
+    <CheckCircle2 size={17}/>
+    <span>{message}</span>
+    {actionLabel && onAction && <button type="button" onClick={onAction}>{actionLabel}</button>}
+    {onClose && <button type="button" className="admin-toast-close" aria-label="关闭提示" onClick={onClose}><X size={15}/></button>}
   </div>;
 }

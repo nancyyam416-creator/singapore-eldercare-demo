@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import HomeTaskRail from "./HomeTaskRail";
+import type { HomeNotificationQueueItem } from "../home-notification-queue";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
 import {
   formatWeatherLocalTime,
@@ -111,6 +112,8 @@ interface ControlCenterHomeProps {
   acceptanceRightContentApplySignal?: number;
   acceptanceRightContentActionSignal?: number;
   acceptanceRevision?: number;
+  notificationQueue?: HomeNotificationQueueItem[];
+  notificationQueueCursor?: number;
   acceptanceCommand?: { id: number; type: AcceptanceHomeCommand } | null;
   familyWeather: FamilyWeatherSnapshot;
 }
@@ -185,6 +188,8 @@ export default function ControlCenterHome({
   acceptanceRightContentApplySignal = 0,
   acceptanceRightContentActionSignal = 0,
   acceptanceRevision = 0,
+  notificationQueue = [],
+  notificationQueueCursor = 0,
   acceptanceCommand = null,
   familyWeather,
 }: ControlCenterHomeProps) {
@@ -581,7 +586,7 @@ export default function ControlCenterHome({
 
         <button className="sos-button" type="button" onClick={onTriggerSOS}>
           <Phone aria-hidden="true" />
-          <span>紧急协助</span>
+          <span>在线协助</span>
         </button>
       </header>
 
@@ -712,11 +717,14 @@ export default function ControlCenterHome({
           onOpenCommunity={onOpenCommunity}
           onOpenContacts={onOpenContacts}
           onOpenAlbum={onOpenFamilyMediaReminder}
+          onOpenAssistant={onOpenAssistant}
           onOpenRecommendation={onOpenRecommendation}
           acceptanceRightContentScenario={acceptanceRightContentScenario}
           acceptanceRightContentApplySignal={acceptanceRightContentApplySignal}
           acceptanceRightContentActionSignal={acceptanceRightContentActionSignal}
           acceptanceRevision={acceptanceRevision}
+          notificationQueue={notificationQueue}
+          notificationQueueCursor={notificationQueueCursor}
         />
       </section>
 

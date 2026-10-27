@@ -108,7 +108,7 @@ const homeActivityScenarios: Array<{ value: HomeActivityScenario; label: string;
   { value: 'no_activity', label: '今日暂无记录', description: '设备正常，但今天尚未检测到活动', status: '暂无记录' },
   { value: 'insufficient_history', label: '趋势数据不足', description: '近7天有效记录少于5天', status: '数据不足' },
   { value: 'single_room_day2', label: '连续单房间48小时', description: '连续48小时没有形成其他房间记录', status: '需留意' },
-  { value: 'single_room_day3', label: '连续单房间72小时+', description: '示例：已连续4天没有形成其他房间记录', status: '异常预警' }
+  { value: 'single_room_day3', label: '连续单房间72小时+', description: '已连续4天没有形成其他房间记录', status: '异常预警' }
 ];
 
 const medicationScenarios: Array<{ value: HomeCareScenario; label: string; description: string; status: string }> = [
@@ -128,8 +128,8 @@ const familyMessageScenarios: Array<{ value: FamilyMessageScenario; label: strin
 ];
 
 const familyCallScenarios: Array<{ value: FamilyCallScenario; label: string; description: string; status: string }> = [
-  { value: 'outgoing_voice', label: '呼出语音通话', description: '从老人会话发起语音通话，可取消或模拟接通。', status: '呼叫中' },
-  { value: 'outgoing_video', label: '呼出视频通话', description: '从老人会话发起视频通话，可取消或模拟接通。', status: '呼叫中' },
+  { value: 'outgoing_voice', label: '呼出语音通话', description: '从老人会话发起语音通话，可取消或接通。', status: '呼叫中' },
+  { value: 'outgoing_video', label: '呼出视频通话', description: '从老人会话发起视频通话，可取消或接通。', status: '呼叫中' },
   { value: 'incoming_voice', label: '收到语音来电', description: '独立来电界面展示老人信息，可接听或拒绝。', status: '来电' },
   { value: 'incoming_video', label: '收到视频来电', description: '独立来电界面展示老人信息，可接听或拒绝。', status: '来电' },
   { value: 'connected_voice', label: '语音通话中', description: '支持挂断、静音和免提。', status: '通话中' },
@@ -173,20 +173,21 @@ const familyPhotoPublishScenarios: Array<{ value: FamilyPhotoScenario; label: st
 const elderBindingScenarios: Array<{ value: ElderBindingScenario; label: string; description: string; status: string }> = [
   { value: 'bound', label: '已绑定老人', description: '展示已绑定老人列表、当前老人及新增绑定入口。', status: '正常' },
   { value: 'no_elder', label: '登录后暂无老人', description: '登录成功后直接进入绑定老人引导。', status: '首次绑定' },
-  { value: 'mock_success', label: '固定 Mock 成功', description: '成功码735281固定映射老人王建国，不表示实时跨端校验。', status: '可校验' },
-  { value: 'code_error', label: '绑定码错误', description: '输入的6位家庭绑定码无法识别。', status: '校验失败' },
-  { value: 'code_expired', label: '绑定码已过期', description: '提示在老人屏幕重新生成家庭邀请。', status: '已过期' },
-  { value: 'invitation_ended', label: '邀请已结束', description: '当前邀请已结束，需要使用新的邀请。', status: '已结束' },
-  { value: 'invitation_invalidated', label: '后台作废邀请', description: '邀请已被后台作废，提示联系项目人员。', status: '已作废' },
-  { value: 'network_error', label: '网络异常', description: '绑定码暂时无法校验，可稍后重试。', status: '网络异常' },
+  { value: 'mock_success', label: '手机号申请', description: '预填王*国手机号，提交后需老人确认才生效。', status: '待提交' },
+  { value: 'phone_error', label: '手机号格式错误', description: '预填123，查找时提示格式错误，保留输入。', status: '待修正' },
+  { value: 'not_registered', label: '老人未注册', description: '预填未注册手机号，查找时提示先注册老人手机端。', status: '未注册' },
+  { value: 'pending', label: '待老人确认', description: '已有一条申请，可再次提醒、取消或老人处理。', status: '待确认' },
+  { value: 'rejected', label: '老人已拒绝', description: '申请未建立关系，可重新核对信息并申请。', status: '已拒绝' },
+  { value: 'expired', label: '申请已过期', description: '过期申请不能确认，可重新核对信息并申请。', status: '已过期' },
+  { value: 'network_error', label: '查找网络失败', description: '查找时失败，不创建任何申请；可恢复网络。', status: '交互条件' },
+  { value: 'submit_failed', label: '提交失败', description: '查找正常，提交时失败；保留表单，可恢复后重试。', status: '交互条件' },
   { value: 'already_bound', label: '已经绑定', description: '重复绑定同一老人时不创建新的家庭关系。', status: '重复关系' },
-  { value: 'relationship_removed', label: '家庭关系已解除', description: '老人保留在列表中并显示关系失效状态。', status: '已解除' },
-  { value: 'tablet_code', label: '误输平板激活码', description: '明确提示扫描老人屏幕上的邀请二维码。', status: '码类型错误' }
+  { value: 'relationship_removed', label: '家庭关系已解除', description: '老人保留历史关系，重新申请并经老人确认后才恢复。', status: '已解除' }
 ];
 
 const loginScenarios: Array<{ value: ChildLoginScenario; label: string; description: string; status: string }> = [
-  { value: 'default', label: '首次打开', description: '已填入正确的演示手机号和验证码，可直接登录。', status: '可登录' },
-  { value: 'code_sent', label: '验证码已发送', description: '手机号校验通过，展示发送结果与演示验证码。', status: '已发送' },
+  { value: 'default', label: '首次打开', description: '已填入正确的手机号和验证码，可直接登录。', status: '可登录' },
+  { value: 'code_sent', label: '验证码已发送', description: '手机号校验通过，展示验证码输入状态。', status: '已发送' },
   { value: 'invalid_phone', label: '手机号格式错误', description: '分别校验+65八位号码与+86十一位号码。', status: '格式错误' },
   { value: 'invalid_code', label: '验证码错误', description: '保留手机号并提示重新输入验证码。', status: '验证失败' },
   { value: 'code_expired', label: '验证码已过期', description: '提示重新获取验证码，不进入登录后页面。', status: '已过期' },
@@ -205,7 +206,7 @@ const reminderScenarios: Array<{ value: ReminderScenario; label: string; descrip
 
 const storeScenarios: Array<{ value: StoreCategoryScenario; label: string; description: string; status: string }> = [
   { value: 'default', label: '静安社区 · 五类服务', description: '五个有效分类均存在可预约服务，并按统一顺序展示。', status: '正常' },
-  { value: 'alternate_community', label: '切换长宁社区', description: '模拟切换绑定老人后，重新加载其所属社区服务。', status: '社区切换' },
+  { value: 'alternate_community', label: '切换长宁社区', description: '切换绑定老人后，重新加载其所属社区服务。', status: '社区切换' },
   { value: 'category_disabled', label: '分类已停用', description: '停用分类不展示，其他分类和历史订单保持可用。', status: '已隐藏' },
   { value: 'empty', label: '当前社区无服务', description: '没有有效且可预约的服务时展示空状态。', status: '空状态' },
   { value: 'load_error', label: '分类加载失败', description: '展示重新加载入口，服务记录不受影响。', status: '可重试' }
@@ -268,7 +269,7 @@ const scoreScenarios: Array<{
   { value: 'space_normal', category: 'space', label: '多房间正常活动', description: '今天在2个及以上房间形成记录', result: '空间 40/40', impact: '总分不受限', status: '记录正常' },
   { value: 'single_room', category: 'space', label: '单房间未满48小时', description: '仅在一个房间形成有效记录', result: '空间 30/40', impact: '总分90分', status: '记录正常' },
   { value: 'single_room_day2', category: 'space', label: '连续单房间48小时', description: '连续48小时未检测到第二个房间', result: '空间 15/40', impact: '风险扣5分 · 总分70', status: '需留意' },
-  { value: 'single_room_day3', category: 'space', label: '连续单房间72小时+', description: '示例：已连续4天未检测到第二个房间', result: '空间 0/40', impact: '风险扣10分 · 总分50', status: '异常预警' },
+  { value: 'single_room_day3', category: 'space', label: '连续单房间72小时+', description: '已连续4天未检测到第二个房间', result: '空间 0/40', impact: '风险扣10分 · 总分50', status: '异常预警' },
   { value: 'no_movement', category: 'space', label: '暂无移动记录', description: '雷达在线，今天尚无房间移动', result: '空间 30/40', impact: '总分90分', status: '记录正常' },
   { value: 'schedule_all_completed', category: 'schedule', label: '到期日程全部完成', description: '已经到时间的任务均有完成记录', result: '日程 40/40', impact: '总分100分', status: '记录正常' },
   { value: 'schedule_not_due', category: 'schedule', label: '日程均未到时间', description: '今天有任务，但目前均未到计划时间', result: '日程 40/40', impact: '暂不进入分母', status: '记录正常' },
@@ -1042,12 +1043,14 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                 <section aria-label="老人绑定状态">
                   <div className="mb-2">
                     <h3 className="text-[11px] font-extrabold text-slate-500">绑定状态</h3>
-                    <p className="mt-0.5 text-[10px] text-slate-400">入口、绑定码校验与家庭关系状态</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400">手机号查找、老人确认与家庭关系；切换场景会重置本模块申请。</p>
                   </div>
                   <div className="space-y-1.5">
-                    {elderBindingScenarios.map(option => {
+                    {elderBindingScenarios.map((option, index) => {
                       const selected = elderBindingScenario === option.value;
                       return (
+                        <React.Fragment key={option.value}>
+                        {(index === 0 || option.value === 'network_error' || option.value === 'already_bound') && <h4 className="pt-2 text-[10px] font-bold text-slate-500">{option.value === 'network_error' ? '交互条件' : '可见状态'}</h4>}
                         <button
                           key={option.value}
                           type="button"
@@ -1064,6 +1067,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                           </span>
                           <span className="mt-1 block text-[9px] leading-snug text-slate-400">{option.description}</span>
                         </button>
+                        </React.Fragment>
                       );
                     })}
                   </div>
@@ -1154,7 +1158,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button type="button" onClick={() => onCareFeedScenarioChange('normal')} className="rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">查看完整类型</button>
-                    <button type="button" onClick={() => onCareFeedScenarioChange('medication_overdue')} className="rounded-lg bg-amber-50 px-2 py-2.5 text-[10px] font-bold text-amber-800">模拟用药超时</button>
+                    <button type="button" onClick={() => onCareFeedScenarioChange('medication_overdue')} className="rounded-lg bg-amber-50 px-2 py-2.5 text-[10px] font-bold text-amber-800">用药超时</button>
                     <button type="button" onClick={onOpenMedicationDetails} className="col-span-2 rounded-lg bg-slate-900 px-2 py-2.5 text-[10px] font-bold text-white">打开超时用药详情</button>
                   </div>
                 </section>
@@ -1170,7 +1174,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
         >
           {showSimulator ? <X size={14} /> : <Cpu size={14} />}
-          {showSimulator ? '关闭设备仿真' : '打开设备仿真'}
+          {showSimulator ? '关闭设备状态控制' : '打开设备状态控制'}
         </button>
       </footer>
     </aside>

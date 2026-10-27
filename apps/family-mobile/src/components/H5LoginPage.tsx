@@ -186,7 +186,7 @@ export const H5LoginPage: React.FC<H5LoginPageProps> = ({ scenario, onLoginSucce
           {codeSent && !error && (
             <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-700">
               <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
-              <span>验证码已发送至 {maskedTarget}，演示验证码为 <strong>123456</strong></span>
+              <span>请输入 {maskedTarget} 对应的验证码</span>
             </div>
           )}
 
@@ -208,7 +208,7 @@ export const H5LoginPage: React.FC<H5LoginPageProps> = ({ scenario, onLoginSucce
         </form>
       </div>
 
-      <p className="mt-6 text-center text-[10px] leading-relaxed text-slate-400">验证码仅用于本次身份验证。L2 原型不调用真实短信或登录接口。</p>
+      <p className="mt-6 text-center text-[10px] leading-relaxed text-slate-400">验证码仅用于本次身份验证，请勿向他人透露。</p>
     </div>
   );
 };

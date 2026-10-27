@@ -85,7 +85,7 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
         <section className="w-full max-w-[760px] overflow-hidden rounded-[34px] border-2 border-[#D86A5C] bg-[#F9F7F2] text-[#192B25] shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="assistance-confirm-title">
           <div className="flex flex-col items-center px-12 pb-11 pt-10 text-center">
             <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#FCE9E5] text-[#C2473B]"><PhoneCall className="h-12 w-12" aria-hidden="true" /></div>
-            <p className="mb-2 text-[18px] font-black text-[#A43E35]">紧急协助</p>
+            <p className="mb-2 text-[18px] font-black text-[#A43E35]">在线协助</p>
             <h2 id="assistance-confirm-title" className="text-[38px] font-black tracking-tight">需要现在联系帮助吗？</h2>
             <p className="mt-5 max-w-[600px] text-[22px] font-bold leading-relaxed text-[#52635C]">将联系乐龄呼叫中心，并通知已绑定子女。</p>
             <div className="mt-8 grid w-full grid-cols-2 gap-4">
@@ -108,9 +108,9 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
     contacting: { icon: PhoneCall, eyebrow: "正在联系", title: "正在联系乐龄呼叫中心", description: "请稍候，工作人员接听后会与您说话。", tone: "text-[#F2C96D] bg-[#392F1B] border-[#7A632D]" },
     connected: { icon: UserRoundCheck, eyebrow: "已接通", title: "已接通，正在沟通", description: "请保持设备开启，工作人员正在了解您的情况。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
     callback: { icon: Clock3, eyebrow: "暂未接通", title: "等待呼叫中心回拨", description: "这次联系暂时无人接听，您可以重新联系，也可等待回拨。", tone: "text-[#F2C96D] bg-[#392F1B] border-[#7A632D]" },
-    processing: { icon: Headphones, eyebrow: "处理中", title: "呼叫中心正在处理", description: "本次协助已在跟进，请不要重复发起。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
+    processing: { icon: Headphones, eyebrow: "处理中", title: "呼叫中心正在处理", description: "本次在线协助已在跟进，请不要重复发起。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
     "follow-up": { icon: BellRing, eyebrow: "需要后续跟进", title: "工作人员会继续联系您", description: "乐龄呼叫中心已记录情况，后续会再与您确认。", tone: "text-[#89C7F0] bg-[#152D40] border-[#326D96]" },
-    completed: { icon: CheckCircle2, eyebrow: "已完成", title: "本次协助已完成", description: "呼叫中心已完成处理，您可以放心返回首页。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
+    completed: { icon: CheckCircle2, eyebrow: "已完成", title: "本次在线协助已完成", description: "呼叫中心已完成处理，您可以放心返回首页。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
   }[stage];
   const StatusIcon = presentation.icon;
 
@@ -118,7 +118,7 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#061018]/95 p-8 text-white backdrop-blur-md select-none">
       <section className="w-full max-w-[920px] overflow-hidden rounded-[34px] border-2 border-[#274558] bg-[#0D1B27] shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="assistance-status-title">
         <header className="flex items-center justify-between border-b border-[#294052] px-8 py-5">
-          <div className="flex items-center gap-3 text-[19px] font-black"><PhoneCall className="h-6 w-6 text-[#F06E62]" />紧急协助</div>
+          <div className="flex items-center gap-3 text-[19px] font-black"><PhoneCall className="h-6 w-6 text-[#F06E62]" />在线协助</div>
           <span className="rounded-full border border-[#355267] bg-[#142534] px-4 py-2 text-[15px] font-black text-[#B8C9D5]">{event?.status ?? "待接听"}</span>
         </header>
         <div className="px-10 pb-9 pt-10 text-center">

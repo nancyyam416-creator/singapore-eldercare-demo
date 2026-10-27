@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { AlertCircle, ChevronRight, MapPin } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { ElderStatusCardScenario } from '../types';
 
 interface H5ElderStatusCardProps {
@@ -12,6 +12,7 @@ interface H5ElderStatusCardProps {
   currentLocation: string;
   scenario: ElderStatusCardScenario;
   onOpenProfile: () => void;
+  onSwitchElder?: () => void;
   children?: React.ReactNode;
 }
 
@@ -43,6 +44,7 @@ export const H5ElderStatusCard: React.FC<H5ElderStatusCardProps> = ({
   currentLocation,
   scenario,
   onOpenProfile,
+  onSwitchElder,
   children
 }) => {
   const state = scenarioCopy[scenario];
@@ -80,6 +82,12 @@ export const H5ElderStatusCard: React.FC<H5ElderStatusCardProps> = ({
           老人档案<ChevronRight size={13} />
         </button>
       </div>
+
+      {onSwitchElder && (
+        <button type="button" onClick={onSwitchElder} className="mt-3 flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-bold text-white hover:bg-white/15">
+          <span>切换家人</span><ChevronDown size={15} />
+        </button>
+      )}
 
       {children}
     </section>

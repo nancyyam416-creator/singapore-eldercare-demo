@@ -6,7 +6,6 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import {
   ArrowLeft,
-  BellRing,
   CheckCircle,
   ChevronRight,
   KeyRound,
@@ -20,9 +19,9 @@ import {
 } from 'lucide-react';
 import { BoundElder, ElderBindingScenario } from '../types';
 import { H5ElderBindingFlow } from './H5ElderBindingFlow';
+import { BindingAction, BindingState, bindingCandidates, bindingStatusLabels, mockApplicantId } from '../data/familyBinding';
 
 interface H5ProfileTabProps {
-  onOpenReminders: () => void;
   isLoggedIn: boolean;
   onLogin: () => void;
   onLogout: () => void;
@@ -31,13 +30,13 @@ interface H5ProfileTabProps {
   boundElders: BoundElder[];
   currentElderId: string | null;
   bindingScenario: ElderBindingScenario;
-  onBindElder: (elder: BoundElder) => boolean;
+  bindingState: BindingState;
+  bindingDispatch: React.Dispatch<BindingAction>;
   onSwitchElder: (elderId: string) => void;
   onEnterElderHome: (elderId: string) => void;
 }
 
 export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
-  onOpenReminders,
   isLoggedIn,
   onLogin,
   onLogout,
@@ -46,7 +45,8 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
   boundElders,
   currentElderId,
   bindingScenario,
-  onBindElder,
+  bindingState,
+  bindingDispatch,
   onSwitchElder,
   onEnterElderHome
 }) => {
@@ -57,10 +57,11 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
   const [profileView, setProfileView] = useState<'main' | 'address_edit' | 'elder_binding'>('main');
   const [draftAddress, setDraftAddress] = useState(residenceAddress);
   const [addressSaved, setAddressSaved] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (bindingScenario === 'bound') return;
-    setProfileView(bindingScenario === 'relationship_removed' ? 'main' : 'elder_binding');
+    setSelectedRequestId(null);
+    setProfileView(bindingScenario === 'bound' || bindingScenario === 'relationship_removed' ? 'main' : 'elder_binding');
   }, [bindingScenario]);
 
   const handleSendCode = () => {
@@ -166,7 +167,7 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
             </label>
 
             {codeSent && (
-              <p className="text-xs text-emerald-600 font-semibold">演示验证码：123456</p>
+              <p className="text-xs text-emerald-600 font-semibold">请输入手机号对应的验证码</p>
             )}
             {error && <p className="text-xs text-rose-600 font-semibold">{error}</p>}
 
@@ -198,23 +199,23 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
     );
   }
 
-  if (profileView === 'elder_binding' || boundElders.length === 0) {
+  if (profileView === 'elder_binding') {
     return (
       <H5ElderBindingFlow
-        scenario={bindingScenario === 'bound' ? 'no_elder' : bindingScenario}
-        existingElderIds={boundElders.map(elder => elder.id)}
-        canCancel={boundElders.length > 0}
+        key={bindingScenario}
+        scenario={bindingScenario}
+        state={bindingState}
+        dispatch={bindingDispatch}
+        initialRequestId={selectedRequestId}
         onCancel={() => setProfileView('main')}
-        onBound={onBindElder}
         onEnterHome={onEnterElderHome}
         onCompleteAddress={() => setProfileView('address_edit')}
       />
     );
   }
 
-  const visibleElders = bindingScenario === 'relationship_removed'
-    ? boundElders.map((elder, index) => index === 0 ? { ...elder, relationshipStatus: 'removed' as const } : elder)
-    : boundElders;
+  const visibleElders = boundElders;
+  const requests = bindingState.requests.filter(request => request.applicantId === mockApplicantId);
 
   return (
     <div className="p-4 pb-8 space-y-4 bg-slate-50 min-h-full">
@@ -274,23 +275,27 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
                     : <button type="button" onClick={() => onSwitchElder(elder.id)} className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-blue-600">切换</button>
                 )}
                 {elder.relationshipStatus === 'removed' && (
-                  <button type="button" onClick={() => setProfileView('elder_binding')} className="rounded-lg bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-600">重新绑定</button>
+                  <button type="button" onClick={() => { setSelectedRequestId(null); setProfileView('elder_binding'); }} className="rounded-lg bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-600">重新申请</button>
                 )}
               </div>
             );
           })}
-          <button type="button" onClick={() => setProfileView('elder_binding')} className="flex w-full items-center justify-between px-4 py-3 text-left text-xs font-bold text-blue-600">
-            <span>绑定另一位老人</span>
+          {visibleElders.length === 0 && <p className="p-4 text-xs text-slate-500">暂无已绑定老人，请添加家人并等待老人确认。</p>}
+          <button type="button" onClick={() => { setSelectedRequestId(null); setProfileView('elder_binding'); }} className="flex w-full items-center justify-between px-4 py-3 text-left text-xs font-bold text-blue-600">
+            <span>添加家人</span>
             <ChevronRight size={16} />
           </button>
         </div>
       </section>
 
-      <button type="button" onClick={onOpenReminders} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><BellRing size={19} aria-hidden="true" /></span>
-        <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">给老人设置提醒</strong><span className="mt-1 block text-xs text-slate-500">在老人中控屏提醒用药和日常事项</span></span>
-        <ChevronRight size={17} className="text-slate-300" />
-      </button>
+      {requests.length > 0 && <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h3 className="text-sm font-bold text-slate-900">家庭绑定申请</h3>
+        <div className="mt-2 divide-y divide-slate-100">{[...requests].reverse().map(request => <button key={request.id} type="button" onClick={() => { setSelectedRequestId(request.id); setProfileView('elder_binding'); }} className="flex w-full items-center justify-between gap-2 py-3 text-left text-xs">
+          <span>{bindingCandidates.find(elder => elder.id === request.elderId)?.maskedName} · {request.relation}<span className="mt-1 block text-[10px] text-slate-400">{request.id}</span></span>
+          <span className="font-bold text-blue-600">{bindingStatusLabels[request.status]} ›</span>
+        </button>)}</div>
+      </section>}
+
       </section>
 
       <button

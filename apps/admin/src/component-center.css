@@ -79,11 +79,29 @@
 .component-filter-demo { min-height: 0; padding: 6px 0; flex-wrap: wrap; border-bottom: 0; }
 .component-filter-demo .input-wrap { width: 220px; }
 .component-filter-demo .filter-actions { margin-left: 0; }
-.component-table-demo { margin: -14px; }
-.component-table-demo table { min-width: 560px; }
+.component-table-preview { width: 100%; display: grid; gap: 10px; }
+.component-table-demo { margin: 0 -14px -14px; }
+.component-table-demo table { min-width: 760px; }
+.component-table-person { display: flex; align-items: center; gap: 11px; }
+.component-table-person > span:last-child { display: flex; flex-direction: column; gap: var(--admin-table-stack-gap); }
+.component-table-avatar { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border: 1px solid #e2e8f0; border-radius: 10px; color: #94a3b8; background: #f1f5f9; }
+.component-table-empty { min-height: 152px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: #94a3b8; }
+.component-table-empty b { color: #475569; font-size: 14px; }
+.component-table-empty span { font-size: 12px; }
 .component-empty-demo { min-height: 185px; }
 .component-pagination-demo { margin: -14px; min-height: 64px; }
 .component-button-demo { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.component-button-preview { width: 100%; display: grid; gap: 14px; }
+.component-inline-action-demo { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 7px; }
+.component-inline-action-demo > header,
+.component-inline-action-demo > div { min-height: 42px; padding: 6px 12px; display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: 12px; border-bottom: 1px solid #edf0f4; }
+.component-inline-action-demo > header { color: #526175; background: #f8fafc; font-size: 10px; }
+.component-inline-action-demo > header span { color: #8a95a4; text-align: right; }
+.component-inline-action-demo > div:last-child { border-bottom: 0; }
+.component-inline-action-demo > div > span { color: #667085; font-size: 10px; }
+.component-inline-action-demo p { margin: 0; display: flex; align-items: center; justify-content: flex-end; }
+.component-permission-preview { display: grid; gap: 10px; }
+.component-permission-preview .permission-matrix { height: 300px; }
 .component-detail-section { margin-top: 14px; padding: 12px 13px; border: 1px solid #e5e9ef; border-radius: 7px; background: #fff; }
 .component-detail-section h3, .component-coverage-grid h3 { margin: 0 0 8px; font-size: 11px; }
 .component-detail-section ul { margin: 0; padding-left: 17px; display: grid; gap: 5px; color: #627083; font-size: 10px; line-height: 1.55; }
@@ -97,13 +115,9 @@
 .component-code-location > div { min-width: 0; display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 8px; }
 .component-code-location span { color: #7c8796; font-size: 9px; }
 .component-code-location code { overflow: hidden; color: #465569; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.component-demo-drawer { width: 560px; }
-.component-demo-modal { position: relative; width: 520px; max-height: min(520px, calc(100vh - 48px)); display: flex; flex-direction: column; border-radius: 10px; background: #fff; box-shadow: 0 24px 60px rgba(15,23,42,.22); }
-.component-demo-modal > header { height: 64px; padding: 0 20px; display: flex; align-items: center; border-bottom: 1px solid #e5e9ef; }
-.component-demo-modal h2 { margin: 0; font-size: 17px; }
-.component-demo-modal > div { padding: 20px; overflow-y: auto; }
-.component-demo-modal p { margin: 0; color: #667085; font-size: 12px; line-height: 1.75; }
-.component-demo-modal > footer { height: 60px; padding: 0 20px; display: flex; align-items: center; justify-content: flex-end; border-top: 1px solid #e5e9ef; }
+.component-center-shell .drawer.component-demo-drawer { width: 560px; }
+.component-center-shell .drawer.component-detail-drawer-demo { width: 760px; }
+.component-modal-copy { margin: 0; color: #667085; font-size: 12px; line-height: 1.75; }
 @media (max-width: 1280px) {
   .component-center-main { grid-template-columns: 160px minmax(270px, .72fr) minmax(430px, 1.25fr); }
   .component-center-header p { display: none; }

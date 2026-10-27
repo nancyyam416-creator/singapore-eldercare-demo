@@ -44,7 +44,6 @@ const errorMessages: Record<Exclude<ActivationError, null>, string> = {
   deviceMismatch: "激活码与这台平板不匹配，请让工作人员检查。",
   network: "当前网络连接异常，请检查网络后重试。",
   alreadyBound: "这台平板已经完成激活，无需重复操作。",
-  familyBindingCode: "这不是设备激活码，请使用后台生成的平板激活码。",
 };
 
 const progressSteps = [

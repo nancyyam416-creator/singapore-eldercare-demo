@@ -1,0 +1,25 @@
+.permission-matrix { min-height: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--admin-border, #dbe2ea); border-radius: var(--admin-radius-lg, 10px); background: #fff; }
+.permission-matrix-notice { min-height: 40px; padding: 8px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #fde7bb; color: #8a5a12; background: #fffaf0; font-size: 12px; }
+.permission-matrix-scroll { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; background: transparent; }
+.permission-matrix input[type="checkbox"] { width: 15px; height: 15px; margin: 0; flex: 0 0 15px; accent-color: #2563eb; cursor: pointer; }
+.permission-matrix input[type="checkbox"]:disabled { cursor: not-allowed; }
+.permission-menu-card-head label, .permission-action-list label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.permission-groups { padding: 14px; display: grid; gap: 18px; }
+.permission-group { display: grid; gap: 9px; }
+.permission-group > header { min-height: 24px; display: flex; align-items: center; }
+.permission-group > header span { color: #718096; font-size: 12px; font-weight: 650; }
+.permission-card-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.permission-menu-card { min-width: 0; overflow: hidden; border: 1px solid #dbe3ec; border-radius: 9px; background: #fff; }
+.permission-menu-card-head { min-height: 48px; padding: 9px 12px; border-bottom: 1px solid #edf1f5; background: #fbfcfe; }
+.permission-menu-card-head b { overflow: hidden; color: #273548; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.permission-action-list { min-height: 46px; padding: 10px 12px 10px 35px; display: flex; align-content: flex-start; align-items: center; flex-wrap: wrap; gap: 9px 22px; }
+.permission-action-list label { color: #526175; font-size: 11px; line-height: 1.4; }
+.permission-menu-card.is-disabled { background: #fafbfc; }
+.permission-menu-card.is-disabled .permission-menu-card-head, .permission-menu-card.is-disabled .permission-action-list { background: #fafbfc; color: #9aa4b2; }
+.permission-matrix footer { min-height: 58px; padding: 10px 14px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; border-top: 1px solid #dfe5ec; background: #fff; box-shadow: 0 -4px 12px rgba(15, 23, 42, .035); }
+.permission-matrix-denied { min-height: 240px; align-items: center; justify-content: center; color: #64748b; text-align: center; }
+.permission-matrix-denied svg { color: #94a3b8; }
+.permission-matrix-denied h3 { margin: 10px 0 4px; color: #334155; font-size: 14px; }
+.permission-matrix-denied p { margin: 0; font-size: 12px; }
+.admin-style-theme .role-permission-body:has(> .permission-matrix) { overflow: hidden; padding: 16px; display: block; }
+.admin-style-theme .role-permission-body > .permission-matrix { width: 100%; height: 100%; max-height: 100%; display: flex; }

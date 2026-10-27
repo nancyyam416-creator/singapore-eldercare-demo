@@ -4,14 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Activity, 
-  MapPin, 
-  Flame, 
-  Heart, 
-  Clock, 
-  AlertTriangle, 
-  Check, 
+import {
+  Activity,
+  MapPin,
+  Flame,
+  Heart,
+  Clock,
+  AlertTriangle,
+  Check,
   X,
   Plus,
   Droplet,
@@ -124,12 +124,12 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
             <Cpu size={16} className="animate-pulse" />
           </div>
           <div>
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">智能设备数据仿真沙盒</h3>
-            <p className="text-5xs text-slate-400 font-extrabold uppercase">模拟长辈在家中物联网设备的各种动态变化</p>
+            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">智能设备状态控制</h3>
+            <p className="text-5xs text-slate-400 font-extrabold uppercase">调整长辈居家设备状态</p>
           </div>
         </div>
         <span className="text-5xs bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full font-black animate-pulse">
-          仿真网关连接正常
+          设备状态控制已就绪
         </span>
       </div>
 
@@ -160,7 +160,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
 
       {/* 3. Panel Body */}
       <div className="min-h-[180px] bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col justify-between">
-        
+
         {/* TAB 1: SAFETY / EMERGENCY ALARM */}
         {activePanelTab === 'safety' && (
           <div className="space-y-4 flex-1 flex flex-col justify-between">
@@ -180,7 +180,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
                 className="w-full bg-rose-600 hover:bg-rose-500 text-white text-3xs font-extrabold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-rose-600/10 transition-colors cursor-pointer"
               >
                 <AlertTriangle size={14} />
-                🚨 模拟洗手间：突发跌倒求救
+                🚨 洗手间：突发跌倒求救
               </button>
 
               <button
@@ -191,7 +191,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
                 className="w-full bg-amber-500 hover:bg-amber-450 text-white text-3xs font-extrabold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-amber-500/10 transition-colors cursor-pointer"
               >
                 <Droplet size={14} className="fill-white" />
-                ⚠️ 模拟厨房：溢水滑倒安全预警
+                ⚠️ 厨房：溢水滑倒安全预警
               </button>
 
               {hasActiveAlert && (
@@ -200,7 +200,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
                   className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-3xs font-extrabold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer mt-1"
                 >
                   <Check size={14} />
-                  解除仿真警报 (恢复正常体征)
+                  解除警报 (恢复正常体征)
                 </button>
               )}
             </div>
@@ -211,7 +211,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
         {activePanelTab === 'vitals' && (
           <div className="space-y-4 flex-1 flex flex-col justify-between">
             <div className="space-y-2">
-              <span className="text-5xs text-slate-400 font-extrabold uppercase block">1. 模拟长辈在房间内行走移动：</span>
+              <span className="text-5xs text-slate-400 font-extrabold uppercase block">1. 长辈所在房间：</span>
               <div className="grid grid-cols-4 gap-1.5">
                 {['客厅', '卧室', '厨房', '洗手间'].map(loc => (
                   <button
@@ -226,7 +226,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
             </div>
 
             <div className="border-t border-slate-200/60 pt-3 space-y-2">
-              <span className="text-5xs text-slate-400 font-extrabold uppercase block">2. 模拟手环健康传感器数据更新：</span>
+              <span className="text-5xs text-slate-400 font-extrabold uppercase block">2. 手环健康数据：</span>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={handleWalk}
@@ -260,7 +260,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
         {activePanelTab === 'meds' && (
           <div className="space-y-3 flex-1 flex flex-col justify-between">
             <div className="space-y-1">
-              <span className="text-5xs text-slate-400 font-extrabold uppercase block">1. 模拟智能服药盒的硬件确认：</span>
+              <span className="text-5xs text-slate-400 font-extrabold uppercase block">1. 智能服药盒确认：</span>
               <p className="text-4xs text-slate-500 font-semibold leading-normal">
                 老人家在卧室吃完药后，可通过物理按键/打开药格自动确认。状态会同步上报到子女H5用药页面。
               </p>
@@ -278,7 +278,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
                       onClick={() => toggleMedication(med.id, med.status)}
                       className={`text-5xs font-black px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${med.status === 'taken' ? 'bg-emerald-500 border-emerald-500 text-white shadow-3xs' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600'}`}
                     >
-                      {med.status === 'taken' ? '已服用' : '模拟服药'}
+                      {med.status === 'taken' ? '已服用' : '确认服药'}
                     </button>
                     {med.status !== 'taken' && (
                       <button
@@ -286,7 +286,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
                         disabled={med.status === 'missed'}
                         className={`text-5xs font-black px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${med.status === 'missed' ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600'}`}
                       >
-                        模拟超时漏服
+                        超时漏服
                       </button>
                     )}
                   </div>

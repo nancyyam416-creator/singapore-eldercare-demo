@@ -10,11 +10,25 @@ export const componentCatalog = [
     migrated: ["社区人员", "休闲娱乐"], pending: ["老人档案", "提醒事项", "设备管理", "项目与社区", "内容与服务模块"],
   },
   {
-    id: "admin-modal", name: "AdminModal", category: "Overlay", status: "pending", assetType: "public-style",
-    maturity: "待沉淀", scenarios: "资源选择、参加意向、设备绑定等大型居中弹层",
-    rules: ["代码库已有 modal-layer 公共样式", "尚未抽成 AdminModal 公共组件", "不得标记为已完成"],
-    support: ["遮罩", "居中容器", "现有业务 Modal"], source: "src/styles.css (.modal-layer)", spec: "《后台通用组件规范.md》#Modal-与-Confirm",
-    migrated: [], pending: ["推荐资源选择", "老人选择", "活动参加意向", "平板绑定"],
+    id: "detail-drawer-layout", name: "详情抽屉内容布局", category: "Overlay", status: "stable", assetType: "public-style",
+    maturity: "已稳定", scenarios: "版本、设备、任务与配置等只读详情抽屉",
+    rules: ["摘要区只突出一个核心对象与状态", "属性网格按宽度使用两至三列", "说明信息只使用一块浅底承载区", "关联记录使用紧凑表格", "Footer 由 AdminDrawer 固定，不随正文滚动", "禁止渐变、插画和多层装饰卡片"],
+    support: ["摘要卡", "属性网格", "浅底说明", "紧凑表格", "固定 Footer"], source: "src/styles.css (.admin-detail-*)", spec: "《后台通用组件规范.md》#详情抽屉内容布局",
+    migrated: ["平板 OTA 升级"], pending: ["其他详情型抽屉"],
+  },
+  {
+    id: "admin-modal", name: "AdminModal", category: "Overlay", status: "stable", assetType: "public-component",
+    maturity: "已稳定", scenarios: "资源选择、参加意向、设备绑定等居中弹层",
+    rules: ["Header、Body、Footer 分区固定", "标题左对齐，关闭按钮固定右上", "Body 默认 24px 内边距", "Footer 操作右对齐"],
+    support: ["标题", "关闭按钮", "Body", "Footer actions", "焦点管理"], source: "src/AdminOverlay.jsx", spec: "《后台通用组件规范.md》#Modal-与-Confirm",
+    migrated: ["重置密码结果"], pending: ["推荐资源选择", "老人选择", "活动参加意向", "平板绑定"],
+  },
+  {
+    id: "compact-result-modal", name: "紧凑型结果弹窗", category: "Overlay", status: "stable", assetType: "public-style",
+    maturity: "已稳定", scenarios: "临时密码、生成结果、一次性凭证等短结果展示",
+    rules: ["弹窗宽度 440px", "Body 使用 24px 内边距", "结果值在左、复制按钮在右", "提示文字与结果框间距 12px", "Footer 只保留一个右对齐主按钮"],
+    support: ["只读结果值", "复制操作", "辅助提示", "唯一主按钮"], source: "src/styles.css (.admin-result-*)", spec: "《后台通用组件规范.md》#紧凑型结果弹窗",
+    migrated: ["平台用户重置密码", "社区用户重置密码"], pending: ["其他一次性结果场景"],
   },
   {
     id: "admin-confirm", name: "AdminConfirm", category: "Overlay", status: "migrating", assetType: "public-component",
@@ -41,9 +55,17 @@ export const componentCatalog = [
     support: ["搜索", "select", "日期", "查询/重置"], source: "src/styles.css (.filters / .filter-actions)", spec: "《后台通用组件规范.md》#表格搜索区与分页", migrated: ["多数管理列表"], pending: ["少量局部搜索区样式对齐"],
   },
   {
-    id: "table-status", name: "表格及状态标签", category: "数据展示", status: "migrating", assetType: "public-style",
-    maturity: "迁移中", scenarios: "宽表扫读、粘性操作列与业务状态", rules: ["表格放入 table-scroll", "操作列使用 sticky-right", "状态颜色按语义映射"],
-    support: ["水平滚动", "粘性操作列", "success / warning / danger / neutral"], source: "src/styles.css (table / .status-tag)", spec: "《后台通用组件规范.md》#按钮状态标签与空状态", migrated: ["多数管理列表"], pending: ["抽取 AdminStatusTag", "清理各文件局部 StatusTag"],
+    id: "table-status", name: "标准数据表格", category: "数据展示", status: "stable", assetType: "public-style",
+    maturity: "已稳定", scenarios: "平台端与社区端的业务列表、宽表和只读记录",
+    rules: ["默认密度以社区人员列表为基准", "表头 50px、数据行 76px、单元格横向 18px", "主副文本间距 4px且垂直居中", "表格放入 table-scroll，操作列使用 sticky-right", "只有抽屉小表格使用 compact 变体"],
+    support: ["普通文本", "主副文本", "头像信息", "状态标签", "纯文字操作", "空状态", "Footer / 分页", "compact"], source: "src/styles.css (--admin-table-* / .admin-compact-table)", spec: "《后台通用组件规范.md》#标准数据表格", migrated: ["管理后台全部业务表格"], pending: ["抽取 AdminStatusTag", "清理各文件局部 StatusTag"],
+  },
+  {
+    id: "permission-matrix", name: "PermissionMatrix", category: "数据展示", status: "stable", assetType: "public-component",
+    maturity: "已稳定", scenarios: "角色逐菜单配置查看、新增、编辑、删除、导出等操作权限",
+    rules: ["单列纵向排列，分组标题位于卡片外", "每个菜单使用标题行、分隔线和操作行组成的通栏卡片", "只渲染菜单真实支持的操作", "禁止全部菜单权限总控条", "内置角色、只读和权限不足状态不允许修改"],
+    support: ["单列菜单卡片", "菜单分组", "菜单全选 / 半选", "真实操作项", "内部滚动", "固定保存区", "只读 / 禁用", "内置角色保护", "权限不足"], source: "src/PermissionMatrix.jsx", spec: "《后台通用组件规范.md》#权限矩阵",
+    migrated: ["后台组件中心", "平台角色管理", "社区角色管理"], pending: ["其他新增角色授权页面"],
   },
   {
     id: "empty-state", name: "空状态", category: "反馈", status: "pending", assetType: "public-style",
@@ -57,8 +79,8 @@ export const componentCatalog = [
   },
   {
     id: "button-hierarchy", name: "按钮层级", category: "基础控件", status: "stable", assetType: "public-style",
-    maturity: "已稳定", scenarios: "页面主操作、次操作、危险操作和表格行操作", rules: ["同一区域只保留一个主操作", "危险操作必须文字明确", "不用颜色代替语义"],
-    support: ["primary", "secondary", "danger", "danger-outline", "table-action"], source: "src/styles.css (*-button / .table-action)", spec: "《后台通用组件规范.md》#按钮状态标签与空状态", migrated: ["后台全局"], pending: ["少量业务自定义按钮语义清理"],
+    maturity: "已稳定", scenarios: "页面主操作、次操作、危险操作和表格行操作", rules: ["同一区域只保留一个主操作", "危险操作必须文字明确", "表格同一操作列只使用纯文字", "普通操作主色、危险操作危险色，点击区域和 disabled 状态统一"],
+    support: ["primary", "secondary", "danger", "danger-outline", "table-action", "table-action danger", "disabled"], source: "src/styles.css (*-button / .table-action)", spec: "《后台通用组件规范.md》#按钮状态标签与空状态", migrated: ["后台全局", "用户管理操作列"], pending: ["少量业务自定义按钮语义清理"],
   },
 ];
 

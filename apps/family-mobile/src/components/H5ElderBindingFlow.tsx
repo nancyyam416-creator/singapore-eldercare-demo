@@ -1,286 +1,135 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useEffect, useState } from 'react';
-import {
-  AlertCircle,
-  ArrowLeft,
-  CheckCircle2,
-  ChevronRight,
-  Keyboard,
-  MapPin,
-  ScanLine,
-  ShieldCheck,
-  UsersRound
-} from 'lucide-react';
-import { BoundElder, ElderBindingScenario, ElderRelation } from '../types';
-import { defaultMockBindingSuccessCode, mockBindingCandidatesByCode } from '../data/mockData';
-
-type BindingStep = 'guide' | 'code' | 'preview' | 'success';
+import { ArrowLeft, CheckCircle2, Clock3 } from 'lucide-react';
+import { ElderBindingScenario, ElderRelation } from '../types';
+import { BindingAction, BindingCandidate, BindingState, bindingCandidates, bindingStatusLabels, lookupBindingCandidate, mockApplicantId } from '../data/familyBinding';
 
 interface H5ElderBindingFlowProps {
   scenario: ElderBindingScenario;
-  existingElderIds: string[];
-  canCancel: boolean;
+  state: BindingState;
+  dispatch: React.Dispatch<BindingAction>;
+  initialRequestId: string | null;
   onCancel: () => void;
-  onBound: (elder: BoundElder) => boolean;
   onEnterHome: (elderId: string) => void;
   onCompleteAddress: () => void;
 }
+const relations: ElderRelation[] = ['儿子', '女儿', '儿媳', '女婿', '孙辈', '其他家属', '看护人'];
+const primary = 'w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400';
+const secondary = 'w-full rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold text-slate-600';
 
-const relations: ElderRelation[] = ['儿子', '女儿', '儿媳', '女婿', '孙辈', '其他家属'];
-
-const scenarioCodes: Partial<Record<ElderBindingScenario, string>> = {
-  mock_success: defaultMockBindingSuccessCode,
-  code_error: '111111',
-  code_expired: '222222',
-  invitation_ended: '333333',
-  invitation_invalidated: '444444',
-  already_bound: '555555',
-  tablet_code: '888888',
-  network_error: '999999'
-};
-
-const validationMessages: Record<string, string> = {
-  '111111': '家庭绑定码错误，请核对后重新输入。',
-  '222222': '家庭绑定码已过期，请让老人在屏幕上重新生成。',
-  '333333': '这次邀请已结束，请使用老人屏幕上的新邀请。',
-  '444444': '这次邀请已被后台作废，请联系项目工作人员。',
-  '555555': '你已经绑定了这位老人',
-  '888888': '这不是家庭绑定码，请扫描老人屏幕上的邀请二维码。',
-  '999999': '网络异常，暂时无法校验，请稍后重试。'
-};
-
-export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({
-  scenario,
-  existingElderIds,
-  canCancel,
-  onCancel,
-  onBound,
-  onEnterHome,
-  onCompleteAddress
-}) => {
-  const [step, setStep] = useState<BindingStep>('guide');
-  const [bindingCode, setBindingCode] = useState('');
+export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({ scenario, state, dispatch, initialRequestId, onCancel, onEnterHome, onCompleteAddress }) => {
+  const [step, setStep] = useState<'phone' | 'preview' | 'request' | 'existing'>('phone');
+  const [countryCode, setCountryCode] = useState<'+65' | '+86'>('+65');
+  const [phone, setPhone] = useState('81230001');
+  const [candidate, setCandidate] = useState<BindingCandidate | null>(null);
   const [relation, setRelation] = useState<ElderRelation | null>(null);
   const [error, setError] = useState('');
-  const [bindingCandidate, setBindingCandidate] = useState<Omit<BoundElder, 'relation' | 'relationshipStatus'> | null>(null);
-  const [boundElder, setBoundElder] = useState<BoundElder | null>(null);
+  const [notice, setNotice] = useState('');
+  const [networkFailed, setNetworkFailed] = useState(false);
+  const [submitFailed, setSubmitFailed] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(initialRequestId);
 
   useEffect(() => {
-    const presetCode = scenarioCodes[scenario] ?? '';
-    setStep(presetCode ? 'code' : 'guide');
-    setBindingCode(presetCode);
-    setRelation(null);
-    setError('');
-    setBindingCandidate(null);
-    setBoundElder(null);
-  }, [scenario]);
+    const father = scenario === 'already_bound' || scenario === 'relationship_removed';
+    setCountryCode(father ? '+86' : '+65');
+    setPhone(scenario === 'phone_error' ? '123' : scenario === 'not_registered' ? '81239999' : father ? '13800005678' : '81230001');
+    setNetworkFailed(scenario === 'network_error'); setSubmitFailed(scenario === 'submit_failed');
+    setError(''); setNotice(''); setRelation(null); setCandidate(null);
+    const preset = initialRequestId ?? (['pending', 'rejected', 'expired'].includes(scenario) ? 'request-1' : null);
+    setRequestId(preset); setStep(preset ? 'request' : 'phone');
+  }, [scenario, initialRequestId]);
 
-  const openCodeEntry = () => {
-    setError('');
-    setStep('code');
+  const currentRequests = state.requests.filter(item => item.applicantId === mockApplicantId);
+  const request = requestId ? currentRequests.find(item => item.id === requestId) :
+    [...currentRequests].reverse().find(item => item.elderId === candidate?.id);
+  const requestElder = bindingCandidates.find(item => item.id === request?.elderId);
+  const showCandidate = (elder: BindingCandidate) => {
+    setCandidate(elder); setError(''); setNotice(''); setRelation(null);
+    const active = state.relationships.some(item => item.applicantId === mockApplicantId && item.elderId === elder.id && item.status === 'active');
+    const pending = currentRequests.find(item => item.elderId === elder.id && item.status === 'pending');
+    if (active) { setStep('existing'); return; }
+    if (pending) { setRequestId(pending.id); setNotice('已有待确认申请，请勿重复提交。'); setStep('request'); return; }
+    setRequestId(null); setStep('preview');
+  };
+  const lookup = () => {
+    if (networkFailed) { setError('网络异常，暂时无法查找老人。未创建申请或家庭关系。'); return; }
+    const result = lookupBindingCandidate(countryCode, phone);
+    if (!result.candidate) { setError(result.error ?? '查找失败'); return; }
+    showCandidate(result.candidate);
+  };
+  const submit = () => {
+    if (!candidate || !relation) return;
+    if (submitFailed) { setError('申请提交失败，未创建申请或家庭关系。信息已保留，可重试。'); return; }
+    if (state.relationships.some(item => item.applicantId === mockApplicantId && item.elderId === candidate.id && item.status === 'active')) { setStep('existing'); return; }
+    const pending = currentRequests.find(item => item.elderId === candidate.id && item.status === 'pending');
+    if (pending) { setRequestId(pending.id); setNotice('已有待确认申请，请勿重复提交。'); }
+    else { dispatch({ type: 'submit', applicantId: mockApplicantId, elderId: candidate.id, relation }); setRequestId(null); setNotice(''); }
+    setError(''); setStep('request');
+  };
+  const restart = () => {
+    if (requestElder) { setCandidate(requestElder); setCountryCode(requestElder.countryCode); setPhone(requestElder.phone); }
+    setRequestId(null); setRelation(null); setError(''); setNotice(''); setStep('preview');
   };
 
-  const simulateScan = () => {
-    const candidate = mockBindingCandidatesByCode[defaultMockBindingSuccessCode];
-    setError('');
-    setBindingCode(defaultMockBindingSuccessCode);
-    setBindingCandidate(candidate);
-    setStep('preview');
-  };
-
-  const validateCode = () => {
-    if (bindingCode.length !== 6) {
-      setError('请输入6位家庭绑定码');
-      return;
-    }
-    const validationError = validationMessages[bindingCode];
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    const candidate = mockBindingCandidatesByCode[bindingCode];
-    if (!candidate) {
-      setError('家庭绑定码错误，请核对后重新输入。');
-      return;
-    }
-    setError('');
-    setBindingCandidate(candidate);
-    setStep('preview');
-  };
-
-  const confirmBinding = () => {
-    if (!relation) {
-      setError('请选择你与老人的关系');
-      return;
-    }
-    if (!bindingCandidate) {
-      setError('家庭绑定码错误，请返回重新校验。');
-      return;
-    }
-    if (existingElderIds.includes(bindingCandidate.id)) {
-      setError('你已经绑定了这位老人');
-      return;
-    }
-    const nextElder: BoundElder = {
-      ...bindingCandidate,
-      relation,
-      relationshipStatus: 'active'
-    };
-    if (!onBound(nextElder)) {
-      setError('你已经绑定了这位老人');
-      return;
-    }
-    setBoundElder(nextElder);
-    setError('');
-    setStep('success');
-  };
-
-  if (step === 'success' && boundElder) {
-    return (
-      <div className="flex min-h-full flex-col bg-slate-50 p-4 pb-8">
-        <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-            <CheckCircle2 size={34} />
-          </span>
-          <h2 className="mt-4 text-xl font-black text-slate-900">绑定成功</h2>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            已将{boundElder.name}添加到你的家庭守护列表
-          </p>
-          <div className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
-            <img src={boundElder.avatar} alt={boundElder.name} className="h-14 w-14 rounded-full object-cover" />
-            <div className="min-w-0 flex-1">
-              <strong className="text-sm text-slate-900">{boundElder.name}</strong>
-              <p className="mt-1 text-xs text-slate-500">{boundElder.relation} · {boundElder.project}</p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-2.5">
-          <button type="button" onClick={() => onEnterHome(boundElder.id)} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white">进入老人首页</button>
-          <button type="button" onClick={onCompleteAddress} className="w-full rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-extrabold text-blue-700">完善我的常住地址</button>
-          <button type="button" onClick={() => onEnterHome(boundElder.id)} className="w-full py-2 text-xs font-bold text-slate-500">暂时跳过</button>
-          <p className="text-center text-[10px] text-slate-400">常住地址不是绑定必填项，可稍后在“我的”中完善</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-full bg-slate-50 p-4 pb-8">
-      <div className="flex items-center gap-3">
-        {canCancel && (
-          <button type="button" onClick={onCancel} className="rounded-full bg-white p-2 text-slate-600 shadow-xs" aria-label="返回">
-            <ArrowLeft size={18} />
-          </button>
-        )}
-        <div>
-          <h2 className="text-base font-black text-slate-900">绑定老人</h2>
-          <p className="mt-0.5 text-[10px] text-slate-500">使用老人屏幕上的家庭绑定邀请 · L2 固定 Mock</p>
-        </div>
-      </div>
-
-      {step === 'guide' && (
-        <div className="mt-6 space-y-3">
-          <div className="rounded-2xl bg-blue-600 p-5 text-white">
-            <UsersRound size={26} />
-            <h3 className="mt-3 text-lg font-black">开始家庭守护</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-blue-100">绑定后即可查看老人的照护状态，并使用家庭留言和家庭相册。</p>
-          </div>
-          <button type="button" onClick={simulateScan} className="flex w-full items-center gap-3 rounded-2xl border border-blue-200 bg-white p-4 text-left shadow-xs">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><ScanLine size={22} /></span>
-            <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">扫描家庭绑定二维码</strong><span className="mt-1 block text-xs text-slate-500">L2 演示将模拟扫码成功</span></span>
-            <ChevronRight size={18} className="text-slate-300" />
-          </button>
-          <button type="button" onClick={openCodeEntry} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600"><Keyboard size={21} /></span>
-            <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">输入6位家庭绑定码</strong><span className="mt-1 block text-xs text-slate-500">绑定码显示在老人屏幕邀请页</span></span>
-            <ChevronRight size={18} className="text-slate-300" />
-          </button>
-          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">家庭绑定用于建立你与老人的守护关系。当前为固定 Mock 演示，不与老人端实时校验。请勿使用平板激活码。</p>
-        </div>
-      )}
-
-      {step === 'code' && (
-        <div className="mt-6">
-          <label className="block">
-            <span className="text-xs font-bold text-slate-700">6位家庭绑定码</span>
-            <input
-              value={bindingCode}
-              onChange={event => {
-                setBindingCode(event.target.value.replace(/\D/g, '').slice(0, 6));
-                setError('');
-              }}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="请输入6位数字"
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center text-2xl font-black tracking-[0.35em] text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
-          <p className="mt-2 rounded-xl bg-blue-50 px-3 py-2.5 text-[10px] leading-relaxed text-blue-700">L2 固定 Mock 成功码：<strong>{defaultMockBindingSuccessCode}</strong>，对应老人“王建国”。其他未预设的6位数字均会校验失败。</p>
-          {error && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-xs font-semibold leading-relaxed text-rose-700">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          <button type="button" onClick={validateCode} className="mt-5 w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white">校验家庭绑定码</button>
-          <button type="button" onClick={() => setStep('guide')} className="mt-2 w-full py-2 text-xs font-bold text-slate-500">返回选择其他方式</button>
-        </div>
-      )}
-
-      {step === 'preview' && bindingCandidate && (
-        <div className="mt-5 space-y-4">
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <div className="flex items-center gap-3 p-4">
-              <img src={bindingCandidate.avatar} alt={bindingCandidate.name} className="h-14 w-14 rounded-full object-cover" />
-              <div className="min-w-0 flex-1">
-                <strong className="text-base text-slate-900">{bindingCandidate.name}</strong>
-                <p className="mt-1 text-xs text-slate-500">{bindingCandidate.age}岁 · {bindingCandidate.project}</p>
-              </div>
-              <ShieldCheck size={20} className="text-emerald-500" />
-            </div>
-            <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-              <MapPin size={15} className="shrink-0 text-slate-400" />
-              <span>{bindingCandidate.maskedAddress}</span>
-            </div>
-          </section>
-
-          <p className="rounded-xl bg-blue-50 px-3 py-2.5 text-[10px] leading-relaxed text-blue-700">当前为 L2 固定 Mock 核对结果，不表示已完成实时跨端校验。</p>
-
-          <section>
-            <h3 className="text-sm font-extrabold text-slate-900">你与老人的关系</h3>
-            <p className="mt-1 text-[10px] text-slate-500">请选择真实关系，绑定后将显示在家庭成员中</p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {relations.map(option => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setRelation(option);
-                    setError('');
-                  }}
-                  aria-pressed={relation === option}
-                  className={`rounded-xl border py-3 text-xs font-bold ${relation === option ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'}`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {error && (
-            <div className="flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700">
-              <AlertCircle size={16} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          <button type="button" onClick={confirmBinding} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white">确认并绑定</button>
-          <p className="text-center text-[10px] text-slate-400">确认后直接完成绑定，无需后台审核或老人再次确认</p>
-        </div>
-      )}
+  return <div className="min-h-full space-y-4 bg-slate-50 p-4 pb-8">
+    <div className="flex items-center gap-3">
+      <button type="button" onClick={onCancel} aria-label="返回家人管理" className="rounded-full bg-white p-2 text-slate-600"><ArrowLeft size={18} /></button>
+      <h2 className="text-base font-black text-slate-900">添加家人</h2>
     </div>
-  );
+    {notice && <p role="status" className="text-xs font-bold text-blue-600">{notice}</p>}
+    {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-600">{error}</p>}
+    {step === 'phone' && <>
+      <div><h3 className="font-bold text-slate-900">邀请老人确认</h3><p className="mt-1 text-xs leading-relaxed text-slate-500">输入老人注册手机端的手机号，核对信息后提交申请。无需老人拥有平板。</p></div>
+      <div className="flex gap-2">
+        <select aria-label="老人手机号区号" value={countryCode} onChange={event => { setCountryCode(event.target.value as '+65' | '+86'); setPhone(''); setError(''); }} className="rounded-xl border border-slate-200 bg-white px-2 text-sm"><option value="+65">+65</option><option value="+86">+86</option></select>
+        <input aria-label="老人手机号" type="tel" value={phone} maxLength={countryCode === '+65' ? 8 : 11} onChange={event => { setPhone(event.target.value.replace(/\D/g, '')); setError(''); }} placeholder="请输入老人手机号" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white p-3 text-sm" />
+      </div>
+      <button type="button" onClick={lookup} className={primary}>查找老人</button>
+      {networkFailed && <button type="button" onClick={() => { setNetworkFailed(false); setError(''); setNotice('网络已恢复，请重新查找。'); }} className={secondary}>恢复网络</button>}
+      <p className="text-[10px] leading-relaxed text-slate-500">购买套餐、支付成功或设备激活均不会自动建立家庭关系。</p>
+    </>}
+    {step === 'preview' && candidate && <>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h3 className="text-sm font-bold">请核对老人信息</h3><p className="mt-3 text-lg font-black">{candidate.maskedName}</p>
+        <p className="mt-1 text-xs text-slate-500">{candidate.countryCode} {candidate.phone.slice(0, 3)}****{candidate.phone.slice(-2)}</p>
+        <p className="mt-2 text-xs text-slate-500">{candidate.project} · {candidate.maskedAddress}</p>
+        <button type="button" onClick={() => { setStep('phone'); setError(''); setRelation(null); }} className="mt-3 text-xs font-bold text-blue-600">不是这位老人，重新查找</button>
+      </section>
+      <section><h3 className="text-sm font-bold">你与老人的关系</h3><div className="mt-3 grid grid-cols-3 gap-2">{relations.map(option => <button key={option} type="button" aria-pressed={relation === option} onClick={() => setRelation(option)} className={relation === option ? 'rounded-xl border border-blue-500 bg-blue-50 py-3 text-xs font-bold text-blue-700' : 'rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold text-slate-600'}>{option}</button>)}</div></section>
+      <p className="text-xs leading-relaxed text-slate-500">提交后需要老人本人在手机端，或已绑定本人档案的平板端确认。老人只需确认或拒绝，无需选择关系。</p>
+      <button type="button" disabled={!relation} onClick={submit} className={primary}>提交绑定申请</button>
+      {submitFailed && error && <button type="button" onClick={() => { setSubmitFailed(false); setError(''); setNotice('提交服务已恢复，请重新提交。'); }} className={secondary}>恢复提交服务</button>}
+    </>}
+    {step === 'existing' && candidate && <section className="space-y-4 rounded-2xl bg-white p-5 text-center">
+      <CheckCircle2 className="mx-auto text-emerald-500" size={32} /><h3 className="font-bold">你已经绑定了这位老人</h3><p className="text-xs text-slate-500">未重复创建申请或关系。</p>
+      <button type="button" onClick={() => onEnterHome(candidate.id)} className={primary}>进入现有老人首页</button>
+      <button type="button" onClick={() => setStep('phone')} className={secondary}>添加其他老人</button>
+    </section>}
+    {step === 'request' && request && requestElder && <>
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 text-center">
+        {request.status === 'accepted' ? <CheckCircle2 className="mx-auto text-emerald-500" size={32} /> : <Clock3 className="mx-auto text-blue-600" size={32} />}
+        <h3 className="text-lg font-black">{bindingStatusLabels[request.status]}</h3>
+        <p className="text-sm">{request.status === 'accepted' ? requestElder.name : requestElder.maskedName} · 你是老人的{request.relation}</p>
+        <p className="text-xs leading-relaxed text-slate-500">{request.status === 'pending' ? '需要老人本人确认。老人可在手机端，或已绑定本人档案的平板端确认。确认前不会建立家庭关系，也无法访问该老人的照护数据。' : request.status === 'accepted' ? '老人已确认，家庭关系已生效。' : '本次申请未建立家庭关系，可重新核对信息后发起申请。'}</p>
+        {request.confirmationChannel && <p className="text-xs font-bold text-blue-600">处理渠道：{request.confirmationChannel === 'elder_mobile' ? '老人手机端' : '老人平板端'}</p>}
+        <p className="text-[10px] text-slate-400">申请编号：{request.id} · {requestElder.countryCode} {requestElder.phone.slice(0, 3)}****{requestElder.phone.slice(-2)}</p>
+      </section>
+      {request.status === 'pending' ? <>
+        <button type="button" onClick={() => { dispatch({ type: 'remind', requestId: request.id }); setNotice('已记录本次提醒。'); }} className={primary}>重新提醒老人{request.reminders > 0 ? '（已提醒' + request.reminders + '次）' : ''}</button>
+        <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'cancelled' }); setNotice('申请已取消，老人后续确认不会使本次申请生效。'); }} className={secondary}>取消申请</button>
+        <details className="rounded-xl border border-dashed border-blue-200 bg-blue-50 p-3 text-xs">
+          <summary className="cursor-pointer font-bold text-blue-700">老人确认结果</summary>
+          <p className="mt-3 text-[10px] text-slate-500">以下操作仅影响当前申请。</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(['elder_mobile', 'elder_tablet'] as const).map(channel => <button key={channel} type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'accepted', channel }); setNotice(''); }} className="rounded-lg border border-blue-200 bg-white px-3 py-2 font-bold text-blue-700">{channel === 'elder_mobile' ? '手机端确认' : '平板端确认'}</button>)}
+            <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'rejected', channel: 'elder_mobile' }); setNotice(''); }} className={secondary}>老人拒绝</button>
+            <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'expired' }); setNotice(''); }} className={secondary}>申请过期</button>
+          </div>
+        </details>
+      </> : request.status === 'accepted' ? <>
+        <button type="button" onClick={() => onEnterHome(requestElder.id)} className={primary}>进入老人首页</button>
+        <button type="button" onClick={onCompleteAddress} className={secondary}>完善我的常住地址（选填）</button>
+        <button type="button" onClick={onCancel} className={secondary}>返回家人管理</button>
+      </> : <button type="button" onClick={restart} className={primary}>重新发起申请</button>}
+    </>}
+  </div>;
 };

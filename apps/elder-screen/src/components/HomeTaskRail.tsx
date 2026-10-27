@@ -21,6 +21,7 @@ import {
   type RecommendationRuntimeState,
 } from "../home-right-content";
 import { getActiveFamilyRelationships } from "../elder-profile";
+import type { HomeNotificationQueueItem } from "../home-notification-queue";
 import type {
   AcceptanceRightContentScenario,
 } from "./InteractionAcceptanceConsole";
@@ -43,12 +44,12 @@ interface RailMessage {
   deliveryStatus?: "sending" | "failed" | "delivered";
 }
 
-type RightContentSource = "p1" | "time" | "family" | "recommendation" | "empty";
+type RightContentSource = "p1" | "time" | "family" | "recommendation" | "assistant" | "empty";
 
 interface RightContentItem {
   id: string;
   source: RightContentSource;
-  kind: "medication" | "schedule" | "activity" | "missed-call" | "message" | "album" | HomeRecommendationKind | "empty";
+  kind: "medication" | "schedule" | "activity" | "missed-call" | "message" | "album" | "assistant" | HomeRecommendationKind | "empty";
   title: string;
   subtitle: string;
   count?: number;
@@ -71,11 +72,14 @@ interface HomeTaskRailProps {
   onOpenCommunity: () => void;
   onOpenContacts: () => void;
   onOpenAlbum: () => void;
+  onOpenAssistant: () => void;
   onOpenRecommendation: (kind: HomeRecommendationKind, contentId?: string) => void;
   acceptanceRightContentScenario?: AcceptanceRightContentScenario;
   acceptanceRightContentApplySignal?: number;
   acceptanceRightContentActionSignal?: number;
   acceptanceRevision?: number;
+  notificationQueue?: HomeNotificationQueueItem[];
+  notificationQueueCursor?: number;
 }
 
 const senderRelation = (sender?: string) => sender?.match(/^(女儿|儿子|孙女|孙子|老伴)/)?.[1] ?? sender ?? "家人";
@@ -93,11 +97,14 @@ export default function HomeTaskRail({
   onOpenCommunity,
   onOpenContacts,
   onOpenAlbum,
+  onOpenAssistant,
   onOpenRecommendation,
   acceptanceRightContentScenario = "default",
   acceptanceRightContentApplySignal = 0,
   acceptanceRightContentActionSignal = 0,
   acceptanceRevision = 0,
+  notificationQueue = [],
+  notificationQueueCursor = 0,
 }: HomeTaskRailProps) {
   const [recommendationRuntime, setRecommendationRuntime] = useState<Record<string, RecommendationRuntimeState>>(createRecommendationRuntime);
   const [activeRecommendationId, setActiveRecommendationId] = useState(HOME_RECOMMENDATION_CONFIGS[0].contentId);
@@ -105,8 +112,11 @@ export default function HomeTaskRail({
   const [frozenRightContentItems, setFrozenRightContentItems] = useState<RightContentItem[] | null>(null);
   const [hasAppliedLockedUpdate, setHasAppliedLockedUpdate] = useState(false);
   const [dailyRecommendationsExpired, setDailyRecommendationsExpired] = useState(false);
+  const [aiFallbackHasPendingMessage, setAiFallbackHasPendingMessage] = useState(false);
   const interactionTimerRef = useRef<number | null>(null);
   const recommendationDayRef = useRef("");
+  const handledActionSignalRef = useRef(acceptanceRightContentActionSignal);
+  const handledAiApplySignalRef = useRef(acceptanceRightContentApplySignal);
   const nowTimestamp = now.getTime();
   const reminderTimestamp = (item: RailReminder) => {
     if (item.scheduledAt) return new Date(item.scheduledAt).getTime();
@@ -132,10 +142,13 @@ export default function HomeTaskRail({
 
   const recommendationConfigs = useMemo(() => acceptanceRightContentScenario === "no-content"
     || acceptanceRightContentScenario === "next-day-exit"
+    || acceptanceRightContentScenario === "ai-assistant-fallback"
     || dailyRecommendationsExpired
     ? HOME_RECOMMENDATION_CONFIGS.map((item) => ({ ...item, enabled: false }))
     : HOME_RECOMMENDATION_CONFIGS.map((item) => (
-      ["third-party-entertainment", "third-party-entertainment-failure"].includes(acceptanceRightContentScenario)
+      acceptanceRightContentScenario === "same-priority-event-content"
+        ? { ...item, enabled: item.kind === "security" }
+        : ["third-party-entertainment", "third-party-entertainment-failure"].includes(acceptanceRightContentScenario)
         ? { ...item, enabled: item.kind === "entertainment" }
         : acceptanceRightContentScenario === "single-recommendation"
         ? { ...item, enabled: item.contentId === HOME_RECOMMENDATION_CONFIGS[0].contentId }
@@ -164,6 +177,7 @@ export default function HomeTaskRail({
     setIsInteractionLocked(acceptanceRightContentScenario === "interaction-locked");
     setFrozenRightContentItems(null);
     setDailyRecommendationsExpired(acceptanceRightContentScenario === "next-day-exit");
+    setAiFallbackHasPendingMessage(false);
   }, [acceptanceRevision, acceptanceRightContentScenario]);
 
   useEffect(() => {
@@ -199,6 +213,17 @@ export default function HomeTaskRail({
     setFrozenRightContentItems(null);
   }, [acceptanceRightContentApplySignal, acceptanceRightContentScenario]);
 
+  useEffect(() => {
+    if (acceptanceRightContentApplySignal <= 0) {
+      handledAiApplySignalRef.current = 0;
+      return;
+    }
+    if (acceptanceRightContentScenario !== "ai-assistant-fallback"
+      || handledAiApplySignalRef.current === acceptanceRightContentApplySignal) return;
+    handledAiApplySignalRef.current = acceptanceRightContentApplySignal;
+    setAiFallbackHasPendingMessage((current) => !current);
+  }, [acceptanceRightContentApplySignal, acceptanceRightContentScenario]);
+
   const beginContentInteraction = (contentItems: RightContentItem[]) => {
     if (interactionTimerRef.current) window.clearTimeout(interactionTimerRef.current);
     setFrozenRightContentItems(contentItems);
@@ -220,6 +245,7 @@ export default function HomeTaskRail({
     "third-party-entertainment",
     "third-party-entertainment-failure",
     "no-content",
+    "ai-assistant-fallback",
     "next-day-exit",
     "activity-updated",
     "activity-cancelled",
@@ -294,6 +320,15 @@ export default function HomeTaskRail({
             subtitle: "社区剪纸活动",
             Icon: Flag,
           }]
+      : acceptanceRightContentScenario === "activity-reminder-valid"
+        ? [{
+            id: "activity-reminder-valid",
+            source: "time",
+            kind: "activity",
+            title: "活动开始提醒",
+            subtitle: "10:00 社区剪纸活动",
+            Icon: Flag,
+          }]
       : currentTask
         ? [{
             id: currentTask.id,
@@ -361,15 +396,39 @@ export default function HomeTaskRail({
           : Music2,
     recommendation: activeRecommendation,
   } : {
-    id: "right-content-empty",
-    source: "empty",
-    kind: "empty",
-    title: "今日暂无内容",
-    subtitle: "有新内容时会显示在这里",
-    Icon: Clock3,
+    id: "ai-assistant-fallback",
+    source: "assistant",
+    kind: "assistant",
+    title: "小达在这里",
+    subtitle: "按一下开始语音对话",
+    Icon: MessageCircleHeart,
   };
 
-  const latestMergedItems = [...timeItems, ...familyItems, recommendationItem].slice(0, 1);
+  const activeNotificationQueueItem = notificationQueue[notificationQueueCursor] ?? null;
+  const pendingNotificationCount = notificationQueue.filter((item) => item.status === "pending").length;
+  const queuePrimaryContent = acceptanceRightContentScenario === "same-priority-event-content"
+    ? activeNotificationQueueItem?.kind === "security"
+      ? { ...recommendationItem, count: pendingNotificationCount }
+      : timeItems[0]
+        ? { ...timeItems[0], count: pendingNotificationCount }
+        : { ...recommendationItem, count: pendingNotificationCount }
+    : null;
+  const aiFallbackIncomingItem: RightContentItem | null = acceptanceRightContentScenario === "ai-assistant-fallback"
+    && aiFallbackHasPendingMessage
+    ? {
+        id: "ai-fallback-low-priority-message",
+        source: "recommendation",
+        kind: "security",
+        title: "社区防骗提醒",
+        subtitle: "按一下查看",
+        Icon: ShieldAlert,
+      }
+    : null;
+  const latestMergedItems = queuePrimaryContent
+    ? [queuePrimaryContent]
+    : aiFallbackIncomingItem
+      ? [aiFallbackIncomingItem]
+    : [...timeItems, ...familyItems, recommendationItem].slice(0, 1);
   const mergedItems = isInteractionLocked && frozenRightContentItems
     ? frozenRightContentItems
     : latestMergedItems;
@@ -379,6 +438,7 @@ export default function HomeTaskRail({
     time: "时间提醒",
     family: "家庭互动",
     recommendation: "今日推荐",
+    assistant: "AI 语音",
     empty: "暂无内容",
   };
 
@@ -394,6 +454,7 @@ export default function HomeTaskRail({
     else if (item.kind === "missed-call") onOpenContacts();
     else if (item.kind === "message") onOpenMessages(item.messageSender);
     else if (item.kind === "album") onOpenAlbum();
+    else if (item.kind === "assistant") onOpenAssistant();
     else if (item.kind === "empty") return;
     else {
       const entertainmentFailed = acceptanceRightContentScenario === "third-party-entertainment-failure"
@@ -417,7 +478,12 @@ export default function HomeTaskRail({
   activateContentRef.current = activateContent;
 
   useEffect(() => {
-    if (acceptanceRightContentActionSignal <= 0) return;
+    if (acceptanceRightContentActionSignal <= 0) {
+      handledActionSignalRef.current = 0;
+      return;
+    }
+    if (handledActionSignalRef.current === acceptanceRightContentActionSignal) return;
+    handledActionSignalRef.current = acceptanceRightContentActionSignal;
     activateContentRef.current(primaryContentRef.current);
   }, [acceptanceRightContentActionSignal]);
 

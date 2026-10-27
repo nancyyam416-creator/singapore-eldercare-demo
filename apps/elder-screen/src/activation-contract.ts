@@ -7,8 +7,7 @@ export type ActivationAcceptanceScenario =
   | "revoked"
   | "deviceMismatch"
   | "network"
-  | "alreadyBound"
-  | "familyBindingCode";
+  | "alreadyBound";
 
 export type ActivationError = Exclude<ActivationAcceptanceScenario, "success"> | null;
 
@@ -73,11 +72,6 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
     label: "设备已激活",
     description: "当前平板已有有效绑定，不允许重复激活。",
     code: tabletActivationMock.scenarioCodes.alreadyBound,
-  },
-  familyBindingCode: {
-    label: "误用家庭绑定码",
-    description: "家庭邀请绑定码不能用于设备激活。",
-    code: tabletActivationMock.scenarioCodes.familyBindingCode,
   },
 };
 

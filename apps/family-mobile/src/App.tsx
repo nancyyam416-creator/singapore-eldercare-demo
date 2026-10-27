@@ -277,7 +277,7 @@ export default function App() {
             <div className="w-full max-w-md flex items-center justify-between px-1">
               <span className="text-2xs font-extrabold text-slate-600 flex items-center gap-1.5 uppercase tracking-wider">
                 <Cpu size={14} />
-                演示工具 · 设备仿真
+                设备状态控制
               </span>
               <span className="text-3xs text-slate-400 font-medium">不属于正式子女端页面</span>
             </div>
@@ -300,7 +300,7 @@ export default function App() {
       </main>
 
       <footer className="hidden sm:block border-t border-slate-200 bg-white py-4 px-6 shrink-0 text-center text-xs text-slate-500 mt-12">
-        © 2026 智慧养老长辈健康监护与服务商城 H5 系统版 • 基于 React 19 + Tailwind CSS 4 + Vite + Gemini 3.5 AI
+        © 2026 智慧养老长辈健康监护与服务商城
       </footer>
     </div>
   );

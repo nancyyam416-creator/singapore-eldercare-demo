@@ -26,11 +26,14 @@ export default function HomeReminderAlert({
   autoDismissMs = 60_000,
   shouldSpeak = true,
 }: HomeReminderAlertProps) {
+  const isActivityReminder = reminder.id.startsWith("activity-start-");
   const isDailyReminder = reminder.category === "schedule";
-  const title = isDailyReminder
+  const title = isActivityReminder
+    ? "活动开始提醒"
+    : isDailyReminder
     ? minutesUntil > 0 ? "马上有一件日常事项" : "该做事项了"
     : minutesUntil > 0 ? "马上到服药时间了" : "该用药了";
-  const actionLabel = isDailyReminder ? "我已完成" : "我已服药";
+  const actionLabel = isActivityReminder ? "我知道了" : isDailyReminder ? "我已完成" : "我已服药";
   const remainingLabel = minutesUntil > 0 ? `还有 ${minutesUntil} 分钟` : "提醒时间到了";
   const ReminderIcon = isDailyReminder ? CalendarDays : Pill;
   const dismissRef = useRef(onDismiss);
@@ -57,7 +60,9 @@ export default function HomeReminderAlert({
     if (!shouldSpeak || isQuietHours || spokenReminderKeys.has(speechKey)) return;
     spokenReminderKeys.add(speechKey);
     speakText(
-      isDailyReminder
+      isActivityReminder
+        ? `${reminder.name}将在${minutesUntil}分钟后开始。${reminder.dosage}`
+        : isDailyReminder
         ? `马上有一件日常事项，${reminder.name}。${reminder.dosage}`
         : `马上到服药时间了，${reminder.name}。${reminder.dosage}`,
       {
@@ -66,7 +71,7 @@ export default function HomeReminderAlert({
       },
     );
     return stopSpeech;
-  }, [currentTime, isDailyReminder, reminder.dosage, reminder.id, reminder.name, shouldSpeak]);
+  }, [currentTime, isActivityReminder, isDailyReminder, minutesUntil, reminder.dosage, reminder.id, reminder.name, shouldSpeak]);
 
   return (
     <div className="home-reminder-alert" role="presentation">

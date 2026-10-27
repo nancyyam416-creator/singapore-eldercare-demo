@@ -65,7 +65,7 @@ export const emergencyScenarioDefinitions: Record<EmergencyAcceptanceScenario, {
   },
   "partial-notification-failure": {
     label: "部分子女通知失败",
-    description: "呼叫中心仍正常处理；单个子女通知失败不会中断协助事件。",
+    description: "呼叫中心仍正常处理；单个子女通知失败不会中断在线协助事件。",
   },
   processing: {
     label: "呼叫中心处理中",
@@ -73,7 +73,7 @@ export const emergencyScenarioDefinitions: Record<EmergencyAcceptanceScenario, {
   },
   completed: {
     label: "已完成",
-    description: "呼叫中心已完成本次协助，老人端只展示简单结果和返回首页。",
+    description: "呼叫中心已完成本次在线协助，老人端只展示简单结果和返回首页。",
   },
 };
 

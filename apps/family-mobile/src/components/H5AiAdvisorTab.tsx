@@ -4,13 +4,13 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Sparkles, 
-  Send, 
-  FileText, 
-  MessageSquare, 
-  Check, 
-  AlertCircle, 
+import {
+  Sparkles,
+  Send,
+  FileText,
+  MessageSquare,
+  Check,
+  AlertCircle,
   Info,
   Loader,
   Brain,
@@ -104,7 +104,7 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
   activities,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'report' | 'consult'>('report');
-  
+
   // Health Report State
   const [reportText, setReportText] = useState<string>('');
   const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
@@ -251,22 +251,22 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
         let reply = '';
         if (textToSend.includes('降压药') || textToSend.includes('漏服')) {
           reply = `您好！针对长辈漏服 **阿司匹林肠溶片** 的疑问：
-          
+
 阿司匹林作为抗血小板药物，主要用于预防心脑血管栓塞，通常要求每日固定时间服用。
-          
+
 - **漏服处理建议**：如果长辈在发现漏服时，距离原本计划服药时间（19:00）不超过12小时（即在明早7点前），可以立即按原剂量补服。如果已经接近明天的服药时间，则**切勿双倍剂量服用**，按明天正常时间继续服用一片即可。
 - **健康关怀干预**：我已经给长辈中控屏端下发了语音服药提醒。如果您不放心，可以通过商城预订 **【三甲名医远程视频问诊】** 服务，由在线医生为他提供慢性病调药与用药咨询。`;
         } else if (textToSend.includes('心率') || textToSend.includes('体征')) {
           reply = `关于长辈的心率体征监测分析：
-          
+
 当前长辈静止心率为 **${healthStats.heartRate}** 次/分，处于 60 - 100 的完美安全范围内。
-          
+
 - **之前的心率波动分析**：今日曾在散步活动后录得心率 95 次/分，属于安全正常的生理代偿。
 - **健康注意事项**：长辈患有高血压，心率突然飙升至115bpm以上通常暗示情绪激动、饮浓茶、或者体位变动过快（直立性低血压）。
 - **建议防护**：商城里的 **【一键式紧急无线SOS呼救呼叫器】** 随身佩戴，一旦感到头晕心慌，老人一键即可直拨子女，强烈建议安装。`;
         } else if (textToSend.includes('滑倒') || textToSend.includes('摔')) {
           reply = `卫生间滑倒防护是居家适老化改造的重中之重！长辈患有轻度膝关节退化，起立与蹲下时膝盖受力很大，极易由于站立不稳滑倒：
-          
+
 建议立即进行以下几步防护改造：
 1. **安装马桶/淋浴房扶手**：老人家需要手部借力。建议立即订购我们商城的 **【卫生间高强度防摔安全扶手安装】** 服务，专业打孔，单个承受200kg垂直拉力。
 2. **铺设浴室防滑胶垫**：洗澡时必须穿防滑拖鞋，铺防滑垫。
@@ -319,7 +319,7 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
           <div className="bg-white rounded-2xl border border-slate-100 shadow-3xs p-4 space-y-3 relative overflow-hidden animate-scale-in">
             <div className="absolute top-0 right-0 bg-blue-500/10 text-blue-600 rounded-bl-2xl px-2.5 py-1 text-4xs font-black flex items-center gap-1">
               <Sparkles size={10} className="animate-pulse" />
-              Gemini 3.5 AI 实时研判
+              健康分析
             </div>
 
             <div className="flex items-center gap-2">
@@ -340,7 +340,7 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
             ) : (
               <div className="prose max-w-none border-t border-slate-50 pt-3">
                 {renderMarkdown(reportText)}
-                
+
                 <div className="flex gap-1.5 mt-5 pt-3 border-t border-dashed border-slate-100">
                   <button
                     onClick={() => fetchReport(true)}
@@ -369,8 +369,8 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.map(msg => (
-              <div 
-                key={msg.id} 
+              <div
+                key={msg.id}
                 className={`flex gap-2.5 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
               >
                 {/* Avatar */}
@@ -391,7 +391,7 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
                 </div>
               </div>
             ))}
-            
+
             {isSendingMessage && (
               <div className="flex gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-blue-600 flex items-center justify-center shrink-0">
@@ -429,7 +429,7 @@ export const H5AiAdvisorTab: React.FC<H5AiAdvisorTabProps> = ({
 
           {/* Chat input box */}
           <div className="border-t border-slate-100 p-3 bg-white shrink-0">
-            <form 
+            <form
               onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
               className="flex gap-2"
             >

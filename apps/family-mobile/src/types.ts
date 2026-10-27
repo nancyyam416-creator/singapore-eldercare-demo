@@ -149,20 +149,21 @@ export type ElderProfileDeviceScenario =
   | 'status_unknown'
   | 'no_devices';
 
-export type ElderRelation = '儿子' | '女儿' | '儿媳' | '女婿' | '孙辈' | '其他家属';
+export type ElderRelation = '儿子' | '女儿' | '儿媳' | '女婿' | '孙辈' | '其他家属' | '看护人';
 
 export type ElderBindingScenario =
   | 'bound'
   | 'no_elder'
   | 'mock_success'
-  | 'code_error'
-  | 'code_expired'
-  | 'invitation_ended'
-  | 'invitation_invalidated'
+  | 'phone_error'
+  | 'not_registered'
+  | 'pending'
+  | 'rejected'
+  | 'expired'
+  | 'submit_failed'
   | 'network_error'
   | 'already_bound'
-  | 'relationship_removed'
-  | 'tablet_code';
+  | 'relationship_removed';
 
 export type ChildLoginScenario =
   | 'default'

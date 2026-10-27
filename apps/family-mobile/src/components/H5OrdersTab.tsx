@@ -108,7 +108,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
           case 'completed':
             // Reset cycle for demonstration
             nextStatus = 'paid';
-            logText = '演示重新开始：已重新下单付款';
+            logText = '已重新开始订单流程';
             break;
         }
 
@@ -222,7 +222,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
                     <div className="flex justify-between items-center">
                       <span className="text-4xs font-extrabold text-blue-900 flex items-center gap-1">
                         <Smile size={12} className="text-blue-600" />
-                        测试沙盒：模拟服务进度流转
+                        服务进度
                       </span>
                       <span className="text-5xs text-blue-600 bg-white border border-blue-100 px-1.5 py-0.2 rounded font-black uppercase">可交互推进</span>
                     </div>
@@ -233,7 +233,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
                       onClick={() => handleAdvanceStatus(ord.id)}
                       className="w-full bg-blue-600 hover:bg-blue-500 text-white text-3xs font-extrabold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     >
-                      {ord.status === 'completed' ? '🔄 重新演示流转过程' : '🚀 推进该订单至下一节点'}
+                      {ord.status === 'completed' ? '🔄 重新开始服务流程' : '🚀 推进该订单至下一节点'}
                     </button>
                   </div>
 
