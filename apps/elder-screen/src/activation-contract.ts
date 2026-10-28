@@ -1,13 +1,11 @@
-import tabletActivationMock from "./data/tablet-activation-mock.json";
+import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 
 export type ActivationAcceptanceScenario =
   | "success"
   | "invalid"
   | "used"
-  | "revoked"
   | "deviceMismatch"
-  | "network"
-  | "alreadyBound";
+  | "network";
 
 export type ActivationError = Exclude<ActivationAcceptanceScenario, "success"> | null;
 
@@ -53,11 +51,6 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
     description: "已完成激活的码不可再次使用。",
     code: tabletActivationMock.scenarioCodes.used,
   },
-  revoked: {
-    label: "激活码已作废",
-    description: "后台作废的码不能继续建立设备关系。",
-    code: tabletActivationMock.scenarioCodes.revoked,
-  },
   deviceMismatch: {
     label: "设备不匹配",
     description: "激活码指定的目标设备不是当前平板。",
@@ -65,13 +58,8 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
   },
   network: {
     label: "网络异常",
-    description: "提交时网络不可用，保留当前输入供用户重试。",
+    description: "连接无线网络时暂不可用，保留当前密码输入供用户检查后重试。",
     code: tabletActivationMock.scenarioCodes.network,
-  },
-  alreadyBound: {
-    label: "设备已激活",
-    description: "当前平板已有有效绑定，不允许重复激活。",
-    code: tabletActivationMock.scenarioCodes.alreadyBound,
   },
 };
 

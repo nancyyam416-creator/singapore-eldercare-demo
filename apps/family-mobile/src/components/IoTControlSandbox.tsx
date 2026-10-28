@@ -4,14 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import {
-  Activity,
-  MapPin,
-  Flame,
-  Heart,
-  Clock,
-  AlertTriangle,
-  Check,
+import { 
+  Activity, 
+  MapPin, 
+  Flame, 
+  Heart, 
+  Clock, 
+  AlertTriangle, 
+  Check, 
   X,
   Plus,
   Droplet,
@@ -160,7 +160,7 @@ export const IoTControlSandbox: React.FC<IoTControlSandboxProps> = ({
 
       {/* 3. Panel Body */}
       <div className="min-h-[180px] bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col justify-between">
-
+        
         {/* TAB 1: SAFETY / EMERGENCY ALARM */}
         {activePanelTab === 'safety' && (
           <div className="space-y-4 flex-1 flex flex-col justify-between">

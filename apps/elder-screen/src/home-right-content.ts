@@ -35,7 +35,7 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
     enabled: true,
     displayOrder: 10,
     publishedAt: "2026-08-18T09:30:00+08:00",
-    displayDurationMs: 8_000,
+    displayDurationMs: 30_000,
   },
   {
     contentId: "REC-ACTIVITY-003",
@@ -48,7 +48,7 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
     enabled: true,
     displayOrder: 3,
     publishedAt: "2026-08-19T08:00:00+08:00",
-    displayDurationMs: 8_000,
+    displayDurationMs: 30_000,
   },
   {
     contentId: "REC-010",
@@ -61,13 +61,13 @@ export const HOME_RECOMMENDATION_CONFIGS: HomeRecommendationConfig[] = [
     enabled: true,
     displayOrder: 20,
     publishedAt: "2026-08-17T19:00:00+08:00",
-    displayDurationMs: 8_000,
+    displayDurationMs: 30_000,
   },
 ];
 
 export const sortRecommendationConfigs = (configs: HomeRecommendationConfig[]) => [...configs].sort((first, second) => {
-  if (first.displayOrder !== second.displayOrder) return first.displayOrder - second.displayOrder;
-  const publishDifference = new Date(first.publishedAt).getTime() - new Date(second.publishedAt).getTime();
+  if (first.displayOrder !== second.displayOrder) return second.displayOrder - first.displayOrder;
+  const publishDifference = new Date(second.publishedAt).getTime() - new Date(first.publishedAt).getTime();
   if (publishDifference !== 0) return publishDifference;
   return first.contentId.localeCompare(second.contentId);
 });

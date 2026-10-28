@@ -152,13 +152,17 @@ export type ElderProfileDeviceScenario =
 export type ElderRelation = '儿子' | '女儿' | '儿媳' | '女婿' | '孙辈' | '其他家属' | '看护人';
 
 export type ElderBindingScenario =
+  | 'records_multiple'
   | 'bound'
   | 'no_elder'
   | 'mock_success'
   | 'phone_error'
   | 'not_registered'
   | 'pending'
+  | 'accepted_mobile'
+  | 'accepted_tablet'
   | 'rejected'
+  | 'withdrawn'
   | 'expired'
   | 'submit_failed'
   | 'network_error'
@@ -286,6 +290,7 @@ export interface FamilyConversation {
 
 export interface FamilyNotification {
   id: string;
+  elderId?: string;
   type: 'family_message' | 'photo_feedback' | 'missed_call' | 'service_booking';
   title: string;
   summary: string;

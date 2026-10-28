@@ -670,17 +670,6 @@ export default function ContactsCommunicationPage({
 
       <div className="contacts-communication__workspace">
         <aside className="communication-sidebar" aria-label="联系人列表">
-          <button type="button" className="communication-family-requests" onClick={() => setIsFamilyRequestsOpen(true)}>
-            <span className="communication-family-requests__icon"><UserPlus aria-hidden="true" /></span>
-            <span className="communication-family-requests__copy">
-              <strong>家人申请</strong>
-              <small>{familyRequestPendingCount > 0 ? `${familyRequestPendingCount}条申请等待您确认` : "查看申请记录"}</small>
-            </span>
-            <span className="communication-family-requests__aside">
-              {familyRequestPendingCount > 0 && <b aria-label={`${familyRequestPendingCount}条待确认申请`}>{familyRequestPendingCount}</b>}
-              <ChevronRight aria-hidden="true" />
-            </span>
-          </button>
           <section>
             <h3>亲情圈</h3>
             <div>
@@ -688,6 +677,17 @@ export default function ContactsCommunicationPage({
                 ? familyContacts.map(renderContact)
                 : <div className="communication-family-empty"><UserPlus aria-hidden="true" /><strong>暂无已绑定家人</strong><span>家人需要先在手机端发起申请</span></div>}
             </div>
+            <button type="button" className="communication-family-requests" onClick={() => setIsFamilyRequestsOpen(true)}>
+              <span className="communication-family-requests__icon"><UserPlus aria-hidden="true" /></span>
+              <span className="communication-family-requests__copy">
+                <strong>家人申请</strong>
+                <small>{familyRequestPendingCount > 0 ? `${familyRequestPendingCount}条申请等待您确认` : "查看申请记录"}</small>
+              </span>
+              <span className="communication-family-requests__aside">
+                {familyRequestPendingCount > 0 && <b aria-label={`${familyRequestPendingCount}条待确认申请`}>{familyRequestPendingCount}</b>}
+                <ChevronRight aria-hidden="true" />
+              </span>
+            </button>
           </section>
           {historicalContacts.length > 0 && (
             <section className="communication-contact-group--historical">

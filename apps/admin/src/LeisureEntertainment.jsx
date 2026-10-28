@@ -180,8 +180,8 @@ export function LeisureEntertainmentPage({ entries, onChange, scenario = "normal
       </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span><span>所有社区共用同一份清单</span></div>
     </section>
     {feedback && <div className="reminder-feedback leisure-save-feedback" role="status"><CheckCircle2 size={16}/>{feedback}</div>}
-    {editing !== undefined && <EntertainmentEntryDrawer key={editing?.id || "new-entertainment-entry"} record={editing} entries={entries} onClose={() => { setEditing(undefined); onDirtyChange?.(false); }} onSave={saveEntry} onDirtyChange={onDirtyChange}/>}
-    {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.name}”？`} description="删除后，所有社区老人端都不再展示该入口；已有历史打开记录不受影响。" confirmLabel="确认删除" onClose={() => setDeleteTarget(null)} onConfirm={() => { persist(entries.filter((item) => item.id !== deleteTarget.id), "娱乐入口已删除"); setDeleteTarget(null); }}/>}
-    {disableTarget && <AdminConfirm title={`停用“${disableTarget.name}”？`} description="停用后，所有社区老人端将停止展示该入口，相关推荐不再生效，但平台配置和历史记录保留。" confirmLabel="确认停用" onClose={() => setDisableTarget(null)} onConfirm={() => { persist(entries.map((item) => item.id === disableTarget.id ? { ...item, enabled: false, updatedAt: "2026-10-23 15:30" } : item), "娱乐入口已停用"); setDisableTarget(null); }}/>}
+    {editing !== undefined && <EntertainmentEntryDrawer key={editing?.id || "new-entertainment-entry"} record={editing} entries={entries} onClose={() => { setEditing(undefined); onDirtyChange?.(false); }} onSave={saveEntry} onDirtyChange={onDirtyChange}/>} 
+    {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.name}”？`} description="删除后，所有社区老人端都不再展示该入口；已有历史打开记录不受影响。" confirmLabel="确认删除" onClose={() => setDeleteTarget(null)} onConfirm={() => { persist(entries.filter((item) => item.id !== deleteTarget.id), "娱乐入口已删除"); setDeleteTarget(null); }}/>} 
+    {disableTarget && <AdminConfirm title={`停用“${disableTarget.name}”？`} description="停用后，所有社区老人端将停止展示该入口，相关推荐不再生效，但平台配置和历史记录保留。" confirmLabel="确认停用" onClose={() => setDisableTarget(null)} onConfirm={() => { persist(entries.map((item) => item.id === disableTarget.id ? { ...item, enabled: false, updatedAt: "2026-10-23 15:30" } : item), "娱乐入口已停用"); setDisableTarget(null); }}/>} 
   </>;
 }

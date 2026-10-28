@@ -418,16 +418,15 @@
 .security-information-detail-actions {
   width: min(1480px, 100%);
   min-height: 92px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(320px, 1.55fr) minmax(260px, 1.15fr) minmax(240px, 1fr);
   align-items: stretch;
   gap: 14px;
   margin: 0 auto 22px;
 }
 
 .security-information-speech-status {
-  min-width: 320px;
   display: flex;
-  flex: 1.4;
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
@@ -485,9 +484,7 @@
 }
 
 .security-information-detail-actions > button {
-  min-width: 210px;
   display: flex;
-  flex: 1;
   align-items: center;
   justify-content: center;
   gap: 10px;
@@ -500,7 +497,6 @@
 }
 
 .security-information-detail-actions > button.is-listen {
-  flex: 1.25;
   border-color: color-mix(in oklch, var(--color-green), transparent 34%);
   background: var(--color-green-dark);
 }
@@ -530,10 +526,10 @@
   }
 
   .security-information-detail-actions {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .security-information-speech-status {
-    flex-basis: 100%;
+    grid-column: 1 / -1;
   }
 }

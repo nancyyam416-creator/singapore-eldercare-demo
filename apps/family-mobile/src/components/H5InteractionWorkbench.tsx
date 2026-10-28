@@ -4,10 +4,11 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { AcceptanceShell } from './AcceptanceShell';
+import { U2G_PORTAL_URL } from '../config/navigation';
+import { AssistanceScenario } from '../data/onlineAssistance';
 import {
   Cpu,
-  MousePointerClick,
-  RotateCcw,
   X
 } from 'lucide-react';
 import {
@@ -32,10 +33,12 @@ import {
 type ElderAcceptanceTarget = 'card' | 'profile';
 type FamilyPhotoAcceptanceTarget = 'list' | 'publish';
 type AcceptancePage = 'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile';
-type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding';
+type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding' | 'assistance_home';
 type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
+  assistanceScenario: AssistanceScenario;
+  onAssistanceScenarioChange: (scenario: AssistanceScenario) => void;
   activePreviewPage: AcceptancePage;
   activePreviewFamilyModule: 'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'elder_binding';
   homeCareScenario: HomeCareScenario;
@@ -171,13 +174,17 @@ const familyPhotoPublishScenarios: Array<{ value: FamilyPhotoScenario; label: st
 ];
 
 const elderBindingScenarios: Array<{ value: ElderBindingScenario; label: string; description: string; status: string }> = [
+  { value: 'records_multiple', label: '多条申请记录', description: '从我的快捷入口查看全部申请及状态，点击进入详情。', status: '3条记录' },
   { value: 'bound', label: '已绑定老人', description: '展示已绑定老人列表、当前老人及新增绑定入口。', status: '正常' },
   { value: 'no_elder', label: '登录后暂无老人', description: '登录成功后直接进入绑定老人引导。', status: '首次绑定' },
   { value: 'mock_success', label: '手机号申请', description: '预填王*国手机号，提交后需老人确认才生效。', status: '待提交' },
   { value: 'phone_error', label: '手机号格式错误', description: '预填123，查找时提示格式错误，保留输入。', status: '待修正' },
   { value: 'not_registered', label: '老人未注册', description: '预填未注册手机号，查找时提示先注册老人手机端。', status: '未注册' },
-  { value: 'pending', label: '待老人确认', description: '已有一条申请，可再次提醒、取消或老人处理。', status: '待确认' },
+  { value: 'pending', label: '待老人确认', description: '已有一条待确认申请，子女可撤回。', status: '待确认' },
+  { value: 'accepted_mobile', label: '老人手机已同意', description: '展示申请由老人手机端同意后的绑定成功结果。', status: '已同意' },
+  { value: 'accepted_tablet', label: '老人平板已同意', description: '展示申请由老人平板端同意后的绑定成功结果。', status: '已同意' },
   { value: 'rejected', label: '老人已拒绝', description: '申请未建立关系，可重新核对信息并申请。', status: '已拒绝' },
+  { value: 'withdrawn', label: '申请已撤回', description: '撤回后未建立关系，老人端不能继续处理。', status: '已撤回' },
   { value: 'expired', label: '申请已过期', description: '过期申请不能确认，可重新核对信息并申请。', status: '已过期' },
   { value: 'network_error', label: '查找网络失败', description: '查找时失败，不创建任何申请；可恢复网络。', status: '交互条件' },
   { value: 'submit_failed', label: '提交失败', description: '查找正常，提交时失败；保留表单，可恢复后重试。', status: '交互条件' },
@@ -217,6 +224,7 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
     { value: 'login', label: '手机号验证码登录' }
   ],
   home: [
+    { value: 'assistance_home', label: '在线协助摘要' },
     { value: 'elder', label: '老人信息' },
     { value: 'score', label: '安心评分' },
     { value: 'medication', label: '今日应服药物' },
@@ -343,6 +351,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   onOpenFamilyCall,
   onOpenFamilyPhotos,
   onOpenFamilyNotifications,
+  assistanceScenario,
+  onAssistanceScenarioChange,
   onOpenHome,
   onOpenElderBinding,
   onCareFeedScenarioChange,
@@ -374,7 +384,6 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   const [acceptanceModule, setAcceptanceModule] = useState<AcceptanceModule>('score');
   const [familyPhotoTarget, setFamilyPhotoTarget] = useState<FamilyPhotoAcceptanceTarget>('list');
   const [scoreCategory, setScoreCategory] = useState<ScoreScenarioCategory>('overall');
-  const [isExpanded, setIsExpanded] = useState(false);
   const [scoreSelectionByCategory, setScoreSelectionByCategory] = useState(initialScoreSelection);
 
   useEffect(() => {
@@ -452,37 +461,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
     }
   };
 
-  if (!isExpanded) {
-    return (
-      <button type="button" onClick={() => setIsExpanded(true)} aria-label="展开交互验收台" aria-expanded={false} className="hidden shrink-0 items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50 lg:flex">
-        <MousePointerClick size={16} className="text-blue-600" />交互验收台 · 展开
-      </button>
-    );
-  }
-
   return (
-    <aside
-      aria-label="交互验收台"
-      className="hidden w-[300px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:flex"
-    >
-      <header className="flex items-start justify-between border-b border-slate-100 px-4 py-4">
-        <button type="button" onClick={() => setIsExpanded(false)} aria-label="收起交互验收台" aria-expanded={true} className="text-left">
-          <div className="flex items-center gap-2">
-            <MousePointerClick size={16} className="text-blue-600" />
-            <h2 className="text-sm font-extrabold text-slate-900">交互验收台 · 收起</h2>
-          </div>
-          <p className="mt-1 text-[11px] font-medium text-slate-400">不属于正式移动端页面</p>
-        </button>
-        <button
-          type="button"
-          onClick={resetWorkbench}
-          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-        >
-          <RotateCcw size={13} />
-          重置
-        </button>
-      </header>
-
+    <AcceptanceShell portalUrl={U2G_PORTAL_URL} contextKey={`${acceptancePage}:${acceptanceModule}`} onReset={resetWorkbench}>
       <div className="space-y-5 p-4">
         <section>
           <h3 className="text-[11px] font-extrabold text-slate-500">模块验收</h3>
@@ -939,13 +919,19 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
               </>
             )}
 
+            {acceptanceModule === 'assistance_home' && <section aria-label="在线协助首页摘要场景"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">首页摘要</h3><div className="space-y-2">{([
+              ['single', '单条处理中'], ['multiple', '多条进行中'], ['mixed', '处理中 + 已完成混合'], ['empty', '无记录'], ['completed', '全部已完成 · 首页不展示']
+            ] as [AssistanceScenario, string][]).map(([value, label]) => <button key={value} type="button" aria-pressed={assistanceScenario === value} onClick={() => { onAssistanceScenarioChange(value); onOpenHome(); }} className={`w-full rounded-xl border px-3 py-2.5 text-left text-[11px] font-bold ${assistanceScenario === value ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700'}`}>{label}</button>)}</div></section>}
             {acceptanceModule === 'family_notifications' && (
               <>
                 <section aria-label="消息列表验收状态">
                   <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">验收场景</h3><p className="mt-0.5 text-[10px] text-slate-400">多类通知的默认聚合列表</p></div>
-                  <div className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2.5"><span className="flex items-start justify-between gap-2"><strong className="text-[11px] text-slate-800">综合消息</strong><span className="rounded-full bg-white px-2 py-0.5 text-[8px] font-bold text-blue-700">4类通知</span></span><span className="mt-1 block text-[9px] leading-snug text-slate-500">展示家庭留言、影像反馈、语音未接和服务预约。</span></div>
+                  <div className="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2.5"><span className="flex items-start justify-between gap-2"><strong className="text-[11px] text-slate-800">综合消息</strong><span className="rounded-full bg-white px-2 py-0.5 text-[8px] font-bold text-blue-700">5类通知</span></span><span className="mt-1 block text-[9px] leading-snug text-slate-500">展示在线协助、家庭留言、影像反馈、语音未接和服务预约。</span></div>
                 </section>
                 <section aria-label="消息列表交互"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3><button type="button" onClick={onOpenFamilyNotifications} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开消息</button></section>
+                <section aria-label="在线协助验收场景"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">在线协助</h3><p className="mb-2 text-[10px] text-slate-400">仅切换事件及本人查看状态，不触发外部通知。</p><div className="space-y-2">{([
+                  ['single', '单条处理中'], ['multiple', '多条进行中'], ['mixed', '处理中 + 已完成混合'], ['empty', '无记录'], ['unread_processing', '未读 · 处理中'], ['read_processing', '已读 · 处理中'], ['completed', '已完成 · 有结果'], ['notification_missing', '无通知 · 列表可查'], ['waiting', '待接听']
+                ] as [AssistanceScenario, string][]).map(([value, label]) => <button key={value} type="button" aria-pressed={assistanceScenario === value} onClick={() => onAssistanceScenarioChange(value)} className={`w-full rounded-xl border px-3 py-2.5 text-left text-[11px] font-bold ${assistanceScenario === value ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700'}`}>{label}</button>)}</div></section>
               </>
             )}
 
@@ -1167,7 +1153,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
         </>
       </div>
 
-      <footer className="mt-auto border-t border-slate-100 p-3">
+      <div className="border-t border-slate-100 p-3">
         <button
           type="button"
           onClick={onToggleSimulator}
@@ -1176,7 +1162,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
           {showSimulator ? <X size={14} /> : <Cpu size={14} />}
           {showSimulator ? '关闭设备状态控制' : '打开设备状态控制'}
         </button>
-      </footer>
-    </aside>
+      </div>
+    </AcceptanceShell>
   );
 }

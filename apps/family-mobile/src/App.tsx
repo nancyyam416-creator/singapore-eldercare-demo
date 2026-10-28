@@ -4,6 +4,8 @@
  */
 
 import React, { useState } from 'react';
+import { PhonePreview, PreviewTools } from './components/PreviewLayout';
+import { AssistanceScenario } from './data/onlineAssistance';
 import { Cpu } from 'lucide-react';
 import {
   Medication,
@@ -27,12 +29,12 @@ import {
   ChildLoginScenario,
   StoreCategoryScenario
 } from './types';
-import {
-  initialParentProfile,
-  initialMedications,
-  initialHealthStats,
-  initialActivities,
-  initialOrders
+import { 
+  initialParentProfile, 
+  initialMedications, 
+  initialHealthStats, 
+  initialActivities, 
+  initialOrders 
 } from './data/mockData';
 import { IoTControlSandbox } from './components/IoTControlSandbox';
 import { H5AppFrame } from './components/H5AppFrame';
@@ -71,6 +73,7 @@ export default function App() {
   const [previewOpenFamilyCallSignal, setPreviewOpenFamilyCallSignal] = useState(0);
   const [previewOpenFamilyPhotosSignal, setPreviewOpenFamilyPhotosSignal] = useState(0);
   const [previewOpenFamilyNotificationsSignal, setPreviewOpenFamilyNotificationsSignal] = useState(0);
+  const [assistanceScenario, setAssistanceScenario] = useState<AssistanceScenario>('unread_processing');
   const [previewOpenHomeSignal, setPreviewOpenHomeSignal] = useState(0);
   const [previewCloseFamilyReceiptsSignal, setPreviewCloseFamilyReceiptsSignal] = useState(0);
   const [previewCompleteFamilyVoiceSignal, setPreviewCompleteFamilyVoiceSignal] = useState(0);
@@ -83,24 +86,24 @@ export default function App() {
   const [previewOpenStoreSignal, setPreviewOpenStoreSignal] = useState(0);
   const [activePreviewPage, setActivePreviewPage] = useState<'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile'>('login');
   const [activePreviewFamilyModule, setActivePreviewFamilyModule] = useState<'family_messages' | 'family_photos' | 'family_notifications' | 'reminders' | 'elder_binding'>('family_photos');
-
+  
   // Real-time Emergency state triggered by the IoT sandbox
   const [emergencyAlert, setEmergencyAlert] = useState<string | null>(null);
 
   const handleTriggerEmergency = (msg: string) => {
     setEmergencyAlert(msg);
-    setHealthStats(prev => ({
-      ...prev,
-      heartRate: 118,
+    setHealthStats(prev => ({ 
+      ...prev, 
+      heartRate: 118, 
       heartRateStatus: 'abnormal'
     }));
   };
 
   const handleClearEmergency = () => {
     setEmergencyAlert(null);
-    setHealthStats(prev => ({
-      ...prev,
-      heartRate: 72,
+    setHealthStats(prev => ({ 
+      ...prev, 
+      heartRate: 72, 
       heartRateStatus: 'normal'
     }));
     // Log the reset
@@ -115,6 +118,7 @@ export default function App() {
   };
 
   const handleResetPreview = () => {
+    setAssistanceScenario('unread_processing');
     setHomeCareScenario('normal');
     setHomeActivityScenario('normal');
     setFamilyReceiptScenario('multiple');
@@ -138,17 +142,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7F9] text-slate-800 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-
+    <div className="preview-root bg-[#F4F7F9] text-slate-800 font-sans selection:bg-blue-600 selection:text-white">
+      
       {/* Main Container Layout */}
-      <main className="flex-1 w-full mx-auto p-0 sm:p-4 lg:p-5 flex flex-col justify-center min-h-0">
-
+      <main className="preview-main">
+        
         {/* Formal mobile preview stays focused; simulator is an optional demo tool. */}
-        <div className={`flex flex-col lg:flex-row gap-8 items-start justify-center ${showSimulator ? 'max-w-[1440px]' : 'max-w-[830px]'} w-full mx-auto`}>
-
+        <div className="preview-layout">
+          
           {/* MOBILE APP */}
-          <div className="flex w-full max-w-[450px] flex-col items-center">
-            <H5AppFrame
+          <PhonePreview>
+            <H5AppFrame 
               parentProfile={parentProfile}
               healthStats={healthStats}
               setHealthStats={setHealthStats}
@@ -183,6 +187,7 @@ export default function App() {
               previewOpenFamilyCallSignal={previewOpenFamilyCallSignal}
               previewOpenFamilyPhotosSignal={previewOpenFamilyPhotosSignal}
               previewOpenFamilyNotificationsSignal={previewOpenFamilyNotificationsSignal}
+              assistanceScenario={assistanceScenario}
               previewOpenHomeSignal={previewOpenHomeSignal}
               previewCloseFamilyReceiptsSignal={previewCloseFamilyReceiptsSignal}
               previewFamilyReceiptFilter={previewFamilyReceiptFilter}
@@ -202,9 +207,12 @@ export default function App() {
                 if (familyModule) setActivePreviewFamilyModule(familyModule);
               }}
             />
-          </div>
+          </PhonePreview>
 
+          <PreviewTools>
           <H5InteractionWorkbench
+            assistanceScenario={assistanceScenario}
+            onAssistanceScenarioChange={setAssistanceScenario}
             activePreviewPage={activePreviewPage}
             activePreviewFamilyModule={activePreviewFamilyModule}
             homeCareScenario={homeCareScenario}
@@ -281,8 +289,8 @@ export default function App() {
               </span>
               <span className="text-3xs text-slate-400 font-medium">不属于正式子女端页面</span>
             </div>
-
-            <IoTControlSandbox
+            
+            <IoTControlSandbox 
               healthStats={healthStats}
               setHealthStats={setHealthStats}
               medications={medications}
@@ -295,11 +303,11 @@ export default function App() {
             />
           </div>
           )}
-
+          </PreviewTools>
         </div>
       </main>
 
-      <footer className="hidden sm:block border-t border-slate-200 bg-white py-4 px-6 shrink-0 text-center text-xs text-slate-500 mt-12">
+      <footer className="preview-footer border-t border-slate-200 bg-white text-center text-xs text-slate-500">
         © 2026 智慧养老长辈健康监护与服务商城
       </footer>
     </div>

@@ -483,30 +483,11 @@
 }
 
 .interaction-acceptance-panel > footer {
-  display: grid;
-  gap: 8px;
-  padding: 0 14px 14px;
-}
-
-.interaction-acceptance-panel > footer button {
-  width: 100%;
-  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border: 1px solid rgba(126, 151, 177, 0.3);
-  border-radius: 13px;
-  color: #d5e1ee;
-  background: #182a40;
-  font-size: 13px;
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.interaction-acceptance-panel > footer svg {
-  width: 17px;
-  height: 17px;
+  min-height: 28px;
+  padding: 0 14px 12px;
 }
 
 @keyframes interaction-console-enter {

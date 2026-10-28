@@ -6,7 +6,6 @@ import {
   Pause,
   RotateCcw,
   ShieldAlert,
-  Users,
   Volume2,
   WifiOff,
   X,
@@ -24,7 +23,6 @@ interface SecurityInformationPageProps {
   readIds: string[];
   onRead: (tipId: string) => void;
   onClose: () => void;
-  onContactFamily: () => void;
   pageTitle?: "安全资讯" | "警惕事项";
 }
 
@@ -77,7 +75,6 @@ export default function SecurityInformationPage({
   readIds,
   onRead,
   onClose,
-  onContactFamily,
   pageTitle = "安全资讯",
 }: SecurityInformationPageProps) {
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
@@ -328,12 +325,6 @@ export default function SecurityInformationPage({
               <RotateCcw aria-hidden="true" />
               从头听一遍
             </button>
-            {selectedTip.contactLabel && (
-              <button type="button" onClick={onContactFamily}>
-                <Users aria-hidden="true" />
-                {selectedTip.contactLabel}
-              </button>
-            )}
           </div>
         </section>
       )}

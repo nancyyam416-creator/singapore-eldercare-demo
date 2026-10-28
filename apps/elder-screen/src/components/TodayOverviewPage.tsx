@@ -34,6 +34,12 @@ interface TodayOverviewPageProps {
   onOpenSecurity?: () => void;
   isServiceBooked?: boolean;
   onOpenService?: () => void;
+  unreadMessageCount?: number;
+  missedCallCount?: number;
+  albumUnreadCount?: number;
+  onOpenContacts?: () => void;
+  onOpenMessages?: () => void;
+  onOpenAlbum?: () => void;
 }
 
 interface OverviewSchedule {
@@ -160,6 +166,12 @@ export default function TodayOverviewPage({
   onOpenSecurity,
   isServiceBooked = false,
   onOpenService,
+  unreadMessageCount = 0,
+  missedCallCount = 0,
+  albumUnreadCount = 0,
+  onOpenContacts,
+  onOpenMessages,
+  onOpenAlbum,
 }: TodayOverviewPageProps) {
   const [scheduleStatuses, setScheduleStatuses] = useState<Record<string, ScheduleStatus>>(readStoredStatuses);
   const [pendingSyncIds, setPendingSyncIds] = useState<string[]>(() => readStringArray(SYNC_QUEUE_STORAGE_KEY));
@@ -171,7 +183,7 @@ export default function TodayOverviewPage({
 
   const sortedSchedules = useMemo(() => defaultSchedules
     .map((item) => ({ ...item, status: scheduleStatuses[item.id] ?? item.status }))
-    .filter((item) => item.status !== "expired")
+    .filter((item) => item.status !== "expired" && item.status !== "completed")
     .sort((first, second) => first.time.localeCompare(second.time)), [scheduleStatuses]);
 
   const sortedRecommendations = useMemo(() => [...recommendations].sort((first, second) => first.priority - second.priority), []);
@@ -378,6 +390,9 @@ export default function TodayOverviewPage({
           )}
 
           <div className="today-recommendation-list">
+            {missedCallCount > 0 && <article className="today-recommendation-card is-community"><span className="today-recommendation-icon"><Clock3 aria-hidden="true" /></span><div className="today-recommendation-copy"><span>家庭互动</span><strong>您有未接来电</strong><p>共{missedCallCount}次未接来电</p></div><button type="button" onClick={onOpenContacts}>查看</button></article>}
+            {unreadMessageCount > 0 && <article className="today-recommendation-card is-community"><span className="today-recommendation-icon"><Newspaper aria-hidden="true" /></span><div className="today-recommendation-copy"><span>家庭互动</span><strong>家人给您留言了</strong><p>共{unreadMessageCount}条新留言</p></div><button type="button" onClick={onOpenMessages}>查看</button></article>}
+            {albumUnreadCount > 0 && <article className="today-recommendation-card is-community"><span className="today-recommendation-icon"><Newspaper aria-hidden="true" /></span><div className="today-recommendation-copy"><span>家庭互动</span><strong>家人分享了新影像</strong><p>共{albumUnreadCount}项未查看影像</p></div><button type="button" onClick={onOpenAlbum}>查看</button></article>}
             {sortedRecommendations.map((item) => {
               const completed = item.kind === "entertainment"
                 ? false

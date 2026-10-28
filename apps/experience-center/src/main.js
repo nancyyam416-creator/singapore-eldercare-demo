@@ -7,7 +7,57 @@ const icons = {
   phone: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 5h4M11 19h2"/></svg>`,
   family: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 5h4M11 19h2"/><path d="M12 15.5s-3-1.7-3-3.7a1.7 1.7 0 0 1 3-1.1 1.7 1.7 0 0 1 3 1.1c0 2-3 3.7-3 3.7Z"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+  history: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>`,
+  close: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>`,
 };
+
+const updateDays = [
+  {
+    date: "2026-10-28",
+    terminals: [
+      {
+        name: "老人中控屏",
+        items: ["设备激活支持先选择 Wi-Fi，再输入对应密码", "警惕事项详情精简不必要的操作入口"],
+      },
+      {
+        name: "老人移动端",
+        items: ["新增预约服务原型，支持服务分类、预约提交和记录查看", "补充社区活动与警惕事项展示"],
+      },
+      {
+        name: "子女移动端",
+        items: ["新增在线协助进度与未读状态展示"],
+      },
+      {
+        name: "体验中心",
+        items: ["新增按日期及终端分组的更新记录，最新日期置顶"],
+      },
+    ],
+  },
+  {
+    date: "2026-10-27",
+    terminals: [
+      {
+        name: "管理后台",
+        items: ["升级包类型改为上传后自动识别", "新增升级描述，并优化表单校验反馈"],
+      },
+      {
+        name: "体验中心",
+        items: ["聚合管理后台、中控屏、老人移动端和子女移动端", "各终端支持返回 U2G 智慧养老入口"],
+      },
+    ],
+  },
+];
+
+function updateDay(day, index) {
+  const itemCount = day.terminals.reduce((total, terminal) => total + terminal.items.length, 0);
+  return `<section class="update-day${index === 0 ? " is-latest" : ""}">
+    <header class="update-day-header">
+      <div><time datetime="${day.date}">${day.date}</time>${index === 0 ? "<b>最新</b>" : ""}</div>
+      <span>${day.terminals.length} 个终端 · ${itemCount} 项优化</span>
+    </header>
+    <div class="update-terminal-list">${day.terminals.map(terminal => `<article class="update-terminal"><h3>${terminal.name}<span>${terminal.items.length} 项</span></h3><ul>${terminal.items.map(item => `<li>${item}</li>`).join("")}</ul></article>`).join("")}</div>
+  </section>`;
+}
 
 const descriptions = {
   admin: "管理档案、设备与社区运营",
@@ -29,7 +79,41 @@ function entryCard(entry) {
 
 document.querySelector("#app").innerHTML = `<div class="site-shell">
   <main class="content">
+    <button class="update-trigger" type="button" aria-haspopup="dialog" aria-controls="update-drawer">
+      <span class="update-trigger-icon">${icons.history}</span>
+      <span>更新记录</span>
+      <em>${updateDays.length}</em>
+    </button>
     <section class="intro"><span class="eyebrow">INTERACTIVE PROTOTYPE</span><h1>U2G智慧养老</h1><p>选择终端进入交互界面</p></section>
     <section class="entry-grid" aria-label="四端产品入口">${experienceEntries.map(entryCard).join("")}</section>
   </main>
+  <div class="update-layer" hidden>
+    <button class="update-backdrop" type="button" aria-label="关闭更新记录"></button>
+    <aside class="update-drawer" id="update-drawer" role="dialog" aria-modal="true" aria-labelledby="update-title">
+      <header class="update-header"><div><span class="eyebrow">CHANGELOG</span><h2 id="update-title">更新记录</h2><p>按日期查看各终端最近完成的优化</p></div><button class="update-close" type="button" aria-label="关闭更新记录">${icons.close}</button></header>
+      <div class="update-list">${updateDays.map(updateDay).join("")}</div>
+    </aside>
+  </div>
 </div>`;
+
+const updateLayer = document.querySelector(".update-layer");
+const updateTrigger = document.querySelector(".update-trigger");
+const updateCloseButtons = document.querySelectorAll(".update-close, .update-backdrop");
+
+function closeUpdateRecords() {
+  updateLayer.hidden = true;
+  document.body.classList.remove("has-open-drawer");
+  updateTrigger.focus();
+}
+
+function openUpdateRecords() {
+  updateLayer.hidden = false;
+  document.body.classList.add("has-open-drawer");
+  document.querySelector(".update-close").focus();
+}
+
+updateTrigger.addEventListener("click", openUpdateRecords);
+updateCloseButtons.forEach(button => button.addEventListener("click", closeUpdateRecords));
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !updateLayer.hidden) closeUpdateRecords();
+});

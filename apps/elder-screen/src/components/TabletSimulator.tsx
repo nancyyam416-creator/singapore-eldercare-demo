@@ -4,8 +4,18 @@ interface TabletSimulatorProps {
   children: React.ReactNode;
 }
 
+const TABLET_WIDTH = 1920;
+const TABLET_HEIGHT = 1200;
+
+const getFitScale = (width: number, height: number) => {
+  if (width <= 0 || height <= 0) return 1;
+  return Math.min(width / TABLET_WIDTH, height / TABLET_HEIGHT);
+};
+
 export default function TabletSimulator({ children }: TabletSimulatorProps) {
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(() => (
+    typeof window === "undefined" ? 1 : getFitScale(window.innerWidth, window.innerHeight)
+  ));
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -15,18 +25,7 @@ export default function TabletSimulator({ children }: TabletSimulatorProps) {
         return;
       }
 
-      // Subtract 24px padding/margins to let it breathe nicely and avoid scrollbars
-      const containerWidth = Math.max(100, containerRef.current.clientWidth - 24);
-      const containerHeight = Math.max(100, containerRef.current.clientHeight - 24);
-
-      const targetWidth = 1920;
-      const targetHeight = 1200;
-
-      const scaleX = containerWidth / targetWidth;
-      const scaleY = containerHeight / targetHeight;
-      const newScale = Math.min(scaleX, scaleY, 1.2); // Cap at 1.2 to prevent excessive upscaling
-
-      setScale(newScale);
+      setScale(getFitScale(containerRef.current.clientWidth, containerRef.current.clientHeight));
     };
 
     window.addEventListener("resize", handleResize);
@@ -49,24 +48,23 @@ export default function TabletSimulator({ children }: TabletSimulatorProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-screen h-screen bg-[#F5F2EB] flex items-center justify-center p-3 overflow-hidden select-none font-sans"
+      className="tablet-preview-viewport relative w-screen h-screen bg-[#F5F2EB] flex items-center justify-center overflow-hidden select-none font-sans"
     >
       <div
         style={{
-          width: `${1920 * scale}px`,
-          height: `${1200 * scale}px`,
-          transition: "width 0.25s ease-out, height 0.25s ease-out",
+          width: `${TABLET_WIDTH * scale}px`,
+          height: `${TABLET_HEIGHT * scale}px`,
         }}
-        className="relative overflow-hidden bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-2xl select-none shrink-0"
+        className="tablet-preview-frame relative overflow-hidden bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)] select-none shrink-0"
       >
         <div
           style={{
-            width: "1920px",
-            height: "1200px",
+            width: `${TABLET_WIDTH}px`,
+            height: `${TABLET_HEIGHT}px`,
             transform: `scale(${scale})`,
             transformOrigin: "top left",
           }}
-          className="absolute top-0 left-0"
+          className="tablet-preview-artboard absolute top-0 left-0"
         >
           {children}
         </div>

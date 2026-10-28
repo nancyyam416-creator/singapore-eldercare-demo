@@ -110,7 +110,6 @@ export interface AntiScamTip {
   source: string;
   summary?: string;
   coverUrl?: string;
-  contactLabel?: string;
 }
 
 export interface SpecialServiceBooking {

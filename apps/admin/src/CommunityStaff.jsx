@@ -77,7 +77,7 @@ export function CommunityStaffPage({ records, communityName, onCreate, onEdit, o
       </tbody></table></div>
       <div className="pagination"><span>当前社区共 {records.length} 位</span></div>
     </section>
-    {deleteTarget && <AdminConfirm title={`删除社区人员“${deleteTarget.displayName}”？`} description="删除后该人员将不再在老人端展示。" confirmLabel="确认删除" danger onClose={() => setDeleteTarget(null)} onConfirm={() => { onDelete(deleteTarget.id); setDeleteTarget(null); }}/>}
+    {deleteTarget && <AdminConfirm title={`删除社区人员“${deleteTarget.displayName}”？`} description="删除后该人员将不再在老人端展示。" confirmLabel="确认删除" danger onClose={() => setDeleteTarget(null)} onConfirm={() => { onDelete(deleteTarget.id); setDeleteTarget(null); }}/>} 
   </>;
 }
 

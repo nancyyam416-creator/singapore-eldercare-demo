@@ -1,9 +1,10 @@
-import unifiedMockSource from "./data/emergency-assistance-mock.json";
+import unifiedMockSource from "../../产品理解/90 原型与Mock素材/mock/紧急协助跨端统一Mock.json";
 
 export type EmergencyAssistanceStatus = "待接听" | "未接通" | "待回拨" | "处理中" | "需跟进" | "已完成" | "已取消";
 
 export type EmergencyAcceptanceScenario =
   | "normal-connected"
+  | "waiting"
   | "no-answer"
   | "partial-notification-failure"
   | "processing"
@@ -34,6 +35,8 @@ export interface EmergencyAssistanceEvent {
   };
   notifications: EmergencyChildNotification[];
   completedAt: string;
+  resultSummary: string;
+  resultNote: string;
 }
 
 interface UnifiedEmergencyMock {
@@ -59,23 +62,32 @@ export const emergencyScenarioDefinitions: Record<EmergencyAcceptanceScenario, {
     label: "正常接通",
     description: "呼叫中心接听并与老人沟通，已绑定子女同步收到通知。",
   },
+  waiting: {
+    label: "正在联系呼叫中心",
+    description: "在线求助已发起，事件保持待接听状态，老人可关闭后再次查看。",
+  },
   "no-answer": {
     label: "呼叫中心未接听",
     description: "首次未接通，老人可重新联系，也可返回首页等待回拨。",
   },
   "partial-notification-failure": {
     label: "部分子女通知失败",
-    description: "呼叫中心仍正常处理；单个子女通知失败不会中断在线协助事件。",
+    description: "呼叫中心仍正常处理；单个子女通知失败不会中断在线求助事件。",
   },
   processing: {
     label: "呼叫中心处理中",
     description: "事件已存在且正在处理，重新打开时不重复创建。",
   },
   completed: {
-    label: "已完成",
-    description: "呼叫中心已完成本次在线协助，老人端只展示简单结果和返回首页。",
+    label: "已处理完成",
+    description: "呼叫中心已完成本次在线求助，老人端展示结果摘要、备注和返回首页。",
   },
 };
+
+export const onlineAssistanceCompletionResult = {
+  summary: "工作人员已确认情况并完成本次处理",
+  note: "呼叫中心已记录您的情况；如需进一步协助，工作人员会再次联系您。",
+} as const;
 
 export function createEmergencyAssistanceEvent(
   scenario: EmergencyAcceptanceScenario,
@@ -108,6 +120,8 @@ export function createEmergencyAssistanceEvent(
     },
     notifications,
     completedAt: status === "已完成" ? "2026-07-28 10:06:35" : "",
+    resultSummary: status === "已完成" ? onlineAssistanceCompletionResult.summary : "",
+    resultNote: status === "已完成" ? onlineAssistanceCompletionResult.note : "",
   };
 }
 

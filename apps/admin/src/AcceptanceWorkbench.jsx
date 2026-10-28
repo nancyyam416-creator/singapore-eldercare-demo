@@ -21,7 +21,7 @@ const acceptanceHierarchy = [
     { id: "tabletDevices", label: "平板设备" },
   ] },
   { id: "platform-public", label: "平台公共能力", modules: [
-    { id: "careScripts", label: "关怀话术" },
+    { id: "careScripts", label: "天气关怀话术" },
     { id: "leisureEntertainment", label: "休闲娱乐", objectLabel: "页面整体" },
   ] },
   { id: "platform-device", label: "平台设备管理", modules: [
@@ -54,7 +54,7 @@ const elderlyScenarios = [
   { value: "tabletUnbound", label: "平板未绑定", description: "无目标设备且无有效激活记录，展示绑定入口。", status: "空状态" },
   { value: "tabletPending", label: "平板待激活", description: "已指定设备并生成激活码，尚未完成激活。", status: "待处理" },
   { value: "tabletActivated", label: "平板已激活", description: "设备已绑定当前老人，展示在线状态与使用信息。", status: "成功" },
-  { value: "tabletActivationFailed", label: "平板激活失败", description: "展示失败原因，并提供重新发起激活入口。", status: "失败" },
+  { value: "tabletActivationFailed", label: "平板激活失败", description: "展示本次失败原因，原激活码保持待使用。", status: "失败" },
   { value: "unbindFailure", label: "解绑失败可重试", description: "首次解除失败，保留原绑定关系并提供重试入口。", status: "失败" },
 ];
 

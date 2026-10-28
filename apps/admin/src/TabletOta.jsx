@@ -11,6 +11,12 @@ export const tabletOtaPermissionKeys = {
 };
 
 const packageTypeLabels = { ROM: "ROM 固件包", APK: "APK 应用包" };
+function parsePackageMetadata(fileName = "") {
+  return {
+    packageType: /\.apk$/i.test(fileName) ? "APK" : "ROM",
+    model: "U2G Home 14",
+  };
+}
 function compareVersion(left = "", right = "") {
   const a = String(left).match(/\d+/g)?.map(Number) || [];
   const b = String(right).match(/\d+/g)?.map(Number) || [];
@@ -38,6 +44,7 @@ function initialPackages(devices) {
       effectiveAt: "2026-10-27 02:00",
       dailyWindow: "02:00–05:00",
       minimumVersion: "v1.4.0",
+      description: "系统稳定性升级",
       notes: "优化设备稳定性并修复夜间网络重连问题。",
       fileName: "u2g-home-14-rom-v1.6.0.zip",
       uploadedAt: "2026-10-25 16:20",
@@ -70,6 +77,7 @@ function initialPackages(devices) {
       effectiveAt: "立即生效",
       dailyWindow: "09:00–21:00",
       minimumVersion: "v2.0.0",
+      description: "老人端体验升级",
       notes: "更新老人端首页与语音播报交互。",
       fileName: "u2g-elder-app-v2.2.0.apk",
       uploadedAt: "2026-10-24 11:08",
@@ -85,17 +93,30 @@ function StatusTag({ children }) {
 }
 
 function UploadPackageDrawer({ onClose, onSave }) {
-  const [form, setForm] = useState({ packageType: "ROM", fileName: "", targetVersion: "", model: "U2G Home 14", notes: "", strategy: "可暂缓", minimumVersion: "", effectiveMode: "立即生效", effectiveAt: "", windowStart: "02:00", windowEnd: "05:00" });
+  const [form, setForm] = useState({ fileName: "", targetVersion: "", description: "", notes: "", strategy: "可暂缓", minimumVersion: "", effectiveMode: "立即生效", effectiveAt: "", windowStart: "02:00", windowEnd: "05:00" });
   const [errors, setErrors] = useState({});
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const simulateFile = () => setForm((current) => current.packageType === "ROM"
-    ? { ...current, fileName: "u2g-home-14-rom-v1.7.0.zip", targetVersion: "v1.7.0", model: "U2G Home 14", notes: "提升系统稳定性并优化网络恢复。", minimumVersion: "v1.5.0" }
-    : { ...current, fileName: "u2g-elder-app-v2.3.0.apk", targetVersion: "v2.3.0", model: "U2G Home 14", notes: "优化关怀留言展示与设备状态同步。", minimumVersion: "v2.1.0" });
+  const update = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      if (key === "windowStart" || key === "windowEnd") delete next.dailyWindow;
+      if (key === "effectiveMode" && value === "立即生效") delete next.effectiveAt;
+      return next;
+    });
+  };
+  const simulateFile = () => {
+    setForm((current) => ({ ...current, fileName: "u2g-home-14-rom-v1.7.0.zip", targetVersion: "v1.7.0", description: "系统稳定性与网络恢复升级", notes: "提升系统稳定性并优化网络恢复。", minimumVersion: "v1.5.0" }));
+    setErrors((current) => {
+      const next = { ...current };
+      ["fileName", "targetVersion", "notes", "minimumVersion"].forEach((key) => delete next[key]);
+      return next;
+    });
+  };
   const submit = () => {
     const next = {};
     if (!form.fileName) next.fileName = "请先选择升级包";
     if (!form.targetVersion.trim()) next.targetVersion = "缺少目标版本";
-    if (!form.model.trim()) next.model = "缺少适配型号";
     if (!form.notes.trim()) next.notes = "请输入更新说明";
     if (!form.minimumVersion.trim()) next.minimumVersion = "请输入最低可用版本";
     if (form.effectiveMode === "指定时间" && !form.effectiveAt) next.effectiveAt = "请选择生效时间";
@@ -103,17 +124,19 @@ function UploadPackageDrawer({ onClose, onSave }) {
     else if (form.windowStart && form.windowEnd && form.windowStart >= form.windowEnd) next.dailyWindow = "每日升级结束时间必须晚于开始时间";
     setErrors(next);
     if (Object.keys(next).length) return;
+    const metadata = parsePackageMetadata(form.fileName);
     onSave({
-      id: `OTA-${form.packageType}-${Date.now()}`,
+      id: `OTA-${metadata.packageType}-${Date.now()}`,
       targetVersion: form.targetVersion.trim(),
-      model: form.model.trim(),
-      packageType: form.packageType,
+      model: metadata.model,
+      packageType: metadata.packageType,
       resourceStatus: "可用",
       strategy: form.strategy,
       effectiveMode: form.effectiveMode,
       effectiveAt: form.effectiveMode === "立即生效" ? "立即生效" : form.effectiveAt.replace("T", " "),
       dailyWindow: `${form.windowStart}–${form.windowEnd}`,
       minimumVersion: form.minimumVersion.trim(),
+      description: form.description.trim(),
       notes: form.notes.trim(),
       fileName: form.fileName,
       uploadedAt: "2026-10-26 14:20",
@@ -121,8 +144,8 @@ function UploadPackageDrawer({ onClose, onSave }) {
     });
   };
   return <AdminDrawer title="上传升级包" className="tablet-ota-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={submit}>保存升级包</button></>}>
-    <div className="form-section"><h3>上传升级包</h3><label><span>包类型 *</span><select className="select-control form-select-native" value={form.packageType} onChange={(event) => { const packageType = event.target.value; setForm((current) => ({ ...current, packageType, fileName: "", targetVersion: "", notes: "", minimumVersion: "" })); }}><option value="ROM">ROM 固件包</option><option value="APK">APK 应用包</option></select></label><div className="ota-file-picker"><div><PackageOpen size={20}/><span><b>{form.fileName || "尚未选择升级包"}</b><small>{form.packageType === "ROM" ? "支持 ZIP / 系统包" : "支持 APK 文件"}</small></span></div><button className="secondary-button" type="button" onClick={simulateFile}><Upload size={15}/>模拟选择文件</button></div>{errors.fileName && <small className="field-error">{errors.fileName}</small>}</div>
-    <div className="form-section"><h3>解析结果</h3><div className="form-row"><label><span>目标版本 *</span><input value={form.targetVersion} onChange={(event) => update("targetVersion", event.target.value)}/>{errors.targetVersion && <small className="field-error">{errors.targetVersion}</small>}</label><label><span>适配型号 *</span><input value={form.model} onChange={(event) => update("model", event.target.value)}/>{errors.model && <small className="field-error">{errors.model}</small>}</label></div><label><span>更新说明 *</span><textarea rows="3" value={form.notes} onChange={(event) => update("notes", event.target.value)}/>{errors.notes && <small className="field-error">{errors.notes}</small>}</label></div>
+    <div className="form-section"><h3>上传升级包</h3><div className="ota-file-picker"><div><PackageOpen size={20}/><span><b>{form.fileName || "尚未选择升级包"}</b><small>{form.fileName ? `已识别为${packageTypeLabels[parsePackageMetadata(form.fileName).packageType]}` : "支持 ZIP / 系统包及 APK 文件，包类型由文件自动识别"}</small></span></div><button className="secondary-button" type="button" onClick={simulateFile}><Upload size={15}/>模拟选择文件</button></div>{errors.fileName && <small className="field-error">{errors.fileName}</small>}</div>
+    <div className="form-section"><h3>解析结果</h3><div className="form-row"><label><span>目标版本 *</span><input value={form.targetVersion} onChange={(event) => update("targetVersion", event.target.value)}/>{errors.targetVersion && <small className="field-error">{errors.targetVersion}</small>}</label><label><span>升级描述</span><input value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="请输入本次升级的简要描述"/></label></div><label><span>更新说明 *</span><textarea rows="3" value={form.notes} onChange={(event) => update("notes", event.target.value)}/>{errors.notes && <small className="field-error">{errors.notes}</small>}</label></div>
     <div className="form-section"><h3>升级策略</h3><div className="form-row"><label><span>执行策略 *</span><select className="select-control form-select-native" value={form.strategy} onChange={(event) => update("strategy", event.target.value)}><option>可暂缓</option><option>强制</option></select></label><label><span>最低可用版本 *</span><input value={form.minimumVersion} onChange={(event) => update("minimumVersion", event.target.value)} placeholder="例如：v1.5.0"/>{errors.minimumVersion && <small className="field-error">{errors.minimumVersion}</small>}</label></div><label><span>生效方式 *</span><select className="select-control form-select-native" value={form.effectiveMode} onChange={(event) => update("effectiveMode", event.target.value)}><option>立即生效</option><option>指定时间</option></select></label>{form.effectiveMode === "指定时间" && <label><span>生效时间 *</span><input type="datetime-local" value={form.effectiveAt} onChange={(event) => update("effectiveAt", event.target.value)}/>{errors.effectiveAt && <small className="field-error">{errors.effectiveAt}</small>}</label>}<div className="form-row"><label><span>每日升级开始</span><input type="time" value={form.windowStart} onChange={(event) => update("windowStart", event.target.value)}/></label><label><span>每日升级结束</span><input type="time" value={form.windowEnd} onChange={(event) => update("windowEnd", event.target.value)}/></label></div>{errors.dailyWindow && <small className="field-error">{errors.dailyWindow}</small>}</div>
   </AdminDrawer>;
 }
@@ -179,7 +202,7 @@ function PackageDetailDrawer({ otaPackage, onClose, onCreateTask, onRetry }) {
   const taskScope = (task) => task.projectNames?.join("、") || task.projectIds?.join("、") || "未记录";
   useEffect(() => { if (selectedTaskId && !otaPackage.tasks.some((task) => task.id === selectedTaskId)) setSelectedTaskId(""); }, [otaPackage.tasks, selectedTaskId]);
   return <><AdminDrawer title="升级版本详情" className="tablet-ota-drawer wide-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>关闭</button><button className="primary-button" disabled={otaPackage.resourceStatus !== "可用"} onClick={onCreateTask}><Plus size={15}/>创建升级任务</button></>}>
-    {!selectedTask ? <><section className="ota-version-overview"><div className={`ota-version-icon ${otaPackage.packageType.toLowerCase()}`}><PackageTypeIcon size={22}/><small>{otaPackage.packageType}</small></div><div className="ota-version-primary"><span>目标版本</span><b>{otaPackage.targetVersion}</b><small>{otaPackage.model}</small></div><StatusTag>{otaPackage.resourceStatus}</StatusTag></section><section className="ota-package-properties"><h3>升级包信息</h3><div className="ota-property-grid"><div><span>包类型</span><b>{packageTypeLabels[otaPackage.packageType]}</b></div><div><span>升级策略</span><b>{otaPackage.strategy}</b></div><div><span>最低可用版本</span><b>{otaPackage.minimumVersion}</b></div><div><span>生效方式</span><b>{otaPackage.effectiveAt}</b></div><div><span>升级时段</span><b>{otaPackage.dailyWindow}</b></div><div><span>上传时间</span><b>{otaPackage.uploadedAt}</b></div></div></section><section className="ota-update-notes"><div className="ota-note-heading"><PackageOpen size={15}/><h3>更新说明</h3></div><p>{otaPackage.notes}</p></section><section className="ota-task-history"><div className="detail-section-title"><h3>升级任务</h3><span className="ota-task-count">共 {otaPackage.tasks.length} 条</span></div><div className="table-scroll"><table className="ota-task-history-table"><thead><tr><th>任务编号 / 创建时间</th><th>项目 / 社区范围</th><th>目标设备数</th><th>成功</th><th>失败</th><th>任务状态</th><th>操作</th></tr></thead><tbody>{otaPackage.tasks.map((task) => { const stats = taskStats(task); return <tr key={task.id}><td><div className="stacked-cell"><b>{task.id}</b><small>{task.createdAt}</small></div></td><td className="ota-task-scope-cell">{taskScope(task)}</td><td>{task.results.length}</td><td className="success-text">{stats.success}</td><td className="danger-text">{stats.failure}</td><td><StatusTag>{task.status}</StatusTag></td><td><button className="table-action" onClick={() => setSelectedTaskId(task.id)}>查看</button></td></tr>; })}{!otaPackage.tasks.length && <tr><td colSpan="7"><div className="empty-table-state">当前升级包尚未创建任务</div></td></tr>}</tbody></table></div></section></> : <section className="ota-task-detail"><button className="ota-back-button" type="button" onClick={() => setSelectedTaskId("")}><ArrowLeft size={15}/>返回任务列表</button><div className="detail-section-title"><h3>任务详情</h3><StatusTag>{selectedTask.status}</StatusTag></div><div className="ota-task-scope-note"><span>项目/社区范围</span><b>{taskScope(selectedTask)}</b></div><div className="ota-task-summary"><div><span>目标设备</span><b>{selectedTask.results.length}</b></div><div><span>成功</span><b className="success-text">{taskStats(selectedTask).success}</b></div><div><span>失败</span><b className="danger-text">{taskStats(selectedTask).failure}</b></div><div><span>创建时间</span><b className="ota-task-time">{selectedTask.createdAt}</b></div></div><div className="table-scroll"><table className="ota-result-table"><thead><tr><th>设备 / 老人</th><th>项目 / 社区</th><th>升级前版本</th><th>执行状态</th><th>执行结果</th><th>操作</th></tr></thead><tbody>{selectedTask.results.map((item) => <tr key={item.deviceId}><td><div className="stacked-cell"><b>{item.deviceId}</b><small>{item.elderlyName}</small></div></td><td>{item.projectName || "未记录"}</td><td>{item.currentVersion}</td><td><StatusTag>{item.status}</StatusTag></td><td>{item.message}</td><td>{item.status === "失败" ? <button className="table-action" onClick={() => setRetryTarget(item)}>重试</button> : "—"}</td></tr>)}{!selectedTask.results.length && <tr><td colSpan="6"><div className="empty-table-state">该任务暂无设备执行记录</div></td></tr>}</tbody></table></div></section>}
+    {!selectedTask ? <><section className="ota-version-overview"><div className={`ota-version-icon ${otaPackage.packageType.toLowerCase()}`}><PackageTypeIcon size={22}/><small>{otaPackage.packageType}</small></div><div className="ota-version-primary"><span>目标版本</span><b>{otaPackage.targetVersion}</b><small>{otaPackage.model}</small></div><StatusTag>{otaPackage.resourceStatus}</StatusTag></section><section className="ota-package-properties"><h3>升级包信息</h3><div className="ota-property-grid"><div><span>包类型</span><b>{packageTypeLabels[otaPackage.packageType]}</b></div><div><span>升级策略</span><b>{otaPackage.strategy}</b></div><div><span>最低可用版本</span><b>{otaPackage.minimumVersion}</b></div><div><span>生效方式</span><b>{otaPackage.effectiveAt}</b></div><div><span>升级时段</span><b>{otaPackage.dailyWindow}</b></div><div><span>上传时间</span><b>{otaPackage.uploadedAt}</b></div></div></section>{otaPackage.description && <section className="ota-update-notes"><div className="ota-note-heading"><PackageOpen size={15}/><h3>升级描述</h3></div><p>{otaPackage.description}</p></section>}<section className="ota-update-notes"><div className="ota-note-heading"><PackageOpen size={15}/><h3>更新说明</h3></div><p>{otaPackage.notes}</p></section><section className="ota-task-history"><div className="detail-section-title"><h3>升级任务</h3><span className="ota-task-count">共 {otaPackage.tasks.length} 条</span></div><div className="table-scroll"><table className="ota-task-history-table"><thead><tr><th>任务编号 / 创建时间</th><th>项目 / 社区范围</th><th>目标设备数</th><th>成功</th><th>失败</th><th>任务状态</th><th>操作</th></tr></thead><tbody>{otaPackage.tasks.map((task) => { const stats = taskStats(task); return <tr key={task.id}><td><div className="stacked-cell"><b>{task.id}</b><small>{task.createdAt}</small></div></td><td className="ota-task-scope-cell">{taskScope(task)}</td><td>{task.results.length}</td><td className="success-text">{stats.success}</td><td className="danger-text">{stats.failure}</td><td><StatusTag>{task.status}</StatusTag></td><td><button className="table-action" onClick={() => setSelectedTaskId(task.id)}>查看</button></td></tr>; })}{!otaPackage.tasks.length && <tr><td colSpan="7"><div className="empty-table-state">当前升级包尚未创建任务</div></td></tr>}</tbody></table></div></section></> : <section className="ota-task-detail"><button className="ota-back-button" type="button" onClick={() => setSelectedTaskId("")}><ArrowLeft size={15}/>返回任务列表</button><div className="detail-section-title"><h3>任务详情</h3><StatusTag>{selectedTask.status}</StatusTag></div><div className="ota-task-scope-note"><span>项目/社区范围</span><b>{taskScope(selectedTask)}</b></div><div className="ota-task-summary"><div><span>目标设备</span><b>{selectedTask.results.length}</b></div><div><span>成功</span><b className="success-text">{taskStats(selectedTask).success}</b></div><div><span>失败</span><b className="danger-text">{taskStats(selectedTask).failure}</b></div><div><span>创建时间</span><b className="ota-task-time">{selectedTask.createdAt}</b></div></div><div className="table-scroll"><table className="ota-result-table"><thead><tr><th>设备 / 老人</th><th>项目 / 社区</th><th>升级前版本</th><th>执行状态</th><th>执行结果</th><th>操作</th></tr></thead><tbody>{selectedTask.results.map((item) => <tr key={item.deviceId}><td><div className="stacked-cell"><b>{item.deviceId}</b><small>{item.elderlyName}</small></div></td><td>{item.projectName || "未记录"}</td><td>{item.currentVersion}</td><td><StatusTag>{item.status}</StatusTag></td><td>{item.message}</td><td>{item.status === "失败" ? <button className="table-action" onClick={() => setRetryTarget(item)}>重试</button> : "—"}</td></tr>)}{!selectedTask.results.length && <tr><td colSpan="6"><div className="empty-table-state">该任务暂无设备执行记录</div></td></tr>}</tbody></table></div></section>}
   </AdminDrawer>{retryTarget && selectedTask && <AdminConfirm title={`重试设备 ${retryTarget.deviceId}？`} description="确认后将模拟完成本次重试，并同步更新平板台账中的版本。" confirmLabel="确认重试" onClose={() => setRetryTarget(null)} onConfirm={() => { onRetry(selectedTask.id, retryTarget.deviceId); setRetryTarget(null); }}/>}</>;
 }
 
@@ -223,7 +246,7 @@ export function TabletOtaPage({ devices, projects = [], resetSignal, onApplyUpgr
     setDrawer(null);
   }, [devices, resetSignal]);
   const filtered = useMemo(() => packages.filter((item) => {
-    const matchesKeyword = `${item.targetVersion}${item.model}${item.notes}`.toLowerCase().includes(query.trim().toLowerCase());
+    const matchesKeyword = `${item.targetVersion}${item.model}${item.description || ""}${item.notes}`.toLowerCase().includes(query.trim().toLowerCase());
     const matchesType = type === "全部类型" || item.packageType === type;
     const matchesProject = projectFilter === "全部项目" || item.tasks.some((task) => task.projectIds?.includes(projectFilter) || task.projectId === projectFilter);
     return matchesKeyword && matchesType && matchesProject;
@@ -270,9 +293,9 @@ export function TabletOtaPage({ devices, projects = [], resetSignal, onApplyUpgr
   };
   return <>
     <div className="page-heading"><div><h1>平板 OTA 升级</h1><p>统一管理平板 ROM 固件与 APK 应用版本，并向指定项目下发升级任务</p></div><button className="primary-button" onClick={() => setDrawer({ kind: "upload" })}><Upload size={16}/>上传升级包</button></div>
-    <section className="panel management-panel tablet-ota-panel"><div className="filters ota-filters"><label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="版本号、适配型号或更新说明"/></div></label><label><span>项目 / 社区</span><select className="select-control filter-select" value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}><option>全部项目</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label><span>包类型</span><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option><option value="ROM">ROM 固件包</option><option value="APK">APK 应用包</option></select></label><div className="filter-actions"><button className="primary-button"><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div></div><div className="table-scroll"><table className="tablet-ota-table"><thead><tr><th>目标版本 / 适用型号</th><th>包类型</th><th>资源状态</th><th>升级策略</th><th>生效方式 / 升级时段</th><th>最低可用版本</th><th>任务范围</th><th>更新说明</th><th>上传时间</th><th className="sticky-right">操作</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id}><td><div className="stacked-cell"><b>{item.targetVersion}</b><small>{item.model}</small></div></td><td>{packageTypeLabels[item.packageType]}</td><td><StatusTag>{item.resourceStatus}</StatusTag></td><td>{item.strategy}</td><td><div className="stacked-cell"><b>{item.effectiveAt}</b><small>{item.dailyWindow}</small></div></td><td>{item.minimumVersion}</td><td className="ota-task-scope-cell">{packageScopeLabel(item)}</td><td className="ota-notes-cell">{item.notes}</td><td>{item.uploadedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => setDrawer({ kind: "detail", packageId: item.id })}>详情</button><button className="table-action" disabled={item.resourceStatus !== "可用"} onClick={() => setDrawer({ kind: "task", packageId: item.id })}>创建升级任务</button></td></tr>)}{!filtered.length && <tr><td colSpan="10"><div className="empty-table-state">没有符合条件的升级包</div></td></tr>}</tbody></table></div><div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div></section>
-    {drawer?.kind === "upload" && <UploadPackageDrawer onClose={() => setDrawer(null)} onSave={savePackage}/>}
-    {drawer?.kind === "task" && selectedPackage && <CreateTaskDrawer otaPackage={selectedPackage} devices={devices} projects={projects} onClose={() => setDrawer(null)} onCreate={(selectedProjectIds) => createTask(selectedPackage.id, selectedProjectIds)}/>}
-    {drawer?.kind === "detail" && selectedPackage && <PackageDetailDrawer otaPackage={selectedPackage} onClose={() => setDrawer(null)} onCreateTask={() => setDrawer({ kind: "task", packageId: selectedPackage.id })} onRetry={(taskId, deviceId) => retry(selectedPackage.id, taskId, deviceId)}/>}
+    <section className="panel management-panel tablet-ota-panel"><div className="filters ota-filters"><label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="版本号、升级描述或更新说明"/></div></label><label><span>项目 / 社区</span><select className="select-control filter-select" value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}><option>全部项目</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label><span>包类型</span><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option><option value="ROM">ROM 固件包</option><option value="APK">APK 应用包</option></select></label><div className="filter-actions"><button className="primary-button"><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div></div><div className="table-scroll"><table className="tablet-ota-table"><thead><tr><th>目标版本 / 适用型号</th><th>包类型</th><th>资源状态</th><th>升级策略</th><th>生效方式 / 升级时段</th><th>最低可用版本</th><th>任务范围</th><th>更新说明</th><th>上传时间</th><th className="sticky-right">操作</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id}><td><div className="stacked-cell"><b>{item.targetVersion}</b><small>{item.model}</small></div></td><td>{packageTypeLabels[item.packageType]}</td><td><StatusTag>{item.resourceStatus}</StatusTag></td><td>{item.strategy}</td><td><div className="stacked-cell"><b>{item.effectiveAt}</b><small>{item.dailyWindow}</small></div></td><td>{item.minimumVersion}</td><td className="ota-task-scope-cell">{packageScopeLabel(item)}</td><td className="ota-notes-cell">{item.notes}</td><td>{item.uploadedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => setDrawer({ kind: "detail", packageId: item.id })}>详情</button><button className="table-action" disabled={item.resourceStatus !== "可用"} onClick={() => setDrawer({ kind: "task", packageId: item.id })}>创建升级任务</button></td></tr>)}{!filtered.length && <tr><td colSpan="10"><div className="empty-table-state">没有符合条件的升级包</div></td></tr>}</tbody></table></div><div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div></section>
+    {drawer?.kind === "upload" && <UploadPackageDrawer onClose={() => setDrawer(null)} onSave={savePackage}/>} 
+    {drawer?.kind === "task" && selectedPackage && <CreateTaskDrawer otaPackage={selectedPackage} devices={devices} projects={projects} onClose={() => setDrawer(null)} onCreate={(selectedProjectIds) => createTask(selectedPackage.id, selectedProjectIds)}/>} 
+    {drawer?.kind === "detail" && selectedPackage && <PackageDetailDrawer otaPackage={selectedPackage} onClose={() => setDrawer(null)} onCreateTask={() => setDrawer({ kind: "task", packageId: selectedPackage.id })} onRetry={(taskId, deviceId) => retry(selectedPackage.id, taskId, deviceId)}/>} 
   </>;
 }

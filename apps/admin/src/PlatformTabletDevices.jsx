@@ -221,6 +221,6 @@ export function PlatformTabletDevicesPage({ devices, projects, onOpenOta }) {
       </tbody></table></div>
       <div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div>
     </section>
-    {selectedDevice && <DeviceUpgradeDrawer device={selectedDevice} onClose={() => setSelectedId("")} onOpenOta={() => { setSelectedId(""); onOpenOta(); }}/>}
+    {selectedDevice && <DeviceUpgradeDrawer device={selectedDevice} onClose={() => setSelectedId("")} onOpenOta={() => { setSelectedId(""); onOpenOta(); }}/>} 
   </>;
 }

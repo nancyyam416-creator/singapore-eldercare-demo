@@ -107,106 +107,82 @@ export const initialWeatherLocationAudits = [
   { id: "WA-004", ownerType: "老人", ownerId: "SG-E-000125", action: "居住地址解析", before: "未解析", after: "待完善", source: "老人档案地址解析", operator: "系统", operatedAt: "2026-07-27 08:20", result: "地址缺失，无法解析" },
 ];
 
+const qweatherCondition = (code, text) => ({ code, text });
+
 export const weatherConditionCatalog = [
-  { code: "SUNNY", name: "晴天", description: "晴朗、白天晴朗、夜间晴朗或晴暖", configurable: true, sourceType: "forecast" },
-  { code: "CLOUDY", name: "多云", description: "局部多云，白天或夜间云量较多", configurable: true, sourceType: "forecast" },
-  { code: "OVERCAST", name: "阴天", description: "云层密布但当前无明显降水", configurable: true, sourceType: "forecast" },
-  { code: "RAINY", name: "雨天", description: "小雨、中雨、短时阵雨或一般阵雨", configurable: true, sourceType: "forecast" },
-  { code: "HEAVY_RAIN", name: "强降雨", description: "强降雨或强阵雨，风险高于普通雨天", configurable: true, sourceType: "forecast" },
-  { code: "THUNDERSTORM", name: "雷雨", description: "伴有雷电的阵雨，需注意户外安全", configurable: true, sourceType: "forecast" },
-  { code: "SEVERE_THUNDERSTORM", name: "强雷雨伴阵风", description: "强雷雨或伴阵风，需优先提醒居家避险", configurable: true, sourceType: "forecast" },
-  { code: "HAZE", name: "烟霾", description: "轻微烟霾或烟霾，需关注空气质量与呼吸防护", configurable: true, sourceType: "forecast" },
-  { code: "WINDY", name: "大风", description: "风力明显增强，需注意户外活动安全", configurable: true, sourceType: "forecast" },
-  { code: "MIST_FOG", name: "雾", description: "薄雾或浓雾导致能见度降低", configurable: true, sourceType: "forecast" },
-  { code: "HOT", name: "高温", description: "按系统高温阈值判断，不直接来自 forecast 文本", configurable: true, sourceType: "temperature" },
-  { code: "COLD", name: "低温", description: "按系统低温阈值判断，不直接来自 forecast 文本", configurable: true, sourceType: "temperature" },
-  { code: "UNKNOWN", name: "未知天气", description: "无法识别新天气值时使用的系统安全兜底", configurable: false, sourceType: "fallback" },
+  { code: "CLEAR", name: "晴朗", description: "晴、少云或晴间多云", conditions: [qweatherCondition("100", "晴"), qweatherCondition("102", "少云"), qweatherCondition("103", "晴间多云")], configurable: true },
+  { code: "CLOUDY", name: "多云阴天", description: "多云或阴天", conditions: [qweatherCondition("101", "多云"), qweatherCondition("104", "阴")], configurable: true },
+  { code: "RAIN", name: "普通降雨", description: "阵雨及小到中等强度降雨", conditions: [qweatherCondition("300", "阵雨"), qweatherCondition("305", "小雨"), qweatherCondition("306", "中雨"), qweatherCondition("309", "毛毛雨/细雨"), qweatherCondition("314", "小到中雨"), qweatherCondition("315", "中到大雨"), qweatherCondition("399", "雨")], configurable: true },
+  { code: "HEAVY_RAIN", name: "强降雨", description: "强阵雨、大雨及暴雨级降雨", conditions: [qweatherCondition("301", "强阵雨"), qweatherCondition("307", "大雨"), qweatherCondition("308", "极端降雨"), qweatherCondition("310", "暴雨"), qweatherCondition("311", "大暴雨"), qweatherCondition("312", "特大暴雨"), qweatherCondition("316", "大到暴雨"), qweatherCondition("317", "暴雨到大暴雨"), qweatherCondition("318", "大暴雨到特大暴雨")], configurable: true },
+  { code: "THUNDER_HAIL", name: "雷暴冰雹", description: "雷阵雨、强雷阵雨或伴有冰雹", conditions: [qweatherCondition("302", "雷阵雨"), qweatherCondition("303", "强雷阵雨"), qweatherCondition("304", "雷阵雨伴有冰雹")], configurable: true },
+  { code: "FREEZING_MIX", name: "冻雨与雨雪", description: "冻雨、雨夹雪及雨雪混合天气", conditions: [qweatherCondition("313", "冻雨"), qweatherCondition("404", "雨夹雪"), qweatherCondition("405", "雨雪天气"), qweatherCondition("406", "阵雨夹雪")], configurable: true },
+  { code: "SNOW", name: "普通降雪", description: "小到中雪及阵雪", conditions: [qweatherCondition("400", "小雪"), qweatherCondition("401", "中雪"), qweatherCondition("407", "阵雪"), qweatherCondition("408", "小到中雪"), qweatherCondition("499", "雪")], configurable: true },
+  { code: "HEAVY_SNOW", name: "强降雪", description: "大雪、暴雪及更强降雪", conditions: [qweatherCondition("402", "大雪"), qweatherCondition("403", "暴雪"), qweatherCondition("409", "中到大雪"), qweatherCondition("410", "大到暴雪")], configurable: true },
+  { code: "FOG", name: "雾", description: "薄雾至特强浓雾", conditions: [qweatherCondition("500", "薄雾"), qweatherCondition("501", "雾"), qweatherCondition("509", "浓雾"), qweatherCondition("510", "强浓雾"), qweatherCondition("514", "大雾"), qweatherCondition("515", "特强浓雾")], configurable: true },
+  { code: "HAZE", name: "霾", description: "霾及中度至严重霾", conditions: [qweatherCondition("502", "霾"), qweatherCondition("511", "中度霾"), qweatherCondition("512", "重度霾"), qweatherCondition("513", "严重霾")], configurable: true },
+  { code: "DUST", name: "沙尘", description: "扬沙、浮尘及沙尘暴", conditions: [qweatherCondition("503", "扬沙"), qweatherCondition("504", "浮尘"), qweatherCondition("507", "沙尘暴"), qweatherCondition("508", "强沙尘暴")], configurable: true },
+  { code: "HOT", name: "高温", description: "和风天气官方天气现象“热”", conditions: [qweatherCondition("900", "热")], configurable: true },
+  { code: "COLD", name: "低温", description: "和风天气官方天气现象“冷”", conditions: [qweatherCondition("901", "冷")], configurable: true },
+  { code: "UNKNOWN", name: "未知", description: "官方未知代码及未来无法识别的新增代码统一使用此兜底", conditions: [qweatherCondition("999", "未知")], configurable: false },
 ];
 
-export const neaForecastConditionMap = Object.freeze({
-  "Fair": "SUNNY",
-  "Fair (Day)": "SUNNY",
-  "Fair (Night)": "SUNNY",
-  "Fair and Warm": "SUNNY",
-  "Partly Cloudy": "CLOUDY",
-  "Partly Cloudy (Day)": "CLOUDY",
-  "Partly Cloudy (Night)": "CLOUDY",
-  "Cloudy": "OVERCAST",
-  "Light Rain": "RAINY",
-  "Passing Showers": "RAINY",
-  "Light Showers": "RAINY",
-  "Moderate Rain": "RAINY",
-  "Showers": "RAINY",
-  "Heavy Rain": "HEAVY_RAIN",
-  "Heavy Showers": "HEAVY_RAIN",
-  "Thundery Showers": "THUNDERSTORM",
-  "Heavy Thundery Showers": "SEVERE_THUNDERSTORM",
-  "Heavy Thundery Showers with Gusty Winds": "SEVERE_THUNDERSTORM",
-  "Hazy": "HAZE",
-  "Slightly Hazy": "HAZE",
-  "Windy": "WINDY",
-  "Mist": "MIST_FOG",
-  "Fog": "MIST_FOG",
-});
-
-const normalizedNeaForecastConditionMap = Object.freeze(Object.fromEntries(
-  Object.entries(neaForecastConditionMap).map(([label, code]) => [label.toLowerCase(), code]),
+const qweatherConditionGroupMap = Object.freeze(Object.fromEntries(
+  weatherConditionCatalog.flatMap((group) => group.conditions.map((condition) => [condition.code, group.code])),
 ));
 
-export const weatherCarePriorityPolicy = Object.freeze({
-  baseConditionOrder: ["SEVERE_THUNDERSTORM", "HEAVY_RAIN", "THUNDERSTORM", "HAZE", "WINDY", "MIST_FOG", "RAINY", "OVERCAST", "CLOUDY", "SUNNY", "UNKNOWN"],
-  temperatureConditionCodes: ["HOT", "COLD"],
-  temperatureThresholdPolicy: "SYSTEM_DEFINED",
-  temperatureVsBase: "PENDING_CONFIRMATION",
-  fallbackCode: "UNKNOWN",
-});
-
-export const mapNeaForecastCondition = (forecast) => {
-  const normalizedForecast = String(forecast || "").trim().toLowerCase();
-  return normalizedNeaForecastConditionMap[normalizedForecast] || weatherCarePriorityPolicy.fallbackCode;
+export const resolveQWeatherCondition = (condition = {}) => {
+  const code = String(condition.code ?? "").trim();
+  const text = String(condition.text ?? "").trim();
+  const groupCode = qweatherConditionGroupMap[code] || "UNKNOWN";
+  const group = weatherConditionCatalog.find((item) => item.code === groupCode) || weatherConditionCatalog.at(-1);
+  return { condition: { code, text }, groupCode: group.code, groupName: group.name };
 };
 
-export const resolveWeatherCareCandidates = ({ forecast, isHighTemperature = false, isLowTemperature = false } = {}) => {
-  const baseConditionCode = mapNeaForecastCondition(forecast);
-  const temperatureConditionCodes = [
-    isHighTemperature ? "HOT" : null,
-    isLowTemperature ? "COLD" : null,
-  ].filter(Boolean);
-  const hasTemperatureConflict = temperatureConditionCodes.length > 0;
-  return {
-    baseConditionCode,
-    temperatureConditionCodes,
-    candidateConditionCodes: [baseConditionCode, ...temperatureConditionCodes],
-    selectedConditionCode: hasTemperatureConflict ? null : baseConditionCode,
-    resolutionStatus: hasTemperatureConflict ? "PENDING_CONFIRMATION" : "RESOLVED",
-    temperatureThresholdPolicy: weatherCarePriorityPolicy.temperatureThresholdPolicy,
-  };
-};
-
-export const initialCareScripts = [
-  { id: "WCS-SUNNY", weatherCode: "SUNNY", weatherName: "晴天", template: "{子女称呼}，{城市}今天是晴天，气温{温度}，出门记得注意防晒，多喝水。", status: "启用", version: 1, updatedAt: "2026-07-26 16:20", operator: "赵亚男", historyCount: 18 },
-  { id: "WCS-CLOUDY", weatherCode: "CLOUDY", weatherName: "多云", template: "{子女称呼}，{城市}今天多云，气温{温度}，忙碌之余也要记得休息。", status: "启用", updatedAt: "2026-07-25 10:15", operator: "赵亚男", historyCount: 9 },
-  { id: "WCS-OVERCAST", weatherCode: "OVERCAST", weatherName: "阴天", template: "{子女称呼}，{城市}今天阴天，气温{温度}，外出记得根据气温适时增减衣物。", status: "启用", updatedAt: "2026-07-27 11:20", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-RAINY", weatherCode: "RAINY", weatherName: "雨天", template: "{子女称呼}，{城市}今天有雨，气温{温度}，出门带好雨具，路上注意安全。", status: "启用", updatedAt: "2026-07-27 09:35", operator: "赵亚男", historyCount: 31 },
-  { id: "WCS-HEAVY_RAIN", weatherCode: "HEAVY_RAIN", weatherName: "强降雨", template: "{子女称呼}，{城市}今天有强降雨，气温{温度}，建议{老人称呼}尽量留在室内，避开积水路段。", status: "启用", version: 1, updatedAt: "2026-10-26 14:00", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-THUNDERSTORM", weatherCode: "THUNDERSTORM", weatherName: "雷雨", template: "{子女称呼}，{城市}今天有雷雨，气温{温度}，尽量减少外出，注意安全。", status: "停用", updatedAt: "2026-07-24 14:08", operator: "赵亚男", historyCount: 6 },
-  { id: "WCS-SEVERE_THUNDERSTORM", weatherCode: "SEVERE_THUNDERSTORM", weatherName: "强雷雨伴阵风", template: "{子女称呼}，{城市}有强雷雨并伴随阵风，请提醒{老人称呼}留在室内，远离窗边。", status: "启用", version: 1, updatedAt: "2026-10-26 14:00", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-HAZE", weatherCode: "HAZE", weatherName: "烟霾", template: "{子女称呼}，{城市}今天有烟霾，请提醒{老人称呼}减少长时间户外活动，留意呼吸不适。", status: "启用", version: 1, updatedAt: "2026-10-26 14:00", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-WINDY", weatherCode: "WINDY", weatherName: "大风", template: "{子女称呼}，{城市}今天风力较大，请提醒{老人称呼}出门注意站稳，远离易掉落物品。", status: "启用", version: 1, updatedAt: "2026-10-26 14:00", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-MIST_FOG", weatherCode: "MIST_FOG", weatherName: "雾", template: "{子女称呼}，{城市}今天有雾，能见度较低，请提醒{老人称呼}外出时放慢脚步。", status: "启用", version: 1, updatedAt: "2026-10-26 14:00", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-HOT", weatherCode: "HOT", weatherName: "高温", template: "{子女称呼}，{城市}今天比较热，气温{温度}，记得及时补水，避免长时间晒太阳。", status: "启用", updatedAt: "2026-07-23 11:42", operator: "赵亚男", historyCount: 14 },
-  { id: "WCS-COLD", weatherCode: "COLD", weatherName: "低温", template: "{子女称呼}，{城市}今天气温较低，当前{温度}，记得添衣保暖，出门注意防寒。", status: "启用", updatedAt: "2026-07-27 11:20", operator: "赵亚男", historyCount: 0 },
-  { id: "WCS-UNKNOWN", weatherCode: "UNKNOWN", weatherName: "未知天气", template: "{子女称呼}，{城市}当前天气信息暂未完全识别，气温{温度}，外出前请留意当地最新天气情况。", status: "内置兜底", updatedAt: "系统预置", operator: "系统", historyCount: 0, builtIn: true },
-];
+export const initialCareScripts = weatherConditionCatalog.map((group) => ({
+  id: `WCS-${group.code}`,
+  weatherCode: group.code,
+  weatherName: group.name,
+  template: group.code === "CLEAR" ? "{子女称呼}，{城市}今天天气晴朗，气温{温度}，出门记得注意防晒，多喝水。"
+    : group.code === "CLOUDY" ? "{子女称呼}，{城市}今天多云或阴，气温{温度}，外出记得适时增减衣物。"
+      : group.code === "RAIN" ? "{子女称呼}，{城市}今天有雨，气温{温度}，出门带好雨具，路上注意安全。"
+        : group.code === "HEAVY_RAIN" ? "{子女称呼}，{城市}今天有强降雨，请提醒{老人称呼}尽量留在室内，避开积水路段。"
+          : group.code === "THUNDER_HAIL" ? "{子女称呼}，{城市}今天有雷暴或冰雹风险，请提醒{老人称呼}留在室内并远离窗边。"
+            : group.code === "FREEZING_MIX" ? "{子女称呼}，{城市}今天有冻雨或雨雪天气，请提醒{老人称呼}减少外出，注意路面湿滑。"
+              : group.code === "SNOW" ? "{子女称呼}，{城市}今天有降雪，气温{温度}，请提醒{老人称呼}注意保暖和防滑。"
+                : group.code === "HEAVY_SNOW" ? "{子女称呼}，{城市}今天有强降雪，建议{老人称呼}留在室内并留意当地出行信息。"
+                  : group.code === "FOG" ? "{子女称呼}，{城市}今天有雾，能见度较低，请提醒{老人称呼}外出时放慢脚步。"
+                    : group.code === "HAZE" ? "{子女称呼}，{城市}今天有霾，请提醒{老人称呼}减少长时间户外活动，留意呼吸不适。"
+                      : group.code === "DUST" ? "{子女称呼}，{城市}今天有沙尘，请提醒{老人称呼}减少外出并做好口鼻防护。"
+                        : group.code === "HOT" ? "{子女称呼}，{城市}天气炎热，气温{温度}，记得及时补水，避免长时间晒太阳。"
+                          : group.code === "COLD" ? "{子女称呼}，{城市}天气寒冷，当前{温度}，记得添衣保暖，出门注意防寒。"
+                            : "{子女称呼}，{城市}当前天气信息暂未完全识别，气温{温度}，外出前请留意当地最新天气情况。",
+  status: group.code === "UNKNOWN" ? "内置兜底" : "启用",
+  version: 1,
+  updatedAt: group.code === "UNKNOWN" ? "系统预置" : "2026-10-28 10:00",
+  operator: group.code === "UNKNOWN" ? "系统" : "赵亚男",
+  historyCount: 0,
+  ...(group.code === "UNKNOWN" ? { builtIn: true } : {}),
+}));
 
 export const initialCareMessageSnapshots = [
-  { id: "MSG-20260726-001", scriptId: "WCS-SUNNY", templateSnapshot: "{子女称呼}，{城市}今天是晴天，气温{温度}，出门记得注意防晒。", renderedText: "阿强，伦敦今天是晴天，气温21℃，出门记得注意防晒。", weatherCode: "SUNNY", generatedAt: "2026-07-26 08:12" },
-  { id: "MSG-20260727-002", scriptId: "WCS-RAINY", templateSnapshot: "{子女称呼}，{城市}今天有雨，气温{温度}，出门带好雨具，路上注意安全。", renderedText: "秀芳，悉尼今天有雨，气温17℃，出门带好雨具，路上注意安全。", weatherCode: "RAINY", generatedAt: "2026-07-27 09:05" },
+  { id: "MSG-20260726-001", scriptId: "WCS-CLEAR", templateSnapshot: "{子女称呼}，{城市}今天是晴天，气温{温度}，出门记得注意防晒。", renderedText: "阿强，伦敦今天是晴天，气温21℃，出门记得注意防晒。", weatherCode: "CLEAR", generatedAt: "2026-07-26 08:12" },
+  { id: "MSG-20260727-002", scriptId: "WCS-RAIN", templateSnapshot: "{子女称呼}，{城市}今天有雨，气温{温度}，出门带好雨具，路上注意安全。", renderedText: "秀芳，悉尼今天有雨，气温17℃，出门带好雨具，路上注意安全。", weatherCode: "RAIN", generatedAt: "2026-07-27 09:05" },
 ];
+
+const legacyCareScriptGroupMap = Object.freeze({
+  SUNNY: "CLEAR", CLOUDY: "CLOUDY", OVERCAST: "CLOUDY", RAINY: "RAIN", HEAVY_RAIN: "HEAVY_RAIN",
+  THUNDERSTORM: "THUNDER_HAIL", SEVERE_THUNDERSTORM: "THUNDER_HAIL", HAZE: "HAZE", MIST_FOG: "FOG",
+  HOT: "HOT", COLD: "COLD", UNKNOWN: "UNKNOWN",
+});
 
 export const careScriptMockApi = {
   hydrate(records) {
-    const normalizedRecords = (Array.isArray(records) ? records : initialCareScripts).map((record) => ({ ...record, version: record.version || 1 }));
+    const normalizedRecords = (Array.isArray(records) ? records : initialCareScripts).reduce((result, record) => {
+      const weatherCode = legacyCareScriptGroupMap[record.weatherCode] || record.weatherCode;
+      if (weatherCode === "WINDY" || result.some((item) => item.weatherCode === weatherCode)) return result;
+      const group = weatherConditionCatalog.find((item) => item.code === weatherCode);
+      return [...result, { ...record, weatherCode, weatherName: group?.name || record.weatherName, version: record.version || 1 }];
+    }, []);
     const mergedDefaults = initialCareScripts.map((defaultScript) => ({
       ...defaultScript,
       ...(this.getByCondition(normalizedRecords, defaultScript.weatherCode) || {}),

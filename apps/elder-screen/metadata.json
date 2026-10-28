@@ -1,0 +1,6 @@
+{
+  "name": "U2G高龄智慧中控屏",
+  "description": "U2G高龄服务平台家庭中控屏首页设计，支持服药计划确认、实时健康体征监测、环境防区报警、家庭相框点赞、亲情视频/语音通话模拟，并配备了大字体的智能语音AI伴侣小U。",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

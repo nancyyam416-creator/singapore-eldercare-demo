@@ -1,0 +1,26 @@
+.u2g-portal-link {
+  width: fit-content;
+  display: inline-block;
+  padding: 3px 0;
+  color: #899aae;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  user-select: none;
+  transition: color 160ms ease-out;
+}
+
+.u2g-portal-link:hover {
+  color: #d5e1ee;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.u2g-portal-link:focus-visible {
+  outline: 2px solid #69df58;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+

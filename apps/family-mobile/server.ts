@@ -24,12 +24,12 @@ let aiClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (aiClient) return aiClient;
-
+  
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     throw new Error('GEMINI_API_KEY is not configured in environment variables or Secrets panel.');
   }
-
+  
   aiClient = new GoogleGenAI({
     apiKey: apiKey,
     httpOptions: {
@@ -45,9 +45,9 @@ function getGeminiClient(): GoogleGenAI {
 app.post('/api/gemini/analyze', async (req, res) => {
   try {
     const { parentProfile, healthStats, medications, activities } = req.body;
-
+    
     const client = getGeminiClient();
-
+    
     const prompt = `
 你是一位专业的智能化养老与老年健康照护专家。请根据以下从“智能家居中控屏”同步的长辈实时健康、用药及活动数据，为他的子女写一份简明扼要、富有温情、实用性强的“长辈24小时健康照护与分析简报”。
 
@@ -85,9 +85,9 @@ ${JSON.stringify(activities?.slice(-10), null, 2)}
     res.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error('Gemini Analyze API Error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || '获取AI分析报告失败，请检查GEMINI_API_KEY配置。'
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || '获取AI分析报告失败，请检查GEMINI_API_KEY配置。' 
     });
   }
 });
@@ -96,12 +96,12 @@ ${JSON.stringify(activities?.slice(-10), null, 2)}
 app.post('/api/gemini/chat', async (req, res) => {
   try {
     const { messages, parentProfile, healthStats, medications } = req.body;
-
+    
     const client = getGeminiClient();
-
+    
     // Prepare conversation history
     const geminiContents = [];
-
+    
     // System context to inject
     const systemInstruction = `
 你叫“孝心通 - 智能照护管家”，是一位专业的长辈健康照护专家及老年慢性病管理顾问。
@@ -139,9 +139,9 @@ app.post('/api/gemini/chat', async (req, res) => {
     res.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error('Gemini Chat API Error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'AI管家暂时无法回答，请检查GEMINI_API_KEY配置。'
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'AI管家暂时无法回答，请检查GEMINI_API_KEY配置。' 
     });
   }
 });

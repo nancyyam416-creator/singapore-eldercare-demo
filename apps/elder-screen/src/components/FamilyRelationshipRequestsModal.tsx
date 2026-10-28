@@ -5,10 +5,6 @@ import {
   CheckCircle2,
   Clock3,
   LoaderCircle,
-  ShieldCheck,
-  Smartphone,
-  TabletSmartphone,
-  UserRoundCheck,
   UsersRound,
   WifiOff,
   X,
@@ -20,8 +16,7 @@ export type FamilyRelationshipRequestScenario =
   | "multiple"
   | "processed-approved"
   | "processed-rejected"
-  | "expired"
-  | "not-eligible";
+  | "expired";
 
 export type FamilyRelationshipRequestCondition = "network-normal" | "network-submit-failure";
 
@@ -30,7 +25,7 @@ type FamilyRelationshipRequestStatus = "pending" | "approved" | "rejected" | "ex
 interface FamilyRelationshipRequest {
   id: string;
   applicantName: string;
-  maskedPhone: string;
+  phone: string;
   relationship: string;
   requestedAt: string;
   status: FamilyRelationshipRequestStatus;
@@ -59,7 +54,7 @@ const BASE_REQUESTS: FamilyRelationshipRequest[] = [
   {
     id: "family-request-xiaohui",
     applicantName: "女儿小慧",
-    maskedPhone: "+65 8*** 2368",
+    phone: "+65 8123 2368",
     relationship: "女儿",
     requestedAt: "今天 09:20",
     status: "pending",
@@ -68,7 +63,7 @@ const BASE_REQUESTS: FamilyRelationshipRequest[] = [
   {
     id: "family-request-junjun",
     applicantName: "孙子俊俊",
-    maskedPhone: "+86 138****5062",
+    phone: "+86 138 2456 5062",
     relationship: "孙辈",
     requestedAt: "今天 08:45",
     status: "pending",
@@ -89,7 +84,7 @@ const createScenarioRequests = (scenario: FamilyRelationshipRequestScenario): Fa
         cloneRequest(BASE_REQUESTS[0], {
           id: "family-request-processed",
           applicantName: "儿子小刚",
-          maskedPhone: "+86 139****1780",
+          phone: "+86 139 6248 1780",
           relationship: "儿子",
           requestedAt: "昨天 18:30",
           status: "approved",
@@ -115,8 +110,6 @@ const createScenarioRequests = (scenario: FamilyRelationshipRequestScenario): Fa
         requestedAt: "9月18日 10:20",
         status: "expired",
       })];
-    case "not-eligible":
-      return [];
     case "pending":
     default:
       return [cloneRequest(BASE_REQUESTS[0])];
@@ -225,15 +218,7 @@ export default function FamilyRelationshipRequestsModal({
           </button>
         </header>
 
-        {scenario === "not-eligible" ? (
-          <div className="family-requests-unavailable" role="status">
-            <span><TabletSmartphone aria-hidden="true" /></span>
-            <h3>当前平板尚未绑定老人档案</h3>
-            <p>完成设备激活并绑定老人档案后，才能查看和处理家庭关系申请。</p>
-            <button type="button" onClick={onClose}>我知道了</button>
-          </div>
-        ) : (
-          <div className="family-requests-body">
+        <div className="family-requests-body">
             <aside className="family-requests-list" aria-label="家人申请列表">
               <div className="family-requests-list__summary">
                 <span>申请记录</span>
@@ -255,16 +240,12 @@ export default function FamilyRelationshipRequestsModal({
                       <img src={request.avatar} alt="" referrerPolicy="no-referrer" />
                       <span>
                         <strong>{request.applicantName}</strong>
-                        <small>{request.relationship} · {request.maskedPhone}</small>
+                        <small>{request.relationship} · {request.phone}</small>
                         <em className={`is-${request.status}`}>{presentation.label}</em>
                       </span>
                     </button>
                   );
                 })}
-              </div>
-              <div className="family-requests-list__source">
-                <Smartphone aria-hidden="true" />
-                <span><strong>申请由家人手机端发起</strong><small>平板不会生成二维码或绑定码</small></span>
               </div>
             </aside>
 
@@ -276,22 +257,13 @@ export default function FamilyRelationshipRequestsModal({
                     <div>
                       <span>申请成为您的家人</span>
                       <h3>{selectedRequest.applicantName}</h3>
-                      <p>{selectedRequest.maskedPhone}</p>
+                      <p>{selectedRequest.phone}</p>
                     </div>
                     <strong className={`is-${selectedRequest.status}`}>{statusPresentation[selectedRequest.status].label}</strong>
-                  </div>
-
-                  <dl className="family-request-facts">
-                    <div><dt>对方选择的关系</dt><dd>{selectedRequest.relationship}</dd></div>
-                    <div><dt>申请时间</dt><dd>{selectedRequest.requestedAt}</dd></div>
-                  </dl>
-
-                  <div className="family-request-impact">
-                    <ShieldCheck aria-hidden="true" />
-                    <div>
-                      <h4>同意后会发生什么</h4>
-                      <p>对方将成为您的家庭联系人，可以与您留言、通话，并查看您授权的家庭影像与提醒信息。</p>
-                    </div>
+                    <dl className="family-request-facts">
+                      <div><dt>对方选择的关系</dt><dd>{selectedRequest.relationship}</dd></div>
+                      <div><dt>申请时间</dt><dd>{selectedRequest.requestedAt}</dd></div>
+                    </dl>
                   </div>
 
                   {selectedRequest.status === "pending" ? (
@@ -330,13 +302,10 @@ export default function FamilyRelationshipRequestsModal({
                       </div>
                     </div>
                   )}
-
-                  <p className="family-request-single-submit"><UserRoundCheck aria-hidden="true" />同一条申请只能处理一次，处理结果会同步到另一端。</p>
                 </>
               )}
             </section>
-          </div>
-        )}
+        </div>
       </section>
     </div>
   );

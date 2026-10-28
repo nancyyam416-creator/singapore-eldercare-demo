@@ -1,0 +1,6 @@
+{
+  "name": "长辈健康照护与智慧养老服务系统",
+  "description": "专为子女设计的长辈端手机H5监控与服务购买系统。支持查看老人实时用药情况、行动轨迹、心率健康等数据，提供一站式养老护理服务与健康商品在线购买，并内置AI健康顾问进行数据分析和关怀指导。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -225,7 +225,6 @@ export const H5ReminderManager: React.FC<H5ReminderManagerProps> = ({ elderName,
         </div>
       )}
 
-      <p className="rounded-xl bg-blue-50 px-3 py-2.5 text-[10px] leading-relaxed text-blue-700">子女可以管理提醒规则，但不能替老人完成服药或事项。完成状态仅由老人操作或设备记录产生。</p>
 
       {editorOpen && (
         <div className="absolute inset-0 z-50 flex items-end bg-slate-950/45 backdrop-blur-[1px]">

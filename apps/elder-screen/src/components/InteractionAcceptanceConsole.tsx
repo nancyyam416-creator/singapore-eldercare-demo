@@ -45,6 +45,7 @@ import type {
   FamilyRelationshipRequestCondition,
   FamilyRelationshipRequestScenario,
 } from "./FamilyRelationshipRequestsModal";
+import U2GPortalLink from "./U2GPortalLink";
 import {
   activationScenarioDefinitions,
   type ActivationAcceptanceScenario,
@@ -205,7 +206,7 @@ type RightContentAcceptanceObject = "family" | "medication" | "schedule" | "acti
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
   { id: "weather", label: "家庭天气" },
-  { id: "emergency", label: "在线协助" },
+  { id: "emergency", label: "在线求助" },
   { id: "album", label: "家庭影像" },
   { id: "task-progress", label: "首页右侧" },
   { id: "reminders", label: "今日提醒" },
@@ -244,7 +245,7 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   default: { label: "默认单按钮", description: "合并时间提醒、家庭互动和内容推荐，只展示当前最高优先级内容。" },
   "recommendations-only": { label: "查看推荐内容", description: "点击右侧推荐，进入对应内容。" },
   "new-message": { label: "家人给您留言了", description: "右侧显示未读数量；点击后进入通讯录查看留言，已查看内容不再计数。" },
-  "new-album": { label: "家人分享了新影像", description: "点击后进入上传人的一对一会话，并定位最早一条未查看影像记录；打开对应影像详情后更新该条状态。" },
+  "new-album": { label: "家人分享了新影像", description: "点击后进入家庭相册，并定位最早一项未查看影像；打开对应影像详情后更新该项状态。" },
   "missed-call": { label: "您有未接来电", description: "右侧显示未接次数；点击后进入通讯录查看通话记录。" },
   "time-and-family": { label: "时间与家庭同时产生", description: "两类内容同时进入候选，由同一个大按钮展示当前优先项。" },
   "p1-due": { label: "该用药了", description: "到达执行时间后显示到点弹窗；关闭弹窗后提醒仍保留在右侧，点击单条提醒直达确认界面。" },
@@ -461,12 +462,11 @@ const serviceConversationActionLabels: Record<Exclude<ServiceConversationAccepta
 };
 
 const familyRequestScenarioLabels: Record<FamilyRelationshipRequestScenario, { label: string; description: string }> = {
-  pending: { label: "单条待确认申请", description: "展示申请人、脱敏手机号、关系和授权影响，可同意或拒绝。" },
+  pending: { label: "单条待确认申请", description: "展示申请人真实姓名、完整联系电话、关系和申请时间，可同意或拒绝。" },
   multiple: { label: "多条申请与历史结果", description: "列表同时展示两条待确认申请和一条已处理记录。" },
   "processed-approved": { label: "已在手机端同意", description: "同一条申请已由老人手机端处理，平板只展示结果，不能重复提交。" },
   "processed-rejected": { label: "已在手机端拒绝", description: "同一条申请已由老人手机端拒绝，平板只展示结果，不能重复提交。" },
   expired: { label: "申请已过期", description: "过期申请保留识别信息和结果说明，不再提供处理按钮。" },
-  "not-eligible": { label: "平板未绑定老人档案", description: "未激活或未绑定老人档案时，不展示申请内容，也不能处理申请。" },
 };
 
 const familyRequestScenarios = Object.keys(familyRequestScenarioLabels) as FamilyRelationshipRequestScenario[];
@@ -694,13 +694,6 @@ export default function InteractionAcceptanceConsole({
       onSetRightContentScenario(nextObject.scenarios[0]);
     }
   };
-  const resetWorkbench = () => {
-    setActivePage("home");
-    setActiveSection("weather");
-    setWeatherAcceptanceTarget("home");
-    onReset();
-  };
-
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
     const consoleElement = event.currentTarget.closest(".interaction-acceptance-console") as HTMLElement | null;
@@ -965,7 +958,7 @@ export default function InteractionAcceptanceConsole({
                     <select
                       value={emergencyScenario}
                       onChange={(event) => onSetEmergencyScenario(event.target.value as EmergencyAcceptanceScenario)}
-                      aria-label="选择在线协助交互条件"
+                      aria-label="选择在线求助交互条件"
                     >
                       {(Object.entries(emergencyScenarioDefinitions) as Array<[EmergencyAcceptanceScenario, { label: string; description: string }]>).map(([scenarioId, definition]) => (
                         <option key={scenarioId} value={scenarioId}>{definition.label}</option>
@@ -982,7 +975,7 @@ export default function InteractionAcceptanceConsole({
               <div className="interaction-acceptance-field">
                 <h2>交互动作</h2>
                 <button type="button" className="is-primary" onClick={() => onOpenEmergencyScenario(emergencyScenario)}>
-                  <PhoneCall aria-hidden="true" />打开在线协助流程
+                  <PhoneCall aria-hidden="true" />打开在线求助流程
                 </button>
               </div>
             </section>}
@@ -1267,6 +1260,7 @@ export default function InteractionAcceptanceConsole({
                 <div className="interaction-acceptance-current" aria-live="polite">
                   <strong>{selectedActivationScenario.label} · {selectedActivationScenario.code}</strong>
                   <p>{selectedActivationScenario.description}</p>
+                  <p>默认从“未选择无线网络”开始，可完整验收选网络、输密码和连接流程。</p>
                 </div>
               </div>
               <div className="interaction-acceptance-field">
@@ -1282,7 +1276,7 @@ export default function InteractionAcceptanceConsole({
               <div className="interaction-acceptance-field">
                 <h2><BellRing aria-hidden="true" />可执行动作</h2>
                 <button type="button" className="interaction-acceptance-primary-action" onClick={onOpenActivation}>
-                  <TabletSmartphone aria-hidden="true" />进入设备激活验收
+                  <TabletSmartphone aria-hidden="true" />从未选网络开始验收
                 </button>
                 <button type="button" className="interaction-acceptance-secondary-action" onClick={onResetActivation}>
                   <RefreshCcw aria-hidden="true" />重置当前激活场景
@@ -1292,7 +1286,7 @@ export default function InteractionAcceptanceConsole({
           </div>
 
           <footer>
-            <button type="button" onClick={resetWorkbench}><RefreshCcw aria-hidden="true" />全局重置</button>
+            <U2GPortalLink />
           </footer>
         </div>
       )}

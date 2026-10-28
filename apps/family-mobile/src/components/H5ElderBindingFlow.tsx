@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Clock3 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, UserRound, MapPin, Check } from 'lucide-react';
 import { ElderBindingScenario, ElderRelation } from '../types';
 import { BindingAction, BindingCandidate, BindingState, bindingCandidates, bindingStatusLabels, lookupBindingCandidate, mockApplicantId } from '../data/familyBinding';
 
@@ -34,7 +34,7 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({ scenario
     setPhone(scenario === 'phone_error' ? '123' : scenario === 'not_registered' ? '81239999' : father ? '13800005678' : '81230001');
     setNetworkFailed(scenario === 'network_error'); setSubmitFailed(scenario === 'submit_failed');
     setError(''); setNotice(''); setRelation(null); setCandidate(null);
-    const preset = initialRequestId ?? (['pending', 'rejected', 'expired'].includes(scenario) ? 'request-1' : null);
+    const preset = initialRequestId ?? (['pending', 'accepted_mobile', 'accepted_tablet', 'rejected', 'withdrawn', 'expired'].includes(scenario) ? 'request-1' : null);
     setRequestId(preset); setStep(preset ? 'request' : 'phone');
   }, [scenario, initialRequestId]);
 
@@ -70,33 +70,34 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({ scenario
     setRequestId(null); setRelation(null); setError(''); setNotice(''); setStep('preview');
   };
 
-  return <div className="min-h-full space-y-4 bg-slate-50 p-4 pb-8">
+  return <div className={step === 'preview' ? 'flex min-h-full flex-col gap-5 bg-white px-5 pb-5 pt-3' : 'min-h-full space-y-3 bg-slate-50 p-4 pb-6'}>
     <div className="flex items-center gap-3">
-      <button type="button" onClick={onCancel} aria-label="返回家人管理" className="rounded-full bg-white p-2 text-slate-600"><ArrowLeft size={18} /></button>
+      <button type="button" onClick={onCancel} aria-label="返回家人管理" className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-600"><ArrowLeft size={18} /></button>
       <h2 className="text-base font-black text-slate-900">添加家人</h2>
     </div>
     {notice && <p role="status" className="text-xs font-bold text-blue-600">{notice}</p>}
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-600">{error}</p>}
     {step === 'phone' && <>
-      <div><h3 className="font-bold text-slate-900">邀请老人确认</h3><p className="mt-1 text-xs leading-relaxed text-slate-500">输入老人注册手机端的手机号，核对信息后提交申请。无需老人拥有平板。</p></div>
+      <div><h3 className="font-bold text-slate-900">邀请老人确认</h3><p className="mt-1 text-xs leading-relaxed text-slate-500">输入老人注册手机端的手机号，核对信息后提交申请。</p></div>
       <div className="flex gap-2">
         <select aria-label="老人手机号区号" value={countryCode} onChange={event => { setCountryCode(event.target.value as '+65' | '+86'); setPhone(''); setError(''); }} className="rounded-xl border border-slate-200 bg-white px-2 text-sm"><option value="+65">+65</option><option value="+86">+86</option></select>
         <input aria-label="老人手机号" type="tel" value={phone} maxLength={countryCode === '+65' ? 8 : 11} onChange={event => { setPhone(event.target.value.replace(/\D/g, '')); setError(''); }} placeholder="请输入老人手机号" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white p-3 text-sm" />
       </div>
       <button type="button" onClick={lookup} className={primary}>查找老人</button>
       {networkFailed && <button type="button" onClick={() => { setNetworkFailed(false); setError(''); setNotice('网络已恢复，请重新查找。'); }} className={secondary}>恢复网络</button>}
-      <p className="text-[10px] leading-relaxed text-slate-500">购买套餐、支付成功或设备激活均不会自动建立家庭关系。</p>
     </>}
     {step === 'preview' && candidate && <>
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-bold">请核对老人信息</h3><p className="mt-3 text-lg font-black">{candidate.maskedName}</p>
-        <p className="mt-1 text-xs text-slate-500">{candidate.countryCode} {candidate.phone.slice(0, 3)}****{candidate.phone.slice(-2)}</p>
-        <p className="mt-2 text-xs text-slate-500">{candidate.project} · {candidate.maskedAddress}</p>
-        <button type="button" onClick={() => { setStep('phone'); setError(''); setRelation(null); }} className="mt-3 text-xs font-bold text-blue-600">不是这位老人，重新查找</button>
+      <section>
+        <h3 className="mb-3 text-base font-bold text-slate-900">请核对老人信息</h3>
+        <div className="rounded-2xl bg-slate-50 px-4 pt-5">
+          <div className="flex items-center gap-3"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600"><UserRound size={28} /></span><div><p className="text-2xl font-extrabold tracking-tight text-slate-900">{candidate.name}</p><p className="mt-1 text-sm font-medium text-slate-600">{candidate.countryCode} {candidate.phone}</p></div></div>
+          <div className="mt-4 flex gap-2 text-xs leading-5 text-slate-500"><MapPin size={15} className="mt-0.5 shrink-0" /><div><p>{candidate.project}</p>{candidate.verificationAddress && <p>{candidate.verificationAddress}</p>}</div></div>
+          <button type="button" onClick={() => { setStep('phone'); setError(''); setRelation(null); }} className="mt-4 flex min-h-12 w-full items-center justify-between border-t border-slate-200 text-xs font-semibold text-blue-600">不是这位老人，重新查找 <span aria-hidden="true">›</span></button>
+        </div>
       </section>
-      <section><h3 className="text-sm font-bold">你与老人的关系</h3><div className="mt-3 grid grid-cols-3 gap-2">{relations.map(option => <button key={option} type="button" aria-pressed={relation === option} onClick={() => setRelation(option)} className={relation === option ? 'rounded-xl border border-blue-500 bg-blue-50 py-3 text-xs font-bold text-blue-700' : 'rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold text-slate-600'}>{option}</button>)}</div></section>
-      <p className="text-xs leading-relaxed text-slate-500">提交后需要老人本人在手机端，或已绑定本人档案的平板端确认。老人只需确认或拒绝，无需选择关系。</p>
-      <button type="button" disabled={!relation} onClick={submit} className={primary}>提交绑定申请</button>
+      <fieldset><legend className="text-base font-bold text-slate-900">你与老人的关系</legend><div className="mt-3 grid grid-cols-3 gap-2.5">{relations.map(option => <label key={option} className={`relative flex min-h-14 cursor-pointer items-center justify-center rounded-xl border text-sm font-semibold transition-colors ${relation === option ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600' : 'border-slate-200 bg-white text-slate-600'}`}><input type="radio" name="elder-relation" value={option} checked={relation === option} onChange={() => setRelation(option)} className="peer sr-only" /><span className="absolute inset-0 rounded-xl peer-focus-visible:ring-2 peer-focus-visible:ring-blue-600 peer-focus-visible:ring-offset-2" />{option}{relation === option && <Check size={12} aria-hidden="true" className="absolute bottom-1 right-1 text-blue-600" />}</label>)}</div></fieldset>
+      <div className="mt-auto space-y-3 pt-6"><p className="text-center text-xs leading-relaxed text-slate-500">提交后，需老人本人确认。</p>
+      <button type="button" disabled={!relation} onClick={submit} className={`${primary} min-h-12`}>提交绑定申请</button></div>
       {submitFailed && error && <button type="button" onClick={() => { setSubmitFailed(false); setError(''); setNotice('提交服务已恢复，请重新提交。'); }} className={secondary}>恢复提交服务</button>}
     </>}
     {step === 'existing' && candidate && <section className="space-y-4 rounded-2xl bg-white p-5 text-center">
@@ -114,22 +115,8 @@ export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({ scenario
         <p className="text-[10px] text-slate-400">申请编号：{request.id} · {requestElder.countryCode} {requestElder.phone.slice(0, 3)}****{requestElder.phone.slice(-2)}</p>
       </section>
       {request.status === 'pending' ? <>
-        <button type="button" onClick={() => { dispatch({ type: 'remind', requestId: request.id }); setNotice('已记录本次提醒。'); }} className={primary}>重新提醒老人{request.reminders > 0 ? '（已提醒' + request.reminders + '次）' : ''}</button>
-        <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'cancelled' }); setNotice('申请已取消，老人后续确认不会使本次申请生效。'); }} className={secondary}>取消申请</button>
-        <details className="rounded-xl border border-dashed border-blue-200 bg-blue-50 p-3 text-xs">
-          <summary className="cursor-pointer font-bold text-blue-700">老人确认结果</summary>
-          <p className="mt-3 text-[10px] text-slate-500">以下操作仅影响当前申请。</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {(['elder_mobile', 'elder_tablet'] as const).map(channel => <button key={channel} type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'accepted', channel }); setNotice(''); }} className="rounded-lg border border-blue-200 bg-white px-3 py-2 font-bold text-blue-700">{channel === 'elder_mobile' ? '手机端确认' : '平板端确认'}</button>)}
-            <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'rejected', channel: 'elder_mobile' }); setNotice(''); }} className={secondary}>老人拒绝</button>
-            <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'expired' }); setNotice(''); }} className={secondary}>申请过期</button>
-          </div>
-        </details>
-      </> : request.status === 'accepted' ? <>
-        <button type="button" onClick={() => onEnterHome(requestElder.id)} className={primary}>进入老人首页</button>
-        <button type="button" onClick={onCompleteAddress} className={secondary}>完善我的常住地址（选填）</button>
-        <button type="button" onClick={onCancel} className={secondary}>返回家人管理</button>
-      </> : <button type="button" onClick={restart} className={primary}>重新发起申请</button>}
+        <button type="button" onClick={() => { dispatch({ type: 'resolve', requestId: request.id, status: 'withdrawn' }); setNotice('申请已撤回，老人后续确认不会使本次申请生效。'); }} className={secondary}>撤回申请</button>
+      </> : request.status !== 'accepted' ? <button type="button" onClick={restart} className={primary}>重新发起申请</button> : null}
     </>}
   </div>;
 };

@@ -4,6 +4,9 @@ import {
   Check,
   CheckCircle2,
   CircleHelp,
+  Eye,
+  EyeOff,
+  LockKeyhole,
   LoaderCircle,
   ShieldCheck,
   TabletSmartphone,
@@ -20,7 +23,7 @@ import {
 } from "../activation-contract";
 import "./activation-flow.css";
 
-type ActivationStep = "code" | "identity" | "syncing" | "success";
+type ActivationStep = "wifi" | "code" | "identity" | "syncing" | "success";
 
 interface ActivationFlowProps {
   onComplete: () => void;
@@ -40,21 +43,31 @@ const elderProfile = {
 const errorMessages: Record<Exclude<ActivationError, null>, string> = {
   invalid: "激活码不正确，请检查后重新输入。",
   used: "该激活码已经使用，请联系服务人员确认设备。",
-  revoked: "该激活码已作废，请联系服务人员重新生成。",
   deviceMismatch: "激活码与这台平板不匹配，请让工作人员检查。",
   network: "当前网络连接异常，请检查网络后重试。",
-  alreadyBound: "这台平板已经完成激活，无需重复操作。",
 };
 
 const progressSteps = [
+  { key: "wifi", label: "连接无线网络" },
   { key: "code", label: "输入激活码" },
   { key: "identity", label: "确认是您" },
   { key: "syncing", label: "正在准备" },
   { key: "success", label: "完成" },
 ] as const;
 
+const availableWifiNetworks = [
+  { id: "u2g-home-5g", name: "U2G-Home-5G", signal: "信号强", strength: 3 },
+  { id: "living-room", name: "LivingRoom-WiFi", signal: "信号良好", strength: 2 },
+  { id: "sg-home", name: "SG-Home", signal: "信号一般", strength: 1 },
+] as const;
+
 export default function ActivationFlow({ scenario, contractState, resetSignal, onActivationCommitted, onComplete }: ActivationFlowProps) {
-  const [step, setStep] = useState<ActivationStep>("code");
+  const [step, setStep] = useState<ActivationStep>("wifi");
+  const [selectedWifiId, setSelectedWifiId] = useState<string | null>(null);
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [showWifiPassword, setShowWifiPassword] = useState(false);
+  const [isConnectingWifi, setIsConnectingWifi] = useState(false);
+  const [wifiError, setWifiError] = useState(false);
   const [code, setCode] = useState(activationScenarioDefinitions[scenario].code);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<ActivationError>(null);
@@ -73,7 +86,12 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
   }, [onActivationCommitted]);
 
   useEffect(() => {
-    setStep("code");
+    setStep("wifi");
+    setSelectedWifiId(null);
+    setWifiPassword("");
+    setShowWifiPassword(false);
+    setIsConnectingWifi(false);
+    setWifiError(false);
     setCode(activationScenarioDefinitions[scenario].code);
     setIsChecking(false);
     setError(null);
@@ -102,6 +120,29 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
   const updateCode = (value: string) => {
     setCode(value.replace(/\D/g, "").slice(0, 6));
     setError(null);
+  };
+
+  const connectWifi = () => {
+    if (!selectedWifiId || !wifiPassword.trim() || isConnectingWifi) return;
+
+    setIsConnectingWifi(true);
+    setWifiError(false);
+    window.setTimeout(() => {
+      setIsConnectingWifi(false);
+      if (scenario === "network") {
+        setWifiError(true);
+        return;
+      }
+      setStep("code");
+    }, 850);
+  };
+
+  const selectWifiNetwork = (networkId: string) => {
+    if (isConnectingWifi || selectedWifiId === networkId) return;
+    setSelectedWifiId(networkId);
+    setWifiPassword("");
+    setShowWifiPassword(false);
+    setWifiError(false);
   };
 
   const checkActivationCode = () => {
@@ -161,9 +202,97 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
           </aside>
 
           <div className="activation-shell__content">
+            {step === "wifi" && (
+              <section className="activation-step activation-step--wifi">
+                <span className="activation-step__eyebrow">设备首次使用</span>
+                <h2>连接无线网络</h2>
+                <p>请先选择家中的无线网络，再输入密码。</p>
+
+                <div className="activation-wifi-picker" aria-label="可用无线网络">
+                  <div className="activation-wifi-picker__heading">
+                    <span><Wifi aria-hidden="true" /><strong>可用无线网络</strong></span>
+                    <small>请点击选择</small>
+                  </div>
+                  <div className="activation-wifi-list">
+                    {availableWifiNetworks.map((network) => {
+                      const selected = selectedWifiId === network.id;
+                      return (
+                        <button
+                          key={network.id}
+                          type="button"
+                          className={selected ? "is-selected" : ""}
+                          aria-pressed={selected}
+                          disabled={isConnectingWifi}
+                          onClick={() => selectWifiNetwork(network.id)}
+                        >
+                          <span className="activation-wifi-list__icon"><Wifi aria-hidden="true" /></span>
+                          <span className="activation-wifi-list__name">
+                            <strong>{network.name}</strong>
+                            <small><LockKeyhole aria-hidden="true" />需要密码</small>
+                          </span>
+                          <span className="activation-wifi-list__signal" aria-label={network.signal}>
+                            <i className={network.strength >= 1 ? "is-on" : ""} />
+                            <i className={network.strength >= 2 ? "is-on" : ""} />
+                            <i className={network.strength >= 3 ? "is-on" : ""} />
+                            <small>{network.signal}</small>
+                          </span>
+                          <span className="activation-wifi-list__check" aria-hidden="true">{selected && <Check />}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <label className={`activation-password-field ${selectedWifiId ? "is-ready" : ""}`}>
+                  <span>{selectedWifiId ? `输入 ${availableWifiNetworks.find((network) => network.id === selectedWifiId)?.name} 的密码` : "请先选择无线网络"}</span>
+                  <span className="activation-password-input">
+                    <input
+                      type={showWifiPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      disabled={!selectedWifiId || isConnectingWifi}
+                      value={wifiPassword}
+                      onChange={(event) => {
+                        setWifiPassword(event.target.value);
+                        setWifiError(false);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") connectWifi();
+                      }}
+                      placeholder={selectedWifiId ? "请输入无线网密码" : "选择网络后可输入密码"}
+                      aria-invalid={wifiError}
+                      aria-describedby={wifiError ? "activation-wifi-error" : undefined}
+                    />
+                    <button
+                      type="button"
+                      disabled={!selectedWifiId || isConnectingWifi}
+                      onClick={() => setShowWifiPassword((current) => !current)}
+                      aria-label={showWifiPassword ? "隐藏无线网密码" : "显示无线网密码"}
+                    >
+                      {showWifiPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                    </button>
+                  </span>
+                </label>
+
+                <div className="activation-error-slot">
+                  {wifiError && <p id="activation-wifi-error" role="alert"><b>!</b>暂时无法连接无线网络，请检查密码后重试。</p>}
+                  {!selectedWifiId && !wifiError && <p className="is-hint"><Wifi aria-hidden="true" />请先从上方选择一个无线网络</p>}
+                  {selectedWifiId && !wifiPassword.trim() && !wifiError && <p className="is-hint"><LockKeyhole aria-hidden="true" />请输入密码后连接</p>}
+                </div>
+
+                <button
+                  type="button"
+                  className="activation-primary-action"
+                  disabled={!selectedWifiId || !wifiPassword.trim() || isConnectingWifi}
+                  onClick={connectWifi}
+                >
+                  {isConnectingWifi ? <><LoaderCircle className="is-spinning" aria-hidden="true" />正在连接，请稍候</> : "连接无线网络"}
+                </button>
+              </section>
+            )}
+
             {step === "code" && (
               <section className="activation-step activation-step--code">
-                <span className="activation-step__eyebrow">设备首次使用</span>
+                <span className="activation-step__eyebrow">无线网络已连接</span>
                 <h2>请输入激活码</h2>
 
                 <div className="activation-device-status" aria-label="当前设备状态">
@@ -285,7 +414,7 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
             <button type="button" className="activation-modal__close" onClick={() => setShowHelp(false)} aria-label="关闭帮助"><X aria-hidden="true" /></button>
             <span className="activation-modal__icon"><CircleHelp aria-hidden="true" /></span>
             <h2 id="activation-help-title">无法激活？</h2>
-            <p>请让家人或工作人员检查激活码。如果仍然无法激活，请联系服务人员处理。</p>
+            <p>请先检查无线网密码和激活码。如果仍然无法激活，请联系家人或服务人员处理。</p>
             <div className="activation-help-device"><span>联系服务人员时，请告知设备编号</span><strong>{contractState.device.id}</strong></div>
             <button type="button" className="activation-primary-action" onClick={() => setShowHelp(false)}>我知道了</button>
           </section>

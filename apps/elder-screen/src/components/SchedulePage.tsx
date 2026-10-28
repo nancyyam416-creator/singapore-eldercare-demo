@@ -824,7 +824,7 @@ export default function SchedulePage({
               <div><h2 id="schedule-detail-title" className="text-[30px] font-black text-[#1C2C24]">提醒详情</h2><p className="mt-2 text-[17px] font-bold text-gray-500">创建来源仅在详情中展示</p></div>
               <button type="button" onClick={() => setDetailItem(null)} aria-label="关闭提醒详情" className="w-12 h-12 rounded-full bg-white border-2 border-[#D9E3DD] text-gray-600 flex items-center justify-center"><X className="w-7 h-7" /></button>
             </header>
-            <div className="p-8 space-y-4">
+            <div className="px-8 pt-7 pb-6 space-y-4">
               <div className="rounded-[24px] border-2 border-[#D7E2EA] bg-[#F7FAFC] px-6 py-5">
                 <p className="text-[18px] font-black text-[#315F87]">{detailItem.kind === "medication" ? "用药提醒" : "日常提醒"} · {repeatLabels[detailItem.repeat]}</p>
                 <h3 className="mt-3 text-[28px] leading-tight font-black text-[#1C2C24]">{detailItem.title}</h3>
@@ -835,13 +835,13 @@ export default function SchedulePage({
                 <span>创建来源：{creationSourceLabels[detailItem.creationSource]}</span>
                 <span>创建人：{detailItem.creatorName}</span>
               </div>
-              <p className="rounded-[20px] bg-[#FFF3E8] px-5 py-4 text-[17px] leading-relaxed font-black text-[#8A4B20]">
-                {detailItem.status === "expired"
-                  ? "这条执行记录已过期，仅可查看，不能补打卡或修改历史结果。"
-                  : "该提醒不是本人创建，老人端只可查看和确认到期实例，不能编辑或删除提醒定义。"}
-              </p>
+              {detailItem.status === "expired" && (
+                <p className="rounded-[20px] bg-[#FFF3E8] px-5 py-4 text-[17px] leading-relaxed font-black text-[#8A4B20]">
+                  这条执行记录已过期，仅可查看，不能补打卡或修改历史结果。
+                </p>
+              )}
             </div>
-            <footer className="px-8 py-6 border-t border-[#E2E8E4] bg-[#FAF8F5] flex justify-end">
+            <footer className="px-8 py-5 border-t border-[#E2E8E4] bg-[#FAF8F5] flex justify-end">
               <button type="button" onClick={() => setDetailItem(null)} className="h-[62px] min-w-[180px] rounded-[18px] bg-[#315F87] px-6 text-[19px] font-black text-white">知道了</button>
             </footer>
           </section>

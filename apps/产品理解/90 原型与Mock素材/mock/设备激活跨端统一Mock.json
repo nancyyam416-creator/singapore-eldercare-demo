@@ -9,9 +9,7 @@
     "used": "222222",
     "revoked": "333333",
     "deviceMismatch": "444444",
-    "network": "000000",
-    "alreadyBound": "555555",
-    "familyBindingCode": "886688"
+    "network": "000000"
   },
   "elderlyId": "SG-E-000125",
   "elderlyName": "王德昌",

@@ -121,6 +121,7 @@ export const initialFamilyMessages: FamilyMessage[] = [
 export const initialFamilyNotifications: FamilyNotification[] = [
   {
     id: 'notice-family-message',
+    elderId: 'elder-father',
     type: 'family_message',
     title: '爸爸发来了新留言',
     summary: '语音 18秒：“我今天去听讲座啦，挺好的。”',
@@ -130,6 +131,7 @@ export const initialFamilyNotifications: FamilyNotification[] = [
   },
   {
     id: 'notice-photo-liked',
+    elderId: 'elder-father',
     type: 'photo_feedback',
     title: '爸爸喜欢了你分享的家庭相册内容',
     summary: '家庭聚会 · 3张照片和1段视频',
@@ -139,6 +141,7 @@ export const initialFamilyNotifications: FamilyNotification[] = [
   },
   {
     id: 'notice-missed-call',
+    elderId: 'elder-father',
     type: 'missed_call',
     title: '未接通爸爸的语音通话',
     summary: '今天 14:20 · 可以稍后再次联系',
@@ -147,6 +150,7 @@ export const initialFamilyNotifications: FamilyNotification[] = [
   },
   {
     id: 'notice-service-booking',
+    elderId: 'elder-father',
     type: 'service_booking',
     title: '上门理疗服务预约成功',
     summary: '7月30日 10:00 · 服务人员将按约上门',

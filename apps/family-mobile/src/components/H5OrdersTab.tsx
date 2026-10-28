@@ -4,16 +4,16 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import {
+import { 
   BellRing,
-  ClipboardList,
-  User,
-  MapPin,
-  Calendar,
-  Clock,
-  ChevronRight,
-  Truck,
-  Smile,
+  ClipboardList, 
+  User, 
+  MapPin, 
+  Calendar, 
+  Clock, 
+  ChevronRight, 
+  Truck, 
+  Smile, 
   Clock3,
   CheckCircle2,
   PlayCircle,
@@ -78,10 +78,10 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
         let nextStatus: Order['status'] = ord.status;
         let logText = '';
         const now = new Date();
-        const timeStr = now.getFullYear() + '-' +
-          String(now.getMonth() + 1).padStart(2, '0') + '-' +
-          String(now.getDate()).padStart(2, '0') + ' ' +
-          String(now.getHours()).padStart(2, '0') + ':' +
+        const timeStr = now.getFullYear() + '-' + 
+          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(now.getDate()).padStart(2, '0') + ' ' + 
+          String(now.getHours()).padStart(2, '0') + ':' + 
           String(now.getMinutes()).padStart(2, '0');
 
         switch (ord.status) {
@@ -181,7 +181,7 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
                   <div className="flex items-center gap-1.5">
                     <span className="text-4xs text-slate-500 font-extrabold font-mono">订单号: {ord.id}</span>
                   </div>
-
+                  
                   <span className={`text-5xs font-black border rounded-full px-2.5 py-0.5 flex items-center gap-1 ${statusDetail.color}`}>
                     {statusDetail.icon}
                     {statusDetail.label}

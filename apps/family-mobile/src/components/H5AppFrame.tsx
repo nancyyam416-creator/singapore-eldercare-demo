@@ -4,16 +4,18 @@
  */
 
 import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import {
-  Heart,
-  ShoppingBag,
-  ClipboardList,
+import { AssistanceScenario, assistanceForElder, assistanceRevision, createAssistanceEvents, hasViewedAssistance, initialAssistanceViews, markAssistanceViewed } from '../data/onlineAssistance';
+import { AssistanceHomeSummary, AssistanceNoticeEntry, H5OnlineAssistance } from './H5OnlineAssistance';
+import { 
+  Heart, 
+  ShoppingBag, 
+  ClipboardList, 
   UserRound,
-  Wifi,
-  Signal,
-  Battery,
-  Phone,
-  AlertOctagon,
+  Wifi, 
+  Signal, 
+  Battery, 
+  Phone, 
+  AlertOctagon, 
   AlertTriangle,
   MapPin,
   Flame,
@@ -106,6 +108,7 @@ interface H5AppFrameProps {
   previewOpenFamilyCallSignal: number;
   previewOpenFamilyPhotosSignal: number;
   previewOpenFamilyNotificationsSignal: number;
+  assistanceScenario: AssistanceScenario;
   previewOpenHomeSignal: number;
   previewCloseFamilyReceiptsSignal: number;
   previewFamilyReceiptFilter: FamilyReceiptFilter;
@@ -161,6 +164,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   previewOpenFamilyCallSignal,
   previewOpenFamilyPhotosSignal,
   previewOpenFamilyNotificationsSignal,
+  assistanceScenario,
   previewOpenHomeSignal,
   previewCloseFamilyReceiptsSignal,
   previewFamilyReceiptFilter,
@@ -191,6 +195,10 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const [residenceAddress, setResidenceAddress] = useState(initialChildResidenceAddress);
   const [familyMessages, setFamilyMessages] = useState(initialFamilyMessages);
   const [familyNotifications, setFamilyNotifications] = useState<FamilyNotification[]>(initialFamilyNotifications);
+  const [assistanceViews, setAssistanceViews] = useState(() => initialAssistanceViews(assistanceScenario));
+  const [assistanceOpen, setAssistanceOpen] = useState(false);
+  const [assistanceFromList, setAssistanceFromList] = useState(false);
+  const [selectedAssistanceId, setSelectedAssistanceId] = useState<string | null>(null);
   const [showPhotoShare, setShowPhotoShare] = useState(false);
   const [photoShareMounted, setPhotoShareMounted] = useState(false);
   const [familySection, setFamilySection] = useState<FamilySection>('photos');
@@ -220,8 +228,38 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const scopedFamilyMessages = familyMessageScenario === 'multi_elder'
     ? familyMessages
     : familyMessages.filter(message => message.conversationId === initialFamilyConversations[0]?.id);
-  const unreadFamilyNotificationCount = familyNotifications.filter(notification => !notification.read).length;
   const currentBoundElder = activeBoundElders.find(elder => elder.id === currentElderId) ?? activeBoundElders[0];
+  const assistanceEvents = useMemo(() => assistanceForElder(createAssistanceEvents(assistanceScenario), currentBoundElder?.id), [assistanceScenario, currentBoundElder?.id]);
+  const isAssistanceViewed = (id: string) => {
+    const event = assistanceEvents.find(item => item.id === id);
+    return !!event && hasViewedAssistance(assistanceViews, 'child-current', assistanceRevision(event));
+  };
+  const assistanceUnread = assistanceEvents.filter(event => !isAssistanceViewed(event.id)).length;
+  const scopedNotifications = familyNotifications.filter(notification => notification.elderId === currentBoundElder?.id);
+  const familyUnread = scopedNotifications.filter(notification => !notification.read).length;
+  const unreadFamilyNotificationCount = familyUnread + assistanceUnread;
+  const openAssistance = (id: string) => {
+    const event = assistanceEvents.find(item => item.id === id);
+    if (!event) return;
+    setAssistanceViews(current => markAssistanceViewed(current, 'child-current', assistanceRevision(event)));
+    setSelectedAssistanceId(id);
+    setAssistanceOpen(true);
+    contentScrollRef.current?.scrollTo({ top: 0 });
+  };
+  useEffect(() => {
+    setAssistanceViews(initialAssistanceViews(assistanceScenario));
+    setAssistanceOpen(false);
+    setSelectedAssistanceId(null);
+  }, [assistanceScenario, previewResetSignal]);
+  useEffect(() => {
+    setAssistanceOpen(false);
+    setSelectedAssistanceId(null);
+  }, [currentBoundElder?.id]);
+  useEffect(() => {
+    setAssistanceOpen(false);
+    setSelectedAssistanceId(null);
+    setAssistanceFromList(false);
+  }, [activeTab, familySection]);
   useEffect(() => {
     if (!boundElders.some(elder => elder.id === currentElderId && elder.relationshipStatus === 'active')) {
       setCurrentElderId(boundElders.find(elder => elder.relationshipStatus === 'active')?.id ?? null);
@@ -383,6 +421,8 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
   useEffect(() => {
     if (previewOpenFamilyNotificationsSignal > 0) {
+      setAssistanceOpen(false);
+      setSelectedAssistanceId(null);
       setFamilySection('notifications');
       setActiveTab('store');
     }
@@ -478,7 +518,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   };
 
   return (
-    <div className="w-full sm:max-w-[450px] h-[100dvh] sm:h-[1000px] bg-slate-950 rounded-none sm:rounded-[48px] p-0 sm:p-3 shadow-none sm:shadow-2xl relative border-0 sm:border-4 border-slate-800 shrink-0" id="h5-phone-simulator">
+    <div className="preview-phone-frame bg-slate-950 rounded-none sm:rounded-[48px] p-0 sm:p-3 shadow-none sm:shadow-2xl relative border-0 sm:border-4 border-slate-800 shrink-0" id="h5-phone-simulator">
       {/* 1. Phone Top Camera notch */}
       <div className="hidden sm:flex absolute top-4 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-950 rounded-full items-center justify-center z-50">
         <div className="w-3 h-3 bg-slate-900 rounded-full border border-slate-800 ml-1"></div>
@@ -487,7 +527,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
       {/* 2. Main Phone Screen content */}
       <div id="h5-phone-screen" className="w-full h-full bg-slate-50 rounded-none sm:rounded-[38px] overflow-hidden flex flex-col relative border-0 sm:border border-slate-900">
-
+        
         {/* Mock OS Status Bar */}
         <div className="hidden sm:flex h-10 bg-white items-center justify-between px-6 shrink-0 z-40">
           <span className="text-2xs font-bold text-slate-800">{homeCareScenario === 'medication_expired' ? '23:59' : homeCareScenario === 'medication_overdue' ? '22:10' : '18:26'}</span>
@@ -509,27 +549,13 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
                 </button>
               ))}
             </div>
-          ) : <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? '消息' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>}
-          {isLoggedIn && ((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) && (
-            <button
-              type="button"
-              onClick={() => {
-                if (activeTab === 'store') { setActiveTab('profile'); setShowReminders(false); }
-                else { setFamilySection('notifications'); setActiveTab('store'); }
-              }}
-              aria-label={activeTab === 'store' ? '返回我的' : `消息，${unreadFamilyNotificationCount}条未读`}
-              className={`absolute right-4 flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition ${familySection === 'notifications' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              <MessageCircle size={14} />
-              {activeTab === 'store' ? '返回我的' : '消息'}
-              {activeTab === 'profile' && unreadFamilyNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}
-            </button>
-          )}
+          ) : <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : assistanceOpen ? '在线协助' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? '消息' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>}
+
         </header>
 
         {/* 3. APP SCREEN WRAPPER WITH ABSOLUTE ALERT OVERLAYS */}
         <div ref={contentScrollRef} className="flex-1 overflow-y-auto relative min-h-0 bg-slate-50">
-
+          
           {/* CRITICAL EMERGENCY ALARM POPUP OVERLAY */}
           {isLoggedIn && emergencyAlert && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -537,7 +563,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
                 <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
                   <AlertOctagon size={24} className="stroke-[2.5]" />
                 </div>
-
+                
                 <div className="space-y-1.5">
                   <h3 className="font-extrabold text-sm text-rose-600">🚨 长辈突发跌倒预警 🚨</h3>
                   <p className="text-3xs text-slate-600 leading-relaxed font-semibold">
@@ -599,8 +625,8 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               <button type="button" onClick={() => { setShowReminders(false); setActiveTab('profile'); }} className="rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white">前往家人管理</button>
             </div>
           )}
-          {isLoggedIn && currentBoundElder && activeTab === 'monitor' && (
-            <H5MonitorTab
+          {isLoggedIn && currentBoundElder && activeTab === 'monitor' && !assistanceOpen && (
+            <H5MonitorTab 
               healthStats={healthStats}
               setHealthStats={setHealthStats}
               medications={medications}
@@ -610,6 +636,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               orders={orders}
               parentProfile={currentParentProfile}
               onSwitchElder={activeBoundElders.length > 1 ? () => setShowElderSwitcher(true) : undefined}
+              assistanceSummary={<AssistanceHomeSummary events={assistanceEvents} elderName={currentBoundElder.name} isViewed={isAssistanceViewed} onOpen={id => { setAssistanceFromList(false); openAssistance(id); }} onList={() => { setAssistanceFromList(true); setSelectedAssistanceId(null); setAssistanceOpen(true); contentScrollRef.current?.scrollTo({ top: 0 }); }} />}
               onSwitchToOrders={() => setActiveTab('orders')}
               onOpenElderProfile={() => {
                 setElderProfileRadarExpanded(true);
@@ -647,12 +674,17 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {isLoggedIn && currentBoundElder && activeTab === 'store' && (
+          {isLoggedIn && assistanceOpen && (
+            <H5OnlineAssistance events={assistanceEvents} elderName={currentBoundElder?.name ?? '家人'} isViewed={isAssistanceViewed} onOpen={openAssistance} selectedId={selectedAssistanceId} backLabel={selectedAssistanceId && assistanceFromList ? '返回在线协助列表' : activeTab === 'monitor' ? '返回首页' : activeTab === 'profile' ? '返回我的' : '返回消息'} onBack={() => { if (selectedAssistanceId && assistanceFromList) setSelectedAssistanceId(null); else { setAssistanceOpen(false); setSelectedAssistanceId(null); } contentScrollRef.current?.scrollTo({ top: 0 }); }} />
+          )}
+          {isLoggedIn && currentBoundElder && activeTab === 'store' && !(familySection === 'notifications' && assistanceOpen) && (
             <H5FamilyTab
+              assistanceUnread={assistanceUnread}
+              assistanceEntry={<AssistanceNoticeEntry events={assistanceEvents} elderName={currentBoundElder.name} isViewed={isAssistanceViewed} onOpen={id => { setAssistanceFromList(false); openAssistance(id); }} onList={() => { setAssistanceFromList(true); setSelectedAssistanceId(null); setAssistanceOpen(true); contentScrollRef.current?.scrollTo({ top: 0 }); }} />}
               conversations={initialFamilyConversations}
               messages={scopedFamilyMessages}
               photoBatches={photoBatches}
-              notifications={familyNotifications}
+              notifications={scopedNotifications}
               activeSection={familySection}
               messageScenario={familyMessageScenario}
               photoScenario={familyPhotoScenario}
@@ -667,13 +699,17 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
                 ));
               }}
               onMessagesChange={setFamilyMessages}
-              onNotificationsChange={setFamilyNotifications}
+              onNotificationsChange={update => setFamilyNotifications(current => {
+                const scoped = current.filter(item => item.elderId === currentBoundElder.id);
+                const next = typeof update === 'function' ? update(scoped) : update;
+                return [...current.filter(item => item.elderId !== currentBoundElder.id), ...next];
+              })}
               onContactElder={handleMockCall}
             />
           )}
 
           {isLoggedIn && currentBoundElder && activeTab === 'orders' && (
-            <H5OrdersTab
+            <H5OrdersTab 
               orders={orders}
               setOrders={setOrders}
               activities={activities}
@@ -688,9 +724,10 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             />
           )}
 
-          {isLoggedIn && activeTab === 'profile' && (!showReminders || currentBoundElder) && (
+          {isLoggedIn && activeTab === 'profile' && !assistanceOpen && (!showReminders || currentBoundElder) && (
             showReminders ? <div className="p-4"><H5ReminderManager elderName={currentParentProfile.name} elderId={currentBoundElder?.id ?? 'elder-1'} scenario={reminderScenario} /></div> :
             <H5ProfileTab
+              onOpenAssistance={() => { setAssistanceFromList(true); setSelectedAssistanceId(null); setAssistanceOpen(true); contentScrollRef.current?.scrollTo({ top: 0 }); }}
               isLoggedIn={isLoggedIn}
               onLogin={handleLogin}
               onLogout={handleLogout}
@@ -792,7 +829,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
         )}
 
         {/* 4. IOS Elegant Bottom Navigation Tabs bar */}
-        {isLoggedIn && <nav className="h-16 bg-white border-t border-slate-150 flex items-center justify-around px-2 shrink-0 z-40 pb-2">
+        {isLoggedIn && <nav onClickCapture={() => { setAssistanceOpen(false); setSelectedAssistanceId(null); setAssistanceFromList(false); }} className="h-16 bg-white border-t border-slate-150 flex items-center justify-around px-2 shrink-0 z-40 pb-2">
           <button
             onClick={() => setActiveTab('monitor')}
             disabled={!isLoggedIn}
@@ -807,7 +844,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             disabled={!isLoggedIn}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection !== 'notifications' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection === 'messages' ? 'stroke-[2.5]' : ''} />{unreadFamilyNotificationCount > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{unreadFamilyNotificationCount}</span>}</span>
+            <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection === 'messages' ? 'stroke-[2.5]' : ''} />{familyUnread > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{familyUnread}</span>}</span>
             <span className="text-5xs font-extrabold tracking-tight">家庭</span>
           </button>
 

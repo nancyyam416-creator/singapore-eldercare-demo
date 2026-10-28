@@ -468,9 +468,8 @@ export default function ControlCenterHome({
 
   const sendPhotoHeart = () => {
     if (acceptanceHeartScenario === "sending") return;
-    const nextLiked = !currentPhotoLiked;
-    onTogglePhotoHeart(currentPhoto.url, nextLiked);
-    if (!nextLiked) return;
+    if (currentPhotoLiked) return;
+    onTogglePhotoHeart(currentPhoto.url, true);
     setPhotoHeartBurstKey((key) => key + 1);
     setHeartFeedbackPhotoId(currentPhoto.id);
     if (heartFeedbackTimerRef.current) window.clearTimeout(heartFeedbackTimerRef.current);
@@ -586,7 +585,7 @@ export default function ControlCenterHome({
 
         <button className="sos-button" type="button" onClick={onTriggerSOS}>
           <Phone aria-hidden="true" />
-          <span>在线协助</span>
+          <span>在线求助</span>
         </button>
       </header>
 
@@ -683,7 +682,7 @@ export default function ControlCenterHome({
               type="button"
               onClick={sendPhotoHeart}
               disabled={acceptanceHeartScenario === "sending"}
-              aria-label={currentPhotoLiked ? "取消喜欢这张照片" : "喜欢这张照片"}
+              aria-label={currentPhotoLiked ? "已喜欢这张照片" : "喜欢这张照片"}
             >
               <Heart aria-hidden="true" />
               <span>{acceptanceHeartScenario === "sending" ? "喜欢中" : currentPhotoLiked ? "已喜欢" : "喜欢"}</span>

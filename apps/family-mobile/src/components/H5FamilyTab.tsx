@@ -32,6 +32,8 @@ import { FamilyConversation, FamilyMessage, FamilyMessageScenario, FamilyNotific
 export type FamilySection = 'messages' | 'photos' | 'notifications';
 
 interface H5FamilyTabProps {
+  assistanceEntry?: React.ReactNode;
+  assistanceUnread?: number;
   conversations: FamilyConversation[];
   messages: FamilyMessage[];
   photoBatches: PublishedPhotoBatch[];
@@ -81,6 +83,8 @@ const deliveryLabel = (message: FamilyMessage) => {
 };
 
 export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
+  assistanceEntry,
+  assistanceUnread = 0,
   conversations,
   messages,
   photoBatches,
@@ -397,7 +401,7 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
     );
   };
 
-  const unreadNotificationCount = notifications.filter(item => !item.read).length;
+  const unreadNotificationCount = notifications.filter(item => !item.read).length + assistanceUnread;
   const sortedNotifications = [...notifications].sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
 
   const openNotification = (notification: FamilyNotification) => {
@@ -420,10 +424,11 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
       <div className="mb-3 flex items-end justify-between px-1">
         <div>
           <h3 className="text-base font-extrabold text-slate-900">消息</h3>
-          <p className="mt-0.5 text-[10px] text-slate-500">留言、影像反馈、通话与服务通知</p>
+          <p className="mt-0.5 text-[10px] text-slate-500">在线协助、留言、影像反馈与服务通知</p>
         </div>
         {unreadNotificationCount > 0 && <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-bold text-rose-600">{unreadNotificationCount}条未读</span>}
       </div>
+      {assistanceEntry}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         {sortedNotifications.map(notification => {
           const iconMeta = notification.type === 'family_message'

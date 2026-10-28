@@ -41,8 +41,8 @@
   background: #fff;
 }
 
-.admin-style-theme .reminder-policy-overview span { color: #64748b; font-size: 11px; }
-.admin-style-theme .reminder-policy-overview b { color: #0f172a; font-size: 24px; line-height: 1; }
+.admin-style-theme .reminder-policy-overview span { color: #64748b; font-size: 13px; }
+.admin-style-theme .reminder-policy-overview b { color: #0f172a; font-size: 28px; line-height: 1; }
 .admin-style-theme .reminder-policy-overview .admin-metric-help {
   width: 20px;
   height: 20px;
@@ -67,27 +67,27 @@
 .admin-style-theme .reminder-policy-actions .table-action { margin: 0; }
 .admin-style-theme .policy-source-cell { display: flex; align-items: center; gap: 9px; }
 .admin-style-theme .policy-source-cell > div { display: flex; flex-direction: column; gap: 3px; }
-.admin-style-theme .policy-source-cell b { color: #1e293b; font-size: 11px; font-weight: 600; }
-.admin-style-theme .policy-source-cell small { color: #94a3b8; font-size: 9px; }
-.admin-style-theme .policy-source-cell > span {
-  width: 34px;
-  height: 34px;
+.admin-style-theme .policy-source-cell b { color: #1e293b; font-size: 14px; font-weight: 600; }
+.admin-style-theme .policy-source-cell small { color: #94a3b8; font-size: 12px; }
+.admin-style-theme .policy-source-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   color: #2563eb;
   background: #eff6ff;
-  font-size: 9px;
-  font-weight: 700;
 }
+.admin-style-theme .policy-source-icon svg { display: block; }
 .admin-style-theme .reminder-priority-tag {
   min-width: 34px;
   padding: 3px 8px;
   display: inline-flex;
   justify-content: center;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 .admin-style-theme .reminder-priority-tag.priority-高 { color: #b42318; background: #fee4e2; }
@@ -104,7 +104,7 @@
   border-radius: 4px;
   color: #475467;
   background: #f2f4f7;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1;
   vertical-align: middle;
   white-space: nowrap;
@@ -122,7 +122,7 @@
   border-radius: 999px;
   color: #1d4ed8;
   background: #eff6ff;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -533,6 +533,45 @@ th.sticky-right { background: #f7f8fa; }
   height: 72px;
   padding: 0 32px;
   border-bottom-color: #e2e8f0;
+}
+
+.admin-style-theme .topbar-navigation {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-style-theme .portal-return-link {
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-style-theme .portal-return-link:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.admin-style-theme .portal-return-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.admin-style-theme .topbar-navigation-divider {
+  width: 1px;
+  height: 20px;
+  flex: 0 0 1px;
+  background: #e2e8f0;
 }
 
 .admin-style-theme .breadcrumb {
@@ -2443,7 +2482,7 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .permission-check-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
   align-content: start;
@@ -10455,7 +10494,7 @@ th.sticky-right { background: #f7f8fa; }
   margin-top: 9px;
 }
 
-/* 关怀话术管理 */
+/* 天气关怀话术管理 */
 .admin-style-theme .care-script-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -10496,14 +10535,18 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .care-script-table {
-  min-width: 1050px;
+  width: max(100%, 1480px);
+  min-width: 1480px;
+  table-layout: fixed;
 }
 
-.admin-style-theme .care-script-table th:nth-child(1) { width: 180px; }
-.admin-style-theme .care-script-table th:nth-child(2) { width: 310px; }
-.admin-style-theme .care-script-table th:nth-child(3) { width: 280px; }
-.admin-style-theme .care-script-table th:nth-child(4) { width: 100px; }
-.admin-style-theme .care-script-table th:nth-child(5) { width: 155px; }
+.admin-style-theme .care-script-table th:nth-child(1) { width: 190px; }
+.admin-style-theme .care-script-table th:nth-child(2) { width: 300px; }
+.admin-style-theme .care-script-table th:nth-child(3) { width: 285px; }
+.admin-style-theme .care-script-table th:nth-child(4) { width: 260px; }
+.admin-style-theme .care-script-table th:nth-child(5) { width: 100px; }
+.admin-style-theme .care-script-table th:nth-child(6) { width: 155px; }
+.admin-style-theme .care-script-table th:nth-child(7) { width: 110px; }
 
 .admin-style-theme .care-weather-cell {
   display: flex;
@@ -10520,6 +10563,64 @@ th.sticky-right { background: #f7f8fa; }
   color: #2563eb;
   border-radius: 8px;
   background: #eff6ff;
+}
+
+.admin-style-theme .care-weather-cell > div {
+  min-width: 0;
+}
+
+.admin-style-theme .care-weather-cell small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.admin-style-theme .weather-condition-list,
+.admin-style-theme .weather-condition-inline,
+.admin-style-theme .multi-value-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-style-theme .weather-condition-list > span,
+.admin-style-theme .weather-condition-inline > span,
+.admin-style-theme .multi-value-tag-list > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.admin-style-theme .weather-condition-list code {
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+}
+
+.admin-style-theme .multi-value-tag-toggle {
+  min-height: 26px;
+  padding: 4px 8px;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-style-theme .multi-value-tag-toggle:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
 }
 
 .admin-style-theme .care-script-copy,
@@ -10570,6 +10671,10 @@ th.sticky-right { background: #f7f8fa; }
   margin-top: 3px;
   color: #94a3b8;
   font-size: 10px;
+}
+
+.admin-style-theme .care-condition-card .weather-condition-inline {
+  margin-top: 8px;
 }
 
 .admin-style-theme .field-help {
@@ -10794,7 +10899,7 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .emergency-overview-grid {
   margin-bottom: 16px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -10912,36 +11017,73 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .emergency-event-hero {
-  padding: 16px;
+  min-height: 58px;
+  padding: 10px 12px;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 28px repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 12px;
-  border: 1px solid #fed7d2;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: #fff8f7;
+  background: #f8fafc;
 }
 
-.admin-style-theme .emergency-event-hero > span {
-  width: 42px;
-  height: 42px;
+.admin-style-theme .emergency-event-icon {
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  color: #dc2626;
-  background: #feeceb;
+  border-radius: 6px;
+  color: #2563eb;
+  background: #eaf2ff;
 }
 
-.admin-style-theme .emergency-event-hero small,
-.admin-style-theme .emergency-event-hero p {
-  color: #64748b;
+.admin-style-theme .emergency-event-status {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.admin-style-theme .emergency-event-status + .emergency-event-status {
+  padding-left: 16px;
+  border-left: 1px solid #e2e8f0;
+}
+
+.admin-style-theme .emergency-event-status small {
+  color: #94a3b8;
   font-size: 11px;
+  line-height: 1.2;
 }
 
-.admin-style-theme .emergency-event-hero h3 {
-  margin: 3px 0 4px;
+.admin-style-theme .emergency-event-status b {
+  max-width: 100%;
+  overflow: hidden;
   color: #1e293b;
-  font-size: 17px;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-style-theme .emergency-help-drawer .detail-section > h3,
+.admin-style-theme .emergency-help-drawer .detail-section-title h3 {
+  margin: 0 0 14px;
+  padding-left: 8px;
+  border-left: 3px solid var(--brand);
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.admin-style-theme .emergency-call-center-note {
+  overflow: visible;
+  white-space: pre-wrap;
+  line-height: 1.65;
+  text-overflow: clip;
+  word-break: break-word;
 }
 
 .admin-style-theme .emergency-processing-form {
@@ -10963,7 +11105,6 @@ th.sticky-right { background: #f7f8fa; }
   grid-column: 1 / -1;
 }
 
-.admin-style-theme .emergency-processing-form select,
 .admin-style-theme .emergency-processing-form textarea {
   width: 100%;
   border: 1px solid #d9dee6;
@@ -10974,34 +11115,15 @@ th.sticky-right { background: #f7f8fa; }
   outline: 0;
 }
 
-.admin-style-theme .emergency-processing-form select {
-  height: 40px;
-  padding: 0 34px 0 11px;
-}
-
 .admin-style-theme .emergency-processing-form textarea {
   min-height: 82px;
   padding: 10px 11px;
   resize: vertical;
 }
 
-.admin-style-theme .emergency-processing-form select:focus,
 .admin-style-theme .emergency-processing-form textarea:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, .1);
-}
-
-.admin-style-theme .emergency-processing-form .emergency-contact-checkbox {
-  grid-column: 1 / -1;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-.admin-style-theme .emergency-contact-checkbox input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
 }
 
 .admin-style-theme .emergency-processing-error {
@@ -11138,12 +11260,21 @@ th.sticky-right { background: #f7f8fa; }
   height: auto;
   padding-top: 10px;
   padding-bottom: 10px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  flex-wrap: nowrap;
   gap: 10px;
 }
 
 .admin-style-theme .emergency-help-drawer footer .secondary-button {
+  margin-left: 0;
+}
+
+.admin-style-theme .emergency-help-footer-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .admin-style-theme .emergency-end-dialog {

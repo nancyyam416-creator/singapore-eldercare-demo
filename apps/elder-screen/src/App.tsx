@@ -38,7 +38,7 @@ import {
   type FamilyWeatherMockScenario,
 } from "./weather/familyWeather";
 import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord, SpecialServiceBooking } from "./types";
-import { elderProfileMock, getActiveFamilyRelationshipCount, getFamilyRelationshipById } from "./elder-profile";
+import { elderProfileMock, getActiveFamilyRelationshipCount } from "./elder-profile";
 import { SERVICE_COMMUNICATION_FIXTURES, secondsFromDuration } from "./service-communication-fixture";
 import {
   completeActivationContractState,
@@ -47,7 +47,6 @@ import {
 } from "./activation-contract";
 import {
   createEmergencyAssistanceEvent,
-  isEmergencyAssistanceActive,
   type EmergencyAssistanceEvent,
 } from "./emergency-assistance";
 import {
@@ -206,27 +205,6 @@ const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
 const createInitialFamilyMediaViewedAt = () => Object.fromEntries(
   INITIAL_FAMILY_PHOTOS.map((photo) => [photo.id, photo.viewedAt ?? null]),
 ) as Record<string, string | null>;
-
-const createHistoricalFamilyMediaFocusRequest = (
-  photo: FamilyPhoto,
-  mediaMessage: FamilyMessage,
-  requestId = 0,
-): FamilyMediaFocusRequest => {
-  const uploadRelationship = getFamilyRelationshipById(photo.uploaderRelationshipId);
-  const uploadSenderName = photo.senderName ?? mediaMessage.sender;
-  return {
-    id: requestId,
-    contactId: `history-${photo.uploaderRelationshipId ?? uploadSenderName}`,
-    mediaId: photo.id,
-    historicalContact: {
-      sourceRelationshipId: photo.uploaderRelationshipId,
-      name: uploadSenderName,
-      relation: uploadRelationship?.relationship ?? "家人",
-      avatar: uploadRelationship?.avatar ?? mediaMessage.avatar,
-      weatherUserId: uploadRelationship?.weatherUserId,
-    },
-  };
-};
 
 const createDefaultReminders = (): MedicationReminder[] => [
   {
@@ -629,27 +607,10 @@ export default function App() {
       .sort((first, second) => (first.publishedAt ?? "").localeCompare(second.publishedAt ?? ""))[0];
     if (!firstUnread) return;
 
-    const mediaMessage = messages.find((message) => message.familyMediaId === firstUnread.id);
-    const uploadRelationship = getFamilyRelationshipById(firstUnread.uploaderRelationshipId);
-    const relationshipIsHistorical = acceptanceRightContentCondition === "relationship-invalid"
-      || uploadRelationship?.active === false;
-    const uploadSenderName = firstUnread.senderName ?? mediaMessage?.sender;
-    if (!mediaMessage || !uploadSenderName) {
-      setFamilyMediaOpenError("暂时无法打开这条家庭影像");
-      window.setTimeout(() => setFamilyMediaOpenError(""), 3200);
-      return;
-    }
-
     setFamilyMediaOpenError("");
-    setAlbumInitialMediaId(null);
-    setFamilyMediaFocusRequest((current) => relationshipIsHistorical
-      ? createHistoricalFamilyMediaFocusRequest(firstUnread, mediaMessage, (current?.id ?? 0) + 1)
-      : {
-          id: (current?.id ?? 0) + 1,
-          contactId: uploadRelationship?.id ?? firstUnread.uploaderRelationshipId ?? uploadSenderName,
-          mediaId: firstUnread.id,
-        });
-    setIsContactsOpen(true);
+    setFamilyMediaFocusRequest(null);
+    setAlbumInitialMediaId(firstUnread.id);
+    setIsAlbumPageOpen(true);
   };
 
   const openFamilyMediaDetail = (mediaId: string) => {
@@ -720,7 +681,6 @@ export default function App() {
       category: "反诈防骗",
       source: "公安反诈中心",
       coverUrl: "https://loremflickr.com/720/480/phone,security?lock=51",
-      contactLabel: "联系家人核实",
     },
     {
       id: "tip-2",
@@ -730,7 +690,6 @@ export default function App() {
       category: "消费安全",
       source: "社区民警",
       coverUrl: "https://loremflickr.com/720/480/senior,seminar?lock=52",
-      contactLabel: "联系家人商量",
     },
     {
       id: "tip-3",
@@ -740,7 +699,6 @@ export default function App() {
       category: "亲情诈骗",
       source: "社区民警",
       coverUrl: "https://loremflickr.com/720/480/phone,message?lock=53",
-      contactLabel: "联系家人核实",
     },
   ]);
 
@@ -972,7 +930,9 @@ export default function App() {
   const openAcceptanceEmergencyScenario = (scenario: EmergencyAcceptanceScenario) => {
     showHomeForAcceptance();
     setEmergencyAcceptanceScenario(scenario);
-    if (scenario === "processing") {
+    if (scenario === "waiting") {
+      setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "待接听"));
+    } else if (scenario === "processing") {
       setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "处理中"));
     } else if (scenario === "completed") {
       setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "已完成"));
@@ -1438,8 +1398,7 @@ export default function App() {
       onSetEmergencyScenario={setEmergencyAcceptanceScenario}
       onOpenEmergencyScenario={openAcceptanceEmergencyScenario}
       onOpenActivation={() => {
-        window.localStorage.removeItem("u2g-tablet-activated-v1");
-        setIsDeviceActivated(false);
+        resetActivationScenario();
       }}
       onResetActivation={() => resetActivationScenario()}
       onReset={resetAcceptanceState}
@@ -1506,8 +1465,7 @@ export default function App() {
             onOpenAssistant={() => setIsAssistantOpen(true)}
             onOpenMore={() => setIsMoreModulesOpen(true)}
             onTriggerSOS={() => {
-              setEmergencyAcceptanceScenario("normal-connected");
-              if (!isEmergencyAssistanceActive(emergencyAssistanceEvent)) setEmergencyAssistanceEvent(null);
+              if (!emergencyAssistanceEvent) setEmergencyAcceptanceScenario("normal-connected");
               setIsSOSOpen(true);
             }}
             acceptanceTimeOverride={acceptanceTimeOverride}
@@ -1526,6 +1484,12 @@ export default function App() {
         <TodayOverviewPage
           isOpen={isTodayOverviewOpen}
           onClose={() => setIsTodayOverviewOpen(false)}
+          unreadMessageCount={messages.filter((message) => !message.played && message.sender !== "您 (我)" && message.type !== "photo" && message.type !== "call_log").length}
+          missedCallCount={missedCallCount}
+          albumUnreadCount={albumUnreadCount}
+          onOpenContacts={() => { setIsTodayOverviewOpen(false); setIsContactsOpen(true); }}
+          onOpenMessages={() => { setIsTodayOverviewOpen(false); setContactsInitialSender(null); setIsContactsOpen(true); }}
+          onOpenAlbum={() => { setIsTodayOverviewOpen(false); setAlbumInitialMediaId(null); setIsAlbumPageOpen(true); }}
           onFulfillment={appendFulfillmentRecord}
           isSecurityRead={safetyReadIds.includes("tip-1")}
           onOpenSecurity={() => {
@@ -1714,13 +1678,6 @@ export default function App() {
               setReturnToCommunityLife(false);
               setIsCommunityLifeOpen(true);
             } else if (homeRecommendationKind === "security") setHomeRecommendationKind(null);
-          }}
-          onContactFamily={() => {
-            setIsSecurityInformationOpen(false);
-            setAutoPlaySafetyInformation(false);
-            setReturnToCommunityLife(false);
-            setSecurityInformationMode("security");
-            setIsContactsOpen(true);
           }}
         />
 

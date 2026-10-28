@@ -524,7 +524,7 @@ export default function HomeTaskRail({
             type="button"
             className="today-overview-button"
             onClick={onOpenTodayOverview}
-            aria-label="全屏打开今日全览"
+            aria-label="打开今日全览"
           >
             <CalendarDays aria-hidden="true" />
             <strong>今日全览</strong>

@@ -5,10 +5,10 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Clock,
-  CheckCircle,
-  AlertCircle,
+import { 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
   Calendar,
   Sparkles,
   RefreshCw,
@@ -48,6 +48,7 @@ interface H5MonitorTabProps {
   onSwitchToOrders: () => void;
   onOpenElderProfile: () => void;
   onSwitchElder?: () => void;
+  assistanceSummary?: React.ReactNode;
   onOpenPhotoShare: () => void;
   onOpenFamilyMessages: () => void;
   familyMessages: SharedFamilyMessage[];
@@ -244,6 +245,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   parentProfile,
   onOpenElderProfile,
   onSwitchElder,
+  assistanceSummary,
   onOpenPhotoShare,
   onOpenFamilyMessages,
   familyMessages: sharedFamilyMessages,
@@ -885,11 +887,11 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
 
   // Render a single room block inside our interactive graphical floor plan layout
   const renderRoomBlock = (
-    name: string,
-    emoji: string,
-    colClass: string,
-    bgColors: string,
-    textColor: string,
+    name: string, 
+    emoji: string, 
+    colClass: string, 
+    bgColors: string, 
+    textColor: string, 
     dotColor: string
   ) => {
     const isCurrentlyHere = healthStats.location === name || (name.includes('阳台') && healthStats.location.includes('阳台')) || (healthStats.location.includes('阳台') && name.includes('阳台'));
@@ -908,8 +910,8 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
           }
         }}
         className={`p-2 rounded-xl border-1.5 transition-all flex flex-col justify-between text-left relative cursor-pointer ${colClass} ${
-          isSelectedInTrajectory
-            ? 'bg-white border-blue-600 shadow-md ring-2 ring-blue-100 z-10 saturate-120 scale-[1.02]'
+          isSelectedInTrajectory 
+            ? 'bg-white border-blue-600 shadow-md ring-2 ring-blue-100 z-10 saturate-120 scale-[1.02]' 
             : `${bgColors} border-slate-200 hover:bg-white hover:border-slate-300`
         }`}
       >
@@ -1770,6 +1772,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
           </div>
         )}
       </H5ElderStatusCard>
+      {assistanceSummary}
 
       <button
         type="button"
@@ -2667,7 +2670,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
               </div>
             )}
           </section>
-
+          
           {/* A. NEW SEGMENT: Room Occupancy stay duration tracking */}
           <div className="hidden bg-white rounded-2xl p-4 border border-slate-100 shadow-xs">
             <div className="flex items-center justify-between mb-3.5">
@@ -2795,7 +2798,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                   <div className="flex h-5.5 rounded-lg overflow-hidden border border-slate-200 shadow-3xs">
                     {roomTrajectoryTimeline.map((item, idx) => {
                       const isSelected = activeIndex === idx;
-
+                      
                       // Dynamically calculate segment width based on its timeRange
                       const parts = item.timeRange.split('-').map(p => p.trim());
                       let width = '10%';
@@ -2851,7 +2854,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                           <span>在 {roomTrajectoryTimeline[activeIndex].roomName}</span>
                         </span>
                       </div>
-
+                      
                       <span className="text-5xs bg-emerald-100 border border-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded font-black flex items-center gap-0.5">
                         ✓ 设备数据有效
                       </span>
@@ -2878,15 +2881,15 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                     {roomTrajectoryTimeline.map((item, index) => {
                       const isSelected = activeIndex === index;
                       const isCurrentlyHere = healthStats.location === item.roomName;
-
+                      
                       return (
                         <button
                           key={index}
                           type="button"
                           onClick={() => setSelectedTimelineIndex(index)}
                           className={`w-full p-2 rounded-lg border text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-blue-50 border-blue-200 shadow-3xs ring-1 ring-blue-100'
+                            isSelected 
+                              ? 'bg-blue-50 border-blue-200 shadow-3xs ring-1 ring-blue-100' 
                               : 'bg-white border-slate-100 hover:border-slate-200'
                           }`}
                         >
@@ -2903,7 +2906,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                               <p className="text-5xs text-slate-450 font-bold mt-0.5 truncate max-w-[150px]">检测到房间活动</p>
                             </div>
                           </div>
-
+                          
                           <span className="text-[9px] text-blue-600 font-black">
                             {isSelected ? '已选择' : '查阅'} &rarr;
                           </span>
@@ -2941,7 +2944,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                           <span className="font-mono text-xs text-slate-800 font-black">{room.hours}小时</span>
                         </div>
                         <div className="relative w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div
+                          <div 
                             className={`h-full rounded-full transition-all duration-500 ${room.color} ${isActive ? 'opacity-100 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'opacity-80'}`}
                             style={{ width: `${percent}%` }}
                           ></div>
@@ -2962,7 +2965,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                 <Clock size={16} className="text-blue-600" />
                 <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">今日用药监督与打卡</h4>
               </div>
-
+              
               <div className="flex items-center gap-1.5">
                 <span className="text-5xs text-slate-500 font-bold">
                   已服 <span className="text-blue-600 font-black">{takenCount}</span>/{totalMeds}
@@ -2985,8 +2988,8 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                     <Sparkles size={10} />
                     替长辈录入新药单
                   </span>
-                  <button
-                    type="button"
+                  <button 
+                    type="button" 
                     onClick={() => setIsAddingMed(false)}
                     className="text-slate-400 hover:text-slate-600 text-4xs font-black"
                   >
@@ -3068,8 +3071,8 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
             {/* LIVE PHARMACY CHECKLIST WITH ACTION TRIGGERS */}
             <div className="space-y-2.5">
               {medications.map(med => (
-                <div
-                  key={med.id}
+                <div 
+                  key={med.id} 
                   className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${med.status === 'taken' ? 'bg-emerald-50/50 border-emerald-100' : med.status === 'missed' ? 'bg-rose-50/50 border-rose-100' : 'bg-slate-50/50 border-slate-100'}`}
                 >
                   <div className="flex items-center gap-3">
@@ -3288,7 +3291,7 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
                 {index !== visibleActivities.length - 1 && (
                   <div className="absolute top-5 left-2.5 bottom-0 w-0.5 bg-slate-100 -translate-x-1/2"></div>
                 )}
-
+                
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center relative z-10 shrink-0 mt-0.5 ${
                   act.type === 'alert' ? 'bg-rose-100 text-rose-600 ring-4 ring-rose-50' :
                   act.type === 'warning' ? 'bg-amber-100 text-amber-600' :
