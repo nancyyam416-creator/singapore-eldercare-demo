@@ -1,3 +1,4 @@
+import { H5BookingConfirmation } from './H5BookingConfirmation';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -554,7 +555,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
         </header>
 
         {/* 3. APP SCREEN WRAPPER WITH ABSOLUTE ALERT OVERLAYS */}
-        <div ref={contentScrollRef} className="flex-1 overflow-y-auto relative min-h-0 bg-slate-50">
+        <div ref={contentScrollRef} className={`flex-1 overflow-y-auto relative min-h-0 bg-slate-50 ${activeTab === 'store' && familySection === 'messages' ? 'flex flex-col' : ''}`}>
           
           {/* CRITICAL EMERGENCY ALARM POPUP OVERLAY */}
           {isLoggedIn && emergencyAlert && (
@@ -613,6 +614,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             </div>
           )}
 
+          <H5BookingConfirmation visible={isLoggedIn && activeTab === 'store' && familySection === 'messages'} resetSignal={previewResetSignal} />
           {/* RENDERING ACTIVE TAB VIEW */}
           {!isLoggedIn && (
             <H5LoginPage scenario={loginScenario} onLoginSuccess={handleLogin} />

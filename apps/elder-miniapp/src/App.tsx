@@ -559,7 +559,7 @@ export default function App() {
     : selectedActivity ? { label: '返回活动列表', action: () => { setSelectedActivity(null); setActivityIntentFailure(null); } }
         : selectedAlert ? { label: '返回警惕事项', action: () => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); } }
           : showingService ? { label: selectedService ? '返回服务列表' : '返回首页', action: () => { if (selectedService) { setSelectedService(null); setServiceStep('detail'); } else { setServicesOpen(false); } } }
-            : tab === 'services' && appointmentScenario === 'form' ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
+            : tab === 'services' && appointmentScenario === 'result' ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
               : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('list') }
                 : undefined;
 

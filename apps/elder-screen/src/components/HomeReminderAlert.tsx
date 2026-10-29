@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { BellRing, CalendarDays, CheckCircle2, Clock3, Pill } from "lucide-react";
+import { BellRing, CalendarDays, CheckCircle2, Clock3, Pill, X } from "lucide-react";
 import { speakText, stopSpeech } from "../audio/speech";
 import type { MedicationReminder } from "../types";
 
@@ -33,7 +33,7 @@ export default function HomeReminderAlert({
     : isDailyReminder
     ? minutesUntil > 0 ? "马上有一件日常事项" : "该做事项了"
     : minutesUntil > 0 ? "马上到服药时间了" : "该用药了";
-  const actionLabel = isActivityReminder ? "我知道了" : isDailyReminder ? "我已完成" : "我已服药";
+  const actionLabel = isDailyReminder ? "我知道了" : "我已服药";
   const remainingLabel = minutesUntil > 0 ? `还有 ${minutesUntil} 分钟` : "提醒时间到了";
   const ReminderIcon = isDailyReminder ? CalendarDays : Pill;
   const dismissRef = useRef(onDismiss);
@@ -82,6 +82,14 @@ export default function HomeReminderAlert({
         aria-labelledby="home-reminder-alert-title"
         aria-describedby="home-reminder-alert-description"
       >
+        <button
+          type="button"
+          className="home-reminder-alert__close"
+          onClick={onDismiss}
+          aria-label="关闭提醒弹窗"
+        >
+          <X aria-hidden="true" />
+        </button>
         <header className="home-reminder-alert__header">
           <span className="home-reminder-alert__badge">
             <BellRing aria-hidden="true" />
@@ -110,7 +118,6 @@ export default function HomeReminderAlert({
             <CheckCircle2 aria-hidden="true" />
             {actionLabel}
           </button>
-          <button type="button" onClick={onDismiss}>知道了</button>
         </div>
       </section>
     </div>

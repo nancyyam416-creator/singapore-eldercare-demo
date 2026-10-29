@@ -110,9 +110,31 @@
 .activation-profile-card h3 span { padding: 5px 12px; border-radius: var(--radius-round); color: var(--color-green); background: color-mix(in oklch, var(--color-green-dark), transparent 42%); font-size: 15px; }
 .activation-profile-card strong { display: block; margin-top: 13px; font-size: 19px; }
 .activation-profile-card p { margin: 8px 0 0; color: var(--color-text-soft); font-size: 17px; font-weight: 740; }
+.activation-step--profile { width: min(100%, 940px); }
+.activation-profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; margin-top: 26px; text-align: left; }
+.activation-form-field { min-width: 0; display: grid; align-content: start; gap: 8px; }
+.activation-form-field--wide { grid-column: 1 / -1; }
+.activation-form-field > span:first-child { font-size: 16px; font-weight: 900; }
+.activation-form-input { min-height: 62px; display: grid; grid-template-columns: 25px minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 16px; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); transition: border-color var(--dur-normal) var(--ease-out); }
+.activation-form-input:focus-within { border-color: var(--color-green); }
+.activation-form-input:has(input[aria-invalid="true"]) { border-color: var(--color-red); }
+.activation-form-input svg { width: 23px; height: 23px; color: var(--color-green); }
+.activation-form-input input, .activation-form-input select { min-width: 0; width: 100%; height: 58px; padding: 0; color: var(--color-text); border: 0; outline: 0; background: transparent; font: inherit; font-size: 18px; font-weight: 850; }
+.activation-form-input input::placeholder { color: var(--color-text-muted); }
+.activation-form-input select:disabled { opacity: 1; cursor: default; }
+.activation-form-input--phone { grid-template-columns: 25px auto minmax(0, 1fr); }
+.activation-form-input--phone b { padding-right: 10px; color: var(--color-text-soft); border-right: var(--rule-thin) solid var(--color-line); font-size: 18px; }
+.activation-form-field > small { min-height: 18px; color: #ff9b97; font-size: 14px; font-weight: 850; }
+.activation-confirm-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 28px; text-align: left; }
+.activation-confirm-card > div { min-width: 0; padding: 20px 22px; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); }
+.activation-confirm-card > div.is-wide { grid-column: 1 / -1; }
+.activation-confirm-card span { display: flex; align-items: center; gap: 9px; color: var(--color-text-muted); font-size: 15px; font-weight: 850; }
+.activation-confirm-card span svg { width: 22px; height: 22px; color: var(--color-green); }
+.activation-confirm-card strong { display: block; margin-top: 10px; font-size: 21px; line-height: 1.45; font-weight: 900; }
 .activation-step__actions { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; margin-top: 28px; }
 .activation-step__actions button { min-height: 66px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; color: var(--color-text); border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); font-size: 20px; font-weight: 900; cursor: pointer; }
 .activation-step__actions button.is-primary { color: var(--color-canvas-deep); border-color: var(--color-green); background: var(--color-green); }
+.activation-step__actions button:disabled { color: var(--color-text-muted); border-color: var(--color-line); background: var(--color-panel-soft); cursor: not-allowed; }
 
 .activation-step__status-icon { width: 94px; height: 94px; margin: 0 auto; border-radius: 50%; }
 .activation-step__status-icon svg { width: 49px; height: 49px; }
@@ -122,6 +144,13 @@
 .activation-sync-list svg { width: 24px; height: 24px; flex: 0 0 auto; }
 .activation-step--syncing small { display: block; margin-top: 25px; color: var(--color-text-muted); font-size: 15px; font-weight: 800; }
 .activation-step--success .activation-step__status-icon { color: var(--color-canvas-deep); background: var(--color-green); box-shadow: 0 0 30px color-mix(in oklch, var(--color-green), transparent 68%); }
+.activation-success-profile { display: flex; align-items: center; gap: 18px; margin-top: 25px; padding: 20px 22px; text-align: left; border: var(--rule-strong) solid color-mix(in oklch, var(--color-green), transparent 52%); border-radius: var(--radius-md); background: color-mix(in oklch, var(--color-green-dark), var(--color-panel) 72%); }
+.activation-success-profile > span { width: 58px; height: 58px; display: grid; place-items: center; flex: 0 0 auto; color: var(--color-green); border-radius: 50%; background: color-mix(in oklch, var(--color-green), transparent 85%); }
+.activation-success-profile > span svg { width: 30px; height: 30px; }
+.activation-success-profile small, .activation-success-profile strong, .activation-success-profile p { display: block; }
+.activation-success-profile small { color: var(--color-green); font-size: 14px; font-weight: 900; }
+.activation-success-profile strong { margin-top: 4px; font-size: 23px; }
+.activation-success-profile p { margin: 5px 0 0; color: var(--color-text-soft); font-size: 16px; font-weight: 760; }
 .activation-success-list > div { min-height: 88px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 12px; color: var(--color-green); border: var(--rule-thin) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); font-size: 15px; font-weight: 900; }
 .activation-success-list svg { width: 27px; height: 27px; }
 .activation-step--success > .activation-primary-action { margin-top: 18px; }

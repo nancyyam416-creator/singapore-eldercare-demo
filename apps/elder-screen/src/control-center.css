@@ -829,6 +829,7 @@ button.weather-city-card:hover { background: var(--color-panel-soft); }
 }
 
 .home-reminder-alert__dialog {
+  position: relative;
   width: min(1060px, calc(100% - 80px));
   padding: 38px;
   border: 3px solid color-mix(in oklch, var(--color-amber), transparent 24%);
@@ -848,7 +849,32 @@ button.weather-city-card:hover { background: var(--color-panel-soft); }
   align-items: center;
   justify-content: space-between;
   gap: var(--space-lg);
+  padding-right: 86px;
 }
+
+.home-reminder-alert__close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 2;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border: var(--rule-strong) solid var(--color-line);
+  border-radius: 50%;
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+  box-shadow: 0 8px 24px color-mix(in oklch, #000, transparent 62%);
+  cursor: pointer;
+}
+
+.home-reminder-alert__close:hover { background: color-mix(in oklch, var(--color-panel-raised), var(--color-text) 8%); }
+.home-reminder-alert__close:focus-visible {
+  outline: 4px solid var(--color-green);
+  outline-offset: 4px;
+}
+.home-reminder-alert__close svg { width: 32px; height: 32px; }
 
 .home-reminder-alert__badge,
 .home-reminder-alert__remaining {
@@ -947,7 +973,7 @@ button.weather-city-card:hover { background: var(--color-panel-soft); }
 
 .home-reminder-alert__actions {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 

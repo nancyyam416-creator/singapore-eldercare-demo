@@ -8,52 +8,70 @@ import {
   EyeOff,
   LockKeyhole,
   LoaderCircle,
+  MapPin,
+  Phone,
   ShieldCheck,
   TabletSmartphone,
+  UserRound,
   Wifi,
   X,
 } from "lucide-react";
-import { elderProfileMock } from "../elder-profile";
 import {
   activationScenarioDefinitions,
+  formatActivationAddress,
+  formatActivationPhone,
   getActivationAttemptError,
   type ActivationAcceptanceScenario,
   type ActivationContractState,
   type ActivationError,
+  type ActivationProfileDraft,
 } from "../activation-contract";
 import "./activation-flow.css";
 
-type ActivationStep = "wifi" | "code" | "identity" | "syncing" | "success";
+type ActivationStep = "wifi" | "code" | "profile" | "confirm" | "syncing" | "success";
+type ActivationProfileField = "name" | "phone" | "postalCode" | "streetAddress";
+type ActivationProfileErrors = Partial<Record<ActivationProfileField, string>>;
 
 interface ActivationFlowProps {
   onComplete: () => void;
   scenario: ActivationAcceptanceScenario;
   contractState: ActivationContractState;
   resetSignal: number;
-  onActivationCommitted: () => void;
+  onActivationCommitted: (profile: ActivationProfileDraft) => void;
 }
-
-const elderProfile = {
-  name: elderProfileMock.name,
-  community: elderProfileMock.projectCommunity ?? "未完善",
-  address: elderProfileMock.address ?? "未完善",
-  avatar: elderProfileMock.name.slice(0, 1),
-};
 
 const errorMessages: Record<Exclude<ActivationError, null>, string> = {
   invalid: "激活码不正确，请检查后重新输入。",
-  used: "该激活码已经使用，请联系服务人员确认设备。",
-  deviceMismatch: "激活码与这台平板不匹配，请让工作人员检查。",
-  network: "当前网络连接异常，请检查网络后重试。",
 };
 
 const progressSteps = [
   { key: "wifi", label: "连接无线网络" },
   { key: "code", label: "输入激活码" },
-  { key: "identity", label: "确认是您" },
+  { key: "profile", label: "填写个人信息" },
+  { key: "confirm", label: "确认信息" },
   { key: "syncing", label: "正在准备" },
   { key: "success", label: "完成" },
 ] as const;
+
+const profileFieldNames: ActivationProfileField[] = ["name", "phone", "postalCode", "streetAddress"];
+
+const validateProfile = (profile: ActivationProfileDraft): ActivationProfileErrors => {
+  const errors: ActivationProfileErrors = {};
+  if (!profile.name.trim()) errors.name = "请填写姓名";
+  if (!profile.phone.trim()) errors.phone = "请填写联系电话";
+  else if (!/^\d{8}$/.test(profile.phone)) errors.phone = "请输入 8 位新加坡电话号码";
+  if (!profile.postalCode.trim()) errors.postalCode = "请填写邮政编码";
+  else if (!/^\d{6}$/.test(profile.postalCode)) errors.postalCode = "请输入 6 位数字邮政编码";
+  if (!profile.streetAddress.trim()) errors.streetAddress = "请填写楼栋或街道地址";
+  return errors;
+};
+
+const getInitialTouchedFields = (scenario: ActivationAcceptanceScenario) => {
+  if (scenario === "requiredMissing") return new Set<ActivationProfileField>(profileFieldNames);
+  if (scenario === "phoneInvalid") return new Set<ActivationProfileField>(["phone"]);
+  if (scenario === "postalInvalid") return new Set<ActivationProfileField>(["postalCode"]);
+  return new Set<ActivationProfileField>();
+};
 
 const availableWifiNetworks = [
   { id: "u2g-home-5g", name: "U2G-Home-5G", signal: "信号强", strength: 3 },
@@ -71,13 +89,16 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
   const [code, setCode] = useState(activationScenarioDefinitions[scenario].code);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<ActivationError>(null);
+  const [profile, setProfile] = useState<ActivationProfileDraft>(() => ({ ...activationScenarioDefinitions[scenario].profile }));
+  const [touchedProfileFields, setTouchedProfileFields] = useState<Set<ActivationProfileField>>(() => getInitialTouchedFields(scenario));
   const [showHelp, setShowHelp] = useState(false);
   const [syncedCount, setSyncedCount] = useState(0);
   const onActivationCommittedRef = useRef(onActivationCommitted);
+  const profileRef = useRef(profile);
 
   const currentStepIndex = progressSteps.findIndex((item) => item.key === step);
   const syncItems = useMemo(
-    () => ["您的个人信息", "提醒与日程", "首页与服务"],
+    () => ["绑定老人档案", "绑定当前平板", "准备首页服务"],
     [],
   );
 
@@ -86,15 +107,22 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
   }, [onActivationCommitted]);
 
   useEffect(() => {
-    setStep("wifi");
+    profileRef.current = profile;
+  }, [profile]);
+
+  useEffect(() => {
+    const scenarioDefinition = activationScenarioDefinitions[scenario];
+    setStep(scenarioDefinition.entry);
     setSelectedWifiId(null);
     setWifiPassword("");
     setShowWifiPassword(false);
     setIsConnectingWifi(false);
     setWifiError(false);
-    setCode(activationScenarioDefinitions[scenario].code);
+    setCode(scenarioDefinition.code);
     setIsChecking(false);
     setError(null);
+    setProfile({ ...scenarioDefinition.profile });
+    setTouchedProfileFields(getInitialTouchedFields(scenario));
     setShowHelp(false);
     setSyncedCount(0);
   }, [resetSignal, scenario]);
@@ -107,7 +135,7 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
       window.setTimeout(() => setSyncedCount(index + 1), 500 + index * 520),
     );
     const finishTimer = window.setTimeout(() => {
-      onActivationCommittedRef.current();
+      onActivationCommittedRef.current(profileRef.current);
       setStep("success");
     }, 2850);
 
@@ -129,10 +157,6 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
     setWifiError(false);
     window.setTimeout(() => {
       setIsConnectingWifi(false);
-      if (scenario === "network") {
-        setWifiError(true);
-        return;
-      }
       setStep("code");
     }, 850);
   };
@@ -152,13 +176,36 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
     setError(null);
     window.setTimeout(() => {
       setIsChecking(false);
-      const nextError = getActivationAttemptError(scenario, code, contractState);
+      const nextError = getActivationAttemptError(code);
       if (!nextError) {
-        setStep("identity");
+        setStep("profile");
         return;
       }
       setError(nextError);
     }, 850);
+  };
+
+  const profileErrors = validateProfile(profile);
+  const isProfileValid = Object.keys(profileErrors).length === 0;
+
+  const updateProfile = (field: keyof ActivationProfileDraft, value: string) => {
+    const nextValue = field === "phone"
+      ? value.replace(/\D/g, "").slice(0, 8)
+      : field === "postalCode"
+        ? value.replace(/\D/g, "").slice(0, 6)
+        : value;
+    setProfile((current) => ({ ...current, [field]: nextValue }));
+    if (field === "name" || field === "phone" || field === "postalCode" || field === "streetAddress") {
+      setTouchedProfileFields((current) => new Set(current).add(field));
+    }
+  };
+
+  const showProfileError = (field: ActivationProfileField) => touchedProfileFields.has(field) ? profileErrors[field] : undefined;
+
+  const continueToConfirmation = () => {
+    setTouchedProfileFields(new Set(profileFieldNames));
+    if (!isProfileValid) return;
+    setStep("confirm");
   };
 
   return (
@@ -340,42 +387,78 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
               </section>
             )}
 
-            {step === "identity" && (
-              <section className="activation-step activation-step--identity">
+            {step === "profile" && (
+              <section className="activation-step activation-step--profile">
                 <span className="activation-step__eyebrow">激活码验证成功</span>
-                <h2>这是您的信息吗？</h2>
-                <p>请看一下姓名和社区是否正确。</p>
+                <h2>填写个人信息</h2>
+                <p>请填写您的联系信息和居住地址，带 * 的内容必须填写。</p>
 
-                <div className="activation-profile-card">
-                  <div className="activation-profile-card__avatar">{contractState.elderly.name.slice(0, 1)}</div>
-                  <div>
-                    <h3>{contractState.elderly.name}<span>本人</span></h3>
-                    <strong>{elderProfile.community}</strong>
-                    <p>{elderProfile.address}</p>
-                  </div>
+                <div className="activation-profile-form">
+                  <label className="activation-form-field">
+                    <span>姓名 *</span>
+                    <span className="activation-form-input"><UserRound aria-hidden="true" /><input value={profile.name} onChange={(event) => updateProfile("name", event.target.value)} onBlur={() => setTouchedProfileFields((current) => new Set(current).add("name"))} aria-invalid={Boolean(showProfileError("name"))} aria-describedby={showProfileError("name") ? "activation-name-error" : undefined} placeholder="请输入姓名" /></span>
+                    {showProfileError("name") && <small id="activation-name-error" role="alert">{showProfileError("name")}</small>}
+                  </label>
+
+                  <label className="activation-form-field">
+                    <span>联系电话 *</span>
+                    <span className="activation-form-input activation-form-input--phone"><Phone aria-hidden="true" /><b>+65</b><input inputMode="numeric" value={profile.phone} onChange={(event) => updateProfile("phone", event.target.value)} onBlur={() => setTouchedProfileFields((current) => new Set(current).add("phone"))} aria-invalid={Boolean(showProfileError("phone"))} aria-describedby={showProfileError("phone") ? "activation-phone-error" : undefined} placeholder="8位电话号码" /></span>
+                    {showProfileError("phone") && <small id="activation-phone-error" role="alert">{showProfileError("phone")}</small>}
+                  </label>
+
+                  <label className="activation-form-field">
+                    <span>国家 / 地区</span>
+                    <span className="activation-form-input"><MapPin aria-hidden="true" /><select value={profile.country} disabled aria-label="国家或地区"><option value="新加坡">新加坡</option></select></span>
+                  </label>
+
+                  <label className="activation-form-field">
+                    <span>邮政编码 *</span>
+                    <span className="activation-form-input"><MapPin aria-hidden="true" /><input inputMode="numeric" value={profile.postalCode} onChange={(event) => updateProfile("postalCode", event.target.value)} onBlur={() => setTouchedProfileFields((current) => new Set(current).add("postalCode"))} aria-invalid={Boolean(showProfileError("postalCode"))} aria-describedby={showProfileError("postalCode") ? "activation-postal-error" : undefined} placeholder="6位邮政编码" /></span>
+                    {showProfileError("postalCode") && <small id="activation-postal-error" role="alert">{showProfileError("postalCode")}</small>}
+                  </label>
+
+                  <label className="activation-form-field activation-form-field--wide">
+                    <span>楼栋 / 街道地址 *</span>
+                    <span className="activation-form-input"><MapPin aria-hidden="true" /><input value={profile.streetAddress} onChange={(event) => updateProfile("streetAddress", event.target.value)} onBlur={() => setTouchedProfileFields((current) => new Set(current).add("streetAddress"))} aria-invalid={Boolean(showProfileError("streetAddress"))} aria-describedby={showProfileError("streetAddress") ? "activation-address-error" : undefined} placeholder="例如：12 Ang Mo Kio Avenue 3" /></span>
+                    {showProfileError("streetAddress") && <small id="activation-address-error" role="alert">{showProfileError("streetAddress")}</small>}
+                  </label>
+
+                  <label className="activation-form-field activation-form-field--wide">
+                    <span>单元号（选填）</span>
+                    <span className="activation-form-input"><MapPin aria-hidden="true" /><input value={profile.unit} onChange={(event) => updateProfile("unit", event.target.value)} placeholder="例如：#08-21" /></span>
+                  </label>
                 </div>
 
                 <div className="activation-step__actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("code");
-                      setCode(activationScenarioDefinitions[scenario].code);
-                      setError(null);
-                    }}
-                  >
-                    <ArrowLeft aria-hidden="true" />返回
-                  </button>
-                  <button type="button" className="is-primary" onClick={() => setStep("syncing")}>是我，继续</button>
+                  <button type="button" onClick={() => setStep("code")}><ArrowLeft aria-hidden="true" />返回</button>
+                  <button type="button" className="is-primary" disabled={!isProfileValid} onClick={continueToConfirmation}>下一步：确认信息</button>
                 </div>
               </section>
             )}
 
+            {step === "confirm" && (
+              <section className="activation-step activation-step--confirm">
+                <span className="activation-step__eyebrow">个人信息已填写</span>
+                <h2>请确认您的信息</h2>
+                <p>请仔细核对，确认后将与当前平板绑定。</p>
+
+                <div className="activation-confirm-card">
+                  <div><span><UserRound aria-hidden="true" />姓名</span><strong>{profile.name}</strong></div>
+                  <div><span><Phone aria-hidden="true" />联系电话</span><strong>{formatActivationPhone(profile.phone)}</strong></div>
+                  <div className="is-wide"><span><MapPin aria-hidden="true" />居住地址</span><strong>{formatActivationAddress(profile)}</strong></div>
+                </div>
+
+                <div className="activation-step__actions">
+                  <button type="button" onClick={() => setStep("profile")}><ArrowLeft aria-hidden="true" />返回修改</button>
+                  <button type="button" className="is-primary" onClick={() => setStep("syncing")}>确认无误，开始绑定</button>
+                </div>
+              </section>
+            )}
             {step === "syncing" && (
               <section className="activation-step activation-step--syncing">
                 <span className="activation-step__status-icon"><LoaderCircle className="is-spinning" aria-hidden="true" /></span>
                 <h2>正在为您准备</h2>
-                <p>正在准备个人信息、提醒和首页服务，请稍候。</p>
+                <p>正在绑定您的档案与当前平板，请稍候。</p>
                 <div className="activation-sync-list">
                   {syncItems.map((item, index) => {
                     const completed = index < syncedCount;
@@ -395,9 +478,13 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
               <section className="activation-step activation-step--success">
                 <span className="activation-step__status-icon"><Check aria-hidden="true" /></span>
                 <h2>设备激活成功</h2>
-                <p>{contractState.elderly.name}，欢迎使用 U2G 高龄智慧服务。</p>
+                <p>{contractState.elderly.name || profile.name}，欢迎使用 U2G 高龄智慧服务。</p>
+                <div className="activation-success-profile">
+                  <span><UserRound aria-hidden="true" /></span>
+                  <div><small>已绑定老人档案</small><strong>{contractState.elderly.name || profile.name}</strong><p>{contractState.elderly.addressSummary || formatActivationAddress(profile)}</p></div>
+                </div>
                 <div className="activation-success-list">
-                  {["个人信息已准备", "提醒日程已准备", "首页服务已准备"].map((item) => (
+                  {["老人档案已绑定", "当前平板已绑定", "首页服务已准备"].map((item) => (
                     <div key={item}><CheckCircle2 aria-hidden="true" /><span>{item}</span></div>
                   ))}
                 </div>

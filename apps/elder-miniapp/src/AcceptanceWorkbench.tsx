@@ -57,7 +57,7 @@ const pages: AcceptancePage[] = [
       { value: 'empty', label: '暂无活动', description: '近期没有可报名活动。', status: '空状态' },
     ], actions: [{ id: 'open-first-activity', label: '进入首项活动' }] },
     { id: 'activity-detail', label: '活动详情', scenarios: [
-      { value: 'default', label: '尚未选择', description: '展示详情及两种参加意向。', status: '正常' },
+      { value: 'default', label: '尚未选择', description: '展示活动详情和参加操作。', status: '正常' },
       { value: 'interested', label: '我想参加', description: '展示老人已选择“我想参加”。', status: '已选择' },
       { value: 'submission_failure', label: '提交失败', description: '保留老人当前选择并允许重新提交。', status: '可重试' },
     ] },
@@ -69,10 +69,12 @@ const pages: AcceptancePage[] = [
   { id: 'services', label: '预约服务', modules: [
     { id: 'service-booking', label: '电话咨询与预约', scenarios: [
       { value: 'list', label: '默认列表', description: '展示三类维修服务及各自的参考价格区间。', status: '正常' },
-      { value: 'detail', label: '电话咨询优先', description: '突出服务机构电话，同时保留在线提交入口。', status: '正常' },
-      { value: 'form', label: '在线提交', description: '填写服务时间、联系方式和备注。', status: '待提交' },
-      { value: 'success', label: '信息已记录', description: '展示等待后续联系确认的结果。', status: '待联系' },
-      { value: 'records', label: '预约记录', description: '展示预约信息和当前联系确认状态。', status: 'L3 Mock' },
+      { value: 'detail', label: '电话直接预约', description: '展示服务机构、营业时间、支持区域和预约电话。', status: '正常' },
+      { value: 'pending', label: '结果待确认', description: '已拨打服务机构电话，并模拟向已绑定子女发送确认通知。', status: '待确认' },
+      { value: 'confirmed', label: '已预约成功', description: '展示子女回填的上门时间和备注。', status: '已成功' },
+      { value: 'failed', label: '暂未预约成功', description: '展示子女回填的未成功结果。', status: '未成功' },
+      { value: 'no_guardian', label: '无绑定子女', description: '已拨打电话，但没有可接收确认通知的已绑定子女。', status: '无接收人' },
+      { value: 'records', label: '预约进展', description: '展示电话拨打记录及家人回填的确认结果。', status: 'L3 Mock' },
     ], actions: [{ id: 'open-services', label: '打开预约服务' }] },
   ] },
   { id: 'profile', label: '我的', modules: [

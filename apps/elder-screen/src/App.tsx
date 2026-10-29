@@ -41,6 +41,7 @@ import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMess
 import { elderProfileMock, getActiveFamilyRelationshipCount } from "./elder-profile";
 import { SERVICE_COMMUNICATION_FIXTURES, secondsFromDuration } from "./service-communication-fixture";
 import {
+  activationScenarioDefinitions,
   completeActivationContractState,
   createInitialActivationContractState,
   type ActivationAcceptanceScenario,
@@ -448,7 +449,7 @@ export default function App() {
   const [acceptanceServiceConversationScenario, setAcceptanceServiceConversationScenario] = useState<ServiceConversationAcceptanceScenario>("off");
   const [acceptanceFamilyRequestScenario, setAcceptanceFamilyRequestScenario] = useState<FamilyRelationshipRequestScenario>("pending");
   const [acceptanceFamilyRequestCondition, setAcceptanceFamilyRequestCondition] = useState<FamilyRelationshipRequestCondition>("network-normal");
-  const [acceptanceActivationScenario, setAcceptanceActivationScenario] = useState<ActivationAcceptanceScenario>("success");
+  const [acceptanceActivationScenario, setAcceptanceActivationScenario] = useState<ActivationAcceptanceScenario>("normal");
   const [activationContractState, setActivationContractState] = useState(createInitialActivationContractState);
   const [activationResetSignal, setActivationResetSignal] = useState(0);
   const [communityLifeAcceptanceScenario, setCommunityLifeAcceptanceScenario] = useState<CommunityLifeAcceptanceScenario>("default");
@@ -871,39 +872,48 @@ export default function App() {
     minutesUntil = 0,
     autoDismissMs?: number,
   ) => {
-    const targetId = category === "schedule" ? "schedule-self-walk" : "med-2";
+    const targetId = category === "activity"
+      ? "activity-start-act-1-registration-001"
+      : category === "schedule"
+      ? "schedule-self-walk"
+      : "med-2";
     showHomeForAcceptance();
     const acceptanceReminderTime = acceptanceTimeOverride?.match(/^\d{2}:\d{2}$/)
       ? acceptanceTimeOverride
       : undefined;
-    setReminders((current) => current.map((reminder) => (
-      reminder.id === targetId
-        ? (() => {
-            const effectiveNow = acceptanceTimeOverride?.includes("T")
-              ? new Date(acceptanceTimeOverride)
-              : new Date("2026-09-18T00:00:00+08:00");
-            const effectiveTime = acceptanceReminderTime
-              ?? (acceptanceTimeOverride?.includes("T")
-                ? `${String(effectiveNow.getHours()).padStart(2, "0")}:${String(effectiveNow.getMinutes()).padStart(2, "0")}`
-                : reminder.time);
-            const [hours, minutes] = effectiveTime.split(":").map(Number);
-            effectiveNow.setHours(hours, minutes, 0, 0);
-            const scheduledDate = [
-              effectiveNow.getFullYear(),
-              String(effectiveNow.getMonth() + 1).padStart(2, "0"),
-              String(effectiveNow.getDate()).padStart(2, "0"),
-            ].join("-");
-            return {
-              ...reminder,
-              time: effectiveTime,
-              scheduledAt: `${scheduledDate}T${effectiveTime}:00+08:00`,
-              status: "pending" as const,
-              takenAt: undefined,
-              priority: "P0" as const,
-            };
-          })()
-        : reminder
-    )));
+    setReminders((current) => {
+      const source = category === "activity" && !current.some((reminder) => reminder.id === targetId)
+        ? [...current, createActivityStartReminder()]
+        : current;
+      return source.map((reminder) => (
+        reminder.id === targetId
+          ? (() => {
+              const effectiveNow = acceptanceTimeOverride?.includes("T")
+                ? new Date(acceptanceTimeOverride)
+                : new Date("2026-09-18T00:00:00+08:00");
+              const effectiveTime = acceptanceReminderTime
+                ?? (acceptanceTimeOverride?.includes("T")
+                  ? `${String(effectiveNow.getHours()).padStart(2, "0")}:${String(effectiveNow.getMinutes()).padStart(2, "0")}`
+                  : reminder.time);
+              const [hours, minutes] = effectiveTime.split(":").map(Number);
+              effectiveNow.setHours(hours, minutes, 0, 0);
+              const scheduledDate = [
+                effectiveNow.getFullYear(),
+                String(effectiveNow.getMonth() + 1).padStart(2, "0"),
+                String(effectiveNow.getDate()).padStart(2, "0"),
+              ].join("-");
+              return {
+                ...reminder,
+                time: effectiveTime,
+                scheduledAt: `${scheduledDate}T${effectiveTime}:00+08:00`,
+                status: "pending" as const,
+                takenAt: undefined,
+                priority: "P0" as const,
+              };
+            })()
+          : reminder
+      ));
+    });
     setHomeReminderAlert({
       reminderId: targetId,
       minutesUntil,
@@ -1179,7 +1189,9 @@ export default function App() {
 
   const resetActivationScenario = (scenario: ActivationAcceptanceScenario = acceptanceActivationScenario) => {
     setAcceptanceActivationScenario(scenario);
-    setActivationContractState(createInitialActivationContractState());
+    setActivationContractState(scenario === "completedBinding"
+      ? completeActivationContractState(activationScenarioDefinitions.completedBinding.profile)
+      : createInitialActivationContractState());
     setActivationResetSignal((signal) => signal + 1);
     window.localStorage.removeItem("u2g-tablet-activated-v1");
     setIsDeviceActivated(false);
@@ -1205,7 +1217,7 @@ export default function App() {
     setAcceptanceFamilyRequestCondition("network-normal");
     setEmergencyAcceptanceScenario("normal-connected");
     setEmergencyAssistanceEvent(null);
-    setAcceptanceActivationScenario("success");
+    setAcceptanceActivationScenario("normal");
     setActivationContractState(createInitialActivationContractState());
     setActivationResetSignal((signal) => signal + 1);
     setCommunityLifeAcceptanceScenario("default");
@@ -1787,7 +1799,7 @@ export default function App() {
             scenario={acceptanceActivationScenario}
             contractState={activationContractState}
             resetSignal={activationResetSignal}
-            onActivationCommitted={() => setActivationContractState(completeActivationContractState())}
+            onActivationCommitted={(profile) => setActivationContractState(completeActivationContractState(profile))}
             onComplete={() => {
               window.localStorage.setItem("u2g-tablet-activated-v1", "true");
               setIsDeviceActivated(true);

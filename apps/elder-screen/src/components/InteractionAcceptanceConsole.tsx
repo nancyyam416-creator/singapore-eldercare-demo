@@ -53,7 +53,7 @@ import {
 } from "../activation-contract";
 import "./interaction-acceptance-console.css";
 
-export type AcceptanceTaskContentScenario = "medicine" | "schedule";
+export type AcceptanceTaskContentScenario = "medicine" | "schedule" | "activity";
 export type AcceptanceAlbumScenario =
   | "default"
   | "notice-photo"
@@ -229,6 +229,13 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
   { id: "contacts", label: "通讯录", sections: ["family-requests", "service-messages"] },
 ];
 
+const activationEntryLabels = {
+  wifi: "连接无线网络",
+  profile: "填写个人信息",
+  confirm: "确认信息",
+  success: "完成绑定",
+} as const;
+
 interface AcceptanceConsoleDragState {
   pointerId: number;
   startX: number;
@@ -260,7 +267,7 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "schedule-unconfirmed": { label: "事项尚未完成（30分钟）", description: "到点满30分钟转为未确认并退出右侧，在今日全览中仍可处理。" },
   "schedule-grouped": { label: "同一时间多项事项", description: "同时间、同阶段的多项事项合并展示；点击右侧进入今日全览。" },
   "schedule-expired": { label: "事项次日已过期", description: "切换至次日00:00；记录转为已过期，退出首页右侧和今日全览，历史记录保留。" },
-  "activity-started": { label: "活动开始了", description: "到达活动开始时间后显示活动名称；点击右侧进入社区活动。" },
+  "activity-started": { label: "活动开始了", description: "到达活动开始时间后显示活动弹窗；关闭弹窗不改变提醒状态，点击右侧仍可进入社区活动。" },
   "activity-upcoming": { label: "活动快开始了", description: "活动开始前30分钟显示开始时间和活动名称；点击右侧进入社区活动。" },
   "activity-updated": { label: "活动信息已更新", description: "不弹窗、不语音，右侧直接读取更新后的活动时间和地点。" },
   "activity-cancelled": { label: "活动已取消", description: "取消活动立即退出右侧候选，继续展示下一条有效内容。" },
@@ -1052,6 +1059,11 @@ export default function InteractionAcceptanceConsole({
                     <CalendarDays />再次显示事项到点弹窗
                   </button>
                 )}
+                {rightContentScenario === "activity-started" && (
+                  <button type="button" className="interaction-acceptance-wide" onClick={() => onOpenHomeReminderAlert("activity", 0)}>
+                    <CalendarDays />显示活动开始弹窗
+                  </button>
+                )}
                 {!rightContentActionLabel && rightContentScenario === "no-content" && (
                   <p className="interaction-acceptance-note">当前为空状态，没有可执行的内容入口。</p>
                 )}
@@ -1242,7 +1254,7 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "activation" && <section>
               <div className="interaction-acceptance-field">
-                <h2><TabletSmartphone aria-hidden="true" />激活场景</h2>
+                <h2><TabletSmartphone aria-hidden="true" />可见状态</h2>
                 <label className="interaction-acceptance-module-picker">
                   <span className="interaction-acceptance-module-picker__select">
                     <select
@@ -1258,9 +1270,9 @@ export default function InteractionAcceptanceConsole({
                   </span>
                 </label>
                 <div className="interaction-acceptance-current" aria-live="polite">
-                  <strong>{selectedActivationScenario.label} · {selectedActivationScenario.code}</strong>
+                  <strong>{selectedActivationScenario.label}</strong>
                   <p>{selectedActivationScenario.description}</p>
-                  <p>默认从“未选择无线网络”开始，可完整验收选网络、输密码和连接流程。</p>
+                  <p>验收入口：{activationEntryLabels[selectedActivationScenario.entry]}</p>
                 </div>
               </div>
               <div className="interaction-acceptance-field">
@@ -1270,13 +1282,16 @@ export default function InteractionAcceptanceConsole({
                   <div><dt>目标设备</dt><dd>{activationContractState.device.status}</dd></div>
                   <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
                   <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>
+                  <div><dt>老人姓名</dt><dd>{activationContractState.elderly.name || "待填写"}</dd></div>
+                  <div><dt>联系电话</dt><dd>{activationContractState.elderly.phone || "待填写"}</dd></div>
+                  <div><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
                   <div><dt>可重复使用</dt><dd>{activationContractState.activationCode.reusable ? "是" : "否"}</dd></div>
                 </dl>
               </div>
               <div className="interaction-acceptance-field">
                 <h2><BellRing aria-hidden="true" />可执行动作</h2>
                 <button type="button" className="interaction-acceptance-primary-action" onClick={onOpenActivation}>
-                  <TabletSmartphone aria-hidden="true" />从未选网络开始验收
+                  <TabletSmartphone aria-hidden="true" />打开当前激活场景
                 </button>
                 <button type="button" className="interaction-acceptance-secondary-action" onClick={onResetActivation}>
                   <RefreshCcw aria-hidden="true" />重置当前激活场景

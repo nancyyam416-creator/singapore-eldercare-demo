@@ -1,13 +1,25 @@
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 
 export type ActivationAcceptanceScenario =
-  | "success"
-  | "invalid"
-  | "used"
-  | "deviceMismatch"
-  | "network";
+  | "normal"
+  | "requiredMissing"
+  | "phoneInvalid"
+  | "postalInvalid"
+  | "returnEdit"
+  | "completedBinding";
 
-export type ActivationError = Exclude<ActivationAcceptanceScenario, "success"> | null;
+export type ActivationError = "invalid" | null;
+
+export interface ActivationProfileDraft {
+  name: string;
+  phone: string;
+  country: "新加坡";
+  postalCode: string;
+  streetAddress: string;
+  unit: string;
+}
+
+export type ActivationScenarioEntry = "wifi" | "profile" | "confirm" | "success";
 
 export interface ActivationContractState {
   contractVersion: string;
@@ -26,6 +38,12 @@ export interface ActivationContractState {
   elderly: {
     id: string;
     name: string;
+    phone: string;
+    country: string;
+    postalCode: string;
+    streetAddress: string;
+    unit: string;
+    addressSummary: string;
     currentTabletId: string | null;
   };
   completedAt: string | null;
@@ -35,33 +53,70 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
   label: string;
   description: string;
   code: string;
+  entry: ActivationScenarioEntry;
+  profile: ActivationProfileDraft;
 }> = {
-  success: {
+  normal: {
     label: "正常激活",
-    description: "完成后同步更新激活码、目标设备和老人当前平板。",
+    description: "从连接无线网络开始，完整演示填写资料、确认和绑定。",
     code: tabletActivationMock.scenarioCodes.success,
+    entry: "wifi",
+    profile: {
+      name: tabletActivationMock.elderlyName,
+      phone: "81234567",
+      country: "新加坡",
+      postalCode: "560123",
+      streetAddress: "12 Ang Mo Kio Avenue 3",
+      unit: "#08-21",
+    },
   },
-  invalid: {
-    label: "激活码错误",
-    description: "输入的六位码不存在或格式正确但无法匹配。",
-    code: tabletActivationMock.scenarioCodes.invalid,
+  requiredMissing: {
+    label: "必填项缺失",
+    description: "姓名、联系电话、邮政编码和街道地址为空，就地显示必填提示。",
+    code: tabletActivationMock.scenarioCodes.success,
+    entry: "profile",
+    profile: { name: "", phone: "", country: "新加坡", postalCode: "", streetAddress: "", unit: "" },
   },
-  used: {
-    label: "激活码已使用",
-    description: "已完成激活的码不可再次使用。",
-    code: tabletActivationMock.scenarioCodes.used,
+  phoneInvalid: {
+    label: "电话格式错误",
+    description: "联系电话不是 8 位数字，表单保留输入并禁止继续。",
+    code: tabletActivationMock.scenarioCodes.success,
+    entry: "profile",
+    profile: { name: tabletActivationMock.elderlyName, phone: "8123456", country: "新加坡", postalCode: "560123", streetAddress: "12 Ang Mo Kio Avenue 3", unit: "#08-21" },
   },
-  deviceMismatch: {
-    label: "设备不匹配",
-    description: "激活码指定的目标设备不是当前平板。",
-    code: tabletActivationMock.scenarioCodes.deviceMismatch,
+  postalInvalid: {
+    label: "邮编格式错误",
+    description: "邮政编码不是 6 位数字，表单保留输入并禁止继续。",
+    code: tabletActivationMock.scenarioCodes.success,
+    entry: "profile",
+    profile: { name: tabletActivationMock.elderlyName, phone: "81234567", country: "新加坡", postalCode: "56012", streetAddress: "12 Ang Mo Kio Avenue 3", unit: "#08-21" },
   },
-  network: {
-    label: "网络异常",
-    description: "连接无线网络时暂不可用，保留当前密码输入供用户检查后重试。",
-    code: tabletActivationMock.scenarioCodes.network,
+  returnEdit: {
+    label: "返回修改",
+    description: "确认页展示完整资料，可返回上一步修改并再次确认。",
+    code: tabletActivationMock.scenarioCodes.success,
+    entry: "confirm",
+    profile: { name: tabletActivationMock.elderlyName, phone: "81234567", country: "新加坡", postalCode: "560123", streetAddress: "12 Ang Mo Kio Avenue 3", unit: "#08-21" },
+  },
+  completedBinding: {
+    label: "完成绑定",
+    description: "完成页显示老人姓名和地址摘要，Mock 契约已绑定当前平板。",
+    code: tabletActivationMock.scenarioCodes.success,
+    entry: "success",
+    profile: { name: tabletActivationMock.elderlyName, phone: "81234567", country: "新加坡", postalCode: "560123", streetAddress: "12 Ang Mo Kio Avenue 3", unit: "#08-21" },
   },
 };
+
+export const formatActivationPhone = (phone: string) => phone.length === 8
+  ? `+65 ${phone.slice(0, 4)} ${phone.slice(4)}`
+  : `+65 ${phone}`;
+
+export const formatActivationAddress = (profile: ActivationProfileDraft) => [
+  profile.streetAddress.trim(),
+  profile.unit.trim(),
+  profile.country,
+  profile.postalCode.trim(),
+].filter(Boolean).join(" · ");
 
 export const createInitialActivationContractState = (): ActivationContractState => ({
   contractVersion: tabletActivationMock.contractVersion,
@@ -80,12 +135,20 @@ export const createInitialActivationContractState = (): ActivationContractState 
   elderly: {
     id: tabletActivationMock.elderlyId,
     name: tabletActivationMock.elderlyName,
+    phone: "",
+    country: "新加坡",
+    postalCode: "",
+    streetAddress: "",
+    unit: "",
+    addressSummary: "",
     currentTabletId: tabletActivationMock.states.generated.elderlyCurrentTabletId,
   },
   completedAt: null,
 });
 
-export const completeActivationContractState = (): ActivationContractState => ({
+export const completeActivationContractState = (
+  profile: ActivationProfileDraft = activationScenarioDefinitions.normal.profile,
+): ActivationContractState => ({
   contractVersion: tabletActivationMock.contractVersion,
   activationCode: {
     value: tabletActivationMock.activationCode,
@@ -101,20 +164,20 @@ export const completeActivationContractState = (): ActivationContractState => ({
   },
   elderly: {
     id: tabletActivationMock.elderlyId,
-    name: tabletActivationMock.elderlyName,
+    name: profile.name.trim(),
+    phone: formatActivationPhone(profile.phone),
+    country: profile.country,
+    postalCode: profile.postalCode,
+    streetAddress: profile.streetAddress.trim(),
+    unit: profile.unit.trim(),
+    addressSummary: formatActivationAddress(profile),
     currentTabletId: tabletActivationMock.states.completed.elderlyCurrentTabletId,
   },
   completedAt: tabletActivationMock.completedAt,
 });
 
 export const getActivationAttemptError = (
-  scenario: ActivationAcceptanceScenario,
   code: string,
-  contractState: ActivationContractState,
 ): ActivationError => {
-  if (contractState.activationCode.status === tabletActivationMock.states.completed.activationCodeStatus) return "used";
-  if (scenario !== "success") return scenario;
   return code === tabletActivationMock.activationCode ? null : "invalid";
 };
-
-export const activationRepeatSubmissionMessage = tabletActivationMock.states.completed.repeatSubmissionMessage;
