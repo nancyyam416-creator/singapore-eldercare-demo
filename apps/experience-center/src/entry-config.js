@@ -1,8 +1,13 @@
-const localEntries = {
+const localEntries = import.meta.env.DEV ? {
   admin: "http://localhost:53113/?acceptance",
   elderScreen: "http://localhost:53112/",
   elderMobile: "http://localhost:53114/",
   familyMobile: "http://localhost:53111/",
+} : {
+  admin: `${import.meta.env.BASE_URL}admin/?acceptance`,
+  elderScreen: `${import.meta.env.BASE_URL}elder-screen/`,
+  elderMobile: `${import.meta.env.BASE_URL}elder-mobile/`,
+  familyMobile: `${import.meta.env.BASE_URL}family-mobile/`,
 };
 
 function configuredUrl(envName, fallback) {

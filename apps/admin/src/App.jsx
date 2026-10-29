@@ -81,7 +81,7 @@ import {
   X,
 } from "lucide-react";
 
-const u2gPortalUrl = import.meta.env.VITE_U2G_PORTAL_URL || "http://localhost:53110/";
+const u2gPortalUrl = import.meta.env.VITE_U2G_PORTAL_URL || (import.meta.env.DEV ? "http://localhost:53110/" : "/singapore-eldercare-demo/");
 
 const communityMenuGroups = [
   { label: "工作台", items: [
