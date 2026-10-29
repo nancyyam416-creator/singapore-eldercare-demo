@@ -6,9 +6,8 @@ export type EmergencyAcceptanceScenario =
   | "normal-connected"
   | "waiting"
   | "no-answer"
-  | "partial-notification-failure"
-  | "processing"
-  | "completed";
+  | "connected"
+  | "cancelled";
 
 export interface EmergencyChildNotification {
   id: string;
@@ -59,45 +58,40 @@ const unifiedMock = unifiedMockSource as UnifiedEmergencyMock;
 
 export const emergencyScenarioDefinitions: Record<EmergencyAcceptanceScenario, { label: string; description: string }> = {
   "normal-connected": {
-    label: "正常接通",
-    description: "呼叫中心接听并与老人沟通，已绑定子女同步收到通知。",
+    label: "确认并正常接通",
+    description: "从确认页发起网络电话，先显示正在连接，再显示呼叫中心已接听。",
   },
   waiting: {
-    label: "正在联系呼叫中心",
-    description: "在线求助已发起，事件保持待接听状态，老人可关闭后再次查看。",
+    label: "正在连接",
+    description: "网络电话正在连接乐龄呼叫中心，老人可取消本次连接。",
   },
   "no-answer": {
-    label: "呼叫中心未接听",
-    description: "首次未接通，老人可重新联系，也可返回首页等待回拨。",
+    label: "连接失败，可重试",
+    description: "网络电话暂时未能接通呼叫中心，老人可重新连接或返回首页。",
   },
-  "partial-notification-failure": {
-    label: "部分子女通知失败",
-    description: "呼叫中心仍正常处理；单个子女通知失败不会中断在线求助事件。",
+  connected: {
+    label: "呼叫中心已接听",
+    description: "网络电话已经接通，老人可直接与呼叫中心工作人员说话。",
   },
-  processing: {
-    label: "呼叫中心处理中",
-    description: "事件已存在且正在处理，重新打开时不重复创建。",
-  },
-  completed: {
-    label: "已处理完成",
-    description: "呼叫中心已完成本次在线求助，老人端展示结果摘要、备注和返回首页。",
+  cancelled: {
+    label: "老人已取消",
+    description: "本次网络电话连接已取消，没有继续呼叫呼叫中心。",
   },
 };
 
 export const onlineAssistanceCompletionResult = {
   summary: "工作人员已确认情况并完成本次处理",
-  note: "呼叫中心已记录您的情况；如需进一步协助，工作人员会再次联系您。",
+  note: "呼叫中心已记录您的情况；如需进一步协助，工作人员会再次通过网络电话联系您。",
 } as const;
 
 export function createEmergencyAssistanceEvent(
   scenario: EmergencyAcceptanceScenario,
   status: EmergencyAssistanceStatus = "待接听",
 ): EmergencyAssistanceEvent {
-  const partialFailure = scenario === "partial-notification-failure";
-  const notifications = unifiedMock.children.map((child, index) => ({
+  const notifications = unifiedMock.children.map((child) => ({
     ...child,
-    deliveryStatus: partialFailure && index === 1 ? "发送失败" as const : "已送达" as const,
-    viewedAt: partialFailure && index === 1 ? "" : child.viewedAt,
+    deliveryStatus: "已送达" as const,
+    viewedAt: child.viewedAt,
   }));
   const callCenterStatus: EmergencyAssistanceEvent["callCenter"]["status"] = status === "已取消"
     ? "待接听"

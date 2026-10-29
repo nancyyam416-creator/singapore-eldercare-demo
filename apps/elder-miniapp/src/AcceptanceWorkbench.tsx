@@ -59,7 +59,6 @@ const pages: AcceptancePage[] = [
     { id: 'activity-detail', label: '活动详情', scenarios: [
       { value: 'default', label: '尚未选择', description: '展示详情及两种参加意向。', status: '正常' },
       { value: 'interested', label: '我想参加', description: '展示老人已选择“我想参加”。', status: '已选择' },
-      { value: 'not_interested', label: '暂不参加', description: '展示老人已选择“暂不参加”。', status: '已选择' },
       { value: 'submission_failure', label: '提交失败', description: '保留老人当前选择并允许重新提交。', status: '可重试' },
     ] },
     { id: 'community-alerts', label: '警惕事项', scenarios: [
@@ -68,20 +67,20 @@ const pages: AcceptancePage[] = [
     ], actions: [{ id: 'open-first-alert', label: '打开首项详情' }] },
   ] },
   { id: 'services', label: '预约服务', modules: [
-    { id: 'service-booking', label: '预约服务闭环', scenarios: [
+    { id: 'service-booking', label: '电话咨询与预约', scenarios: [
       { value: 'list', label: '默认列表', description: '展示三类维修服务及各自的参考价格区间。', status: '正常' },
-      { value: 'detail', label: '服务详情', description: '展示服务分类、机构、价格和服务说明。', status: '正常' },
-      { value: 'form', label: '填写预约', description: '展示本人、地址、日期、时间、联系人和备注。', status: '待提交' },
-      { value: 'success', label: '提交成功', description: '展示预约已提交和待确认结果。', status: '成功' },
-      { value: 'records', label: '预约记录', description: '展示本人预约记录和 Mock 状态变化。', status: 'L3 Mock' },
+      { value: 'detail', label: '电话咨询优先', description: '突出服务机构电话，同时保留在线提交入口。', status: '正常' },
+      { value: 'form', label: '在线提交', description: '填写服务时间、联系方式和备注。', status: '待提交' },
+      { value: 'success', label: '信息已记录', description: '展示等待后续联系确认的结果。', status: '待联系' },
+      { value: 'records', label: '预约记录', description: '展示预约信息和当前联系确认状态。', status: 'L3 Mock' },
     ], actions: [{ id: 'open-services', label: '打开预约服务' }] },
   ] },
   { id: 'profile', label: '我的', modules: [
     { id: 'profile-guardians', label: '家庭守护人', scenarios: [
       { value: 'default', label: '已有守护人', description: '展示已连线的女儿和儿子。', status: '正常' },
-      { value: 'empty', label: '暂无守护人', description: '守护人列表为空，保留关系申请入口。', status: '空状态' },
-    ], actions: [{ id: 'open-binding', label: '打开关系申请' }] },
-    { id: 'profile-binding', label: '家庭关系申请', scenarios: [
+      { value: 'empty', label: '暂无守护人', description: '守护人列表为空，保留家人绑定确认入口。', status: '空状态' },
+    ], actions: [{ id: 'open-binding', label: '打开绑定确认' }] },
+    { id: 'profile-binding', label: '家人绑定确认', scenarios: [
       { value: 'pending', label: '等待确认', description: '展示申请人和确认操作。', status: '待处理' },
       { value: 'success', label: '绑定成功', description: '展示绑定成功结果。', status: '成功' },
       { value: 'rejected', label: '已拒绝', description: '展示老人手机端拒绝申请的结果。', status: '已处理' },

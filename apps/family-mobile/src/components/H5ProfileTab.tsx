@@ -230,41 +230,37 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
 
   return (
     <div className="p-4 pb-8 space-y-4 bg-slate-50 min-h-full">
-      <section className="bg-blue-600 rounded-2xl p-5 text-white shadow-xs">
+      <section className="px-1 py-3 text-slate-900">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border border-white/30">
+          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
             <UserRound size={24} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-black">张女士</h2>
-              <span className="text-[10px] font-bold bg-emerald-400/20 text-emerald-100 border border-emerald-300/30 rounded-full px-2 py-0.5">
+              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 rounded-full px-2 py-0.5">
                 已登录
               </span>
             </div>
-            <p className="text-xs text-blue-100 mt-1">138****8899</p>
+            <p className="text-xs text-slate-500 mt-1">138****8899</p>
           </div>
         </div>
       </section>
 
       <section aria-labelledby="family-management-heading" className="space-y-3">
-        <h2 id="family-management-heading" className="px-1 text-sm font-extrabold text-slate-900">家人管理</h2>
+        <h2 id="family-management-heading" className="px-1 text-sm font-extrabold text-slate-900">我的家人</h2>
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-          <Link2 size={16} className="text-blue-600" />
-          <h3 className="text-sm font-extrabold text-slate-900">已绑定老人</h3>
-        </div>
         <div className="divide-y divide-slate-100">
           {visibleElders.map(elder => {
             return (
               <div key={elder.id} className="flex items-center gap-3 p-4">
                 <img src={elder.avatar} alt={elder.name} className="h-12 w-12 rounded-full border border-slate-200 object-cover" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-extrabold text-slate-900">{elder.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="break-words text-sm font-extrabold text-slate-900">{elder.name}</p>
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">{elder.relation}</span>
                   </div>
-                  <p className={`mt-1 text-xs ${elder.relationshipStatus === 'removed' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>
+                  <p className={`mt-1 break-words text-xs leading-relaxed ${elder.relationshipStatus === 'removed' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>
                     {elder.relationshipStatus === 'removed' ? '家庭关系已解除' : elder.project}
                   </p>
                 </div>
@@ -287,7 +283,7 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
 
       <section aria-label="快捷入口" className="space-y-3">
         <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">{[
-          { label: '常住地址', Icon: MapPin, action: openAddressEditor },
+          { label: '我的常住地址', Icon: MapPin, action: openAddressEditor },
           { label: '申请记录', Icon: ClipboardList, action: () => setProfileView('request_records') },
           { label: '家人在线协助', Icon: Headphones, action: onOpenAssistance }
         ].map(({ label, Icon, action }) => <button key={label} type="button" onClick={action} className="flex min-h-18 w-full items-center gap-3 p-4 text-left"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon size={19} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{label}</strong></span><ChevronRight size={17} className="text-slate-300" /></button>)}</div>
@@ -297,7 +293,7 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
       <button
         type="button"
         onClick={handleLogout}
-        className="w-full py-3 rounded-xl bg-white border border-rose-200 text-rose-600 text-sm font-extrabold flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors"
+        className="w-full py-4 text-slate-500 text-xs font-semibold flex items-center justify-center gap-2 hover:text-rose-600 transition-colors"
       >
         <LogOut size={16} />
         退出登录

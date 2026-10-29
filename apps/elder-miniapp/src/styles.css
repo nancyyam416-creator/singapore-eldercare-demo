@@ -36,6 +36,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .mobile-home-indicator { display: none; }
 .mobile-page-header { height: 44px; flex: none; position: relative; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 0 16px; border-bottom: 1px solid #f1f5f9; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.02); }
 .mobile-page-header h1 { margin: 0; overflow: hidden; color: #0f172a; font-size: 14px; font-weight: 800; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-header-back { min-height: 40px; position: absolute; left: 10px; top: 2px; display: flex; align-items: center; gap: 3px; padding: 0 7px; border: 0; color: #2457a6; background: transparent; font-size: 13px; font-weight: 800; }
+.mobile-header-back svg { width: 18px; height: 18px; }
 .app-content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior: contain; padding: 18px 16px 24px; }
 .app-content { scrollbar-width: none; }
 .app-content::-webkit-scrollbar { display: none; }
@@ -193,21 +195,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .photo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
 .photo-tile { aspect-ratio: .85; display: flex; align-items: flex-end; padding: 10px; overflow: hidden; border: 0; border-radius: 17px; color: white; text-align: left; }
 .photo-tile span { font-size: 12px; font-weight: 800; text-shadow: 0 1px 5px #0007; }
-.family-message-heading { display: flex; align-items: center; gap: 7px; margin: 17px 2px 9px; }
-.family-message-heading svg { width: 20px; height: 20px; color: #c64268; }
-.family-message-heading strong { flex: 1; font-size: 16px; }
-.family-message-heading span { color: #c64268; font-size: 12px; font-weight: 800; }
-.family-message-list { display: grid; gap: 9px; }
-.family-message-list button { width: 100%; min-height: 82px; display: flex; align-items: center; gap: 11px; padding: 11px 12px; border: 1px solid #eadfe4; border-radius: 17px; color: var(--text); background: #fff; box-shadow: 0 3px 10px rgba(31,42,68,.04); text-align: left; }
-.message-avatar { width: 44px; height: 44px; display: grid; place-items: center; flex: none; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 800; }
-.message-avatar.daughter { background: #ff3f67; }
-.message-avatar.son { background: #2f80ed; }
-.family-message-list button div { flex: 1; min-width: 0; display: grid; gap: 3px; }
-.family-message-list strong { font-size: 15px; }
-.family-message-list p { margin: 0; overflow: hidden; color: #526078; font-size: 13px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.family-message-list small { color: #94a3b8; font-size: 11px; }
-.family-message-list button > svg { width: 18px; height: 18px; flex: none; color: #94a3b8; }
-
 .garden { background: linear-gradient(145deg, #96c57a, #2d7658); } .flowers { background: linear-gradient(145deg, #efc7d7, #b95176); } .tea { background: linear-gradient(145deg, #d8ae77, #7c5132); } .exercise { background: linear-gradient(145deg, #9bb8d7, #3f5f84); }
 .family-actions { display: grid; gap: 12px; }
 .family-action { min-height: 96px; display: flex; align-items: center; gap: 14px; padding: 18px; border: 0; border-radius: 22px; text-align: left; }
@@ -216,6 +203,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .family-action strong { font-size: 21px; }
 .family-action span { font-size: 14px; }
 .photo-action { color: #123d90; background: #dce8ff; }
+.family-gallery-heading > b { color: #94a3b8; font-size: 12px; font-weight: 700; }
+.family-aligned-gallery { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.family-aligned-gallery .gallery-card { min-height: 0; aspect-ratio: 1; padding: 8px; border-radius: 12px; }
+.family-aligned-gallery .gallery-badge { padding: 4px 6px; font-size: 9px; }
+.family-aligned-gallery .gallery-card strong { font-size: 11px; }
 .boundary-note { margin: 14px 0; display: flex; gap: 11px; align-items: flex-start; padding: 14px; border: 1px solid #d9e2ef; border-radius: 16px; background: #f9fbfd; color: #516078; font-size: 14px; line-height: 1.5; }
 .boundary-note svg { flex: none; color: #315b9e; }
 .boundary-note strong { display: block; color: #253750; }
@@ -590,12 +582,13 @@ button:active { transform: scale(.98); }
 .binding-notice strong { display: block; font-size: 16px; line-height: 1.35; }
 .binding-notice p { margin: 4px 0 0; color: #64748b; font-size: 12px; }
 .binding-notice > b { min-width: 68px; padding: 9px 10px; border-radius: 12px; color: #fff; background: #ea580c; text-align: center; font-size: 13px; }
-.profile-binding-entry { width: 100%; min-height: 82px; margin-top: 16px; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 18px; color: var(--text); background: #fff; text-align: left; }
+.profile-binding-entry { width: 100%; min-height: 82px; position: relative; margin-top: 16px; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 18px; color: var(--text); background: #fff; text-align: left; }
 .profile-binding-entry > span { width: 46px; height: 46px; display: grid; place-items: center; flex: none; border-radius: 14px; color: #c2410c; background: #fff1e7; }
 .profile-binding-entry div { flex: 1; display: grid; gap: 4px; }
 .profile-binding-entry strong { font-size: 17px; }
 .profile-binding-entry small { color: #64748b; font-size: 12px; }
 .profile-binding-entry > svg { color: #94a3b8; }
+.profile-notification-dot { width: 10px; height: 10px; position: absolute; top: 10px; right: 10px; border: 2px solid #fff; border-radius: 50%; background: #ef3154; box-shadow: 0 0 0 1px rgba(239,49,84,.14); }
 .guardian-avatar.family { background: #8b5cf6; }
 .guardian-row.newly-bound { background: #f5f3ff; }
 
@@ -967,7 +960,7 @@ button:active { transform: scale(.98); }
 }
 
 /* Shared mobile preview shell: mirrors the child-app device frame and viewport rhythm. */
-.bottom-nav { height: 64px; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 0 7px 8px; border-top: 1px solid #e2e8f0; background: #fff; backdrop-filter: none; }
+.bottom-nav { height: 64px; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0 7px 8px; border-top: 1px solid #e2e8f0; background: #fff; backdrop-filter: none; }
 .bottom-nav button { gap: 4px; border-radius: 0; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 700; }
 .bottom-nav button.active { color: var(--primary); background: transparent; font-weight: 800; }
 .bottom-nav button.active svg { stroke-width: 2.5; }
@@ -1040,6 +1033,7 @@ button:active { transform: scale(.98); }
 .appointment-provider div, .appointment-readonly div { display: grid; gap: 3px; }
 .appointment-provider small, .appointment-readonly small { color: #64748b; font-size: 12px; }
 .appointment-provider strong, .appointment-readonly strong { font-size: 15px; }
+.appointment-provider a { color: #1d4ed8; font-size: 16px; font-weight: 900; text-decoration: none; }
 .appointment-features { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 0; border-block: 1px solid #e2e8f0; }
 .appointment-features span { display: flex; align-items: center; gap: 6px; color: #526078; font-size: 13px; }
 .appointment-features svg { width: 16px; height: 16px; color: #059669; }
@@ -1068,9 +1062,27 @@ button:active { transform: scale(.98); }
 .appointment-record > p svg { width: 17px; height: 17px; flex: none; color: #64748b; }
 .appointment-record footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
 .appointment-record footer small { color: #94a3b8; font-size: 11px; }
+.appointment-record footer > span { color: #64748b; font-size: 11px; line-height: 1.4; text-align: right; }
 .appointment-record footer button { min-height: 40px; display: flex; align-items: center; gap: 5px; padding: 0 10px; border: 0; border-radius: 11px; color: #1d4ed8; background: #eff6ff; font-size: 12px; font-weight: 800; }
 .appointment-record footer button svg { width: 15px; height: 15px; }
 .appointment-record footer button em { padding: 2px 4px; border-radius: 5px; color: #7c3aed; background: #f3e8ff; font-size: 9px; font-style: normal; }
+
+/* Service consultation is the primary path; online submission only records a follow-up request. */
+.appointment-consultation-note,
+.appointment-form-notice { display: flex; align-items: flex-start; gap: 11px; padding: 14px; border: 1px solid #bfdbfe; border-radius: 16px; color: #1e40af; background: #eff6ff; }
+.appointment-consultation-note > svg,
+.appointment-form-notice > svg { width: 23px; height: 23px; flex: none; }
+.appointment-consultation-note > span,
+.appointment-form-notice > span { display: grid; gap: 4px; }
+.appointment-consultation-note strong,
+.appointment-form-notice strong { font-size: 15px; }
+.appointment-consultation-note small,
+.appointment-form-notice small { color: #526078; font-size: 12px; line-height: 1.5; }
+.appointment-call-button { width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.appointment-call-button span { padding-left: 2px; font-size: 13px; opacity: .88; }
+.appointment-online-button { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.appointment-online-hint { margin-top: -8px !important; padding-inline: 4px; color: #64748b !important; font-size: 12px !important; line-height: 1.5 !important; }
+.profile-reminder-entry > span { color: #1d4ed8; background: #eff6ff; }
 
 /* Community keeps activities and alert items as separate second-level modules. */
 .community-section-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; padding: 5px; border-radius: 16px; background: #e9eef5; }
@@ -1119,7 +1131,7 @@ button:active { transform: scale(.98); }
 .community-activity-detail-mobile > p { margin: 10px 0 18px; }
 .activity-live-button { width: 100%; margin-top: 14px; }
 .activity-intent-panel { display: grid; gap: 12px; margin-top: 16px; }
-.activity-intent-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.activity-intent-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .activity-intent-actions button { min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #cbd5e1; border-radius: 14px; color: #334155; background: #fff; font-size: 14px; font-weight: 800; }
 .activity-intent-actions button.active, .activity-intent-actions button:first-child:hover { border-color: #2563eb; color: #fff; background: #2563eb; }
 .activity-intent-actions svg { width: 18px; }
@@ -1169,3 +1181,27 @@ button:active { transform: scale(.98); }
 .community-alert-speech button { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #bfdbfe; border-radius: 12px; color: #1d4ed8; background: #eff6ff; font-size: 13px; font-weight: 800; }
 .community-alert-speech button:first-of-type { color: #fff; background: #2563eb; }
 .community-alert-speech button svg { width: 16px; }
+
+/* Match the child app's compact, square three-column family album. */
+.gallery.family-aligned-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.gallery.family-aligned-gallery .gallery-card { min-height: 0; aspect-ratio: 1; padding: 8px; border-radius: 12px; }
+.gallery.family-aligned-gallery .gallery-badge { padding: 4px 6px; font-size: 9px; }
+.gallery.family-aligned-gallery .gallery-card strong { font-size: 11px; line-height: 1.3; }
+
+/* Family media preview follows the child app's dedicated full-screen viewer. */
+.family-media-preview { min-height: 100%; display: flex; flex-direction: column; margin: calc(var(--space-4) * -1) calc(var(--space-3) * -1) calc(var(--space-5) * -1); color: #fff; background: #020617; }
+.family-media-stage { min-height: 0; position: relative; flex: 1; display: grid; place-items: center; overflow: hidden; }
+.family-media-stage::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 10%, rgba(2,6,23,.22) 72%, rgba(2,6,23,.56)); }
+.family-media-stage > svg { position: relative; z-index: 1; width: 58px; height: 58px; color: rgba(255,255,255,.76); }
+.family-media-stage > button { width: 42px; height: 42px; position: absolute; z-index: 2; top: 50%; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: rgba(2,6,23,.58); transform: translateY(-50%); }
+.family-media-stage > button svg { width: 23px; height: 23px; }
+.family-preview-previous { left: 14px; }
+.family-preview-next { right: 14px; }
+.family-video-preview { position: relative; z-index: 1; display: grid; justify-items: center; gap: 10px; }
+.family-video-preview svg { width: 62px; height: 62px; padding: 17px; border-radius: 50%; color: #fff; background: rgba(2,6,23,.58); }
+.family-video-preview b { font-size: 14px; }
+.family-media-meta { min-height: 112px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 18px 24px; border-top: 1px solid rgba(255,255,255,.1); background: #020617; }
+.family-media-meta div { display: grid; gap: 7px; }
+.family-media-meta strong { font-size: 18px; }
+.family-media-meta span { color: rgba(255,255,255,.56); font-size: 12px; }
+.family-media-meta > b { flex: none; padding: 6px 9px; border-radius: 999px; color: rgba(255,255,255,.72); background: rgba(255,255,255,.1); font-size: 11px; }

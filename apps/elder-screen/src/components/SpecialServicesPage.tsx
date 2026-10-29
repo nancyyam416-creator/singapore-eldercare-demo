@@ -121,7 +121,7 @@ const services: SpecialServiceItem[] = [
     provider: "社区便民维修站",
     price: "上门检查费 30 元",
     duration: "根据维修内容确定",
-    notice: "如有漏水、冒烟或燃气异味，请直接使用在线求助，不要等待普通预约。",
+    notice: "如有漏水、冒烟或燃气异味，请直接使用在线协助连接乐龄呼叫中心，不要等待普通预约。",
     slots: [
       { id: "repair-today-pm", label: "今天下午 15:00—17:00" },
       { id: "repair-tomorrow-am", label: "明天上午 09:00—11:00" },

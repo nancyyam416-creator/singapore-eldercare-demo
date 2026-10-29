@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Battery, Signal, Wifi } from 'lucide-react';
+import { ArrowLeft, Battery, Signal, Wifi } from 'lucide-react';
 
 const DEVICE_WIDTH = 450;
 const DEVICE_HEIGHT = 1000;
@@ -7,9 +7,11 @@ const DEVICE_HEIGHT = 1000;
 type MobileAppShellProps = {
   title: string;
   children: ReactNode;
+  onBack?: () => void;
+  backLabel?: string;
 };
 
-export default function MobileAppShell({ title, children }: MobileAppShellProps) {
+export default function MobileAppShell({ title, children, onBack, backLabel = '返回' }: MobileAppShellProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -41,7 +43,10 @@ export default function MobileAppShell({ title, children }: MobileAppShellProps)
               <strong>18:26</strong>
               <span><Signal /><b>5G</b><Wifi /><Battery /></span>
             </div>
-            <header className="mobile-page-header"><h1>{title}</h1></header>
+            <header className="mobile-page-header">
+              {onBack && <button className="mobile-header-back" onClick={onBack} aria-label={backLabel}><ArrowLeft /><span>返回</span></button>}
+              <h1>{title}</h1>
+            </header>
             {children}
             <div className="mobile-home-indicator" aria-hidden="true" />
           </div>

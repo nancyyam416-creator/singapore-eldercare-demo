@@ -932,10 +932,12 @@ export default function App() {
     setEmergencyAcceptanceScenario(scenario);
     if (scenario === "waiting") {
       setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "待接听"));
-    } else if (scenario === "processing") {
+    } else if (scenario === "connected") {
       setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "处理中"));
-    } else if (scenario === "completed") {
-      setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "已完成"));
+    } else if (scenario === "no-answer") {
+      setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "未接通"));
+    } else if (scenario === "cancelled") {
+      setEmergencyAssistanceEvent(createEmergencyAssistanceEvent(scenario, "已取消"));
     } else {
       setEmergencyAssistanceEvent(null);
     }
@@ -1465,9 +1467,13 @@ export default function App() {
             onOpenAssistant={() => setIsAssistantOpen(true)}
             onOpenMore={() => setIsMoreModulesOpen(true)}
             onTriggerSOS={() => {
-              if (!emergencyAssistanceEvent) setEmergencyAcceptanceScenario("normal-connected");
+              if (!emergencyAssistanceEvent || emergencyAssistanceEvent.status === "已取消" || emergencyAssistanceEvent.status === "已完成") {
+                setEmergencyAcceptanceScenario("normal-connected");
+                setEmergencyAssistanceEvent(null);
+              }
               setIsSOSOpen(true);
             }}
+            emergencyAssistanceStatus={emergencyAssistanceEvent?.status}
             acceptanceTimeOverride={acceptanceTimeOverride}
             acceptanceAlbumScenario={acceptanceAlbumScenario}
             acceptanceHeartScenario={acceptanceHeartScenario}

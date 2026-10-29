@@ -206,7 +206,7 @@ type RightContentAcceptanceObject = "family" | "medication" | "schedule" | "acti
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
   { id: "weather", label: "家庭天气" },
-  { id: "emergency", label: "在线求助" },
+  { id: "emergency", label: "在线协助" },
   { id: "album", label: "家庭影像" },
   { id: "task-progress", label: "首页右侧" },
   { id: "reminders", label: "今日提醒" },
@@ -219,6 +219,7 @@ const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: str
 ];
 
 const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; sections: AcceptanceConsoleSection[] }> = [
+  { id: "activation", label: "设备激活", sections: ["activation"] },
   { id: "home", label: "首页", sections: ["weather", "emergency", "album", "task-progress"] },
   { id: "family-album", label: "家庭相册", sections: ["album"] },
   { id: "reminders", label: "提醒事项", sections: ["reminders"] },
@@ -226,7 +227,6 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
   { id: "special-services", label: "特约服务", sections: ["special-services"] },
   { id: "community-staff", label: "社区人员", sections: ["community-staff"] },
   { id: "contacts", label: "通讯录", sections: ["family-requests", "service-messages"] },
-  { id: "activation", label: "设备激活", sections: ["activation"] },
 ];
 
 interface AcceptanceConsoleDragState {
@@ -952,13 +952,13 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "emergency" && <section>
               <div className="interaction-acceptance-field">
-                <h2><Siren aria-hidden="true" />交互条件</h2>
+                <h2><Siren aria-hidden="true" />可见状态</h2>
                 <label className="interaction-acceptance-module-picker">
                   <span className="interaction-acceptance-module-picker__select">
                     <select
                       value={emergencyScenario}
                       onChange={(event) => onSetEmergencyScenario(event.target.value as EmergencyAcceptanceScenario)}
-                      aria-label="选择在线求助交互条件"
+                      aria-label="选择在线协助可见状态"
                     >
                       {(Object.entries(emergencyScenarioDefinitions) as Array<[EmergencyAcceptanceScenario, { label: string; description: string }]>).map(([scenarioId, definition]) => (
                         <option key={scenarioId} value={scenarioId}>{definition.label}</option>
@@ -975,7 +975,7 @@ export default function InteractionAcceptanceConsole({
               <div className="interaction-acceptance-field">
                 <h2>交互动作</h2>
                 <button type="button" className="is-primary" onClick={() => onOpenEmergencyScenario(emergencyScenario)}>
-                  <PhoneCall aria-hidden="true" />打开在线求助流程
+                  <PhoneCall aria-hidden="true" />打开在线协助流程
                 </button>
               </div>
             </section>}

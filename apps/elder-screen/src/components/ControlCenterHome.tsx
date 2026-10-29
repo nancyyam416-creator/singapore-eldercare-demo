@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import HomeTaskRail from "./HomeTaskRail";
 import type { HomeNotificationQueueItem } from "../home-notification-queue";
+import type { EmergencyAssistanceStatus } from "../emergency-assistance";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
 import {
   formatWeatherLocalTime,
@@ -105,6 +106,7 @@ interface ControlCenterHomeProps {
   onOpenAssistant: () => void;
   onOpenMore: () => void;
   onTriggerSOS: () => void;
+  emergencyAssistanceStatus?: EmergencyAssistanceStatus;
   acceptanceTimeOverride?: string | null;
   acceptanceAlbumScenario?: AcceptanceAlbumScenario;
   acceptanceHeartScenario?: AcceptanceHeartScenario;
@@ -181,6 +183,7 @@ export default function ControlCenterHome({
   onOpenAssistant,
   onOpenMore,
   onTriggerSOS,
+  emergencyAssistanceStatus,
   acceptanceTimeOverride = null,
   acceptanceAlbumScenario = "default",
   acceptanceHeartScenario = "not-liked",
@@ -193,6 +196,21 @@ export default function ControlCenterHome({
   acceptanceCommand = null,
   familyWeather,
 }: ControlCenterHomeProps) {
+  const isAssistanceCallActive = emergencyAssistanceStatus === "处理中" || emergencyAssistanceStatus === "需跟进";
+  const [callFloatPosition, setCallFloatPosition] = useState<{ left: number; top: number } | null>(null);
+  const callFloatRef = useRef<HTMLButtonElement | null>(null);
+  const callFloatDragRef = useRef<{
+    pointerId: number;
+    parentLeft: number;
+    parentTop: number;
+    scale: number;
+    offsetX: number;
+    offsetY: number;
+    maxLeft: number;
+    maxTop: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressCallFloatClickRef = useRef(false);
   const [now, setNow] = useState(new Date());
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isPhotoHeld, setIsPhotoHeld] = useState(false);
@@ -217,6 +235,63 @@ export default function ControlCenterHome({
   const weatherCareTimerRef = useRef<number | null>(null);
   const swipeStartXRef = useRef<number | null>(null);
   const swipePointerIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isAssistanceCallActive) setCallFloatPosition(null);
+  }, [isAssistanceCallActive]);
+
+  const handleCallFloatPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    const button = event.currentTarget;
+    const parent = button.parentElement;
+    if (!parent) return;
+    const parentRect = parent.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const scale = parent.offsetWidth > 0 ? parentRect.width / parent.offsetWidth : 1;
+    const currentLeft = (buttonRect.left - parentRect.left) / scale;
+    const currentTop = (buttonRect.top - parentRect.top) / scale;
+    setCallFloatPosition({ left: currentLeft, top: currentTop });
+    callFloatDragRef.current = {
+      pointerId: event.pointerId,
+      parentLeft: parentRect.left,
+      parentTop: parentRect.top,
+      scale,
+      offsetX: (event.clientX - buttonRect.left) / scale,
+      offsetY: (event.clientY - buttonRect.top) / scale,
+      maxLeft: Math.max(16, parent.offsetWidth - button.offsetWidth - 16),
+      maxTop: Math.max(16, parent.offsetHeight - button.offsetHeight - 16),
+      moved: false,
+    };
+    button.setPointerCapture(event.pointerId);
+  };
+
+  const handleCallFloatPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = callFloatDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const nextLeft = (event.clientX - drag.parentLeft) / drag.scale - drag.offsetX;
+    const nextTop = (event.clientY - drag.parentTop) / drag.scale - drag.offsetY;
+    if (Math.abs(event.movementX) + Math.abs(event.movementY) > 1) drag.moved = true;
+    setCallFloatPosition({
+      left: Math.min(drag.maxLeft, Math.max(16, nextLeft)),
+      top: Math.min(drag.maxTop, Math.max(16, nextTop)),
+    });
+  };
+
+  const handleCallFloatPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = callFloatDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    suppressCallFloatClickRef.current = drag.moved;
+    callFloatDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  const handleCallFloatClick = () => {
+    if (suppressCallFloatClickRef.current) {
+      suppressCallFloatClickRef.current = false;
+      return;
+    }
+    onTriggerSOS();
+  };
   const homePhotoPool = useMemo(() => {
     let photos = albumPhotos.map((photo) => ({
       ...photo,
@@ -583,11 +658,32 @@ export default function ControlCenterHome({
           </div>
         </div>
 
-        <button className="sos-button" type="button" onClick={onTriggerSOS}>
+        <button className="sos-button" type="button" onClick={onTriggerSOS} aria-label="通过网络电话连接乐龄呼叫中心">
           <Phone aria-hidden="true" />
-          <span>在线求助</span>
+          <span>在线协助</span>
         </button>
       </header>
+
+      {isAssistanceCallActive && (
+        <button
+          ref={callFloatRef}
+          type="button"
+          className="assistance-call-float"
+          style={callFloatPosition ? { left: callFloatPosition.left, top: callFloatPosition.top, right: "auto" } : undefined}
+          onClick={handleCallFloatClick}
+          onPointerDown={handleCallFloatPointerDown}
+          onPointerMove={handleCallFloatPointerMove}
+          onPointerUp={handleCallFloatPointerUp}
+          onPointerCancel={handleCallFloatPointerUp}
+          aria-label="展开正在进行的乐龄呼叫中心通话"
+        >
+          <span className="assistance-call-float__icon"><Phone aria-hidden="true" /></span>
+          <span className="assistance-call-float__copy">
+            <small><i aria-hidden="true" />通话中</small>
+            <strong>乐龄呼叫中心</strong>
+          </span>
+        </button>
+      )}
 
       <section className="control-workspace">
         <div className={`family-stage ${arePhotoControlsVisible ? "show-photo-controls" : ""}`}>

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  ArrowLeft,
   BellRing,
   CalendarCheck2,
   CalendarDays,
   Camera,
   Check,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   CircleUserRound,
   CloudSun,
@@ -16,12 +16,10 @@ import {
   Home,
   Images,
   Info,
-  MessageCircle,
   Mic,
   PhoneCall,
   Pill,
   Plus,
-  Radio,
   RefreshCw,
   ShieldCheck,
   ShieldAlert,
@@ -45,7 +43,7 @@ type MainTab = 'home' | 'family' | 'reminders' | 'activities' | 'services' | 'pr
 type Overlay = 'photo' | 'reminder' | null;
 type ReminderType = 'medication' | 'daily';
 type RepeatType = 'once' | 'daily' | 'weekly';
-type ActivityParticipation = 'interested' | 'not_interested';
+type ActivityParticipation = 'interested';
 type Activity = { id: string; title: string; time: string; location: string; spotsLeft: number; tag: string; imageUrl: string; description: string; contact: string; status: 'registration' | 'ongoing' | 'ended' | 'cancelled'; liveEnabled: boolean; liveStatus: 'not_started' | 'live' | 'ended'; scheduledLiveStartAt?: string };
 type ServiceCategory = 'water' | 'electric' | 'repair';
 type BindingStatus = 'pending' | 'success' | 'rejected' | 'expired' | 'tablet-approved' | 'tablet-rejected' | 'network';
@@ -148,6 +146,7 @@ export default function App() {
   const [selectedPhotos, setSelectedPhotos] = useState<number[]>([1, 2]);
   const [photoNote, setPhotoNote] = useState('今天阳光很好，和大家分享一下。');
   const [photoVoiceState, setPhotoVoiceState] = useState<PhotoVoiceState>('idle');
+  const [selectedFamilyPhoto, setSelectedFamilyPhoto] = useState<(typeof photos)[number] | null>(null);
   const [reminderStep, setReminderStep] = useState<'edit' | 'success'>('edit');
   const [reminderType, setReminderType] = useState<ReminderType>('medication');
   const [reminderTitle, setReminderTitle] = useState('晚间降压药');
@@ -161,7 +160,6 @@ export default function App() {
   const [activityParticipation, setActivityParticipation] = useState<Record<string, ActivityParticipation>>({});
   const [activityIntentFailure, setActivityIntentFailure] = useState<ActivityParticipation | null>(null);
   const [activitySubmitShouldFail, setActivitySubmitShouldFail] = useState(false);
-  const [liveActivity, setLiveActivity] = useState<Activity | null>(null);
   const [communityView, setCommunityView] = useState<'activities' | 'alerts'>('activities');
   const [selectedAlert, setSelectedAlert] = useState<(typeof communityAlerts)[number] | null>(null);
   const [alertReadIds, setAlertReadIds] = useState<string[]>([]);
@@ -187,7 +185,7 @@ export default function App() {
   const [activityListScenario, setActivityListScenario] = useState('default');
   const [guardianScenario, setGuardianScenario] = useState('default');
 
-  const pageTitle = bindingOpen ? '家庭关系确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '预约服务' : '我的';
+  const pageTitle = bindingOpen ? '家人绑定确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '预约服务' : '我的';
   const currentService = serviceData[serviceCategory];
   const canSaveReminder = reminderTitle.trim() && (reminderType === 'daily' || reminderDetail.trim()) && (repeat !== 'weekly' || weekdays.length > 0);
   const filteredReminders = useMemo(() => reminderItems, [reminderItems]);
@@ -210,7 +208,7 @@ export default function App() {
     setActivityParticipation(current => ({ ...current, [activity.id]: intent }));
     setActivityIntentFailure(null);
     setActivitySubmitShouldFail(false);
-    showToast(intent === 'interested' ? '已选择：我想参加' : '已选择：暂不参加');
+    showToast('已报名参加');
   };
 
   const openAlert = (alert: (typeof communityAlerts)[number]) => {
@@ -260,9 +258,9 @@ export default function App() {
   };
 
   const goTo = (next: MainTab) => {
+    setSelectedFamilyPhoto(null);
     setSelectedActivity(null);
     setSelectedAlert(null);
-    setLiveActivity(null);
     setActivityIntentFailure(null);
     window.speechSynthesis.cancel();
     setAlertSpeechState(null);
@@ -280,13 +278,13 @@ export default function App() {
     setToast('');
     setPhotoStep('edit');
     setPhotoVoiceState('idle');
+    setSelectedFamilyPhoto(null);
     setReminderStep('edit');
     setReminderFilter('all');
     setSelectedService(null);
     setServicesOpen(false);
     setServiceStep('detail');
     setBindingConfirmOpen(false);
-    setLiveActivity(null);
     setActivityIntentFailure(null);
     setActivitySubmitShouldFail(false);
     window.speechSynthesis.cancel();
@@ -319,7 +317,7 @@ export default function App() {
     if (moduleId === 'activity-list') setActivityListScenario(scenario);
     if (moduleId === 'activity-detail') {
       setSelectedActivity(activities[0]);
-      setActivityParticipation(scenario === 'interested' ? { [activities[0].id]: 'interested' } : scenario === 'not_interested' ? { [activities[0].id]: 'not_interested' } : {});
+      setActivityParticipation(scenario === 'interested' ? { [activities[0].id]: 'interested' } : {});
       setActivitySubmitShouldFail(scenario === 'submission_failure');
       setActivityIntentFailure(null);
     }
@@ -360,6 +358,7 @@ export default function App() {
 
   const scheduleAllCompleted = homeScheduleScenario === 'completed';
   const visibleFamilyPhotos = familyAlbumScenario === 'empty' ? [] : photos;
+  const selectedFamilyPhotoIndex = selectedFamilyPhoto ? visibleFamilyPhotos.findIndex(photo => photo.id === selectedFamilyPhoto.id) : -1;
   const visibleActivities = activityListScenario === 'empty' ? [] : activities;
   const activityStatusLabel = (activity: Activity) => activity.status === 'ongoing' ? '正在进行' : activity.status === 'ended' ? '活动已结束' : activity.status === 'cancelled' ? '活动已取消' : `还剩 ${activity.spotsLeft} 个名额`;
   const alertReadingMinutes = (alert: (typeof communityAlerts)[number]) => Math.max(1, Math.ceil(`${alert.title}${alert.summary}${alert.description}`.length / 260));
@@ -372,7 +371,7 @@ export default function App() {
 
     <button className="binding-notice" onClick={() => { setBindingStatus('pending'); setBindingOpen(true); }}>
       <span><Heart /></span>
-      <div><small>新的家人申请</small><strong>张建国想与您建立家庭关系</strong><p>请核对是不是您的家人</p></div>
+      <div><small>新的家人绑定</small><strong>张建国想与您建立家庭关系</strong><p>请核对是不是您的家人</p></div>
       <b>去确认</b>
     </button>
 
@@ -380,7 +379,6 @@ export default function App() {
       <header className="home-module-header">
         <span><CalendarDays /></span>
         <div><h2>今日安排</h2><p>用药和活动按时间先后排列</p></div>
-        <b>按时间</b>
       </header>
       <div className="schedule-list">
         {homeScheduleScenario === 'empty' ? <div className="acceptance-empty-state"><CalendarDays /><strong>今天暂无安排</strong><span>新的提醒或活动会显示在这里</span></div> : <>
@@ -413,23 +411,28 @@ export default function App() {
         <div><h2>家人最近分享</h2><p>推荐看看</p></div>
         <button onClick={() => goTo('family')}>查看全部</button>
       </header>
-      {homeFamilyScenario === 'empty' ? <div className="acceptance-empty-state"><Images /><strong>暂无家人分享</strong><span>家人的照片和留言会显示在这里</span></div> : <><div className="photo-row">{photos.slice(0, 3).map(photo => <button key={photo.id} onClick={() => goTo('family')} className={`photo-tile ${photo.tone}`}><span>{photo.title}</span></button>)}</div>
-      <div className="family-message-heading"><MessageCircle /><strong>家人留言</strong><span>2 条新消息</span></div>
-      <div className="family-message-list">
-        <button onClick={() => goTo('family')}><span className="message-avatar daughter">女儿</span><div><strong>张晓燕</strong><p>妈妈，晚上记得吃降压药，我下班后给您打电话。</p><small>今天 16:45</small></div><ChevronRight /></button>
-        <button onClick={() => goTo('family')}><span className="message-avatar son">儿子</span><div><strong>张建平</strong><p>周末我带您去公园走走，天气好我们再拍些照片。</p><small>昨天 20:18</small></div><ChevronRight /></button>
-      </div></>}
+      {homeFamilyScenario === 'empty' ? <div className="acceptance-empty-state"><Images /><strong>暂无家人分享</strong><span>家人的照片和视频会显示在这里</span></div> : <div className="photo-row">{photos.slice(0, 3).map(photo => <button key={photo.id} onClick={() => goTo('family')} className={`photo-tile ${photo.tone}`}><span>{photo.title}</span></button>)}</div>}
     </section>
 
   </>;
 
-  const familyPage = <>
+  const familyPage = selectedFamilyPhoto ? <section className="family-media-preview" aria-label={`预览${selectedFamilyPhoto.title}`}>
+    <div className={`family-media-stage ${selectedFamilyPhoto.tone}`}>
+      {selectedFamilyPhoto.id === 4 ? <span className="family-video-preview"><Video /><b>视频预览</b></span> : <Camera />}
+      {selectedFamilyPhotoIndex > 0 && <button className="family-preview-previous" aria-label="上一张" onClick={() => setSelectedFamilyPhoto(visibleFamilyPhotos[selectedFamilyPhotoIndex - 1])}><ChevronLeft /></button>}
+      {selectedFamilyPhotoIndex < visibleFamilyPhotos.length - 1 && <button className="family-preview-next" aria-label="下一张" onClick={() => setSelectedFamilyPhoto(visibleFamilyPhotos[selectedFamilyPhotoIndex + 1])}><ChevronRight /></button>}
+    </div>
+    <footer className="family-media-meta">
+      <div><strong>{selectedFamilyPhoto.title}</strong><span>{selectedFamilyPhoto.date} · {selectedFamilyPhoto.id === 4 ? '视频' : '照片'}</span></div>
+      <b>{selectedFamilyPhotoIndex + 1}/{visibleFamilyPhotos.length}</b>
+    </footer>
+  </section> : <>
     <ElderPageHeader title="家人分享" description="查看家人分享的照片和视频，也可以发布新的相册。" />
-    <section className="family-actions family-photo-only">
+    <section className="family-actions">
       <button onClick={() => openOverlay('photo')} className="family-action photo-action"><Upload /><div><strong>发相册</strong><span>直接分享给已绑定家人</span></div><ChevronRight /></button>
     </section>
-    <div className="section-heading"><div><span>家庭相册</span><h2>最近的照片和视频</h2></div></div>
-    <section className="gallery">{visibleFamilyPhotos.map(photo => <button key={photo.id} className={`gallery-card ${photo.tone}`} onClick={() => showToast('影像详情已打开')}><span className="gallery-badge">{photo.id === 4 ? <><Video />视频</> : <><Camera />照片</>}</span><div><strong>{photo.title}</strong><small>{photo.date}</small></div></button>)}</section>
+    <div className="section-heading family-gallery-heading"><div><span>家庭相册</span><h2>最近的照片和视频</h2></div><b>{visibleFamilyPhotos.length} 项</b></div>
+    <section className="gallery family-aligned-gallery">{visibleFamilyPhotos.map(photo => <button key={photo.id} className={`gallery-card ${photo.tone}`} aria-label={`${photo.id === 4 ? '视频' : '照片'} ${photo.title}`} onClick={() => setSelectedFamilyPhoto(photo)}><span className="gallery-badge">{photo.id === 4 ? <><Video />视频</> : <><Camera />照片</>}</span><div><strong>{photo.title}</strong></div></button>)}</section>
     {!visibleFamilyPhotos.length && <div className="acceptance-empty-state standalone"><Images /><strong>暂无照片和视频</strong><span>点击“发相册”与家人分享近况</span></div>}
   </>;
 
@@ -474,21 +477,17 @@ export default function App() {
 
   const activitiesPage = selectedActivity ? <>
     <section className="detail-page community-activity-detail-mobile">
-      <button className="text-back" onClick={() => { setSelectedActivity(null); setActivityIntentFailure(null); }}><ArrowLeft />返回活动列表</button>
       <div className="activity-cover"><img src={selectedActivity.imageUrl} alt={`${selectedActivity.title}活动照片`} referrerPolicy="no-referrer" /><span>{selectedActivity.tag}</span></div>
       <div className="activity-detail-heading"><h2>{selectedActivity.title}</h2><b>{activityStatusLabel(selectedActivity)}</b></div><p>{selectedActivity.description}</p>
-      <div className="fact-list"><span><Clock3 /><b>活动时间</b>{selectedActivity.time}</span><span><Home /><b>活动地点</b>{selectedActivity.location}</span><span><PhoneCall /><b>咨询电话</b>{selectedActivity.contact}</span>{selectedActivity.liveEnabled && <span><Radio /><b>直播状态</b>{selectedActivity.liveStatus === 'live' ? '直播中' : selectedActivity.liveStatus === 'ended' ? '直播已结束' : `${selectedActivity.scheduledLiveStartAt ?? ''}开播`}</span>}</div>
-      {selectedActivity.liveEnabled && <button className="secondary-button activity-live-button" disabled={selectedActivity.liveStatus !== 'live' || selectedActivity.status === 'ended' || selectedActivity.status === 'cancelled'} onClick={() => setLiveActivity(selectedActivity)}><Video />{selectedActivity.liveStatus === 'live' ? '进入直播' : selectedActivity.liveStatus === 'ended' ? '直播已结束' : '等待开播'}</button>}
+      <div className="fact-list"><span><Clock3 /><b>活动时间</b>{selectedActivity.time}</span><span><Home /><b>活动地点</b>{selectedActivity.location.replace('（同步直播）', '')}</span><span><PhoneCall /><b>咨询电话</b>{selectedActivity.contact}</span></div>
       {(selectedActivity.status === 'ended' || selectedActivity.status === 'cancelled') ? <div className="activity-unavailable"><ShieldAlert /><strong>{activityStatusLabel(selectedActivity)}</strong><span>当前不再接受参加意向。</span></div> : <div className="activity-intent-panel">
         {activityIntentFailure && <div className="activity-intent-error"><ShieldAlert /><span><strong>提交失败，选择尚未保存</strong><small>请重新提交原选择。</small></span></div>}
-        {activityParticipation[selectedActivity.id] && !activityIntentFailure && <div className="activity-intent-result"><CheckCircle2 /><strong>已选择：{activityParticipation[selectedActivity.id] === 'interested' ? '我想参加' : '暂不参加'}</strong></div>}
-        <div className="activity-intent-actions"><button className={activityParticipation[selectedActivity.id] === 'interested' ? 'active' : ''} onClick={() => saveActivityIntent(selectedActivity, 'interested')}><Users />我想参加</button><button className={activityParticipation[selectedActivity.id] === 'not_interested' ? 'active' : ''} onClick={() => saveActivityIntent(selectedActivity, 'not_interested')}><X />暂不参加</button></div>
+        {activityParticipation[selectedActivity.id] && !activityIntentFailure && <div className="activity-intent-result"><CheckCircle2 /><strong>已报名参加</strong></div>}
+        <div className="activity-intent-actions"><button className={activityParticipation[selectedActivity.id] === 'interested' ? 'active' : ''} onClick={() => saveActivityIntent(selectedActivity, 'interested')}><Users />{activityParticipation[selectedActivity.id] ? '已报名' : '我想参加'}</button></div>
         {activityIntentFailure && <button className="secondary-button" onClick={() => saveActivityIntent(selectedActivity, activityIntentFailure, true)}><RefreshCw />重新提交原选择</button>}
       </div>}
     </section>
-    {liveActivity && <section className="community-live-mobile" role="dialog" aria-modal="true" aria-label={`${liveActivity.title}线上直播`}><header><span><Radio />社区活动直播</span><button onClick={() => setLiveActivity(null)}><X />退出直播</button></header><div><img src="/assets/community-live-preview.jpg" alt="社区活动现场直播画面" /><b><i />直播中</b><h2>{liveActivity.title}</h2><p>正在播放社区活动现场画面</p></div></section>}
   </> : selectedAlert ? <section className="detail-page community-alert-detail">
-    <button className="text-back" onClick={() => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); }}><ArrowLeft />返回警惕事项</button>
     <div className="community-alert-cover"><img src={selectedAlert.coverUrl} alt="" referrerPolicy="no-referrer" /></div>
     <div className="community-alert-meta"><span>{selectedAlert.category}</span><em><Check />已阅读</em></div><h2>{selectedAlert.title}</h2><p className="community-alert-byline">来源：{selectedAlert.source} · 预计朗读 {alertReadingMinutes(selectedAlert)} 分钟</p><strong>{selectedAlert.summary}</strong>
     <div className="community-alert-body">{selectedAlert.description.split(/\n\s*\n/).map(paragraph => <p key={paragraph}>{paragraph}</p>)}</div>
@@ -511,7 +510,8 @@ export default function App() {
         </>}
       </div>
     </section>
-    <button className="profile-binding-entry" onClick={() => { setBindingStatus('pending'); setBindingOpen(true); }}><span><Heart /></span><div><strong>家庭关系申请</strong><small>{bindingStatus === 'success' ? '最近一项申请已同意' : '有 1 项申请等待您确认'}</small></div><ChevronRight /></button>
+    <button className="profile-binding-entry profile-reminder-entry" onClick={() => goTo('reminders')}>{todayPendingCount > 0 && <i className="profile-notification-dot" aria-hidden="true" />}<span><BellRing /></span><div><strong>提醒事项</strong><small>{todayPendingCount > 0 ? `今天还有 ${todayPendingCount} 项待完成` : '今天的提醒已经完成'}</small></div><ChevronRight /></button>
+    <button className="profile-binding-entry" onClick={() => { setBindingStatus('pending'); setBindingOpen(true); }}>{bindingStatus === 'pending' && <i className="profile-notification-dot" aria-hidden="true" />}<span><Heart /></span><div><strong>家人绑定确认</strong><small>{bindingStatus === 'success' ? '最近一项绑定已确认' : '有 1 位家人等待您确认'}</small></div><ChevronRight /></button>
   </>;
 
   const bindingResult = bindingStatus !== 'pending' && <section className={`binding-result ${bindingStatus}`}>
@@ -524,9 +524,8 @@ export default function App() {
   </section>;
 
   const bindingPage = <section className="binding-page">
-    <button className="text-back" onClick={() => setBindingOpen(false)}><ArrowLeft />返回</button>
     {bindingStatus === 'pending' ? <>
-      <div className="binding-title"><span><ShieldCheck /></span><small>家庭关系申请</small><h2>请确认是不是您的家人</h2><p>只有您同意后，对方才能与您建立家庭关系。</p></div>
+      <div className="binding-title"><span><ShieldCheck /></span><small>家人绑定确认</small><h2>请确认是不是您的家人</h2><p>只有您同意后，对方才能与您建立家庭关系。</p></div>
       <div className="applicant-card">
         <span className="applicant-avatar">张</span>
         <div><small>申请人 · 子女端注册用户</small><h3>张建国</h3><p>手机：+65 8123 2198</p><p>申请时间：今天 09:20</p></div>
@@ -538,7 +537,6 @@ export default function App() {
   </section>;
 
   const servicePage = selectedService ? <section className="detail-page service-detail">
-    <button className="text-back" onClick={() => { setSelectedService(null); setServiceStep('detail'); }}><ArrowLeft />返回服务列表</button>
     <div className={`service-hero ${currentService.tone}`}><currentService.Icon /><span>{currentService.label}</span></div>
     <span className="mock-badge">特约服务</span><h2>{selectedService.name}</h2><p>{selectedService.detail}</p>
     <div className="provider-box"><UserRound /><div><small>服务商</small><strong>{currentService.provider}</strong></div></div>
@@ -547,7 +545,6 @@ export default function App() {
     {serviceStep === 'confirm' && <div className="confirm-box"><Info /><h3>确认联系商家？</h3><p>提交预约后，服务商会联系您确认需求、时间和最终价格。</p><button className="primary-button" onClick={() => setServiceStep('success')}>确认联系并预约</button><button className="secondary-button" onClick={() => setServiceStep('detail')}>再想一想</button></div>}
     {serviceStep === 'success' && <div className="order-result"><CheckCircle2 /><h3>预约已提交</h3><b>等待商家联系</b><p>{currentService.provider} 将进一步询问服务需求并确认最终价格。</p><span>订单号 U2G-53114</span></div>}
   </section> : <>
-    <button className="text-back" onClick={() => { setServicesOpen(false); setSelectedService(null); }}><ArrowLeft />返回首页</button>
     <section className="page-intro service-intro"><div><span>特约服务</span><h2>需要家里帮忙？</h2><p>价格均为参考范围，最终以商家确认为准。</p></div><Wrench /></section>
     <div className="service-tabs">{(Object.keys(serviceData) as ServiceCategory[]).map(key => { const item = serviceData[key]; return <button key={key} className={serviceCategory === key ? 'active' : ''} onClick={() => setServiceCategory(key)}><item.Icon />{item.label}</button>; })}</div>
     <section className="provider-summary"><UserRound /><div><small>服务商</small><strong>{currentService.provider}</strong><span>本类当前展示 1 家服务商</span></div></section>
@@ -557,12 +554,21 @@ export default function App() {
 
   const showingService = tab === 'home' && servicesOpen;
 
-  return <MobileAppShell title={showingService ? '特约服务' : pageTitle}>
+  const shellBack = selectedFamilyPhoto ? { label: '返回家庭相册', action: () => setSelectedFamilyPhoto(null) }
+    : bindingOpen ? { label: '返回我的', action: () => setBindingOpen(false) }
+    : selectedActivity ? { label: '返回活动列表', action: () => { setSelectedActivity(null); setActivityIntentFailure(null); } }
+        : selectedAlert ? { label: '返回警惕事项', action: () => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); } }
+          : showingService ? { label: selectedService ? '返回服务列表' : '返回首页', action: () => { if (selectedService) { setSelectedService(null); setServiceStep('detail'); } else { setServicesOpen(false); } } }
+            : tab === 'services' && appointmentScenario === 'form' ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
+              : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('list') }
+                : undefined;
+
+  return <MobileAppShell title={selectedFamilyPhoto ? '影像预览' : showingService ? '特约服务' : pageTitle} onBack={shellBack?.action} backLabel={shellBack?.label}>
     <main className="app-content">{bindingOpen ? bindingPage : showingService ? servicePage : tab === 'home' ? homePage : tab === 'family' ? familyPage : tab === 'reminders' ? remindersPage : tab === 'activities' ? activitiesPage : tab === 'services' ? <AppointmentServicesPage scenario={appointmentScenario} onViewChange={view => { setAcceptancePageId('services'); setAcceptanceModuleId('service-booking'); setAppointmentScenario(view); }} /> : profilePage}</main>
 
-    {!bindingOpen && !showingService && <nav className="bottom-nav" aria-label="主导航">
+    {!bindingOpen && !showingService && !selectedFamilyPhoto && <nav className="bottom-nav" aria-label="主导航">
       {([
-        ['home', Home, '首页'], ['family', Images, '家庭'], ['reminders', BellRing, '提醒'], ['activities', CalendarDays, '社区'], ['services', CalendarCheck2, '预约'], ['profile', CircleUserRound, '我的'],
+        ['home', Home, '首页'], ['family', Images, '家庭'], ['activities', CalendarDays, '社区'], ['services', CalendarCheck2, '预约'], ['profile', CircleUserRound, '我的'],
       ] as const).map(([key, Icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => goTo(key)}><Icon /><span>{label}</span></button>)}
     </nav>}
 

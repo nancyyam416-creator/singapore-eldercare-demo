@@ -10535,18 +10535,28 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .care-script-table {
-  width: max(100%, 1480px);
-  min-width: 1480px;
+  width: max(100%, 1600px);
+  min-width: 1600px;
   table-layout: fixed;
 }
 
-.admin-style-theme .care-script-table th:nth-child(1) { width: 190px; }
-.admin-style-theme .care-script-table th:nth-child(2) { width: 300px; }
-.admin-style-theme .care-script-table th:nth-child(3) { width: 285px; }
-.admin-style-theme .care-script-table th:nth-child(4) { width: 260px; }
-.admin-style-theme .care-script-table th:nth-child(5) { width: 100px; }
-.admin-style-theme .care-script-table th:nth-child(6) { width: 155px; }
-.admin-style-theme .care-script-table th:nth-child(7) { width: 110px; }
+.admin-style-theme .care-script-table .care-group-column { width: 190px; }
+.admin-style-theme .care-script-table .care-weather-column { width: 300px; }
+.admin-style-theme .care-script-table .care-copy-column { width: 340px; }
+.admin-style-theme .care-script-table .care-preview-column { width: 340px; }
+.admin-style-theme .care-script-table .care-status-column { width: 100px; }
+.admin-style-theme .care-script-table .care-update-column { width: 170px; }
+.admin-style-theme .care-script-table .care-action-column { width: 120px; }
+
+.admin-style-theme .care-script-table th,
+.admin-style-theme .care-script-table td {
+  overflow: hidden;
+}
+
+.admin-style-theme .care-script-table td:nth-child(3),
+.admin-style-theme .care-script-table td:nth-child(4) {
+  white-space: normal;
+}
 
 .admin-style-theme .care-weather-cell {
   display: flex;
@@ -10625,9 +10635,17 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .care-script-copy,
 .admin-style-theme .care-script-preview-text {
+  max-width: 100%;
   margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
   color: #334155;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .admin-style-theme .care-script-preview-text {

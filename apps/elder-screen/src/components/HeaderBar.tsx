@@ -48,13 +48,13 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
       <div className="flex items-center gap-4">
         <button
           onClick={() => setShowConfirm(true)}
-          aria-label="发起在线求助"
+          aria-label="通过网络电话连接乐龄呼叫中心"
           className="h-[66px] flex items-center gap-3 px-5 bg-white hover:bg-[#FFF7F5] text-[#8E3932] border-2 border-[#E8D7D3] rounded-full shadow-sm transition-all duration-200 active:scale-95 group cursor-pointer"
         >
           <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#FCE9E6] shrink-0">
             <Phone className="w-5 h-5 text-[#C34B41] fill-current group-hover:scale-105 transition-transform" />
           </div>
-          <span className="text-[20px] font-black tracking-wide leading-none">在线求助</span>
+          <span className="text-[20px] font-black tracking-wide leading-none">在线协助</span>
         </button>
 
         <button
@@ -191,9 +191,9 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
               <Siren className="w-12 h-12 text-[#E13B30] animate-bounce" />
             </div>
             
-            <h3 className="text-[32px] font-black text-[#1C2C24] mb-4">确认发起在线求助吗？</h3>
+            <h3 className="text-[32px] font-black text-[#1C2C24] mb-4">是否立即连接乐龄呼叫中心？</h3>
             <p className="text-[20px] font-bold text-gray-600 leading-relaxed mb-8">
-              系统将联系乐龄呼叫中心，并通知已绑定子女。
+              有事情需要帮忙，或遇到问题需要协助，都可以联系乐龄呼叫中心。
             </p>
 
             <div className="flex flex-col gap-4">
@@ -205,7 +205,7 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
                 className="w-full py-5 bg-[#E13B30] hover:bg-[#C92F26] text-white font-black text-[24px] rounded-2xl shadow-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-3"
               >
                 <Phone className="w-7 h-7 fill-current" />
-                <span>确认联系</span>
+                <span>连接呼叫中心</span>
               </button>
               
               <button
@@ -213,7 +213,7 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
                 className="w-full py-5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black text-[22px] rounded-2xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
               >
                 <XCircle className="w-7 h-7" />
-                <span>点错了，取消</span>
+                <span>取消</span>
               </button>
             </div>
             
