@@ -6,6 +6,7 @@ export interface ElderEmergencyContact {
 
 export interface ElderProfileSnapshot {
   name: string;
+  communityId?: string;
   birthDate?: string;
   projectCommunity?: string;
   address?: string;
@@ -24,6 +25,7 @@ export interface FamilyRelationshipSnapshot {
 // L2 统一 Mock：仅保留当前老人端激活流程和家庭关系中已经存在的数据。
 export const elderProfileMock: ElderProfileSnapshot = {
   name: "王建国",
+  communityId: "COM-001",
   projectCommunity: "清华园社区养老服务项目",
   address: "清华园社区 · 12号楼 · **01室",
 };

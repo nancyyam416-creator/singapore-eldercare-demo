@@ -19,7 +19,7 @@ if (requestedPortArgument && Number(requestedPortArgument) !== FIXED_PORT) {
 
 export default defineConfig(() => {
   return {
-    base: process.env.VITE_BASE_PATH || "/",
+    base: process.env.VITE_BASE_PATH || "./",
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -30,6 +30,9 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       port: FIXED_PORT,
       strictPort: true,
+      fs: {
+        allow: [path.resolve(__dirname, '..')],
+      },
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },

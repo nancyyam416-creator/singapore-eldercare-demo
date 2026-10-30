@@ -74,7 +74,7 @@ export function createBindingState(scenario: ElderBindingScenario = 'bound'): Bi
 export function getBoundElders(state: BindingState, applicantId = mockApplicantId): BoundElder[] {
   return state.relationships.filter(item => item.applicantId === applicantId).flatMap(item => {
     const elder = bindingCandidates.find(candidate => candidate.id === item.elderId);
-    return elder ? [{ id: elder.id, name: elder.name, age: elder.age, avatar: elder.avatar, project: elder.project,
+    return elder ? [{ id: elder.id, communityId: elder.communityId, name: elder.name, age: elder.age, avatar: elder.avatar, project: elder.project,
       maskedAddress: elder.maskedAddress, relation: item.relation, relationshipStatus: item.status }] : [];
   });
 }

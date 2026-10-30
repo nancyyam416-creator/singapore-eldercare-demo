@@ -723,6 +723,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               storeCategoryScenario={storeCategoryScenario}
               openStoreSignal={previewOpenStoreSignal}
               elderProject={currentBoundElder?.project ?? '静安社区'}
+              communityId={currentBoundElder?.communityId}
             />
           )}
 

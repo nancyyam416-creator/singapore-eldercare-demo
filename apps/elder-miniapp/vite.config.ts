@@ -16,7 +16,7 @@ if (requestedPortArgument && Number(requestedPortArgument) !== FIXED_PORT) {
 }
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || "/",
+  base: process.env.VITE_BASE_PATH || "./",
   plugins: [react()],
   server: {
     host: '0.0.0.0',

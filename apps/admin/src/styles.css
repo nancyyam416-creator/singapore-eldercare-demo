@@ -2866,6 +2866,12 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .single-image-upload.has-preview { min-height: 142px; padding: 14px; display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 16px; border-style: solid; }
 .admin-style-theme .single-image-preview { width: 112px; aspect-ratio: 1 / 1; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 .admin-style-theme .single-image-preview img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.admin-style-theme .single-image-upload.preview-landscape.has-preview { grid-template-columns: 160px minmax(0, 1fr); }
+.admin-style-theme .single-image-upload.preview-landscape .single-image-preview { width: 160px; aspect-ratio: 16 / 9; }
+.admin-style-theme .single-image-upload.preview-landscape .single-image-preview img { object-fit: cover; }
+.admin-style-theme .single-image-upload.preview-natural.has-preview { grid-template-columns: minmax(0, 220px) minmax(0, 1fr); align-items: flex-start; }
+.admin-style-theme .single-image-upload.preview-natural .single-image-preview { width: 100%; max-height: 360px; aspect-ratio: auto; }
+.admin-style-theme .single-image-upload.preview-natural .single-image-preview img { height: auto; max-height: 360px; object-fit: contain; }
 .admin-style-theme .single-image-copy { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .admin-style-theme .single-image-actions { margin-top: 6px; display: flex; align-items: center; gap: var(--admin-action-gap); }
 .admin-style-theme .single-image-actions .text-button { min-height: var(--admin-control-height); padding: 0 6px; gap: 5px; }
@@ -10019,6 +10025,55 @@ th.sticky-right { background: #f7f8fa; }
   margin-top: 9px;
 }
 
+.admin-style-theme .community-scope-field { min-width: 0; }
+.admin-style-theme .community-scope-label { display: block; margin-bottom: 8px; color: #404956; font-size: 12px; }
+.admin-style-theme .community-scope-field .scope-radio-group > label { min-height: 58px; padding: 10px 11px; }
+.admin-style-theme .community-scope-field .scope-radio-group label:has(input:checked) { border-color: #dbe3ee; background: #f8fafc; box-shadow: none; }
+.admin-style-theme .community-scope-picker { position: relative; margin-top: 10px; }
+.admin-style-theme .community-scope-picker-label { margin-bottom: 6px; display: block; color: #64748b; font-size: 11px; }
+.admin-style-theme .community-scope-trigger { width: 100%; height: 40px; padding: 0 11px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #d9dee6; border-radius: 7px; color: #475569; background: #fff; font-size: 12px; text-align: left; cursor: pointer; }
+.admin-style-theme .community-scope-trigger:hover { border-color: #b8c3d1; }
+.admin-style-theme .community-scope-trigger.is-open { border-color: #8bafff; box-shadow: 0 0 0 3px rgba(59, 130, 246, .08); }
+.admin-style-theme .community-scope-trigger.has-error { border-color: #e5484d; }
+.admin-style-theme .community-scope-trigger .placeholder { color: #94a3b8; }
+.admin-style-theme .community-scope-trigger .has-value { color: #334155; }
+.admin-style-theme .community-scope-trigger > svg { flex: 0 0 auto; color: #94a3b8; transition: transform .15s ease; }
+.admin-style-theme .community-scope-trigger.is-open > svg { transform: rotate(180deg); }
+.admin-style-theme .community-scope-trigger:disabled { color: #94a3b8; background: #f8fafc; cursor: not-allowed; }
+.admin-style-theme .community-scope-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; }
+.admin-style-theme .community-scope-tags > span { min-height: 24px; padding: 2px 4px 2px 8px; display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; color: #475569; background: #eef4fb; font-size: 11px; }
+.admin-style-theme .community-scope-tags button { width: 18px; height: 18px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; color: #64748b; background: transparent; cursor: pointer; }
+.admin-style-theme .community-scope-tags button:hover { color: #334155; background: #dce7f5; }
+.admin-style-theme .community-scope-field.is-disabled { opacity: .68; }
+.admin-style-theme .community-scope-error { min-height: 18px; padding-top: 3px; display: block; color: transparent; font-size: 11px; line-height: 15px; }
+.admin-style-theme .community-scope-error.has-error { color: #d14343; }
+
+.community-scope-dropdown { position: fixed; z-index: 1200; padding: 10px; border: 1px solid #dbe3ee; border-radius: 8px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
+.community-scope-dropdown-search { height: 38px; padding: 0 10px; display: flex; align-items: center; gap: 8px; border: 1px solid #d9dee6; border-radius: 6px; }
+.community-scope-dropdown-search:focus-within { border-color: #8bafff; box-shadow: 0 0 0 3px rgba(59, 130, 246, .08); }
+.community-scope-dropdown-search > svg { flex: 0 0 auto; color: #94a3b8; }
+.community-scope-dropdown-search input { min-width: 0; height: 36px; flex: 1; padding: 0; border: 0; outline: 0; color: #334155; background: transparent; font-size: 12px; }
+.community-scope-dropdown-search button { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 4px; color: #64748b; background: transparent; cursor: pointer; }
+.community-scope-dropdown-search button:hover { background: #f1f5f9; }
+.community-scope-dropdown-toolbar { min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #64748b; font-size: 11px; }
+.community-scope-dropdown-toolbar > div { display: flex; gap: 8px; }
+.community-scope-dropdown-toolbar button { padding: 0; border: 0; color: #2563eb; background: transparent; font-size: 11px; cursor: pointer; }
+.community-scope-dropdown-toolbar button:disabled { color: #a8b2c1; cursor: not-allowed; }
+.community-scope-dropdown-list { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+.community-scope-dropdown-list > button { width: 100%; min-height: 46px; padding: 7px 8px; display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 8px; border: 0; border-radius: 6px; color: #475569; background: #fff; text-align: left; cursor: pointer; }
+.community-scope-dropdown-list > button:hover { background: #f8fafc; }
+.community-scope-dropdown-list > button.is-selected { background: #eef4fb; }
+.community-scope-dropdown-list > button > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.community-scope-dropdown-list b { color: #334155; font-size: 12px; }
+.community-scope-dropdown-list small { overflow: hidden; color: #94a3b8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.community-scope-option-check { width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid #cbd5e1; border-radius: 4px; color: #fff; }
+.community-scope-dropdown-list > button.is-selected .community-scope-option-check { border-color: #2563eb; background: #2563eb; }
+.community-scope-dropdown-empty { min-height: 96px; padding: 20px 12px; display: grid; place-items: center; color: #94a3b8; font-size: 11px; text-align: center; }
+
+@media (max-width: 720px) {
+  .admin-style-theme .community-scope-field .scope-radio-group { grid-template-columns: minmax(0, 1fr); }
+}
+
 .admin-style-theme .safety-news-drawer footer {
   height: 68px;
   padding: 0 24px;
@@ -10123,6 +10178,71 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .service-booking-name small {
   color: #94a3b8;
   font-size: 11px;
+}
+
+.admin-style-theme .service-catalog-name {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  color: #1e293b;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-style-theme .service-catalog-name img {
+  width: 54px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.admin-style-theme .service-image-preview {
+  width: 100%;
+  max-height: 150px;
+  margin-top: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.admin-style-theme .service-catalog-detail-drawer {
+  width: min(680px, 100vw);
+}
+
+.admin-style-theme .service-detail-hero {
+  width: 100%;
+  max-height: 240px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.admin-style-theme .service-introduction p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.admin-style-theme .service-introduction h4 {
+  margin: 18px 0 8px;
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.admin-style-theme .service-introduction img {
+  width: 100%;
+  height: auto;
+  margin-top: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  object-fit: contain;
 }
 
 .admin-style-theme .service-booking-drawer {
@@ -12245,16 +12365,14 @@ th.sticky-right { background: #f7f8fa; }
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: grab;
+  cursor: pointer;
 }
-.admin-style-theme .recommendation-calendar-chips > button:active { cursor: grabbing; }
 .admin-style-theme .recommendation-calendar-chips > button:focus-visible { outline: 2px solid rgba(37, 99, 235, .28); outline-offset: 1px; }
 .admin-style-theme .recommendation-calendar-chips > button.type-announcement { border-color: #bfdbfe; color: #1d4ed8; background: #eff6ff; }
 .admin-style-theme .recommendation-calendar-chips > button.type-life_info { border-color: #bbf7d0; color: #15803d; background: #f0fdf4; }
 .admin-style-theme .recommendation-calendar-chips > button.type-alert { border-color: #fecaca; color: #b91c1c; background: #fff1f2; }
 .admin-style-theme .recommendation-calendar-chips > button.type-activity { border-color: #fde68a; color: #b45309; background: #fffbeb; }
 .admin-style-theme .recommendation-calendar-chips > button.type-third_party_entertainment { border-color: #ddd6fe; color: #6d28d9; background: #f5f3ff; }
-.admin-style-theme .recommendation-calendar-chips > button.dragging { opacity: .38; border-style: dashed; }
 .admin-style-theme .recommendation-calendar-chips > small { color: #64748b; font-size: 9px; font-weight: 600; }
 .admin-style-theme .recommendation-calendar-empty { margin: auto 0 1px; color: #94a3b8; font-size: 9px; font-weight: 500; }
 .admin-style-theme .recommendation-day-list > div {

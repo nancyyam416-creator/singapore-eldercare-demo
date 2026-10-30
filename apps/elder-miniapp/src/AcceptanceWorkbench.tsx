@@ -66,16 +66,15 @@ const pages: AcceptancePage[] = [
       { value: 'detail', label: '事项详情', description: '打开详情后记录已阅读，并可朗读正文。', status: '已阅读' },
     ], actions: [{ id: 'open-first-alert', label: '打开首项详情' }] },
   ] },
-  { id: 'services', label: '预约服务', modules: [
-    { id: 'service-booking', label: '电话咨询与预约', scenarios: [
-      { value: 'list', label: '默认列表', description: '展示三类维修服务及各自的参考价格区间。', status: '正常' },
-      { value: 'detail', label: '电话直接预约', description: '展示服务机构、营业时间、支持区域和预约电话。', status: '正常' },
-      { value: 'pending', label: '结果待确认', description: '已拨打服务机构电话，并模拟向已绑定子女发送确认通知。', status: '待确认' },
-      { value: 'confirmed', label: '已预约成功', description: '展示子女回填的上门时间和备注。', status: '已成功' },
-      { value: 'failed', label: '暂未预约成功', description: '展示子女回填的未成功结果。', status: '未成功' },
-      { value: 'no_guardian', label: '无绑定子女', description: '已拨打电话，但没有可接收确认通知的已绑定子女。', status: '无接收人' },
-      { value: 'records', label: '预约进展', description: '展示电话拨打记录及家人回填的确认结果。', status: 'L3 Mock' },
-    ], actions: [{ id: 'open-services', label: '打开预约服务' }] },
+  { id: 'services', label: '服务协助', modules: [
+    { id: 'service-booking', label: '电话与家人协助', scenarios: [
+      { value: 'default', label: '默认', description: '展示三类服务、服务商与参考价格区间。', status: '正常' },
+      { value: 'detail', label: '图文服务详情', description: '展示头图、服务内容、注意事项、详情图和完整服务信息。', status: '正常' },
+      { value: 'requested', label: '已请求家人', description: '已通知所有绑定家人，等待家人处理。', status: '待处理' },
+      { value: 'handled', label: '家人已处理', description: '展示处理人、处理时间和结果摘要。', status: '已处理' },
+      { value: 'completed', label: '服务已完成', description: '服务完成后开放 1–5 星评价和可选文字评价。', status: '待评价' },
+      { value: 'reviewed', label: '已评价', description: '展示老人的评分与评价内容，允许修改一次。', status: '已评价' },
+    ], actions: [{ id: 'open-services', label: '打开服务协助' }] },
   ] },
   { id: 'profile', label: '我的', modules: [
     { id: 'profile-guardians', label: '家庭守护人', scenarios: [

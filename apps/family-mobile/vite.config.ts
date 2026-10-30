@@ -19,7 +19,7 @@ if (requestedPortArgument && Number(requestedPortArgument) !== FIXED_PORT) {
 
 export default defineConfig(() => {
   return {
-    base: process.env.VITE_BASE_PATH || "/",
+    base: process.env.VITE_BASE_PATH || "./",
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

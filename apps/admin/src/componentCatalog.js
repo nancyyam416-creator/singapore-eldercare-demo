@@ -40,14 +40,21 @@ export const componentCatalog = [
   {
     id: "single-image-upload", name: "SingleImageUpload", category: "表单", status: "stable", assetType: "public-component",
     maturity: "已稳定", scenarios: "单张图标、封面或人员照片上传",
-    rules: ["未上传时整体可点击/拖拽", "已上传使用固定 1:1 预览", "错误位固定不跳动", "文件限制由业务层传入"],
-    support: ["点击上传", "拖拽", "预览", "替换", "删除", "错误"], source: "src/SingleImageUpload.jsx", spec: "《后台通用组件规范.md》#单图上传",
+    rules: ["未上传时整体可点击/拖拽", "已上传可按业务选择 1:1、16:9 或原始比例预览", "详情长图使用原始比例且不裁切", "错误位固定不跳动", "文件限制由业务层传入"],
+    support: ["点击上传", "拖拽", "1:1 / 16:9 / 原始比例预览", "替换", "删除", "错误"], source: "src/SingleImageUpload.jsx", spec: "《后台通用组件规范.md》#单图上传",
     migrated: ["休闲娱乐"], pending: ["社区人员照片", "社区活动封面"],
   },
   {
     id: "form-layout", name: "表单字段 / 分组布局", category: "表单", status: "stable", assetType: "public-style",
     maturity: "已稳定", scenarios: "抽屉与页面内的结构化表单", rules: ["form-section 分组", "form-row 仅用于相关短字段", "间距使用 --admin-* tokens"],
     support: ["单列", "双列", "必填", "错误", "帮助文本"], source: "src/styles.css (.form-section / .form-row)", spec: "《后台通用组件规范.md》#表单", migrated: ["后台通用表单"], pending: ["个别业务自定义字段间距"],
+  },
+  {
+    id: "community-scope-field", name: "CommunityScopeField", category: "表单", status: "stable", assetType: "public-component",
+    maturity: "已稳定", scenarios: "全部社区 / 指定社区的结构化范围选择",
+    rules: ["业务数据只保存稳定社区 ID", "指定社区时至少选择一项", "长列表支持名称、ID 和地址搜索", "已选项可见且可单独移除", "错误位固定不跳动"],
+    support: ["全部 / 指定模式", "社区多选", "搜索", "已选项摘要", "空结果", "错误"], source: "src/CommunityScopeField.jsx", spec: "《后台通用组件规范.md》#范围选择",
+    migrated: [], pending: ["服务目录", "其他跨社区配置"],
   },
   {
     id: "filter-bar", name: "搜索筛选区", category: "表单", status: "stable", assetType: "public-style",

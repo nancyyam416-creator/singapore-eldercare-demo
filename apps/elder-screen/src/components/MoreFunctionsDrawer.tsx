@@ -80,7 +80,7 @@ export default function MoreFunctionsDrawer({
     {
       id: "special-services",
       title: "特约服务",
-      description: "预约家政等上门服务",
+      description: "查看维修服务，请家人协助联系",
       icon: HandHeart,
       tone: "purple",
       action: onOpenSpecialServices,

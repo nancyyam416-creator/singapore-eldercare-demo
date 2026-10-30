@@ -432,11 +432,17 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
 };
 
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
-  default: { label: "五类正常服务", description: "五类服务均有可预约内容，可筛选并进入详情预约。" },
-  "no-services": { label: "暂无可预约服务", description: "全部服务都不可预约时展示统一空状态。" },
+  default: { label: "三类六项服务", description: "与老人移动端一致，展示三类六项服务及完整服务信息。" },
+  "no-services": { label: "暂无可用服务", description: "全部服务不可用时展示统一空状态。" },
   "filter-empty": { label: "当前筛选变为空", description: "保留当前分类并提示返回全部服务。" },
   "category-load-failure": { label: "分类加载失败", description: "不虚构分类，展示失败提示与重新加载。" },
   "category-disabled": { label: "分类已停用", description: "停用分类及其服务不进入老人端列表。" },
+  "family-help-idle": { label: "未请求", description: "联系服务商与家人协助均展示初始状态。" },
+  "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
+  "family-help-pending": { label: "家人待处理", description: "已通知家人，请等待联系。" },
+  "family-help-handled": { label: "家人已处理", description: "展示处理人、处理时间和结果摘要。" },
+  "service-completed": { label: "服务已完成", description: "展示服务完成状态与 1–5 星评价入口。" },
+  "service-reviewed": { label: "老人已评价", description: "展示星级、可选文字和评价提交结果。" },
 };
 
 const communityStaffScenarioLabels: Record<CommunityStaffAcceptanceScenario, { label: string; description: string }> = {
@@ -1113,7 +1119,7 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "special-services" && <section>
               <div className="interaction-acceptance-field">
-                <h2><HandHeart aria-hidden="true" />特约服务分类场景</h2>
+                <h2><HandHeart aria-hidden="true" />特约服务流程场景</h2>
                 <p>选择场景后直接打开现有特约服务页，验收台保持展开。</p>
                 <div className="interaction-acceptance-scenario-list">
                   {(Object.keys(specialServicesScenarioLabels) as SpecialServicesAcceptanceScenario[]).map((scenario) => (
@@ -1132,7 +1138,7 @@ export default function InteractionAcceptanceConsole({
                   <ChevronRight aria-hidden="true" />打开当前特约服务场景
                 </button>
               </div>
-              <p className="interaction-acceptance-note">分类只用于筛选服务；详情、预约确认、预约结果和服务记录继续复用现有流程。</p>
+              <p className="interaction-acceptance-note">中控屏只展示服务电话，不发起拨号；主要动作为“请家人帮忙”，不展示预约成功。</p>
             </section>}
 
             {activeSection === "community-staff" && <section>

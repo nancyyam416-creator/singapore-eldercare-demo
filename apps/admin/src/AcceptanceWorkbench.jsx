@@ -5,13 +5,13 @@ const VIEWPORT_MARGIN = 8;
 const DRAG_THRESHOLD = 5;
 
 const acceptanceHierarchy = [
-  { id: "workbench", label: "工作台", modules: [{ id: "overview", label: "运营概览", objectLabel: "页面整体" }] },
+  { id: "workbench", label: "工作台", modules: [{ id: "overview", label: "运营概览", objectLabel: "页面整体" }, { id: "elderlyDataDashboard", label: "老人使用分析" }, { id: "recommendations", label: "推荐策略" }] },
   { id: "elder-service", label: "老人服务", modules: [
     { id: "elderly", label: "老人档案" }, { id: "relations", label: "亲属档案" },
     { id: "emergencyHelp", label: "在线协助" }, { id: "familyAlbums", label: "家庭相册" },
   ] },
-  { id: "content", label: "运营内容", modules: [
-    { id: "recommendations", label: "推荐策略" }, { id: "services", label: "预约服务" },
+  { id: "content", label: "服务预约", modules: [
+    { id: "services", label: "服务协助记录" }, { id: "serviceCatalog", label: "服务目录" },
   ] },
   { id: "community-life", label: "社区生活", modules: [
     { id: "communityAnnouncements", label: "社区公告" }, { id: "lifeInformation", label: "生活资讯" },

@@ -37,7 +37,7 @@ import {
   familyWeatherMockApi,
   type FamilyWeatherMockScenario,
 } from "./weather/familyWeather";
-import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord, SpecialServiceBooking } from "./types";
+import { MedicationReminder, HealthTelemetry, IoTSensor, FamilyPhoto, FamilyMessage, CommunityActivity, AntiScamTip, ChatMessage, FulfillmentRecord } from "./types";
 import { elderProfileMock, getActiveFamilyRelationshipCount } from "./elder-profile";
 import { SERVICE_COMMUNICATION_FIXTURES, secondsFromDuration } from "./service-communication-fixture";
 import {
@@ -68,21 +68,11 @@ const createInitialFulfillmentRecords = (): FulfillmentRecord[] => {
 };
 
 const SAFETY_READ_STORAGE_KEY = "u2g-safety-read-ids-v1";
-const SERVICE_BOOKINGS_STORAGE_KEY = "u2g-special-service-bookings-v1";
 
 const readStoredSafetyIds = () => {
   try {
     const stored = window.localStorage.getItem(SAFETY_READ_STORAGE_KEY);
     return stored ? JSON.parse(stored) as string[] : [];
-  } catch {
-    return [];
-  }
-};
-
-const readStoredServiceBookings = () => {
-  try {
-    const stored = window.localStorage.getItem(SERVICE_BOOKINGS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) as SpecialServiceBooking[] : [];
   } catch {
     return [];
   }
@@ -423,7 +413,6 @@ export default function App() {
   const [autoPlaySafetyInformation, setAutoPlaySafetyInformation] = useState(false);
   const [safetyReadIds, setSafetyReadIds] = useState<string[]>(readStoredSafetyIds);
   const [isSpecialServicesOpen, setIsSpecialServicesOpen] = useState(false);
-  const [serviceBookings, setServiceBookings] = useState<SpecialServiceBooking[]>(readStoredServiceBookings);
   const [isPersonalProfileOpen, setIsPersonalProfileOpen] = useState(false);
   const [isEntertainmentHubOpen, setIsEntertainmentHubOpen] = useState(false);
   const [isCommunityStaffOpen, setIsCommunityStaffOpen] = useState(false);
@@ -757,21 +746,6 @@ export default function App() {
     window.localStorage.setItem(SAFETY_READ_STORAGE_KEY, JSON.stringify(nextReadIds));
     const tip = scamTips.find((item) => item.id === tipId);
     if (tip) appendFulfillmentRecord({ kind: "content", title: `已阅读${tip.title}` });
-  };
-
-  const handleBookService = (booking: SpecialServiceBooking) => {
-    const nextBookings = [booking, ...serviceBookings];
-    setServiceBookings(nextBookings);
-    window.localStorage.setItem(SERVICE_BOOKINGS_STORAGE_KEY, JSON.stringify(nextBookings));
-    appendFulfillmentRecord({ kind: "service", title: `已预约${booking.serviceName}` });
-  };
-
-  const handleCancelServiceBooking = (bookingId: string) => {
-    const nextBookings = serviceBookings.map((booking) => (
-      booking.id === bookingId ? { ...booking, status: "cancelled" as const } : booking
-    ));
-    setServiceBookings(nextBookings);
-    window.localStorage.setItem(SERVICE_BOOKINGS_STORAGE_KEY, JSON.stringify(nextBookings));
   };
 
   const handleCompleteReminder = (id: string, fallbackReminder?: MedicationReminder) => {
@@ -1515,7 +1489,7 @@ export default function App() {
             setHomeRecommendationKind("security");
             openSafetyInformation(false);
           }}
-          isServiceBooked={serviceBookings.some((booking) => booking.serviceId === "cleaning" && booking.status !== "cancelled")}
+          isServiceBooked={false}
           onOpenService={() => {
             setIsTodayOverviewOpen(false);
             setHomeRecommendationKind("service");
@@ -1701,15 +1675,12 @@ export default function App() {
 
         <SpecialServicesPage
           isOpen={isSpecialServicesOpen}
-          initialServiceId={homeRecommendationKind === "service" ? "cleaning" : null}
+          initialServiceId={homeRecommendationKind === "service" ? "srv-electric-1" : null}
           acceptanceScenario={acceptanceSpecialServicesScenario}
-          bookings={serviceBookings}
           onClose={() => {
             setIsSpecialServicesOpen(false);
             if (homeRecommendationKind === "service") setHomeRecommendationKind(null);
           }}
-          onBook={handleBookService}
-          onCancelBooking={handleCancelServiceBooking}
         />
 
         <EntertainmentHubPage

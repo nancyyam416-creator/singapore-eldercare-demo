@@ -1,0 +1,178 @@
+{
+  "version": "2026-10-30",
+  "communities": [
+    {
+      "id": "COM-001",
+      "projectId": "PRJ-001",
+      "name": "红山社区",
+      "address": "12 Bukit Merah View"
+    },
+    {
+      "id": "COM-002",
+      "projectId": "PRJ-002",
+      "name": "大巴窑社区",
+      "address": "85 Lorong 4 Toa Payoh"
+    },
+    {
+      "id": "COM-003",
+      "projectId": "PRJ-003",
+      "name": "女皇镇社区",
+      "address": "46 Commonwealth Drive"
+    },
+    {
+      "id": "COM-004",
+      "projectId": "PRJ-004",
+      "name": "宏茂桥社区",
+      "address": "305 Ang Mo Kio Avenue 1"
+    }
+  ],
+  "elderProfiles": [
+    { "id": "elder-father", "name": "张健康", "communityId": "COM-001" },
+    { "id": "elder-mother", "name": "李惠兰", "communityId": "COM-002" }
+  ],
+  "categories": [
+    {
+      "code": "electric",
+      "name": "电力维修",
+      "order": 1
+    },
+    {
+      "code": "water",
+      "name": "水利维修",
+      "order": 2
+    },
+    {
+      "code": "basic",
+      "name": "基础维修",
+      "order": 3
+    }
+  ],
+  "services": [
+    {
+      "id": "srv-electric-1",
+      "category": "electric",
+      "coverageMode": "specified",
+      "coverageCommunityIds": ["COM-001", "COM-003"],
+      "name": "灯具与开关检查",
+      "description": "检查常用灯具、插座或开关的简单故障。",
+      "serviceContent": "服务人员上门检查常用灯具、插座与开关，确认故障位置，并说明可行的处理方案。",
+      "precautions": [
+        "服务前请告知具体故障位置，并保持周边通道畅通。",
+        "如需更换灯具、开关或插座等材料，服务人员会在施工前另行确认费用。"
+      ],
+      "provider": "社区安心电工服务站",
+      "providerPhone": "+65 6123 8801",
+      "businessHours": "周一至周六 08:30–18:00",
+      "priceRange": "S$35–90",
+      "coverImage": "/assets/services/electric-light-cover.svg",
+      "detailImages": [
+        "/assets/services/electric-light-detail.svg"
+      ]
+    },
+    {
+      "id": "srv-electric-2",
+      "category": "electric",
+      "coverageMode": "specified",
+      "coverageCommunityIds": ["COM-001", "COM-003"],
+      "name": "家庭电路排查",
+      "description": "排查跳闸、局部断电等常见家庭电路问题。",
+      "serviceContent": "专业电工上门检查配电箱、常用回路和用电设备，定位跳闸、局部断电或线路异常的可能原因。",
+      "precautions": [
+        "排查期间可能需要短时断电，请提前保存正在使用的电器资料。",
+        "暗线、大面积布线或需增设回路的施工不在基础排查范围内，需要另行确认方案和报价。"
+      ],
+      "provider": "社区安心电工服务站",
+      "providerPhone": "+65 6123 8801",
+      "businessHours": "周一至周六 08:30–18:00",
+      "priceRange": "S$80–220",
+      "coverImage": "/assets/services/electric-circuit-cover.svg",
+      "detailImages": [
+        "/assets/services/electric-circuit-detail.svg"
+      ]
+    },
+    {
+      "id": "srv-water-1",
+      "category": "water",
+      "coverageMode": "specified",
+      "coverageCommunityIds": ["COM-001"],
+      "name": "水龙头检修",
+      "description": "检查漏水、松动和出水异常。",
+      "serviceContent": "服务人员上门检查水龙头的阀芯、接口和固定位置，处理常见漏水、松动或出水异常。",
+      "precautions": [
+        "请提前清理水龙头下方物品，便于关闭角阀和进行检查。",
+        "如需更换阀芯、软管或水龙头，配件型号与费用需在施工前确认。"
+      ],
+      "provider": "安心到家水务服务站",
+      "providerPhone": "+65 6123 8802",
+      "businessHours": "每天 08:00–20:00",
+      "priceRange": "S$30–80",
+      "coverImage": "/assets/services/water-tap-cover.svg",
+      "detailImages": [
+        "/assets/services/water-tap-detail.svg"
+      ]
+    },
+    {
+      "id": "srv-water-2",
+      "category": "water",
+      "coverageMode": "specified",
+      "coverageCommunityIds": ["COM-001"],
+      "name": "水管漏水检查",
+      "description": "检查可见水管、接口及常见渗漏问题。",
+      "serviceContent": "服务人员上门检查可见水管、弯头和接口，判断常见渗漏位置，并说明基础止漏或后续处理建议。",
+      "precautions": [
+        "请记录漏水位置和出现时间，如漏水明显加剧，请先关闭总阀。",
+        "暗管渗漏、墙体或地面拆除不在基础检查范围内，需根据现场情况另行报价。"
+      ],
+      "provider": "安心到家水务站",
+      "providerPhone": "+65 6123 8802",
+      "businessHours": "每天 08:00–20:00",
+      "priceRange": "S$50–150",
+      "coverImage": "/assets/services/water-pipe-cover.svg",
+      "detailImages": [
+        "/assets/services/water-pipe-detail.svg"
+      ]
+    },
+    {
+      "id": "srv-basic-1",
+      "category": "basic",
+      "coverageMode": "specified",
+      "coverageCommunityIds": ["COM-001", "COM-003"],
+      "name": "门锁与把手维修",
+      "description": "检查门锁、把手松动或开合不顺等问题。",
+      "serviceContent": "服务人员上门检查门锁、锁舌、合页和门把手，处理松动、异响或开合不顺等常见问题。",
+      "precautions": [
+        "如门锁完全无法开启，请勿强行拆卸，可先通过电话说明情况。",
+        "更换锁芯、把手或合页时，需确认规格、材料费和施工费。"
+      ],
+      "provider": "乐居综合维修服务站",
+      "providerPhone": "+65 6123 8803",
+      "businessHours": "周一至周六 09:00–18:00",
+      "priceRange": "S$40–120",
+      "coverImage": "/assets/services/basic-lock-cover.svg",
+      "detailImages": [
+        "/assets/services/basic-lock-detail.svg"
+      ]
+    },
+    {
+      "id": "srv-basic-2",
+      "category": "basic",
+      "coverageMode": "specified",
+      "coverageCommunityIds": ["COM-001", "COM-003"],
+      "name": "家具小修",
+      "description": "处理桌椅松动、柜门偏移等常见小型维修。",
+      "serviceContent": "服务人员上门检查桌椅连接件、柜门合页和抽屉滑轨，处理松动、偏移或开合不顺等常见问题。",
+      "precautions": [
+        "请提前清空需维修家具内的物品，并保留足够操作空间。",
+        "大型搬运、结构性损坏或需定制板材的项目需由服务人员现场确认是否可承接。"
+      ],
+      "provider": "乐居综合维修服务站",
+      "providerPhone": "+65 6123 8803",
+      "businessHours": "周一至周六 09:00–18:00",
+      "priceRange": "S$45–160",
+      "coverImage": "/assets/services/basic-furniture-cover.svg",
+      "detailImages": [
+        "/assets/services/basic-furniture-detail.svg"
+      ]
+    }
+  ]
+}

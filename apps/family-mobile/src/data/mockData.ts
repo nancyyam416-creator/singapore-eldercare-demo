@@ -1,3 +1,4 @@
+import { unifiedElderProfiles, getUnifiedCommunityName } from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -20,18 +21,19 @@ export const initialChildResidenceAddress = '新加坡中区乌节路 88 号';
 export const initialBoundElders: BoundElder[] = [
   {
     id: 'elder-father',
+    communityId: unifiedElderProfiles.find(elder => elder.id === 'elder-father')?.communityId,
     name: '张健康',
     age: 78,
     avatar: initialParentProfile.avatar,
     relation: '女儿',
-    project: '孝心关怀中心 · 静安社区',
-    maskedAddress: '上海市静安区万航渡路***号',
+    project: '红山社区养老计划 · 红山社区',
+    maskedAddress: '新加坡 · 红山 **号',
     relationshipStatus: 'active'
   },
   {
-    id: 'elder-mother', name: '李惠兰', age: 72,
+    id: 'elder-mother', communityId: unifiedElderProfiles.find(elder => elder.id === 'elder-mother')?.communityId, name: '李惠兰', age: 72,
     avatar: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=150&h=150&q=80',
-    relation: '女儿', project: '长宁社区', maskedAddress: '新加坡 · 武吉知马 **号', relationshipStatus: 'active'
+    relation: '女儿', project: '大巴窑关怀中心 · 大巴窑社区', maskedAddress: '新加坡 · 武吉知马 **号', relationshipStatus: 'active'
   }
 ];
 

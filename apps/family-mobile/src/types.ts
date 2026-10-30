@@ -201,6 +201,7 @@ export interface CareReminder {
 }
 
 export interface BoundElder {
+  communityId?: string;
   id: string;
   name: string;
   age: number;

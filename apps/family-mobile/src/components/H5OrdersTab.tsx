@@ -1,3 +1,4 @@
+import { H5ServiceDirectory } from './H5ServiceDirectory';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -38,6 +39,7 @@ interface H5OrdersTabProps {
   storeCategoryScenario: StoreCategoryScenario;
   openStoreSignal: number;
   elderProject: string;
+  communityId?: string;
 }
 
 export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
@@ -51,7 +53,8 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
   openReminderSignal,
   storeCategoryScenario,
   openStoreSignal,
-  elderProject
+  elderProject,
+  communityId
 }) => {
   const [section, setSection] = useState<'store' | 'services'>('store');
 
@@ -143,12 +146,12 @@ export const H5OrdersTab: React.FC<H5OrdersTabProps> = ({
   return (
     <div className="p-4 space-y-4 pb-6" id="h5-orders-tab">
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-200/70 p-1">
-        <button type="button" onClick={() => setSection('store')} aria-pressed={section === 'store'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'store' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ShoppingBag size={14} />特约服务</button>
+        <button type="button" onClick={() => setSection('store')} aria-pressed={section === 'store'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'store' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ShoppingBag size={14} />服务目录</button>
         <button type="button" onClick={() => setSection('services')} aria-pressed={section === 'services'} className={`flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[10px] font-extrabold ${section === 'services' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}><ClipboardList size={14} />服务记录</button>
       </div>
 
       {section === 'store' ? (
-        <div className="-mx-4 -mt-2"><H5StoreTab parentProfile={initialParentProfile} elderName={elderName} elderProject={elderProject} scenario={storeCategoryScenario} onAddOrder={order => setOrders(current => [order, ...current])} onSwitchToOrders={() => setSection('services')} /></div>
+        <div className="-mx-4 -mt-2"><H5ServiceDirectory communityId={communityId} /></div>
       ) : (
         <>
       {/* Tab intro */}

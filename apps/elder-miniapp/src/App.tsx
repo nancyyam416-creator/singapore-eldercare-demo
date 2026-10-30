@@ -165,7 +165,7 @@ export default function App() {
   const [alertReadIds, setAlertReadIds] = useState<string[]>([]);
   const [alertSpeechState, setAlertSpeechState] = useState<'playing' | 'paused' | null>(null);
   const [isOnline] = useState(() => navigator.onLine);
-  const [appointmentScenario, setAppointmentScenario] = useState<AppointmentScenario>('list');
+  const [appointmentScenario, setAppointmentScenario] = useState<AppointmentScenario>('default');
   const [servicesOpen, setServicesOpen] = useState(false);
   const [serviceCategory, setServiceCategory] = useState<ServiceCategory>('water');
   const [selectedService, setSelectedService] = useState<(typeof serviceData)[ServiceCategory]['items'][number] | null>(null);
@@ -185,7 +185,7 @@ export default function App() {
   const [activityListScenario, setActivityListScenario] = useState('default');
   const [guardianScenario, setGuardianScenario] = useState('default');
 
-  const pageTitle = bindingOpen ? '家人绑定确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '预约服务' : '我的';
+  const pageTitle = bindingOpen ? '家人绑定确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '服务协助' : '我的';
   const currentService = serviceData[serviceCategory];
   const canSaveReminder = reminderTitle.trim() && (reminderType === 'daily' || reminderDetail.trim()) && (repeat !== 'weekly' || weekdays.length > 0);
   const filteredReminders = useMemo(() => reminderItems, [reminderItems]);
@@ -303,7 +303,7 @@ export default function App() {
     if (moduleId === 'reminder-rules') setReminderView('rules');
     if (moduleId === 'activity-detail') setSelectedActivity(activities[0]);
     if (moduleId === 'community-alerts') setCommunityView('alerts');
-    if (moduleId === 'service-booking') setAppointmentScenario('list');
+    if (moduleId === 'service-booking') setAppointmentScenario('default');
     document.querySelector('.app-content')?.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -559,8 +559,8 @@ export default function App() {
     : selectedActivity ? { label: '返回活动列表', action: () => { setSelectedActivity(null); setActivityIntentFailure(null); } }
         : selectedAlert ? { label: '返回警惕事项', action: () => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); } }
           : showingService ? { label: selectedService ? '返回服务列表' : '返回首页', action: () => { if (selectedService) { setSelectedService(null); setServiceStep('detail'); } else { setServicesOpen(false); } } }
-            : tab === 'services' && appointmentScenario === 'result' ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
-              : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('list') }
+            : tab === 'services' && (appointmentScenario === 'requested' || appointmentScenario === 'handled' || appointmentScenario === 'completed' || appointmentScenario === 'reviewed') ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
+              : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('default') }
                 : undefined;
 
   return <MobileAppShell title={selectedFamilyPhoto ? '影像预览' : showingService ? '特约服务' : pageTitle} onBack={shellBack?.action} backLabel={shellBack?.label}>
@@ -568,7 +568,7 @@ export default function App() {
 
     {!bindingOpen && !showingService && !selectedFamilyPhoto && <nav className="bottom-nav" aria-label="主导航">
       {([
-        ['home', Home, '首页'], ['family', Images, '家庭'], ['activities', CalendarDays, '社区'], ['services', CalendarCheck2, '预约'], ['profile', CircleUserRound, '我的'],
+        ['home', Home, '首页'], ['family', Images, '家庭'], ['activities', CalendarDays, '社区'], ['services', CalendarCheck2, '服务'], ['profile', CircleUserRound, '我的'],
       ] as const).map(([key, Icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => goTo(key)}><Icon /><span>{label}</span></button>)}
     </nav>}
 
