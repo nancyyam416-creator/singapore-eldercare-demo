@@ -13,6 +13,10 @@ const icons = {
 
 const updateDays = [
   {
+    date: "2026-10-30",
+    terminals: [{ name: "入口界面", items: ["修复四端入口丢失项目路径导致的 404，生产入口改为相对当前站点路径"] }],
+  },
+  {
     date: "2026-10-29",
     terminals: [
       {
