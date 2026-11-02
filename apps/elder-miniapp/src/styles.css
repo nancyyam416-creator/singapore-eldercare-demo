@@ -1086,6 +1086,7 @@ button:active { transform: scale(.98); }
 .appointment-assistance-result > span svg { width: 34px; height: 34px; }
 .appointment-assistance-result h2 { margin: 0; font-size: 24px; }
 .appointment-assistance-result > p { margin: 0; color: #526078; font-size: 14px; line-height: 1.6; }
+.appointment-assistance-result > .appointment-help-success { justify-self: center; padding: 8px 14px; border-radius: 999px; color: #087b59; background: #dff7ec; font-weight: 800; }
 .appointment-assistance-result dl { display: grid; gap: 0; margin: 4px 0; border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; text-align: left; }
 .appointment-assistance-result dl > div { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 10px; padding: 12px 14px; border-bottom: 1px solid #e2e8f0; }
 .appointment-assistance-result dl > div:last-child { border-bottom: 0; }

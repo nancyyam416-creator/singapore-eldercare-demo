@@ -36,6 +36,8 @@ export type ServiceAssistanceRecord = {
   serviceStatus: 'not_completed' | 'completed';
   completedAt: string | null;
   completedBy?: string | null;
+  reminderTimes?: string[];
+  lastRemindedAt?: string;
   review: { rating: number; text: string; elderId?: string; submittedAt: string; edited: boolean } | null;
 };
 

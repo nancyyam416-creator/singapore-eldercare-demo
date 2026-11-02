@@ -29,9 +29,9 @@ import {
   getLatestServiceAssistanceRecord,
   getServiceAssistanceConfirmationCopy,
   readSharedServiceAssistanceRecords,
+  requestSharedServiceAssistance,
   serviceAssistanceExpiryMessage,
   submitSharedServiceReview,
-  upsertSharedServiceAssistanceRecord,
 } from "../../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import "./special-services-page.css";
 
@@ -110,6 +110,8 @@ interface SharedAssistanceRecord {
   serviceStatus: "not_completed" | "completed";
   completedAt: string | null;
   completedBy?: string | null;
+  reminderTimes?: string[];
+  lastRemindedAt?: string;
   review: { rating: number; text: string; elderId?: string; submittedAt: string; edited?: boolean } | null;
 }
 
@@ -281,7 +283,7 @@ export default function SpecialServicesPage({
   const [assistance, setAssistance] = useState<AssistanceRecord>({ stage: "idle" });
   const [familyHelpConfirmOpen, setFamilyHelpConfirmOpen] = useState(false);
   const [familyHelpConfirmation, setFamilyHelpConfirmation] = useState(() => getServiceAssistanceConfirmationCopy(null));
-  const [familyHelpFeedback, setFamilyHelpFeedback] = useState<"success" | "error" | null>(null);
+  const [familyHelpFeedback, setFamilyHelpFeedback] = useState<"notified" | "reminded" | "notify-error" | "remind-error" | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [sharedRecords, setSharedRecords] = useState<SharedAssistanceRecord[]>(readCurrentElderRecords);
   const [reviewingRecord, setReviewingRecord] = useState<SharedAssistanceRecord | null>(null);
@@ -469,12 +471,12 @@ export default function SpecialServicesPage({
       review: null,
     };
     try {
-      const savedRecord = upsertSharedServiceAssistanceRecord(record) as SharedAssistanceRecord;
-      setAssistance(toAssistanceRecord(savedRecord));
+      const result = requestSharedServiceAssistance(record) as { record: SharedAssistanceRecord; reminded: boolean; message: string };
+      setAssistance(toAssistanceRecord(result.record));
       setSharedRecords(readCurrentElderRecords());
-      setFamilyHelpFeedback("success");
+      setFamilyHelpFeedback(result.reminded ? "reminded" : "notified");
     } catch {
-      setFamilyHelpFeedback("error");
+      setFamilyHelpFeedback(familyHelpConfirmation.confirmLabel === "再次提醒" ? "remind-error" : "notify-error");
     } finally {
       window.setTimeout(() => {
         submissionGuardRef.current = false;
@@ -530,6 +532,7 @@ export default function SpecialServicesPage({
                 <h3>{record.service.name}</h3>
                 <p>{record.provider.name} · {record.provider.phone}</p>
                 <time>请求于 {formatAssistanceTime(record.requestedAt)}</time>
+                {record.lastRemindedAt && <em>最近提醒于 {formatAssistanceTime(record.lastRemindedAt)}</em>}
                 {record.status === "expired" && <em>{serviceAssistanceExpiryMessage}</em>}
                 {record.handledBy && record.handledAt && <em>由 {record.handledBy} 于 {formatAssistanceTime(record.handledAt)} 处理</em>}
                 {record.resultSummary && <em>处理结果：{record.resultSummary}</em>}
@@ -593,7 +596,7 @@ export default function SpecialServicesPage({
           <p>{familyHelpConfirmation.description}</p>
           <small>{familyHelpConfirmation.hint}</small>
           <div>
-            <button type="button" className="is-primary" onClick={confirmFamilyHelp}>通知家人</button>
+            <button type="button" className="is-primary" onClick={confirmFamilyHelp}>{familyHelpConfirmation.confirmLabel}</button>
             <button type="button" onClick={() => setFamilyHelpConfirmOpen(false)}>暂不</button>
           </div>
         </section>
@@ -601,9 +604,9 @@ export default function SpecialServicesPage({
 
       {familyHelpFeedback && <div className="special-services-family-confirm-overlay" role="presentation">
         <section className="is-feedback" role="dialog" aria-modal="true" aria-labelledby="special-services-family-feedback-title">
-          <span>{familyHelpFeedback === "success" ? <CheckCircle2 aria-hidden="true" /> : <WifiOff aria-hidden="true" />}</span>
-          <h2 id="special-services-family-feedback-title">{familyHelpFeedback === "success" ? "已通知家人" : "通知失败"}</h2>
-          <p>{familyHelpFeedback === "success" ? "家人可以在手机端查看协助请求，并帮您联系服务商。" : "暂时无法通知家人，请稍后重试。"}</p>
+          <span>{familyHelpFeedback === "notified" || familyHelpFeedback === "reminded" ? <CheckCircle2 aria-hidden="true" /> : <WifiOff aria-hidden="true" />}</span>
+          <h2 id="special-services-family-feedback-title">{familyHelpFeedback === "reminded" ? "已提醒家人" : familyHelpFeedback === "notified" ? "已通知家人" : familyHelpFeedback === "remind-error" ? "提醒失败" : "通知失败"}</h2>
+          <p>{familyHelpFeedback === "reminded" ? "已沿用原协助记录提醒家人，处理时限不变。" : familyHelpFeedback === "notified" ? "家人可以在手机端查看协助请求，并帮您联系服务商。" : "暂时无法完成操作，请稍后重试。"}</p>
           <div><button type="button" className="is-primary" onClick={() => setFamilyHelpFeedback(null)}>我知道了</button></div>
         </section>
       </div>}
