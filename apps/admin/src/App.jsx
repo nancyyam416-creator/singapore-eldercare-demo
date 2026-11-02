@@ -198,7 +198,7 @@ const pageMeta = {
   communityStaff: { title: "社区人员", description: "维护面向当前社区老人展示的社区人员与服务联系人", add: "新增人员" },
   services: { title: "服务协助记录", description: "查看老人从中控屏发起的“请家人帮忙”请求及家人处理结果", add: "" },
   serviceCatalog: { title: "服务目录", description: "维护服务内容、服务图片与适用社区范围", add: "新增服务" },
-  tabletDevices: { title: "平板设备", description: "维护平板 SN 登记、老人绑定和在线状态", add: "登记平板 SN" },
+  tabletDevices: { title: "平板设备", description: "查看平板自动上报、老人绑定和在线状态", add: "" },
   platformTabletDevices: { title: "平板设备", description: "跨项目查看平板版本、升级进度与执行结果", add: "" },
   tabletOta: { title: "平板 OTA 升级", description: "统一管理平板 ROM 固件与 APK 应用版本，并向指定项目下发升级任务", add: "上传升级包" },
   careScripts: { title: "天气关怀话术", description: "按和风天气现象代码分组维护老人端可匹配展示的话术", add: "" },
@@ -483,8 +483,8 @@ const initialTabletDevices = [
   { id: "TAB-SG-20260031", projectId: "PRJ-001", sn: "SN-TAB-260031", model: "U2G Home 14", currentVersion: "v2.5.3", romVersion: "v1.5.0", apkVersion: "v2.1.0", versionStatus: "待更新", networkType: "Wi-Fi", ipAddress: "192.168.10.31", operator: "赵亚男", bindingStatus: "已绑定", onlineStatus: "在线", boundElderlyId: "SG-E-000128", boundAt: "2026-07-02 10:18", lastOnline: "2 分钟前", usageRecords: [{ id: "USE-20261026-001", type: "完成提醒", occurredAt: "2026-10-26 08:12", valid: true }] },
   { id: "TAB-SG-20260030", projectId: "PRJ-002", sn: "SN-TAB-260030", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "Wi-Fi", ipAddress: "192.168.10.30", operator: "张文杰", bindingStatus: "已绑定", onlineStatus: "在线", boundElderlyId: "SG-E-000126", boundAt: "2026-06-28 15:40", lastOnline: "5 分钟前", usageRecords: [{ id: "USE-20261026-002", type: "拨打服务咨询电话", occurredAt: "2026-10-26 09:20", valid: true }] },
   { id: "TAB-SG-20260029", projectId: "PRJ-003", sn: "SN-TAB-260029", model: "U2G Home 14", currentVersion: "v2.4.8", romVersion: "v1.4.8", apkVersion: "v2.0.8", versionStatus: "待更新", networkType: "有线", ipAddress: "192.168.10.29", operator: "赵亚男", bindingStatus: "已绑定", onlineStatus: "离线", boundElderlyId: "SG-E-000127", boundAt: "2026-06-25 09:32", lastOnline: "4 小时前", usageRecords: [{ id: "USE-20261026-003", type: "使用休闲娱乐", occurredAt: "2026-10-26 07:45", valid: true }] },
-  { id: "TAB-SG-20260032", projectId: "PRJ-004", sn: "SN-TAB-260032", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "Wi-Fi", ipAddress: "未分配", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
-  { id: "TAB-SG-20260033", projectId: "PRJ-001", sn: "SN-TAB-260033", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.5.0", apkVersion: "v2.1.0", versionStatus: "待更新", networkType: "有线", ipAddress: "192.168.10.33", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
+  { id: "TAB-SG-20260032", projectId: "", sn: "SN-TAB-260032", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "Wi-Fi", ipAddress: "未分配", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
+  { id: "TAB-SG-20260033", projectId: "", sn: "SN-TAB-260033", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.5.0", apkVersion: "v2.1.0", versionStatus: "待更新", networkType: "有线", ipAddress: "192.168.10.33", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
 ];
 
 const initialFamilyRelations = [
@@ -1045,7 +1045,7 @@ const platformIssueMeta = Object.freeze({
   "平板离线": { severity: "中", severityRank: 2, reason: "已绑定平板连续离线超过 30 分钟", destination: "devices", actionLabel: "前往平板设备", columns: [["projectName", "项目 / 社区"], ["deviceId", "设备编号"], ["lastOnline", "最后在线时间"], ["offlineDuration", "离线时长"]] },
   "升级失败": { severity: "高", severityRank: 3, reason: "设备最近一次升级执行失败，需要重新处理", destination: "ota", actionLabel: "前往 OTA 任务", columns: [["deviceId", "设备编号"], ["targetVersion", "目标版本"], ["taskId", "任务编号"], ["occurredAt", "失败时间"], ["failureReason", "失败原因"]] },
   "升级停滞": { severity: "高", severityRank: 3, reason: "设备升级中连续 30 分钟没有进度或心跳上报", destination: "ota", actionLabel: "前往 OTA 任务", columns: [["deviceId", "设备编号"], ["progress", "当前进度"], ["lastReportAt", "最后上报时间"], ["taskId", "任务编号"]] },
-  "设备待绑定超时": { severity: "中", severityRank: 2, reason: "平板录入超过 24 小时后仍未完成绑定", destination: "devices", actionLabel: "前往平板设备", columns: [["deviceId", "设备编号"], ["recordedAt", "录入时间"], ["projectName", "项目 / 社区"], ["elapsed", "等待时长"]] },
+  "设备待绑定超时": { severity: "中", severityRank: 2, reason: "平板首次上报超过 24 小时后仍未完成绑定", destination: "devices", actionLabel: "前往平板设备", columns: [["deviceId", "设备编号"], ["recordedAt", "首次上报时间"], ["projectName", "项目 / 社区"], ["elapsed", "等待时长"]] },
   "项目信息缺失": { severity: "低", severityRank: 1, reason: "项目联系人姓名或联系电话尚未填写完整", destination: "editProject", actionLabel: "编辑项目", columns: [["projectName", "项目 / 社区"], ["missingFields", "缺失字段"]] },
   "老人档案未配置": { severity: "低", severityRank: 1, reason: "项目创建超过 24 小时后仍未配置服务老人", destination: "project", actionLabel: "查看项目", columns: [["projectName", "项目 / 社区"], ["createdAt", "项目创建时间"], ["elapsed", "已创建时长"], ["elderlyCount", "服务老人"]] },
 });
@@ -1081,7 +1081,7 @@ function PlatformProjectDetailDrawer({ row, onClose }) {
   return <AdminDrawer title="项目详情" className="platform-project-detail-drawer" onClose={onClose} footer={<button className="secondary-button" onClick={onClose}>关闭</button>}>
     <section className="detail-section"><h3>基本信息</h3><div className="info-grid"><div><span>项目名称</span><b>{row.name}</b></div><div><span>项目状态</span><b><StatusTag>{row.status}</StatusTag></b></div><div><span>国家 / 地区</span><b>{row.country || "待补充"}</b></div><div><span>时区</span><b>{row.timezone || "待补充"}</b></div><div className="full"><span>项目位置</span><b>{row.address || "地址待补充"}</b></div></div></section>
     <section className="detail-section"><h3>联系信息</h3><div className="info-grid"><div><span>项目联系人</span><b>{row.contact || "待补充"}</b></div><div><span>联系电话</span><b>{row.phone || "待补充"}</b></div></div></section>
-    <section className="detail-section"><h3>服务与终端概况</h3><div className="info-grid"><div><span>服务老人</span><b>{row.elderlyCount} 位</b></div><div><span>已录入平板</span><b>{row.tabletCount} 台</b></div><div><span>在线平板</span><b>{row.onlineTabletCount} 台</b></div><div><span>平板运行状态</span><b>{row.tabletCount ? `${row.onlineTabletCount} / ${row.tabletCount} 在线` : "未配置"}</b></div></div></section>
+    <section className="detail-section"><h3>服务与终端概况</h3><div className="info-grid"><div><span>服务老人</span><b>{row.elderlyCount} 位</b></div><div><span>已上报平板</span><b>{row.tabletCount} 台</b></div><div><span>在线平板</span><b>{row.onlineTabletCount} 台</b></div><div><span>平板运行状态</span><b>{row.tabletCount ? `${row.onlineTabletCount} / ${row.tabletCount} 在线` : "暂无上报"}</b></div></div></section>
     <section className="detail-section"><h3>运行概况</h3><div className="info-grid"><div><span>待处理问题类型</span><b>{row.pendingCount ? `${row.pendingCount} 类` : "正常"}</b></div></div></section>
   </AdminDrawer>;
 }
@@ -1189,9 +1189,9 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
       <div className="platform-metric-card"><span>项目总数</span><b>{projects.length}<small> 个</small></b><p>平台已建立项目</p></div>
       <div className="platform-metric-card"><span>运营中项目</span><b>{rows.filter((row) => row.status === "启用").length}<small> 个</small></b><p>项目状态为启用</p></div>
       <div className="platform-metric-card"><span>服务老人</span><b>{rows.reduce((sum, row) => sum + row.elderlyCount, 0)}<small> 位</small></b><p>全部项目老人档案</p></div>
-      <div className="platform-metric-card"><span>平板总数</span><b>{allTablets}<small> 台</small></b><p>全部已录入平板</p></div>
+      <div className="platform-metric-card"><span>平板总数</span><b>{allTablets}<small> 台</small></b><p>全部自动上报平板</p></div>
       <div className="platform-metric-card"><span>今日使用</span><b>{todayUsedTablets}<small> 台</small></b><p>{todayUsedTablets} / {allTablets} 台今日使用</p></div>
-      <div className="platform-metric-card"><span>平板在线率</span><b>{allTablets ? Math.round((onlineTablets / allTablets) * 100) : "—"}<small>{allTablets ? "%" : ""}</small></b><p>{allTablets ? `${onlineTablets} 台在线 / ${allTablets} 台已录入` : "暂无已录入平板"}</p></div>
+      <div className="platform-metric-card"><span>平板在线率</span><b>{allTablets ? Math.round((onlineTablets / allTablets) * 100) : "—"}<small>{allTablets ? "%" : ""}</small></b><p>{allTablets ? `${onlineTablets} 台在线 / ${allTablets} 台已上报` : "暂无上报平板"}</p></div>
     </div>
     <section className="panel platform-attention-panel">
       <div className="panel-title"><div><h3>待处理事项</h3><p>按优先级和产生时间排序，聚合展示同类运行问题</p></div><span>{issueGroups.length} 类</span></div>
@@ -1831,7 +1831,7 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
             <div><span>绑定状态</span><StatusTag>已绑定</StatusTag></div><div><span>在线状态</span><TabletOnlineStatusTag>{tablet.onlineStatus}</TabletOnlineStatusTag></div>
             <div><span>绑定时间</span><b>{tablet.boundAt || "—"}</b></div><div><span>最近在线</span><b>{tablet.lastOnline || "—"}</b></div>
           </div>
-        </> : <div className="space-empty-state"><MonitorSmartphone size={28}/><h4>等待平板提交资料</h4><p>平板校验已登记的 SN 并提交老人资料后，系统将自动建立绑定关系。</p></div>}
+        </> : <div className="space-empty-state"><MonitorSmartphone size={28}/><h4>等待平板提交资料</h4><p>平板联网上报 SN 并提交老人资料后，系统将自动建立绑定关系。</p></div>}
       </div>
     </section>}
     {tab === "statistics" && <ElderlyDataStatisticsPanel record={record} sensors={boundSensors}/>}
@@ -2216,7 +2216,7 @@ function DeviceManagementPage({ deviceType, tablets, sensors, elderlyRecords, cu
   const statuses = ["全部状态", "在线", "离线", "待安装", "待校验", "已安装", "已解绑"];
   return (
     <>
-      <div className="page-heading"><div><h1>{deviceType === "tablet" ? "平板设备" : "房间活动传感器"}</h1><p>{deviceType === "tablet" ? "查看当前社区已自动归属的平板、老人绑定和在线状态" : "录入传感器、绑定老人和安装房间并完成设备校验"}</p></div>{deviceType === "tablet" ? onAddTablet && <button className="primary-button" onClick={onAddTablet}><Plus size={16}/>登记平板 SN</button> : <button className="primary-button" onClick={onAddSensor}><Plus size={16}/>添加传感器</button>}</div>
+      <div className="page-heading"><div><h1>{deviceType === "tablet" ? "平板设备" : "房间活动传感器"}</h1><p>{deviceType === "tablet" ? "查看当前社区已自动归属的平板、老人绑定和在线状态" : "录入传感器、绑定老人和安装房间并完成设备校验"}</p></div>{deviceType !== "tablet" && <button className="primary-button" onClick={onAddSensor}><Plus size={16}/>添加传感器</button>}</div>
       <section className="panel management-panel device-management-panel">
         <div className="filters device-filters">
           <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={deviceType === "tablet" ? "设备编号、型号或老人姓名" : "设备名称、SN、老人或房间"}/></div></label>
@@ -2862,21 +2862,9 @@ function ReminderPlanDrawer({ reminder, elderly, onClose }) {
   </div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
 }
 
-function TabletAssetDrawer({ device, devices, projectId, onClose, onSave }) {
-  const [form, setForm] = useState({ sn: "", model: "U2G Home 14" });
-  const [errors, setErrors] = useState({});
-  const save = () => {
-    const nextErrors = {};
-    if (!form.sn.trim()) nextErrors.sn = "请输入设备 SN";
-    if (devices.some((item) => item.sn?.toLowerCase() === form.sn.trim().toLowerCase())) nextErrors.sn = "该设备 SN 已存在";
-    if (!form.model.trim()) nextErrors.model = "请输入设备型号";
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
-    const nextNumber = Math.max(20260000, ...devices.map((item) => Number(String(item.id).match(/(\d+)$/)?.[1]) || 0)) + 1;
-    onSave({ id: `TAB-SG-${nextNumber}`, projectId, sn: form.sn.trim(), model: form.model.trim(), currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "Wi-Fi", ipAddress: "未分配", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" });
-  };
+function TabletAssetDrawer({ device, onClose }) {
   if (device) return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer device-detail-drawer" role="dialog" aria-modal="true"><header><div><h2>平板设备详情</h2></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="device-hero"><span><MonitorSmartphone size={24}/></span><div><h3>{device.model}</h3><p>{formatDisplayId(device.id)} · {device.sn}</p></div><TabletOnlineStatusTag>{device.onlineStatus}</TabletOnlineStatusTag></div><section className="detail-section"><h3>设备状态</h3><div className="info-grid"><div><span>设备编号</span><b>{formatDisplayId(device.id)}</b></div><div><span>设备 SN</span><b>{device.sn}</b></div><div><span>ROM 固件版本</span><b>ROM {device.romVersion}</b></div><div><span>APK 应用版本</span><b>APK {device.apkVersion}</b></div><div><span>版本状态</span><StatusTag>{device.versionStatus}</StatusTag></div><div><span>绑定状态</span><StatusTag>{device.boundElderlyId ? "已绑定" : "待绑定"}</StatusTag></div><div><span>在线状态</span><TabletOnlineStatusTag>{device.onlineStatus}</TabletOnlineStatusTag></div><div><span>联网方式</span><b>{device.networkType}</b></div><div><span>IP 地址</span><b className="mono">{device.ipAddress}</b></div><div><span>最近在线</span><b>{device.lastOnline}</b></div><div><span>绑定时间</span><b>{device.boundAt || "尚未绑定"}</b></div></div></section></div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer device-detail-drawer" role="dialog" aria-modal="true"><header><div><h2>登记平板 SN</h2></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>设备信息</h3><label><span>设备 SN *</span><input value={form.sn} onChange={(event) => setForm((current) => ({ ...current, sn: event.target.value }))} placeholder="例如：SN-TAB-260034"/>{errors.sn && <small className="field-error">{errors.sn}</small>}</label><label><span>设备型号 *</span><input value={form.model} onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}/>{errors.model && <small className="field-error">{errors.model}</small>}</label><div className="binding-rule-note"><ShieldCheck size={17}/><p>这里只登记设备 SN，不预先选择社区或老人。平板提交老人资料后，社区将按老人档案归属自动同步。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存登记</button></footer></aside></div>;
+  return null;
 }
 
 function ElderlyPickerModal({ records, value, onClose, onConfirm }) {
@@ -4225,7 +4213,6 @@ export function App() {
             ? legacyStatus
             : preset?.onlineStatus || (/刚刚|分钟/.test(device.lastOnline || "") ? "在线" : "离线");
         return {
-          projectId: device.projectId || preset?.projectId || "",
           currentVersion: device.currentVersion || preset?.currentVersion || "v2.6.0",
           romVersion: device.romVersion || preset?.romVersion || "v1.5.0",
           apkVersion: device.apkVersion || preset?.apkVersion || "v2.1.0",
@@ -4233,10 +4220,12 @@ export function App() {
           ipAddress: device.ipAddress || preset?.ipAddress || "未分配",
           sn: device.sn || preset?.sn || "SN 待补充",
           ...savedDevice,
+          projectId: device.boundElderlyId ? (device.projectId || preset?.projectId || "") : "",
           usageRecords: Array.isArray(device.usageRecords) ? device.usageRecords : preset?.usageRecords || [],
           versionStatus: device.versionStatus || preset?.versionStatus || "已最新",
           bindingStatus: device.bindingStatus || (device.boundElderlyId ? "已绑定" : "待绑定"),
           onlineStatus,
+          lastOnline: !device.boundElderlyId && device.lastOnline === "尚未激活" ? "尚未上线" : device.lastOnline || preset?.lastOnline || "尚未上线",
         };
       });
     } catch {
@@ -5276,11 +5265,6 @@ export function App() {
     setFamilyRelations((items) => items.map((item) => item.id === relationId && item.status === "正常" ? { ...item, status: "已解除" } : item));
   };
 
-  const saveTabletDevice = (device) => {
-    setTabletDevices((devices) => [...devices, device]);
-    setDeviceDrawer(null);
-  };
-
   const applyTabletOtaUpgrade = ({ deviceId, packageType, targetVersion, versionStatus }) => {
     setTabletDevices((devices) => devices.map((device) => device.id !== deviceId ? device : {
       ...device,
@@ -5390,7 +5374,7 @@ export function App() {
                       ? <PlatformRoleManagementPage roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                       : <RoleManagementPage currentProject={currentProject} projects={projects} roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                 : safeActive === "platformTabletDevices"
-                  ? <PlatformTabletDevicesPage devices={tabletDevices} projects={projects} onAddTablet={() => setDeviceDrawer({ kind: "tabletCreate" })} onOpenOta={() => setActive("tabletOta")}/>
+                  ? <PlatformTabletDevicesPage devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
                   : safeActive === "tabletDevices"
                     ? <DeviceManagementPage key={`${safeActive}-${currentProjectId}`} deviceType="tablet" tablets={scopedTabletDevices} sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} currentProject={currentProject} onViewTablet={(device) => setDeviceDrawer({ kind: "tabletView", device })} onManageTablet={setTabletTarget} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate" })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })}/>
                   : safeActive === "tabletOta"
@@ -5440,8 +5424,7 @@ export function App() {
       {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>}
       {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.record?.id || drawer.condition?.code || "new-care-script"} condition={drawer.condition} availableConditions={drawer.availableConditions} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>}
       {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>}
-      {deviceDrawer?.kind === "tabletCreate" && <TabletAssetDrawer devices={tabletDevices} projectId={platformMode === "platform" ? "" : currentProject?.id} onClose={() => setDeviceDrawer(null)} onSave={saveTabletDevice}/>}
-      {deviceDrawer?.kind === "tabletView" && <TabletAssetDrawer device={deviceDrawer.device} devices={tabletDevices} projectId={currentProject?.id} onClose={() => setDeviceDrawer(null)} onSave={saveTabletDevice}/>}
+      {deviceDrawer?.kind === "tabletView" && <TabletAssetDrawer device={deviceDrawer.device} onClose={() => setDeviceDrawer(null)}/>}
       {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>}
       {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
       {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>}

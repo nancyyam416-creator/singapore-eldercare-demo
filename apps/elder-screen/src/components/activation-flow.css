@@ -124,7 +124,7 @@
 .activation-form-input select:disabled { opacity: 1; cursor: default; }
 .activation-form-input--phone { grid-template-columns: 25px auto minmax(0, 1fr); }
 .activation-form-input--phone b { padding-right: 10px; color: var(--color-text-soft); border-right: var(--rule-thin) solid var(--color-line); font-size: 18px; }
-.activation-gender-toggle { min-height: 62px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 5px; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); transition: border-color var(--dur-normal) var(--ease-out); }
+.activation-gender-toggle { min-height: 62px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 5px; border: var(--rule-strong) solid var(--color-line); border-radius: var(--radius-md); background: var(--color-panel-raised); transition: border-color var(--dur-normal) var(--ease-out); }
 .activation-gender-toggle.is-invalid { border-color: var(--color-red); }
 .activation-gender-toggle button { min-width: 0; border: 0; border-radius: calc(var(--radius-md) - 6px); color: var(--color-text-soft); background: transparent; font: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
 .activation-gender-toggle button.is-active { color: var(--color-canvas-deep); background: var(--color-green); box-shadow: 0 0 0 var(--rule-thin) color-mix(in oklch, var(--color-green), transparent 28%); }

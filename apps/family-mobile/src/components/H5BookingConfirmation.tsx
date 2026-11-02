@@ -1,18 +1,18 @@
 import { initialServiceAssistanceRecords } from '../../../elder-miniapp/src/appointmentData';
-import { confirmSharedServiceCompletion, upsertSharedServiceAssistanceRecord, normalizeServiceAssistanceRecord, serviceAssistanceExpiryMessage, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords, updateSharedServiceAssistanceRecord } from '../../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js';
+import { confirmSharedFamilyHandlingCompletion, upsertSharedServiceAssistanceRecord, normalizeServiceAssistanceRecord, serviceAssistanceExpiryMessage, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords, updateSharedServiceAssistanceRecord } from '../../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js';
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 const formatTime = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '时间暂不可用' : new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date); };
 
-type Status = '服务已完成' | '已失效' | '待处理' | '处理中' | '已处理' | '已取消';
-const toStatus = (record: { status: string; serviceStatus?: string }) => (
-  record.serviceStatus === 'completed' ? '服务已完成' : record.status === 'expired' ? '已失效' : record.status === 'cancelled' ? '已取消'
+type Status = '家人处理完成' | '已失效' | '待处理' | '处理中' | '已处理' | '已取消';
+const toStatus = (record: { status: string; familyHandlingStatus?: string }) => (
+  record.familyHandlingStatus === 'completed' ? '家人处理完成' : record.status === 'expired' ? '已失效' : record.status === 'cancelled' ? '已取消'
     : record.status === 'handling' ? '处理中'
       : record.status === 'handled' ? '已处理'
         : '待处理'
 ) as Status;
-const statusStyle: Record<Status, string> = { '服务已完成': 'bg-emerald-50 text-emerald-700', '已失效': 'bg-slate-100 text-slate-500', '待处理': 'bg-amber-50 text-amber-700', '处理中': 'bg-blue-50 text-blue-600', '已处理': 'bg-emerald-50 text-emerald-700', '已取消': 'bg-slate-100 text-slate-500' };
+const statusStyle: Record<Status, string> = { '家人处理完成': 'bg-emerald-50 text-emerald-700', '已失效': 'bg-slate-100 text-slate-500', '待处理': 'bg-amber-50 text-amber-700', '处理中': 'bg-blue-50 text-blue-600', '已处理': 'bg-emerald-50 text-emerald-700', '已取消': 'bg-slate-100 text-slate-500' };
 const StatusBadge = ({ state }: { state: Status }) => <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusStyle[state]}`}>{state === '待处理' ? '待家人处理' : state}</span>;
 const initial = () => initialServiceAssistanceRecords.map(record => normalizeServiceAssistanceRecord(record)).map(record => ({ ...record, state: toStatus(record) }));
 let records = initial();
@@ -53,7 +53,7 @@ export function H5BookingConfirmation({ visible, inline = false }: { visible: bo
   const update = (state: Status) => {
     syncSharedRecords();
     const current = records.find(item => item.id === selectedId);
-    if (!current || ['已失效', '已处理', '服务已完成', '已取消'].includes(current.state)) return;
+    if (!current || ['已失效', '已处理', '家人处理完成', '已取消'].includes(current.state)) return;
     if (current.state === '处理中' && current.handledBy !== currentHandler) return;
     if (state !== '处理中' && current.state !== '处理中') return;
     const handledAt = new Date().toISOString();
@@ -90,12 +90,12 @@ export function H5BookingConfirmation({ visible, inline = false }: { visible: bo
           { title: '老人发起协助', time: selected.requestedAt },
           ...(selected.reminderTimes || []).map((time: string) => ({ title: '老人再次提醒家人', time })),
           ...(selected.claimedAt ? [{ title: `${selected.handledBy || '家人'}接手处理`, time: selected.claimedAt }] : []),
-          ...(['已处理', '服务已完成', '已取消'].includes(selected.state) && selected.handledAt ? [{ title: selected.state !== '已取消' ? '提交处理结果' : '协助事项已取消', time: selected.handledAt }] : []),
-          ...(selected.completedAt ? [{ title: '子女确认服务完成', time: selected.completedAt }] : []),
+          ...(['已处理', '家人处理完成', '已取消'].includes(selected.state) && selected.handledAt ? [{ title: selected.state !== '已取消' ? '提交处理结果' : '协助事项已取消', time: selected.handledAt }] : []),
+          ...(selected.handlingCompletedAt ? [{ title: '家人处理完成于', time: selected.handlingCompletedAt }] : []),
           ...(selected.state === '已失效' && selected.expiredAt ? [{ title: '满48小时未处理，已失效', time: selected.expiredAt }] : [])
         ].sort((a,b) => Date.parse(a.time) - Date.parse(b.time)).map((event,index) => <li key={`${event.title}-${index}`} className="relative pb-5 pl-5 last:pb-0"><span className="absolute -left-1 top-1 h-2 w-2 rounded-full bg-blue-500"/><p className="text-sm text-slate-700">{event.title}</p><p className="mt-1 text-xs text-slate-400">{formatTime(event.time)}</p></li>)}</ol></section>
-        {selected.state === '已处理' && <button onClick={() => { syncSharedRecords(); const current = records.find(item => item.id === selectedId); if (!current || current.state !== '已处理') return; upsertSharedServiceAssistanceRecord(current); confirmSharedServiceCompletion(current.id, currentHandler); syncSharedRecords(); }} className="w-full rounded-xl bg-blue-600 p-3 text-white">确认服务完成</button>}
-        {selected.state === '服务已完成' && <p role="status" className="text-sm text-emerald-700">{selected.review ? `老人已评价：${selected.review.rating} 星` : '已确认服务完成，等待老人评价'}</p>}
+        {selected.state === '已处理' && <button onClick={() => { syncSharedRecords(); const current = records.find(item => item.id === selectedId); if (!current || current.state !== '已处理') return; upsertSharedServiceAssistanceRecord(current); confirmSharedFamilyHandlingCompletion(current.id, currentHandler); syncSharedRecords(); }} className="w-full rounded-xl bg-blue-600 p-3 text-white">确认处理完成</button>}
+        {selected.state === '家人处理完成' && <p role="status" className="text-sm text-emerald-700">{selected.review ? `老人已评价：${selected.review.rating} 星` : '家人处理完成'}</p>}
         {selected.state === '待处理' && <button onClick={() => update('处理中')} className="w-full rounded-xl bg-blue-600 p-3 text-white">接手此事项</button>}
         {canHandle && <><div className="grid grid-cols-2 gap-3"><a className="rounded-xl bg-white p-3 text-center text-blue-600" href={`tel:${selected.provider.phone.replace(/\s/g,'')}`}>联系服务商</a><a className="rounded-xl bg-white p-3 text-center text-blue-600" href={`tel:${selected.elder.phone.replace(/\s/g,'')}`}>联系老人</a></div><button onClick={() => setEditing(true)} className="w-full rounded-xl bg-blue-600 p-3 text-white">填写处理结果</button>{editing && <><label className="block text-sm">处理结果<textarea value={note} onChange={e => setNote(e.target.value)} maxLength={300} rows={3} className="mt-2 w-full rounded-xl border p-3" /></label><div className="grid grid-cols-2 gap-3"><button onClick={() => {setEditing(false); setNote('');}} className="rounded-xl border p-3">暂不填写</button><button disabled={!note.trim()} onClick={() => update('已处理')} className="rounded-xl bg-blue-600 p-3 text-white disabled:opacity-40">提交结果</button></div></>}<button onClick={() => update('已取消')} className="w-full p-3 text-sm text-slate-500">取消事项</button></>}
         {selected.state === '处理中' && !canHandle && <p className="text-sm text-slate-500">家人正在处理，请等待处理结果。</p>}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MonitorSmartphone, Plus, RefreshCw, Search } from "lucide-react";
+import { MonitorSmartphone, RefreshCw, Search } from "lucide-react";
 import { AdminDrawer } from "./AdminOverlay";
 import { tabletOtaStorageKey } from "./TabletOta";
 
@@ -56,7 +56,7 @@ function latestVersion(packages, type, model) {
     .sort((left, right) => compareVersion(right, left))[0] || "";
 }
 
-function buildDeviceRows(devices, projects, packages) {
+function buildDeviceRows(devices, projects, elderlyRecords, packages) {
   const executions = packages.flatMap((otaPackage) => (otaPackage.tasks || []).flatMap((task) => (task.results || []).map((result) => ({
     ...result,
     message: result.message === "等待 Mock 任务继续推进" ? "等待设备进入升级时段" : result.message,
@@ -71,6 +71,7 @@ function buildDeviceRows(devices, projects, packages) {
 
   return devices.map((device) => {
     const project = projects.find((item) => item.id === device.projectId);
+    const elderly = elderlyRecords.find((item) => item.id === device.boundElderlyId);
     const history = executions
       .filter((item) => item.deviceId === device.id)
       .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
@@ -92,6 +93,7 @@ function buildDeviceRows(devices, projects, packages) {
       ...device,
       projectName: project?.name || "未归属项目",
       projectRegion: project?.district || project?.city || "区域待补充",
+      elderlyName: elderly?.name || "",
       latestRom,
       latestApk,
       latestExecution,
@@ -147,7 +149,7 @@ function DeviceUpgradeDrawer({ device, onClose, onOpenOta }) {
   </AdminDrawer>;
 }
 
-export function PlatformTabletDevicesPage({ devices, projects, onAddTablet, onOpenOta }) {
+export function PlatformTabletDevicesPage({ devices, elderlyRecords, projects, onOpenOta }) {
   const [packages, setPackages] = useState(readOtaPackages);
   const [query, setQuery] = useState("");
   const [projectId, setProjectId] = useState("全部项目");
@@ -167,7 +169,7 @@ export function PlatformTabletDevicesPage({ devices, projects, onAddTablet, onOp
     };
   }, []);
 
-  const rows = useMemo(() => buildDeviceRows(devices, projects, packages), [devices, packages, projects]);
+  const rows = useMemo(() => buildDeviceRows(devices, projects, elderlyRecords, packages), [devices, elderlyRecords, packages, projects]);
   const metrics = useMemo(() => ({
     total: rows.length,
     latest: rows.filter((item) => item.upgradeStatus === "已是最新").length,
@@ -180,7 +182,7 @@ export function PlatformTabletDevicesPage({ devices, projects, onAddTablet, onOp
   const filtered = rows.filter((device) => {
     const keyword = query.trim().toLowerCase();
     return (!keyword || `${device.id}${device.sn}${device.model}`.toLowerCase().includes(keyword))
-      && (projectId === "全部项目" || device.projectId === projectId)
+      && (projectId === "全部项目" || (projectId === "未归属项目" ? !device.projectId : device.projectId === projectId))
       && (onlineStatus === "全部在线状态" || device.onlineStatus === onlineStatus)
       && (upgradeStatus === "全部升级状态" || device.upgradeStatus === upgradeStatus)
       && (romVersion === "全部 ROM 版本" || device.romVersion === romVersion)
@@ -197,9 +199,9 @@ export function PlatformTabletDevicesPage({ devices, projects, onAddTablet, onOp
   const selectedDevice = rows.find((item) => item.id === selectedId);
 
   return <>
-    <div className="page-heading"><div><h1>平板设备</h1><p>登记平板 SN，跨项目查看设备归属、版本与升级结果</p></div><button className="primary-button" onClick={onAddTablet}><Plus size={16}/>登记平板 SN</button></div>
+    <div className="page-heading"><div><h1>平板设备</h1><p>查看平板自动上报的设备、绑定关系、项目归属与升级结果</p></div></div>
     <div className="platform-metric-grid platform-device-metrics" aria-label="平板升级状态统计">
-      <div className="platform-metric-card"><span>设备总数</span><b>{metrics.total}</b><p>全部项目平板</p></div>
+      <div className="platform-metric-card"><span>设备总数</span><b>{metrics.total}</b><p>全部自动上报平板</p></div>
       <div className="platform-metric-card"><span>已是最新</span><b className="metric-success">{metrics.latest}</b><p>APK 已是最新版本</p></div>
       <div className="platform-metric-card"><span>待升级</span><b className="metric-warning">{metrics.pending}</b><p>存在可用新版本</p></div>
       <div className="platform-metric-card"><span>升级中</span><b className="metric-running">{metrics.running}</b><p>任务正在执行</p></div>
@@ -208,16 +210,16 @@ export function PlatformTabletDevicesPage({ devices, projects, onAddTablet, onOp
     <section className="panel management-panel platform-device-panel">
       <div className="filters platform-device-filters">
         <label><span>设备编号</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="设备编号、SN 或型号"/></div></label>
-        <label><span>项目 / 社区</span><select className="select-control filter-select" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option>全部项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+        <label><span>项目 / 社区</span><select className="select-control filter-select" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option>全部项目</option><option>未归属项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
         <label><span>在线状态</span><select className="select-control filter-select" value={onlineStatus} onChange={(event) => setOnlineStatus(event.target.value)}><option>全部在线状态</option><option>在线</option><option>离线</option></select></label>
         <label><span>升级状态</span><select className="select-control filter-select" value={upgradeStatus} onChange={(event) => setUpgradeStatus(event.target.value)}><option>全部升级状态</option><option>已是最新</option><option>待升级</option><option>升级中</option><option>升级失败</option></select></label>
         <label><span>ROM 版本（仅筛选）</span><select className="select-control filter-select" value={romVersion} onChange={(event) => setRomVersion(event.target.value)}><option>全部 ROM 版本</option>{romVersions.map((version) => <option key={version}>{version}</option>)}</select></label>
         <label><span>APK 版本</span><select className="select-control filter-select" value={apkVersion} onChange={(event) => setApkVersion(event.target.value)}><option>全部 APK 版本</option>{apkVersions.map((version) => <option key={version}>{version}</option>)}</select></label>
         <div className="filter-actions"><button className="primary-button"><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
       </div>
-      <div className="table-scroll"><table className="platform-device-table"><thead><tr><th>设备编号 / 型号</th><th>所属项目 / 社区</th><th>当前 ROM / APK</th><th>目标版本</th><th>升级状态</th><th>最近升级时间</th><th>在线状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {filtered.map((device) => <tr key={device.id}><td><div className="device-name-cell"><span><MonitorSmartphone size={17}/></span><div><b>{device.id}</b><small>{device.model} · {device.sn}</small></div></div></td><td><div className="stacked-cell"><b>{device.projectName}</b><small>{device.projectRegion}</small></div></td><td><div className="stacked-cell mono"><b>ROM {device.romVersion}</b><small>APK {device.apkVersion}</small></div></td><td className="platform-device-target">{device.targetVersion}</td><td><DeviceStatusTag status={device.upgradeStatus}/></td><td>{device.lastUpgradeAt}</td><td><div className="stacked-cell"><OnlineStatusTag status={device.onlineStatus}/><small>{device.lastOnline}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => setSelectedId(device.id)}>查看详情</button></td></tr>)}
-        {!filtered.length && <tr><td colSpan="8"><div className="empty-table-state">没有符合筛选条件的平板设备</div></td></tr>}
+      <div className="table-scroll"><table className="platform-device-table"><thead><tr><th>设备编号 / 型号</th><th>绑定老人</th><th>所属项目 / 社区</th><th>当前 ROM / APK</th><th>目标版本</th><th>升级状态</th><th>最近升级时间</th><th>在线状态 / 最近上报</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {filtered.map((device) => <tr key={device.id}><td><div className="device-name-cell"><span><MonitorSmartphone size={17}/></span><div><b>{device.id}</b><small>{device.model} · {device.sn}</small></div></div></td><td><div className="stacked-cell"><b>{device.elderlyName || "待绑定"}</b><small>{device.boundElderlyId || "尚未建立老人关系"}</small></div></td><td><div className="stacked-cell"><b>{device.projectName}</b><small>{device.projectRegion}</small></div></td><td><div className="stacked-cell mono"><b>ROM {device.romVersion}</b><small>APK {device.apkVersion}</small></div></td><td className="platform-device-target">{device.targetVersion}</td><td><DeviceStatusTag status={device.upgradeStatus}/></td><td>{device.lastUpgradeAt}</td><td><div className="stacked-cell"><OnlineStatusTag status={device.onlineStatus}/><small>{device.lastOnline}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => setSelectedId(device.id)}>查看详情</button></td></tr>)}
+        {!filtered.length && <tr><td colSpan="9"><div className="empty-table-state">没有符合筛选条件的平板设备</div></td></tr>}
       </tbody></table></div>
       <div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div>
     </section>

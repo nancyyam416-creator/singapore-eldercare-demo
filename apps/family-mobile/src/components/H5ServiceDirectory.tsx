@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ChevronRight, Phone, UserRound, Clock3, MapPin } from 'lucide-react';
+import { ArrowLeft, ChevronRight, AlertCircle, RefreshCw, Phone, UserRound, Clock3, MapPin } from 'lucide-react';
 import { unifiedServiceCatalog, unifiedServiceCategories } from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js';
 import catalog from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.json';
 
@@ -14,11 +14,14 @@ type DirectoryService = typeof appointmentServices[number];
 const communityNames = new Map(catalog.communities.map(item => [item.id, item.name]));
 const coverageLabel = (service: DirectoryService) => service.coverageMode === 'all' ? '全部社区' : service.coverageCommunityIds.map(id => communityNames.get(id) ?? '社区未设置').join('、');
 
-export function H5ServiceDirectory({ communityId }: { communityId?: string }) {
+export function H5ServiceDirectory({ communityId, disabledCategory, loadError = false }: { communityId?: string; disabledCategory?: string; loadError?: boolean }) {
   const [selected, setSelected] = useState<DirectoryService | null>(null);
   const [category, setCategory] = useState('all');
+  const [recovered, setRecovered] = useState(false);
   useEffect(() => { setSelected(null); setCategory('all'); }, [communityId]);
-  const services = appointmentServices.filter(item => communityId && (item.coverageMode === 'all' || item.coverageCommunityIds.includes(communityId))).filter(item => category === 'all' || item.categoryCode === category);
+  const available = appointmentServices.filter(item => item.categoryCode !== disabledCategory && communityId && (item.coverageMode === 'all' || item.coverageCommunityIds.includes(communityId)));
+  const services = available.filter(item => category === 'all' || item.categoryCode === category);
+  if (loadError && !recovered) return <section role="alert" className="rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center"><AlertCircle size={28} className="mx-auto text-slate-400"/><h2 className="mt-3 text-sm font-bold">服务目录加载失败</h2><p className="mt-2 text-xs text-slate-500">暂时无法加载社区服务，请重新加载。</p><button onClick={() => setRecovered(true)} className="mx-auto mt-4 flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white"><RefreshCw size={14}/>重新加载</button></section>;
   if (selected) return <section className="space-y-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
     <button onClick={() => setSelected(null)} className="flex min-h-11 items-center gap-2 text-sm"><ArrowLeft size={18} />服务详情</button>
     <div className="relative overflow-hidden rounded-2xl bg-slate-100"><img src={selected.coverImage} alt={selected.name} className="block aspect-[5/3] w-full object-cover"/><span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-bold text-slate-800 shadow-sm">{selected.category}</span></div>
@@ -33,9 +36,9 @@ export function H5ServiceDirectory({ communityId }: { communityId?: string }) {
       </div>, document.getElementById('h5-phone-screen')!
     )}
   </section>;
-  const available = appointmentServices.filter(item => communityId && (item.coverageMode === 'all' || item.coverageCommunityIds.includes(communityId)));
   return <section className="space-y-3" aria-label="服务目录">
-    <div className="flex gap-2 overflow-x-auto pb-1">{[{ code: 'all', name: '全部' }, ...appointmentCategories].map(item => <button key={item.code} aria-pressed={category === item.code} onClick={() => setCategory(item.code)} className={`shrink-0 rounded-full border px-3 py-2 text-[11px] font-semibold ${category === item.code ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>{item.name} {available.filter(service => item.code === 'all' || service.categoryCode === item.code).length}</button>)}</div>
+    <p className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={14}/>{communityNames.get(communityId ?? '') ?? '社区未设置'}</p>
+    <div className="flex gap-2 overflow-x-auto pb-1">{[{ code: 'all', name: '全部' }, ...appointmentCategories.filter(item => item.code !== disabledCategory)].map(item => <button key={item.code} aria-pressed={category === item.code} onClick={() => setCategory(item.code)} className={`shrink-0 rounded-full border px-3 py-2 text-[11px] font-semibold ${category === item.code ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>{item.name} {available.filter(service => item.code === 'all' || service.categoryCode === item.code).length}</button>)}</div>
     <div className="space-y-3">{services.length === 0 && <div className="rounded-2xl bg-white px-5 py-12 text-center text-sm text-slate-500">{communityId ? '当前社区暂无可用服务' : '社区未设置'}</div>}{services.map(item => <button key={item.id} onClick={() => setSelected(item)} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-xs"><img src={item.coverImage} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" loading="lazy"/><span className="min-w-0 flex-1 space-y-1"><span className="block text-[10px] font-semibold text-blue-600">{item.category}</span><strong className="block text-sm leading-5 text-slate-900">{item.name}</strong><span className="block text-[11px] leading-4 text-slate-500">{item.provider}</span><span className="block text-sm font-bold text-blue-600">{item.priceRange}<span className="ml-1 text-[10px] font-normal text-slate-400">参考价格区间</span></span></span><ChevronRight size={16} className="shrink-0 text-slate-400"/></button>)}</div>
   </section>;
 }

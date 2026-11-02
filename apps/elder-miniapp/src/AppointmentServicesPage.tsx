@@ -31,6 +31,9 @@ const createScenarioRecord = (scenario: 'requested' | 'handling' | 'expired' | '
   handledBy: scenario === 'requested' || scenario === 'handling' || scenario === 'expired' || scenario === 'cancelled' ? null : '张晓燕',
   handledAt: scenario === 'requested' || scenario === 'handling' || scenario === 'expired' || scenario === 'cancelled' ? null : '2026-10-30T09:42:00+08:00',
   resultSummary: scenario === 'requested' || scenario === 'handling' || scenario === 'expired' || scenario === 'cancelled' ? null : '已联系服务商，对方将于今日下午再电话确认上门时间。',
+  familyHandlingStatus: scenario === 'completed' || scenario === 'reviewed' ? 'completed' : 'not_completed',
+  handlingCompletedAt: scenario === 'completed' || scenario === 'reviewed' ? '2026-10-30T16:30:00+08:00' : null,
+  handlingCompletedBy: scenario === 'completed' || scenario === 'reviewed' ? '张晓燕' : null,
   serviceStatus: scenario === 'completed' || scenario === 'reviewed' ? 'completed' : 'not_completed',
   completedAt: scenario === 'completed' || scenario === 'reviewed' ? '2026-10-30T16:30:00+08:00' : null,
   completedBy: scenario === 'completed' || scenario === 'reviewed' ? '张晓燕' : null,
@@ -40,6 +43,10 @@ const createScenarioRecord = (scenario: 'requested' | 'handling' | 'expired' | '
 const formatTime = (value: string) => new Intl.DateTimeFormat('zh-CN', {
   month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
 }).format(new Date(value));
+
+// 兼容共享契约旧字段名：completed 表示家人协助工单处理完成，不代表服务商履约完成。
+const isFamilyHandlingCompleted = (record: Pick<ServiceAssistanceRecord, 'familyHandlingStatus' | 'serviceStatus'>) => (record.familyHandlingStatus ?? record.serviceStatus) === 'completed';
+const getFamilyHandlingCompletedAt = (record: Pick<ServiceAssistanceRecord, 'handlingCompletedAt' | 'completedAt'>) => record.handlingCompletedAt ?? record.completedAt;
 
 type Props = { scenario: AppointmentScenario; onViewChange?: (scenario: AppointmentScenario) => void };
 
@@ -73,7 +80,7 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
       setLatest(current => {
         const expectedCompleted = scenario === 'completed' || scenario === 'reviewed';
         const expectedStatus = scenario === 'requested' ? 'pending' : scenario === 'handling' ? 'handling' : scenario === 'expired' ? 'expired' : scenario === 'cancelled' ? 'cancelled' : 'handled';
-        if (current && current.status === expectedStatus && (current.serviceStatus === 'completed') === expectedCompleted && Boolean(current.review) === (scenario === 'reviewed')) return current;
+        if (current && current.status === expectedStatus && isFamilyHandlingCompleted(current) === expectedCompleted && Boolean(current.review) === (scenario === 'reviewed')) return current;
         return createScenarioRecord(scenario);
       });
       setViewState('result');
@@ -131,6 +138,9 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
         handledBy: null,
         handledAt: null,
         resultSummary: null,
+        familyHandlingStatus: 'not_completed',
+        handlingCompletedAt: null,
+        handlingCompletedBy: null,
         serviceStatus: 'not_completed',
         completedAt: null,
         review: null,
@@ -138,7 +148,9 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
 
       const result = requestSharedServiceAssistance(record) as { record: ServiceAssistanceRecord; reminded: boolean; message: string };
       const savedRecord = result.record;
-      setRecords(readRecords());
+      setRecords(current => result.reminded
+        ? current.map(item => item.id === savedRecord.id ? savedRecord : item)
+        : [savedRecord, ...current.filter(item => item.id !== savedRecord.id)]);
       setLatest(savedRecord);
       const notifications = BOUND_FAMILY_IDS.map(recipientId => ({ id: `${savedRecord.id}-${recipientId}`, type: result.reminded ? 'service_assistance_reminded' : 'service_assistance_requested', recipientId, recordId: savedRecord.id, createdAt: now }));
       try {
@@ -199,10 +211,10 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
 
     {view === 'result' && latest && <section className={`appointment-assistance-result ${latest.status} ${latest.serviceStatus}`}>
       {familyHelpSuccessMessage && <p className="appointment-help-success" role="status">{familyHelpSuccessMessage}</p>}
-      <span>{latest.status === 'expired' || latest.status === 'cancelled' ? <XCircle /> : latest.serviceStatus === 'completed' || latest.status === 'handled' ? <CheckCircle2 /> : <BellRing />}</span>
-      <h2>{latest.status === 'expired' ? '协助已失效' : latest.status === 'cancelled' ? '协助已取消' : latest.serviceStatus === 'completed' ? '服务已完成' : latest.status === 'handled' ? `${latest.handledBy} 已处理` : latest.status === 'handling' ? '家人正在联系' : '已通知家人'}</h2>
-      <p>{latest.status === 'expired' ? serviceAssistanceExpiryMessage : latest.status === 'cancelled' ? '上次协助请求已取消，您可以重新请家人帮忙。' : latest.serviceStatus === 'completed' ? '本次服务已完成，您可以给服务评分。' : latest.status === 'handled' ? latest.resultSummary : latest.status === 'handling' ? '家人已开始帮您联系服务商。' : '请等待家人与您联系。'}</p>
-      <dl><div><dt>需要协助</dt><dd>{latest.service.categoryName} · {latest.service.name}</dd></div><div><dt>服务商</dt><dd>{latest.provider.name} · {latest.provider.phone}</dd></div><div><dt>请求时间</dt><dd>{formatTime(latest.requestedAt)}</dd></div>{latest.lastRemindedAt && <div><dt>最近提醒</dt><dd>{formatTime(latest.lastRemindedAt)}</dd></div>}{latest.handledAt && <div><dt>处理时间</dt><dd>{formatTime(latest.handledAt)}</dd></div>}{latest.completedAt && <div><dt>完成时间</dt><dd>{formatTime(latest.completedAt)}</dd></div>}</dl>
+      <span>{latest.status === 'expired' || latest.status === 'cancelled' ? <XCircle /> : isFamilyHandlingCompleted(latest) || latest.status === 'handled' ? <CheckCircle2 /> : <BellRing />}</span>
+      <h2>{latest.status === 'expired' ? '协助已失效' : latest.status === 'cancelled' ? '协助已取消' : isFamilyHandlingCompleted(latest) ? '家人处理完成' : latest.status === 'handled' ? `${latest.handledBy} 已处理` : latest.status === 'handling' ? '家人正在联系' : '已通知家人'}</h2>
+      <p>{latest.status === 'expired' ? serviceAssistanceExpiryMessage : latest.status === 'cancelled' ? '上次协助请求已取消，您可以重新请家人帮忙。' : isFamilyHandlingCompleted(latest) ? '家人已完成本次协助工单处理。' : latest.status === 'handled' ? latest.resultSummary : latest.status === 'handling' ? '家人已开始帮您联系服务商。' : '请等待家人与您联系。'}</p>
+      <dl><div><dt>需要协助</dt><dd>{latest.service.categoryName} · {latest.service.name}</dd></div><div><dt>服务商</dt><dd>{latest.provider.name} · {latest.provider.phone}</dd></div><div><dt>请求时间</dt><dd>{formatTime(latest.requestedAt)}</dd></div>{latest.lastRemindedAt && <div><dt>最近提醒</dt><dd>{formatTime(latest.lastRemindedAt)}</dd></div>}{latest.handledAt && <div><dt>处理时间</dt><dd>{formatTime(latest.handledAt)}</dd></div>}{getFamilyHandlingCompletedAt(latest) && <div><dt>家人处理完成时间</dt><dd>{formatTime(getFamilyHandlingCompletedAt(latest)!)}</dd></div>}</dl>
       {canReviewServiceAssistance(latest, currentElderProfile.id) && <div className="service-review-form">
         <strong>评价本次服务</strong>
         <div className="service-review-stars" aria-label="服务评分">{[1, 2, 3, 4, 5].map(value => <button key={value} className={value <= rating ? 'active' : ''} onClick={() => setRating(value)} aria-label={`${value} 星`}><Star /></button>)}</div>
@@ -215,7 +227,7 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
       <button className="secondary-button" onClick={() => setView('list', 'default')}>继续查看服务</button>
     </section>}
 
-    {view === 'records' && <section className="appointment-records">{records.map(record => <article key={record.id} className={`appointment-record ${record.status}`}><header><span>{record.service.categoryName}</span><b>{record.status === 'expired' ? '已失效' : record.review ? '已评价' : record.serviceStatus === 'completed' ? '服务已完成' : record.status === 'handled' ? '已处理' : record.status === 'handling' ? '处理中' : '待处理'}</b></header><h3>{record.service.name}</h3><p><UserRound />{record.provider.name} · {record.provider.phone}</p><p><Clock3 />请求于 {formatTime(record.requestedAt)}</p>{record.lastRemindedAt && <p><BellRing />最近提醒于 {formatTime(record.lastRemindedAt)}</p>}{record.status === 'expired' && <p className="appointment-expiry-copy"><XCircle />{serviceAssistanceExpiryMessage}</p>}{record.status === 'handled' && <><p><CheckCircle2 />{record.handledBy} 已于 {formatTime(record.handledAt!)} 处理</p><p><ClipboardCheck />{record.resultSummary}</p></>}{record.review && <><p><Star />{record.review.rating} 星 · {record.review.text || '未填写文字评价'}</p><p><UserRound />评价人：{record.elder.name} · {formatTime(record.review.submittedAt)}</p></>}{canReviewServiceAssistance(record, record.elder.id) && <button className="appointment-record-review" onClick={() => { setLatest(record); setRating(5); setReviewText(''); setReviewError(''); setView('result', 'completed'); }}>评价服务</button>}<footer><small>{record.id}</small><span>{record.review ? '本次服务已评价' : record.status === 'expired' ? '本次协助已结束，历史记录已保留' : record.serviceStatus === 'completed' ? '服务已完成，等待评价' : record.status === 'handled' ? '已获得家人处理结果' : '已通知全部绑定家人'}</span></footer></article>)}</section>}
+    {view === 'records' && <section className="appointment-records">{records.map(record => <article key={record.id} className={`appointment-record ${record.status}`}><header><span>{record.service.categoryName}</span><b>{record.status === 'expired' ? '已失效' : record.review ? '已评价' : isFamilyHandlingCompleted(record) ? '家人处理完成' : record.status === 'handled' ? '已处理' : record.status === 'handling' ? '处理中' : '待处理'}</b></header><h3>{record.service.name}</h3><p><UserRound />{record.provider.name} · {record.provider.phone}</p><p><Clock3 />请求于 {formatTime(record.requestedAt)}</p>{record.lastRemindedAt && <p><BellRing />最近提醒于 {formatTime(record.lastRemindedAt)}</p>}{record.status === 'expired' && <p className="appointment-expiry-copy"><XCircle />{serviceAssistanceExpiryMessage}</p>}{record.status === 'handled' && <><p><CheckCircle2 />{record.handledBy} 已于 {formatTime(record.handledAt!)} 处理</p><p><ClipboardCheck />{record.resultSummary}</p></>}{getFamilyHandlingCompletedAt(record) && <p><CheckCircle2 />家人处理完成于 {formatTime(getFamilyHandlingCompletedAt(record)!)}</p>}{record.review && <><p><Star />{record.review.rating} 星 · {record.review.text || '未填写文字评价'}</p><p><UserRound />评价人：{record.elder.name} · {formatTime(record.review.submittedAt)}</p></>}{canReviewServiceAssistance(record, record.elder.id) && <button className="appointment-record-review" onClick={() => { setLatest(record); setRating(5); setReviewText(''); setReviewError(''); setView('result', 'completed'); }}>评价服务</button>}<footer><small>{record.id}</small><span>{record.review ? '当前评价已提交' : record.status === 'expired' ? '本次协助已结束，历史记录已保留' : isFamilyHandlingCompleted(record) ? '家人协助工单已处理完成' : record.status === 'handled' ? '已获得家人处理结果' : '已通知全部绑定家人'}</span></footer></article>)}</section>}
 
     {confirmOpen && <div className="appointment-help-confirm-overlay" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="appointment-help-confirm-title"><span><HandHeart /></span><h2 id="appointment-help-confirm-title">{confirmationCopy.title}</h2><p>{confirmationCopy.description}</p><small>{confirmationCopy.hint}</small>{submitError && <p className="appointment-help-submit-error" role="alert">{submitError}</p>}<div><button type="button" onClick={() => setConfirmOpen(false)} disabled={submitting}>再想想</button><button type="button" className="is-primary" onClick={confirmFamilyHelp} disabled={submitting}>{submitting ? '发送中…' : confirmationCopy.confirmLabel}</button></div></section></div>}
   </>;

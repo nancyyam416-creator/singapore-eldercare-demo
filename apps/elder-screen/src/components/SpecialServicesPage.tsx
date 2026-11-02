@@ -107,6 +107,10 @@ interface SharedAssistanceRecord {
   handledBy: string | null;
   handledAt: string | null;
   resultSummary: string | null;
+  familyHandlingStatus?: "not_completed" | "completed";
+  handlingCompletedAt?: string | null;
+  handlingCompletedBy?: string | null;
+  /** 迁移期旧字段，同样只表示家人协助工单完成。 */
   serviceStatus: "not_completed" | "completed";
   completedAt: string | null;
   completedBy?: string | null;
@@ -182,7 +186,7 @@ const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenari
   if (!["family-help-pending", "family-help-handled", "service-completed", "service-reviewed"].includes(scenario)) return null;
   const service = services[0];
   const handled = scenario !== "family-help-pending";
-  const completed = scenario === "service-completed" || scenario === "service-reviewed";
+  const familyHandlingCompleted = scenario === "service-completed" || scenario === "service-reviewed";
   return {
     id: `HELP-MOCK-${scenario.toUpperCase()}`,
     projectId: "PRJ-001",
@@ -201,9 +205,13 @@ const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenari
     handledBy: handled ? "张晓燕" : null,
     handledAt: handled ? "2026-10-30T09:42:00+08:00" : null,
     resultSummary: handled ? "已联系服务商，对方将于今日下午再电话确认上门时间。" : null,
-    serviceStatus: completed ? "completed" : "not_completed",
-    completedAt: completed ? "2026-10-30T16:30:00+08:00" : null,
-    completedBy: completed ? "张晓燕" : null,
+    familyHandlingStatus: familyHandlingCompleted ? "completed" : "not_completed",
+    handlingCompletedAt: familyHandlingCompleted ? "2026-10-30T16:30:00+08:00" : null,
+    handlingCompletedBy: familyHandlingCompleted ? "张晓燕" : null,
+    // 迁移期兼容旧消费者；旧字段也只表示家人协助工单处理完成。
+    serviceStatus: familyHandlingCompleted ? "completed" : "not_completed",
+    completedAt: familyHandlingCompleted ? "2026-10-30T16:30:00+08:00" : null,
+    completedBy: familyHandlingCompleted ? "张晓燕" : null,
     review: scenario === "service-reviewed"
       ? { rating: 5, text: "师傅很耐心，问题已经处理好了。", elderId: elderProfileMock.id, submittedAt: "2026-10-30T17:10:00+08:00", edited: false }
       : null,
@@ -223,10 +231,13 @@ const formatAssistanceTime = (value?: string | null) => {
   }).format(date);
 };
 
+const isFamilyHandlingCompleted = (record: Pick<SharedAssistanceRecord, "familyHandlingStatus" | "serviceStatus">) => (record.familyHandlingStatus ?? record.serviceStatus) === "completed";
+const getFamilyHandlingCompletedAt = (record: Pick<SharedAssistanceRecord, "handlingCompletedAt" | "completedAt">) => record.handlingCompletedAt ?? record.completedAt;
+
 const toAssistanceRecord = (record: SharedAssistanceRecord): AssistanceRecord => {
   const stage: AssistanceStage = record.review
     ? "reviewed"
-    : record.serviceStatus === "completed"
+    : isFamilyHandlingCompleted(record)
       ? "completed"
       : record.status === "expired"
         ? "expired"
@@ -240,7 +251,7 @@ const toAssistanceRecord = (record: SharedAssistanceRecord): AssistanceRecord =>
     handledBy: record.handledBy ?? undefined,
     handledAt: formatAssistanceTime(record.handledAt),
     resultSummary: record.resultSummary ?? undefined,
-    completedAt: formatAssistanceTime(record.completedAt),
+    completedAt: formatAssistanceTime(getFamilyHandlingCompletedAt(record)),
     review: record.review ? {
       rating: record.review.rating,
       text: record.review.text,
@@ -261,7 +272,7 @@ const readCurrentElderRecords = () => (readSharedServiceAssistanceRecords() as S
 
 const getSharedRecordStatus = (record: SharedAssistanceRecord) => {
   if (record.review) return "已评价";
-  if (record.serviceStatus === "completed") return "服务已完成";
+  if (isFamilyHandlingCompleted(record)) return "家人处理完成";
   if (record.status === "handled") return "家人已处理";
   if (record.status === "handling") return "家人处理中";
   if (record.status === "cancelled") return "已取消";
@@ -466,6 +477,9 @@ export default function SpecialServicesPage({
       handledBy: null,
       handledAt: null,
       resultSummary: null,
+      familyHandlingStatus: "not_completed",
+      handlingCompletedAt: null,
+      handlingCompletedBy: null,
       serviceStatus: "not_completed",
       completedAt: null,
       review: null,
@@ -473,7 +487,9 @@ export default function SpecialServicesPage({
     try {
       const result = requestSharedServiceAssistance(record) as { record: SharedAssistanceRecord; reminded: boolean; message: string };
       setAssistance(toAssistanceRecord(result.record));
-      setSharedRecords(readCurrentElderRecords());
+      setSharedRecords((current) => result.reminded
+        ? current.map((item) => item.id === result.record.id ? result.record : item)
+        : [result.record, ...current.filter((item) => item.id !== result.record.id)]);
       setFamilyHelpFeedback(result.reminded ? "reminded" : "notified");
     } catch {
       setFamilyHelpFeedback(familyHelpConfirmation.confirmLabel === "再次提醒" ? "remind-error" : "notify-error");
@@ -536,7 +552,7 @@ export default function SpecialServicesPage({
                 {record.status === "expired" && <em>{serviceAssistanceExpiryMessage}</em>}
                 {record.handledBy && record.handledAt && <em>由 {record.handledBy} 于 {formatAssistanceTime(record.handledAt)} 处理</em>}
                 {record.resultSummary && <em>处理结果：{record.resultSummary}</em>}
-                {record.completedAt && <em>服务完成于 {formatAssistanceTime(record.completedAt)}</em>}
+                {getFamilyHandlingCompletedAt(record) && <em>家人处理完成于 {formatAssistanceTime(getFamilyHandlingCompletedAt(record))}</em>}
                 {record.review && <em>我的评价：{"★".repeat(record.review.rating)}{record.review.text ? ` · ${record.review.text}` : ""}<br />评价人：{record.elder.name} · {formatAssistanceTime(record.review.submittedAt)}</em>}
                 {canReviewServiceAssistance(record, elderProfileMock.id) && <button type="button" className="special-services-review-entry" onClick={() => openServiceReview(record)}><Star aria-hidden="true" />评价服务</button>}
               </div>

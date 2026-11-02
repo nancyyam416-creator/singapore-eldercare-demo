@@ -231,7 +231,6 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
 
 const activationEntryLabels = {
   wifi: "连接无线网络",
-  device: "平板未登记",
   profile: "填写个人信息",
   success: "绑定完成",
 } as const;
@@ -441,7 +440,7 @@ const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, {
   "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
   "family-help-pending": { label: "家人待处理", description: "已通知家人，请等待联系。" },
   "family-help-handled": { label: "家人已处理", description: "展示处理人、处理时间和结果摘要。" },
-  "service-completed": { label: "服务已完成", description: "展示服务完成状态与 1–5 星评价入口。" },
+  "service-completed": { label: "家人处理完成", description: "展示家人协助工单处理完成状态，并保留当前已授权的评价入口。" },
   "service-reviewed": { label: "老人已评价", description: "展示星级、可选文字和评价提交结果。" },
 };
 
@@ -1285,7 +1284,8 @@ export default function InteractionAcceptanceConsole({
                 <h2><DatabaseBackup aria-hidden="true" />跨端契约状态</h2>
                 <dl className="activation-contract-status">
                   <div><dt>平板 SN</dt><dd>{activationContractState.device.sn}</dd></div>
-                  <div><dt>SN 登记</dt><dd>{activationContractState.device.registered ? "已登记" : "未登记"}</dd></div>
+                  <div><dt>SN 上报</dt><dd>{activationContractState.device.reported ? "已上报" : "待联网后上报"}</dd></div>
+                  <div><dt>绑定查询</dt><dd>{activationContractState.device.lookupStatus === "idle" ? "待查询" : activationContractState.device.lookupStatus === "bound" ? "已绑定用户" : activationContractState.device.lookupStatus === "unbound" ? "未绑定用户" : "查询失败，可重试"}</dd></div>
                   <div><dt>平板状态</dt><dd>{activationContractState.device.status}</dd></div>
                   <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
                   <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>

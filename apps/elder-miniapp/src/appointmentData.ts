@@ -33,6 +33,10 @@ export type ServiceAssistanceRecord = {
   handledBy: string | null;
   handledAt: string | null;
   resultSummary: string | null;
+  familyHandlingStatus?: 'not_completed' | 'completed';
+  handlingCompletedAt?: string | null;
+  handlingCompletedBy?: string | null;
+  /** 迁移期旧字段，同样只表示家人协助工单完成。 */
   serviceStatus: 'not_completed' | 'completed';
   completedAt: string | null;
   completedBy?: string | null;

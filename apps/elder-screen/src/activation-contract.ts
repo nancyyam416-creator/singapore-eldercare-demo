@@ -3,7 +3,8 @@ import { elderProfileMock, type ElderGender } from "./elder-profile";
 
 export type ActivationAcceptanceScenario =
   | "normal"
-  | "snUnregistered"
+  | "boundProfile"
+  | "lookupFailure"
   | "requiredMissing"
   | "phoneInvalid"
   | "postalInvalid"
@@ -19,7 +20,8 @@ export interface ActivationProfileDraft {
   unit: string;
 }
 
-export type ActivationScenarioEntry = "wifi" | "device" | "profile" | "success";
+export type ActivationScenarioEntry = "wifi" | "profile" | "success";
+export type ActivationLookupStatus = "idle" | "bound" | "unbound" | "failed";
 
 export interface ActivationContractState {
   contractVersion: string;
@@ -27,7 +29,8 @@ export interface ActivationContractState {
     id: string;
     sn: string;
     model: string;
-    registered: boolean;
+    reported: boolean;
+    lookupStatus: ActivationLookupStatus;
     status: string;
     boundElderlyId: string | null;
   };
@@ -49,9 +52,19 @@ export interface ActivationContractState {
 }
 
 const defaultProfile: ActivationProfileDraft = {
-  name: elderProfileMock.name,
-  phone: elderProfileMock.phone?.replace(/\D/g, "").slice(-8) ?? "",
+  name: "",
+  phone: "",
   gender: "",
+  country: "新加坡",
+  postalCode: "",
+  streetAddress: "",
+  unit: "",
+};
+
+const boundProfile: ActivationProfileDraft = {
+  name: elderProfileMock.name,
+  phone: elderProfileMock.phone?.replace(/\D/g, "").slice(-8) ?? "86032918",
+  gender: "男",
   country: "新加坡",
   postalCode: "560123",
   streetAddress: "12 Ang Mo Kio Avenue 3",
@@ -65,15 +78,21 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
   profile: ActivationProfileDraft;
 }> = {
   normal: {
-    label: "正常绑定",
-    description: "连接无线网络后填写个人信息，完成首次设置。",
+    label: "SN 未绑定用户",
+    description: "联网后自动上报 SN；未查到绑定用户时，进入空白表单由老人手动填写。",
     entry: "wifi",
     profile: defaultProfile,
   },
-  snUnregistered: {
-    label: "平板 SN 未登记",
-    description: "联网后未找到当前平板 SN，阻止继续并提示联系工作人员。",
-    entry: "device",
+  boundProfile: {
+    label: "SN 已绑定用户",
+    description: "联网后自动上报 SN；查到绑定用户时自动回填资料，老人仍可修改后提交。",
+    entry: "wifi",
+    profile: boundProfile,
+  },
+  lookupFailure: {
+    label: "绑定关系查询失败",
+    description: "联网成功但查询绑定关系失败时保留当前步骤并允许重试，不按未绑定处理。",
+    entry: "wifi",
     profile: defaultProfile,
   },
   requiredMissing: {
@@ -86,19 +105,19 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
     label: "电话格式错误",
     description: "联系电话不是 8 位数字，表单保留输入并禁止提交。",
     entry: "profile",
-    profile: { ...defaultProfile, gender: "男", phone: "8123456" },
+    profile: { ...boundProfile, phone: "8123456" },
   },
   postalInvalid: {
     label: "邮编格式错误",
     description: "邮政编码不是 6 位数字，表单保留输入并禁止提交。",
     entry: "profile",
-    profile: { ...defaultProfile, gender: "男", postalCode: "56012" },
+    profile: { ...boundProfile, postalCode: "56012" },
   },
   completedBinding: {
     label: "绑定完成",
     description: "首次设置已完成，可直接开始使用。",
     entry: "success",
-    profile: { ...defaultProfile, gender: "男" },
+    profile: boundProfile,
   },
 };
 
@@ -128,14 +147,15 @@ const createElderlyContractProfile = (profile: ActivationProfileDraft) => ({
   currentTabletId: null as string | null,
 });
 
-export const createInitialActivationContractState = (registered = true): ActivationContractState => ({
+export const createInitialActivationContractState = (): ActivationContractState => ({
   contractVersion: tabletActivationMock.contractVersion,
   device: {
     id: tabletActivationMock.deviceId,
     sn: tabletActivationMock.deviceSn,
     model: tabletActivationMock.deviceModel,
-    registered,
-    status: registered ? "已登记，待绑定" : "未登记",
+    reported: false,
+    lookupStatus: "idle",
+    status: "待联网后上报",
     boundElderlyId: null,
   },
   elderly: {
@@ -145,6 +165,26 @@ export const createInitialActivationContractState = (registered = true): Activat
   },
   completedAt: null,
 });
+
+export const applyActivationLookupResult = (
+  current: ActivationContractState,
+  lookupStatus: Exclude<ActivationLookupStatus, "idle">,
+  profile?: ActivationProfileDraft,
+): ActivationContractState => {
+  const isBound = lookupStatus === "bound" && profile;
+  const elderly = isBound ? createElderlyContractProfile(profile) : current.elderly;
+  return {
+    ...current,
+    device: {
+      ...current.device,
+      reported: true,
+      lookupStatus,
+      status: lookupStatus === "failed" ? "SN 已上报，绑定查询失败" : lookupStatus === "bound" ? "SN 已上报，已绑定用户" : "SN 已上报，未绑定用户",
+      boundElderlyId: isBound ? elderly.id : null,
+    },
+    elderly: isBound ? { ...elderly, currentTabletId: current.device.id } : current.elderly,
+  };
+};
 
 export const completeActivationContractState = (
   profile: ActivationProfileDraft = activationScenarioDefinitions.completedBinding.profile,
@@ -156,8 +196,9 @@ export const completeActivationContractState = (
       id: tabletActivationMock.deviceId,
       sn: tabletActivationMock.deviceSn,
       model: tabletActivationMock.deviceModel,
-      registered: true,
-      status: "已绑定",
+      reported: true,
+      lookupStatus: "bound",
+      status: "SN 已上报，已绑定用户",
       boundElderlyId: elderly.id,
     },
     elderly: {

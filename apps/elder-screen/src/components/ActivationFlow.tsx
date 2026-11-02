@@ -19,12 +19,12 @@ import {
   activationScenarioDefinitions,
   type ActivationAcceptanceScenario,
   type ActivationContractState,
+  type ActivationLookupStatus,
   type ActivationProfileDraft,
 } from "../activation-contract";
-import { elderGenderOptions } from "../elder-profile";
 import "./activation-flow.css";
 
-type ActivationStep = "wifi" | "device" | "profile" | "success";
+type ActivationStep = "wifi" | "profile" | "success";
 type ActivationProfileField = "name" | "phone" | "gender" | "postalCode" | "streetAddress";
 type ActivationProfileErrors = Partial<Record<ActivationProfileField, string>>;
 
@@ -33,6 +33,7 @@ interface ActivationFlowProps {
   scenario: ActivationAcceptanceScenario;
   contractState: ActivationContractState;
   resetSignal: number;
+  onLookupResolved: (status: Exclude<ActivationLookupStatus, "idle">, profile?: ActivationProfileDraft) => void;
   onBindingSubmitted: (profile: ActivationProfileDraft) => void;
 }
 
@@ -43,6 +44,7 @@ const progressSteps = [
 ] as const;
 
 const profileFieldNames: ActivationProfileField[] = ["name", "phone", "gender", "postalCode", "streetAddress"];
+const activationGenderOptions = ["男", "女"] as const;
 
 const validateProfile = (profile: ActivationProfileDraft): ActivationProfileErrors => {
   const errors: ActivationProfileErrors = {};
@@ -69,19 +71,19 @@ const availableWifiNetworks = [
   { id: "sg-home", name: "SG-Home", signal: "信号一般", strength: 1 },
 ] as const;
 
-export default function ActivationFlow({ scenario, contractState, resetSignal, onBindingSubmitted, onComplete }: ActivationFlowProps) {
+export default function ActivationFlow({ scenario, contractState, resetSignal, onLookupResolved, onBindingSubmitted, onComplete }: ActivationFlowProps) {
   const [step, setStep] = useState<ActivationStep>("wifi");
   const [selectedWifiId, setSelectedWifiId] = useState<string | null>(null);
   const [wifiPassword, setWifiPassword] = useState("");
   const [showWifiPassword, setShowWifiPassword] = useState(false);
   const [isConnectingWifi, setIsConnectingWifi] = useState(false);
   const [wifiError, setWifiError] = useState(false);
-  const [isCheckingDevice, setIsCheckingDevice] = useState(false);
+  const [lookupError, setLookupError] = useState(false);
   const [profile, setProfile] = useState<ActivationProfileDraft>(() => ({ ...activationScenarioDefinitions[scenario].profile }));
   const [touchedProfileFields, setTouchedProfileFields] = useState<Set<ActivationProfileField>>(() => getInitialTouchedFields(scenario));
   const [showHelp, setShowHelp] = useState(false);
 
-  const currentStepIndex = step === "device" ? -1 : progressSteps.findIndex((item) => item.key === step);
+  const currentStepIndex = progressSteps.findIndex((item) => item.key === step);
 
   useEffect(() => {
     const scenarioDefinition = activationScenarioDefinitions[scenario];
@@ -91,7 +93,7 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
     setShowWifiPassword(false);
     setIsConnectingWifi(false);
     setWifiError(false);
-    setIsCheckingDevice(false);
+    setLookupError(false);
     setProfile({ ...scenarioDefinition.profile });
     setTouchedProfileFields(getInitialTouchedFields(scenario));
     setShowHelp(false);
@@ -104,7 +106,16 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
     setWifiError(false);
     window.setTimeout(() => {
       setIsConnectingWifi(false);
-      setStep(contractState.device.registered ? "profile" : "device");
+      if (scenario === "lookupFailure" && !lookupError) {
+        setLookupError(true);
+        onLookupResolved("failed");
+        return;
+      }
+      const lookupStatus = scenario === "boundProfile" ? "bound" : "unbound";
+      const nextProfile = { ...activationScenarioDefinitions[scenario].profile };
+      setProfile(nextProfile);
+      onLookupResolved(lookupStatus, lookupStatus === "bound" ? nextProfile : undefined);
+      setStep("profile");
     }, 850);
   };
 
@@ -114,12 +125,6 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
     setWifiPassword("");
     setShowWifiPassword(false);
     setWifiError(false);
-  };
-
-  const recheckDeviceRegistration = () => {
-    if (isCheckingDevice) return;
-    setIsCheckingDevice(true);
-    window.setTimeout(() => setIsCheckingDevice(false), 850);
   };
 
   const profileErrors = validateProfile(profile);
@@ -163,15 +168,15 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
       <main className="activation-flow__main">
         <nav className="activation-progress" aria-label="激活进度">
           {progressSteps.map((item, index) => {
-            const completed = step === "device" ? index === 0 : index < currentStepIndex;
-            const active = step !== "device" && index === currentStepIndex;
+            const completed = index < currentStepIndex;
+            const active = index === currentStepIndex;
             return (
               <Fragment key={item.key}>
                 <div className={`${completed ? "is-completed" : ""} ${active ? "is-active" : ""}`}>
                   <i>{completed ? <Check aria-hidden="true" /> : index + 1}</i>
                   <span>{item.label}</span>
                 </div>
-                {index < progressSteps.length - 1 && <b className={step === "device" ? (index === 0 ? "is-completed" : "") : (index < currentStepIndex ? "is-completed" : "")} />}
+                {index < progressSteps.length - 1 && <b className={index < currentStepIndex ? "is-completed" : ""} />}
               </Fragment>
             );
           })}
@@ -245,7 +250,7 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                       }}
                       placeholder={selectedWifiId ? "请输入无线网密码" : "选择网络后可输入密码"}
                       aria-invalid={wifiError}
-                      aria-describedby={wifiError ? "activation-wifi-error" : undefined}
+                      aria-describedby={wifiError ? "activation-wifi-error" : lookupError ? "activation-lookup-error" : undefined}
                     />
                     <button
                       type="button"
@@ -260,8 +265,9 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
 
                 <div className="activation-error-slot">
                   {wifiError && <p id="activation-wifi-error" role="alert"><b>!</b>暂时无法连接无线网络，请检查密码后重试。</p>}
-                  {!selectedWifiId && !wifiError && <p className="is-hint"><Wifi aria-hidden="true" />请先从上方选择一个无线网络</p>}
-                  {selectedWifiId && !wifiPassword.trim() && !wifiError && <p className="is-hint"><LockKeyhole aria-hidden="true" />请输入密码后连接</p>}
+                  {lookupError && <p id="activation-lookup-error" role="alert"><b>!</b>网络已连接，但暂时无法查询 SN 绑定关系，请重试。</p>}
+                  {!selectedWifiId && !wifiError && !lookupError && <p className="is-hint"><Wifi aria-hidden="true" />请先从上方选择一个无线网络</p>}
+                  {selectedWifiId && !wifiPassword.trim() && !wifiError && !lookupError && <p className="is-hint"><LockKeyhole aria-hidden="true" />请输入密码后连接</p>}
                 </div>
 
                 <button
@@ -270,23 +276,8 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                   disabled={!selectedWifiId || !wifiPassword.trim() || isConnectingWifi}
                   onClick={connectWifi}
                 >
-                  {isConnectingWifi ? <><LoaderCircle className="is-spinning" aria-hidden="true" />正在连接，请稍候</> : "连接无线网络"}
+                  {isConnectingWifi ? <><LoaderCircle className="is-spinning" aria-hidden="true" />正在上报并查询，请稍候</> : lookupError ? "重新查询绑定关系" : "连接无线网络"}
                 </button>
-              </section>
-            )}
-
-            {step === "device" && (
-              <section className="activation-step activation-step--syncing">
-                <span className={`activation-step__status-icon ${contractState.device.registered ? "" : "is-error"}`}>
-                  {isCheckingDevice ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <TabletSmartphone aria-hidden="true" />}
-                </span>
-                <h2>{isCheckingDevice ? "正在检查平板信息" : "未找到已登记的平板"}</h2>
-                <p>{isCheckingDevice ? "正在使用当前平板 SN 查询后台登记记录，请稍候。" : "当前平板 SN 尚未在后台登记，暂时不能继续填写个人信息。"}</p>
-                <div className="activation-help-device"><span>当前平板 SN</span><strong>{contractState.device.sn}</strong></div>
-                {!isCheckingDevice && <>
-                  <p className="activation-device-guidance">请联系工作人员先在后台登记该平板 SN，登记完成后再重新检查。</p>
-                  <button type="button" className="activation-primary-action" onClick={recheckDeviceRegistration}>重新检查</button>
-                </>}
               </section>
             )}
 
@@ -295,7 +286,6 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                 <span className="activation-step__eyebrow">完善使用资料</span>
                 <h2>填写个人信息</h2>
                 <p>请填写姓名、性别、联系电话和居住地址，方便后续为您提供服务。</p>
-
                 <div className="activation-profile-form">
                   <label className="activation-form-field">
                     <span>姓名 *</span>
@@ -306,7 +296,7 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                   <div className="activation-form-field">
                     <span id="activation-gender-label">性别 *</span>
                     <div className={`activation-gender-toggle${showProfileError("gender") ? " is-invalid" : ""}`} role="radiogroup" aria-labelledby="activation-gender-label" aria-describedby={showProfileError("gender") ? "activation-gender-error" : undefined}>
-                      {elderGenderOptions.map((gender) => <button key={gender} type="button" role="radio" aria-checked={profile.gender === gender} className={profile.gender === gender ? "is-active" : ""} onClick={() => {
+                      {activationGenderOptions.map((gender) => <button key={gender} type="button" role="radio" aria-checked={profile.gender === gender} className={profile.gender === gender ? "is-active" : ""} onClick={() => {
                         updateProfile("gender", gender);
                         setTouchedProfileFields((current) => new Set(current).add("gender"));
                       }}>{gender}</button>)}

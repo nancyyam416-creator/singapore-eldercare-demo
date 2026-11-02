@@ -42,6 +42,7 @@ import { elderProfileMock, getActiveFamilyRelationshipCount } from "./elder-prof
 import { SERVICE_COMMUNICATION_FIXTURES, secondsFromDuration } from "./service-communication-fixture";
 import {
   activationScenarioDefinitions,
+  applyActivationLookupResult,
   completeActivationContractState,
   createInitialActivationContractState,
   type ActivationAcceptanceScenario,
@@ -1167,8 +1168,6 @@ export default function App() {
     setAcceptanceActivationScenario(scenario);
     setActivationContractState(scenario === "completedBinding"
       ? completeActivationContractState(activationScenarioDefinitions.completedBinding.profile)
-      : scenario === "snUnregistered"
-        ? createInitialActivationContractState(false)
       : createInitialActivationContractState());
     setActivationResetSignal((signal) => signal + 1);
     window.localStorage.removeItem("u2g-tablet-activated-v1");
@@ -1775,6 +1774,7 @@ export default function App() {
             scenario={acceptanceActivationScenario}
             contractState={activationContractState}
             resetSignal={activationResetSignal}
+            onLookupResolved={(status, profile) => setActivationContractState((current) => applyActivationLookupResult(current, status, profile))}
             onBindingSubmitted={(profile) => setActivationContractState(completeActivationContractState(profile))}
             onComplete={() => {
               window.localStorage.setItem("u2g-tablet-activated-v1", "true");
