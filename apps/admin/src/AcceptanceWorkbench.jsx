@@ -51,10 +51,8 @@ const recommendationScenarios = [
 
 const elderlyScenarios = [
   { value: "normal", label: "默认档案", description: "展示当前社区的老人档案列表。", status: "默认" },
-  { value: "tabletUnbound", label: "平板未绑定", description: "无目标设备且无有效激活记录，展示绑定入口。", status: "空状态" },
-  { value: "tabletPending", label: "平板待激活", description: "已指定设备并生成激活码，尚未完成激活。", status: "待处理" },
-  { value: "tabletActivated", label: "平板已激活", description: "设备已绑定当前老人，展示在线状态与使用信息。", status: "成功" },
-  { value: "tabletActivationFailed", label: "平板激活失败", description: "展示本次失败原因，原激活码保持待使用。", status: "失败" },
+  { value: "tabletUnbound", label: "平板未绑定", description: "展示按设备 SN 建立老人档案与平板绑定关系的入口。", status: "空状态" },
+  { value: "tabletActivated", label: "平板已绑定", description: "设备已绑定当前老人，展示在线状态与使用信息。", status: "成功" },
   { value: "unbindFailure", label: "解绑失败可重试", description: "首次解除失败，保留原绑定关系并提供重试入口。", status: "失败" },
 ];
 

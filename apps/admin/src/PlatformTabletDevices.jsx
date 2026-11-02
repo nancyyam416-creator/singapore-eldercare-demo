@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MonitorSmartphone, RefreshCw, Search } from "lucide-react";
+import { MonitorSmartphone, Plus, RefreshCw, Search } from "lucide-react";
 import { AdminDrawer } from "./AdminOverlay";
 import { tabletOtaStorageKey } from "./TabletOta";
 
@@ -147,7 +147,7 @@ function DeviceUpgradeDrawer({ device, onClose, onOpenOta }) {
   </AdminDrawer>;
 }
 
-export function PlatformTabletDevicesPage({ devices, projects, onOpenOta }) {
+export function PlatformTabletDevicesPage({ devices, projects, onAddTablet, onOpenOta }) {
   const [packages, setPackages] = useState(readOtaPackages);
   const [query, setQuery] = useState("");
   const [projectId, setProjectId] = useState("全部项目");
@@ -197,7 +197,7 @@ export function PlatformTabletDevicesPage({ devices, projects, onOpenOta }) {
   const selectedDevice = rows.find((item) => item.id === selectedId);
 
   return <>
-    <div className="page-heading"><div><h1>平板设备</h1><p>跨项目查看平板版本、升级进度与执行结果</p></div></div>
+    <div className="page-heading"><div><h1>平板设备</h1><p>登记平板 SN，跨项目查看设备归属、版本与升级结果</p></div><button className="primary-button" onClick={onAddTablet}><Plus size={16}/>登记平板 SN</button></div>
     <div className="platform-metric-grid platform-device-metrics" aria-label="平板升级状态统计">
       <div className="platform-metric-card"><span>设备总数</span><b>{metrics.total}</b><p>全部项目平板</p></div>
       <div className="platform-metric-card"><span>已是最新</span><b className="metric-success">{metrics.latest}</b><p>APK 已是最新版本</p></div>

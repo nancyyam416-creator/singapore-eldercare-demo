@@ -308,7 +308,7 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
             </div>
             <h2 id="activation-reset-title" className="text-[30px] font-black text-[#1C2C24]">返回激活页面？</h2>
             <p className="text-[19px] font-bold text-gray-600 leading-relaxed mt-4">
-              返回后，本机需要重新输入激活码并确认使用人，当前家庭资料不会被删除。
+              返回后，本机需要重新连接无线网络、检查平板 SN 登记状态并填写个人信息，当前家庭资料不会被删除。
             </p>
             <div className="grid grid-cols-2 gap-4 mt-8">
               <button

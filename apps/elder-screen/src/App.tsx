@@ -434,6 +434,7 @@ export default function App() {
   const [acceptanceRightContentCondition, setAcceptanceRightContentCondition] = useState<AcceptanceRightContentCondition>("relationship-valid");
   const [acceptanceCommunityScenario, setAcceptanceCommunityScenario] = useState<AcceptanceCommunityScenario>("default");
   const [acceptanceSpecialServicesScenario, setAcceptanceSpecialServicesScenario] = useState<SpecialServicesAcceptanceScenario>("default");
+  const [acceptanceSpecialServicesActionSignal, setAcceptanceSpecialServicesActionSignal] = useState(0);
   const [acceptanceCommunityStaffScenario, setAcceptanceCommunityStaffScenario] = useState<CommunityStaffAcceptanceScenario>("multiple");
   const [acceptanceServiceConversationScenario, setAcceptanceServiceConversationScenario] = useState<ServiceConversationAcceptanceScenario>("off");
   const [acceptanceFamilyRequestScenario, setAcceptanceFamilyRequestScenario] = useState<FamilyRelationshipRequestScenario>("pending");
@@ -1151,6 +1152,7 @@ export default function App() {
   const openAcceptanceSpecialServicesScenario = (scenario: SpecialServicesAcceptanceScenario) => {
     showHomeForAcceptance();
     setAcceptanceSpecialServicesScenario(scenario);
+    setAcceptanceSpecialServicesActionSignal((signal) => signal + 1);
     setHomeRecommendationKind(null);
     setIsSpecialServicesOpen(true);
   };
@@ -1165,6 +1167,8 @@ export default function App() {
     setAcceptanceActivationScenario(scenario);
     setActivationContractState(scenario === "completedBinding"
       ? completeActivationContractState(activationScenarioDefinitions.completedBinding.profile)
+      : scenario === "snUnregistered"
+        ? createInitialActivationContractState(false)
       : createInitialActivationContractState());
     setActivationResetSignal((signal) => signal + 1);
     window.localStorage.removeItem("u2g-tablet-activated-v1");
@@ -1677,6 +1681,7 @@ export default function App() {
           isOpen={isSpecialServicesOpen}
           initialServiceId={homeRecommendationKind === "service" ? "srv-electric-1" : null}
           acceptanceScenario={acceptanceSpecialServicesScenario}
+          acceptanceActionSignal={acceptanceSpecialServicesActionSignal}
           onClose={() => {
             setIsSpecialServicesOpen(false);
             if (homeRecommendationKind === "service") setHomeRecommendationKind(null);
@@ -1770,7 +1775,7 @@ export default function App() {
             scenario={acceptanceActivationScenario}
             contractState={activationContractState}
             resetSignal={activationResetSignal}
-            onActivationCommitted={(profile) => setActivationContractState(completeActivationContractState(profile))}
+            onBindingSubmitted={(profile) => setActivationContractState(completeActivationContractState(profile))}
             onComplete={() => {
               window.localStorage.setItem("u2g-tablet-activated-v1", "true");
               setIsDeviceActivated(true);

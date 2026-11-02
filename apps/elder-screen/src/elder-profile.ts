@@ -4,8 +4,14 @@ export interface ElderEmergencyContact {
   maskedPhone: string;
 }
 
+export const elderGenderOptions = ["男", "女", "未填写"] as const;
+export type ElderGender = (typeof elderGenderOptions)[number];
+
 export interface ElderProfileSnapshot {
+  id?: string;
   name: string;
+  phone?: string;
+  gender?: ElderGender;
   communityId?: string;
   birthDate?: string;
   projectCommunity?: string;
@@ -24,7 +30,9 @@ export interface FamilyRelationshipSnapshot {
 
 // L2 统一 Mock：仅保留当前老人端激活流程和家庭关系中已经存在的数据。
 export const elderProfileMock: ElderProfileSnapshot = {
+  id: "elder-wang-jianguo",
   name: "王建国",
+  phone: "+65 8603 2918",
   communityId: "COM-001",
   projectCommunity: "清华园社区养老服务项目",
   address: "清华园社区 · 12号楼 · **01室",

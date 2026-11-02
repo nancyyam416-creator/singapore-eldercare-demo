@@ -1,4 +1,5 @@
-import { H5BookingConfirmation } from './H5BookingConfirmation';
+import { segmentedControlClass, segmentedOptionClass } from './segmentedControlStyles';
+import { ServiceAssistanceBadge } from './H5BookingConfirmation';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -542,17 +543,19 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          {isLoggedIn && activeTab === 'store' && familySection !== 'notifications' ? (
-            <div role="tablist" aria-label="家庭内容" className="flex rounded-xl bg-slate-100 p-1">
+          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : assistanceOpen ? '在线协助' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'notifications' ? '消息' : '家庭' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>
+        </header>
+        {isLoggedIn && activeTab === 'store' && familySection !== 'notifications' && (
+          <div className="shrink-0 bg-slate-50 px-4 pt-4 pb-3">
+            <div role="tablist" aria-label="家庭内容" className={segmentedControlClass}>
               {(['messages', 'photos'] as const).map(section => (
-                <button key={section} type="button" role="tab" aria-selected={familySection === section} onClick={() => setFamilySection(section)} className={`rounded-lg px-5 py-1 text-xs font-bold ${familySection === section ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>
+                <button key={section} type="button" role="tab" aria-selected={familySection === section} onClick={() => setFamilySection(section)} className={segmentedOptionClass(familySection === section)}>
                   {section === 'messages' ? '家庭留言' : '家庭相册'}
                 </button>
               ))}
             </div>
-          ) : <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : assistanceOpen ? '在线协助' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? '消息' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>}
-
-        </header>
+          </div>
+        )}
 
         {/* 3. APP SCREEN WRAPPER WITH ABSOLUTE ALERT OVERLAYS */}
         <div ref={contentScrollRef} className={`flex-1 overflow-y-auto relative min-h-0 bg-slate-50 ${activeTab === 'store' && familySection === 'messages' ? 'flex flex-col' : ''}`}>
@@ -614,7 +617,6 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             </div>
           )}
 
-          <H5BookingConfirmation visible={isLoggedIn && activeTab === 'store' && familySection === 'messages'} resetSignal={previewResetSignal} />
           {/* RENDERING ACTIVE TAB VIEW */}
           {!isLoggedIn && (
             <H5LoginPage scenario={loginScenario} onLoginSuccess={handleLogin} />
@@ -865,7 +867,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             disabled={!isLoggedIn}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'orders' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <Settings2 size={18} className={activeTab === 'orders' ? 'stroke-[2.5]' : ''} />
+            <span className="relative"><span className="absolute -right-4 -top-2"><ServiceAssistanceBadge/></span><Settings2 size={18} className={activeTab === 'orders' ? 'stroke-[2.5]' : ''} /></span>
             <span className="text-5xs font-extrabold tracking-tight">预约服务</span>
           </button>
 

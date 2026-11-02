@@ -1495,7 +1495,7 @@ th.sticky-right { background: #f7f8fa; }
   grid-column: 1 / -1;
 }
 
-.admin-style-theme .info-grid span {
+.admin-style-theme .info-grid > div > span:not(.status-tag) {
   color: #94a3b8;
   font-size: 11px;
 }
@@ -1819,6 +1819,7 @@ th.sticky-right { background: #f7f8fa; }
 .tablet-binding-dialog {
   position: relative;
   width: 680px;
+  max-width: calc(100vw - 32px);
   max-height: min(820px, calc(100vh - 56px));
   display: flex;
   flex-direction: column;
@@ -1858,7 +1859,7 @@ th.sticky-right { background: #f7f8fa; }
 .activation-stepper {
   margin-bottom: 22px;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .activation-stepper > div {
@@ -6498,7 +6499,7 @@ th.sticky-right { background: #f7f8fa; }
   line-height: 1.45;
 }
 
-.admin-style-theme .info-grid span,
+.admin-style-theme .info-grid > div > span:not(.status-tag),
 .admin-style-theme .binding-audit-grid span,
 .admin-style-theme .drawer-body small,
 .admin-style-theme .detail-page-body small,
@@ -10139,22 +10140,40 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .service-booking-table {
-  min-width: 1240px;
+  min-width: 1680px;
 }
 
-.admin-style-theme .service-booking-table th:first-child,
-.admin-style-theme .service-booking-table td:first-child {
-  min-width: 190px;
+.admin-style-theme .service-booking-table .service-assistance-elderly {
+  min-width: 110px;
 }
 
-.admin-style-theme .service-booking-table th:nth-child(3),
-.admin-style-theme .service-booking-table td:nth-child(3) {
-  min-width: 230px;
+.admin-style-theme .service-booking-table .service-assistance-community {
+  min-width: 120px;
 }
 
-.admin-style-theme .service-booking-table th:nth-child(4),
-.admin-style-theme .service-booking-table td:nth-child(4) {
-  min-width: 190px;
+.admin-style-theme .service-booking-table .service-assistance-title {
+  min-width: 290px;
+}
+
+.admin-style-theme .service-booking-table .service-assistance-reason {
+  min-width: 220px;
+}
+
+.admin-style-theme .service-booking-table .service-assistance-provider {
+  min-width: 210px;
+}
+
+.admin-style-theme .service-booking-table .service-assistance-result {
+  min-width: 260px;
+}
+
+.admin-style-theme .service-booking-table .service-assistance-reason > span,
+.admin-style-theme .service-booking-table .service-assistance-result > span {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-style-theme .service-booking-name {
@@ -10173,6 +10192,7 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .service-booking-name b {
   color: #1e293b;
   font-size: 13px;
+  line-height: 1.45;
 }
 
 .admin-style-theme .service-booking-name small {
@@ -10260,7 +10280,7 @@ th.sticky-right { background: #f7f8fa; }
   background: #f7faff;
 }
 
-.admin-style-theme .service-booking-hero > span {
+.admin-style-theme .service-booking-hero-icon {
   width: 40px;
   height: 40px;
   display: grid;

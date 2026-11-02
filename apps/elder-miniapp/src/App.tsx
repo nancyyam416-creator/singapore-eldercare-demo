@@ -540,7 +540,7 @@ export default function App() {
     <div className={`service-hero ${currentService.tone}`}><currentService.Icon /><span>{currentService.label}</span></div>
     <span className="mock-badge">特约服务</span><h2>{selectedService.name}</h2><p>{selectedService.detail}</p>
     <div className="provider-box"><UserRound /><div><small>服务商</small><strong>{currentService.provider}</strong></div></div>
-    <div className="price-box"><small>参考价格范围</small><strong>{selectedService.range}</strong><span>仅供参考，最终价格以商家确认或现场报价为准</span></div>
+    <div className="price-box"><small>参考价格区间</small><strong>{selectedService.range}</strong><span>仅供参考，最终价格以商家确认或现场报价为准</span></div>
     {serviceStep === 'detail' && <button className="primary-button" onClick={() => setServiceStep('confirm')}><PhoneCall />立即预约</button>}
     {serviceStep === 'confirm' && <div className="confirm-box"><Info /><h3>确认联系商家？</h3><p>提交预约后，服务商会联系您确认需求、时间和最终价格。</p><button className="primary-button" onClick={() => setServiceStep('success')}>确认联系并预约</button><button className="secondary-button" onClick={() => setServiceStep('detail')}>再想一想</button></div>}
     {serviceStep === 'success' && <div className="order-result"><CheckCircle2 /><h3>预约已提交</h3><b>等待商家联系</b><p>{currentService.provider} 将进一步询问服务需求并确认最终价格。</p><span>订单号 U2G-53114</span></div>}
@@ -548,7 +548,7 @@ export default function App() {
     <section className="page-intro service-intro"><div><span>特约服务</span><h2>需要家里帮忙？</h2><p>价格均为参考范围，最终以商家确认为准。</p></div><Wrench /></section>
     <div className="service-tabs">{(Object.keys(serviceData) as ServiceCategory[]).map(key => { const item = serviceData[key]; return <button key={key} className={serviceCategory === key ? 'active' : ''} onClick={() => setServiceCategory(key)}><item.Icon />{item.label}</button>; })}</div>
     <section className="provider-summary"><UserRound /><div><small>服务商</small><strong>{currentService.provider}</strong><span>本类当前展示 1 家服务商</span></div></section>
-    <section className="list-stack">{currentService.items.map(item => <button key={item.id} className="service-item" onClick={() => { setSelectedService(item); setServiceStep('detail'); }}><span className={`list-icon ${currentService.tone}-bg`}><currentService.Icon /></span><div><h3>{item.name}</h3><p>参考范围 {item.range}</p><small>最终以商家确认为准</small></div><ChevronRight /></button>)}</section>
+    <section className="list-stack">{currentService.items.map(item => <button key={item.id} className="service-item" onClick={() => { setSelectedService(item); setServiceStep('detail'); }}><span className={`list-icon ${currentService.tone}-bg`}><currentService.Icon /></span><div><h3>{item.name}</h3><p>参考价格区间 {item.range}</p><small>最终以商家确认为准</small></div><ChevronRight /></button>)}</section>
     <div className="boundary-note"><Info /><span><strong>预约说明</strong>提交后由服务商联系确认需求、上门时间和最终价格。</span></div>
   </>;
 
@@ -559,7 +559,7 @@ export default function App() {
     : selectedActivity ? { label: '返回活动列表', action: () => { setSelectedActivity(null); setActivityIntentFailure(null); } }
         : selectedAlert ? { label: '返回警惕事项', action: () => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); } }
           : showingService ? { label: selectedService ? '返回服务列表' : '返回首页', action: () => { if (selectedService) { setSelectedService(null); setServiceStep('detail'); } else { setServicesOpen(false); } } }
-            : tab === 'services' && (appointmentScenario === 'requested' || appointmentScenario === 'handled' || appointmentScenario === 'completed' || appointmentScenario === 'reviewed') ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
+            : tab === 'services' && (appointmentScenario === 'requested' || appointmentScenario === 'handling' || appointmentScenario === 'expired' || appointmentScenario === 'cancelled' || appointmentScenario === 'handled' || appointmentScenario === 'completed' || appointmentScenario === 'reviewed') ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
               : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('default') }
                 : undefined;
 

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   Clock3,
   Droplets,
   HandHeart,
@@ -18,11 +19,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SecondaryPageHeader from "./SecondaryPageHeader";
-import { elderProfileMock } from "../elder-profile";
+import { elderProfileMock, getActiveFamilyRelationships } from "../elder-profile";
 import {
   unifiedServiceCatalog,
   unifiedServiceCategories,
 } from "../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js";
+import {
+  canReviewServiceAssistance,
+  getLatestServiceAssistanceRecord,
+  getServiceAssistanceConfirmationCopy,
+  readSharedServiceAssistanceRecords,
+  serviceAssistanceExpiryMessage,
+  submitSharedServiceReview,
+  upsertSharedServiceAssistanceRecord,
+} from "../../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import "./special-services-page.css";
 
 export type SpecialServicesAcceptanceScenario =
@@ -39,7 +49,7 @@ export type SpecialServicesAcceptanceScenario =
   | "service-reviewed";
 
 type ServiceCategoryCode = "electric" | "water" | "basic";
-type AssistanceStage = "idle" | "pending" | "handled" | "completed" | "reviewed";
+type AssistanceStage = "idle" | "pending" | "expired" | "handled" | "completed" | "reviewed";
 
 interface ServiceCategoryItem {
   code: ServiceCategoryCode;
@@ -69,6 +79,7 @@ interface SpecialServiceItem {
 
 interface AssistanceRecord {
   stage: AssistanceStage;
+  recordId?: string;
   requestedAt?: string;
   handledBy?: string;
   handledAt?: string;
@@ -81,11 +92,33 @@ interface AssistanceRecord {
   };
 }
 
+interface SharedAssistanceRecord {
+  id: string;
+  projectId: string;
+  communityId: string;
+  elder: { id: string; name: string; phone: string };
+  service: { id: string; name: string; categoryName: string };
+  provider: { name: string; phone: string };
+  requestReason: string;
+  requestedAt: string;
+  status: "pending" | "handling" | "handled" | "cancelled" | "expired";
+  expiredAt?: string | null;
+  recipientIds: string[];
+  handledBy: string | null;
+  handledAt: string | null;
+  resultSummary: string | null;
+  serviceStatus: "not_completed" | "completed";
+  completedAt: string | null;
+  completedBy?: string | null;
+  review: { rating: number; text: string; elderId?: string; submittedAt: string; edited?: boolean } | null;
+}
+
 interface SpecialServicesPageProps {
   isOpen: boolean;
   onClose: () => void;
   initialServiceId?: string | null;
   acceptanceScenario?: SpecialServicesAcceptanceScenario;
+  acceptanceActionSignal?: number;
 }
 
 const categoryPresentation: Record<ServiceCategoryCode, { description: string; Icon: LucideIcon }> = {
@@ -143,12 +176,95 @@ const scenarioRecord = (scenario: SpecialServicesAcceptanceScenario): Assistance
   return { stage: "idle" };
 };
 
-const statusLabel: Record<AssistanceStage, string> = {
-  idle: "尚未请求",
-  pending: "待处理",
-  handled: "已处理",
-  completed: "服务已完成",
-  reviewed: "已评价",
+const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenario): SharedAssistanceRecord | null => {
+  if (!["family-help-pending", "family-help-handled", "service-completed", "service-reviewed"].includes(scenario)) return null;
+  const service = services[0];
+  const handled = scenario !== "family-help-pending";
+  const completed = scenario === "service-completed" || scenario === "service-reviewed";
+  return {
+    id: `HELP-MOCK-${scenario.toUpperCase()}`,
+    projectId: "PRJ-001",
+    communityId: elderProfileMock.communityId ?? "COM-001",
+    elder: {
+      id: elderProfileMock.id ?? "elder-wang-jianguo",
+      name: elderProfileMock.name,
+      phone: elderProfileMock.phone ?? "+65 8603 2918",
+    },
+    service: { id: service.id, name: service.name, categoryName: service.categoryName },
+    provider: { name: service.provider, phone: service.providerPhone },
+    requestReason: "请家人协助联系服务商",
+    requestedAt: "2026-10-30T09:20:00+08:00",
+    status: handled ? "handled" : "pending",
+    recipientIds: ["child-zhang-xiaoyan", "child-zhang-jianping"],
+    handledBy: handled ? "张晓燕" : null,
+    handledAt: handled ? "2026-10-30T09:42:00+08:00" : null,
+    resultSummary: handled ? "已联系服务商，对方将于今日下午再电话确认上门时间。" : null,
+    serviceStatus: completed ? "completed" : "not_completed",
+    completedAt: completed ? "2026-10-30T16:30:00+08:00" : null,
+    completedBy: completed ? "张晓燕" : null,
+    review: scenario === "service-reviewed"
+      ? { rating: 5, text: "师傅很耐心，问题已经处理好了。", elderId: elderProfileMock.id, submittedAt: "2026-10-30T17:10:00+08:00", edited: false }
+      : null,
+  };
+};
+
+const formatAssistanceTime = (value?: string | null) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+};
+
+const toAssistanceRecord = (record: SharedAssistanceRecord): AssistanceRecord => {
+  const stage: AssistanceStage = record.review
+    ? "reviewed"
+    : record.serviceStatus === "completed"
+      ? "completed"
+      : record.status === "expired"
+        ? "expired"
+      : record.status === "handled"
+        ? "handled"
+        : "pending";
+  return {
+    stage,
+    recordId: record.id,
+    requestedAt: formatAssistanceTime(record.requestedAt),
+    handledBy: record.handledBy ?? undefined,
+    handledAt: formatAssistanceTime(record.handledAt),
+    resultSummary: record.resultSummary ?? undefined,
+    completedAt: formatAssistanceTime(record.completedAt),
+    review: record.review ? {
+      rating: record.review.rating,
+      text: record.review.text,
+      submittedAt: formatAssistanceTime(record.review.submittedAt) ?? record.review.submittedAt,
+    } : undefined,
+  };
+};
+
+const findSharedRecord = (serviceId: string) => readSharedServiceAssistanceRecords()
+  .find((record: SharedAssistanceRecord) => (
+    record.elder?.id === (elderProfileMock.id ?? "elder-wang-jianguo")
+    && record.service?.id === serviceId
+  )) as SharedAssistanceRecord | undefined;
+
+const readCurrentElderRecords = () => (readSharedServiceAssistanceRecords() as SharedAssistanceRecord[])
+  .filter((record) => record.elder?.id === (elderProfileMock.id ?? "elder-wang-jianguo"))
+  .sort((first, second) => second.requestedAt.localeCompare(first.requestedAt));
+
+const getSharedRecordStatus = (record: SharedAssistanceRecord) => {
+  if (record.review) return "已评价";
+  if (record.serviceStatus === "completed") return "服务已完成";
+  if (record.status === "handled") return "家人已处理";
+  if (record.status === "handling") return "家人处理中";
+  if (record.status === "cancelled") return "已取消";
+  if (record.status === "expired") return "已失效";
+  return "等待家人联系";
 };
 
 export default function SpecialServicesPage({
@@ -156,16 +272,25 @@ export default function SpecialServicesPage({
   onClose,
   initialServiceId = null,
   acceptanceScenario = "default",
+  acceptanceActionSignal = 0,
 }: SpecialServicesPageProps) {
-  const [view, setView] = useState<"list" | "detail">("list");
+  const [view, setView] = useState<"list" | "detail" | "records">("list");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedCategoryCode, setSelectedCategoryCode] = useState<"all" | ServiceCategoryCode>("all");
   const [categoryRetrySucceeded, setCategoryRetrySucceeded] = useState(false);
   const [assistance, setAssistance] = useState<AssistanceRecord>({ stage: "idle" });
-  const [rating, setRating] = useState(5);
-  const [reviewText, setReviewText] = useState("");
   const [familyHelpConfirmOpen, setFamilyHelpConfirmOpen] = useState(false);
+  const [familyHelpConfirmation, setFamilyHelpConfirmation] = useState(() => getServiceAssistanceConfirmationCopy(null));
+  const [familyHelpFeedback, setFamilyHelpFeedback] = useState<"success" | "error" | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [sharedRecords, setSharedRecords] = useState<SharedAssistanceRecord[]>(readCurrentElderRecords);
+  const [reviewingRecord, setReviewingRecord] = useState<SharedAssistanceRecord | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [acceptanceReview, setAcceptanceReview] = useState<SharedAssistanceRecord["review"]>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitError, setReviewSubmitError] = useState("");
+  const submissionGuardRef = useRef(false);
 
   const effectiveScenario = categoryRetrySucceeded && acceptanceScenario === "category-load-failure" ? "default" : acceptanceScenario;
   const selectedService = services.find((service) => service.id === selectedServiceId) ?? null;
@@ -178,6 +303,10 @@ export default function SpecialServicesPage({
   const availableCategories = effectiveScenario === "category-disabled"
     ? serviceCategories.filter((category) => category.code !== "basic")
     : serviceCategories;
+  const acceptanceRecord = useMemo(() => createAcceptanceSharedRecord(effectiveScenario), [effectiveScenario]);
+  const visibleRecords = acceptanceRecord
+    ? [{ ...acceptanceRecord, review: acceptanceReview ?? acceptanceRecord.review }]
+    : sharedRecords;
 
   useEffect(() => {
     if (!isOpen) {
@@ -185,21 +314,30 @@ export default function SpecialServicesPage({
       setSelectedServiceId(null);
       setAssistance({ stage: "idle" });
       setFamilyHelpConfirmOpen(false);
+      setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
+      setFamilyHelpFeedback(null);
       setContactModalOpen(false);
+      setReviewingRecord(null);
+      setAcceptanceReview(null);
       return;
     }
     if (initialServiceId && services.some((service) => service.id === initialServiceId)) {
       setSelectedServiceId(initialServiceId);
+      const storedRecord = findSharedRecord(initialServiceId);
+      setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
       setView("detail");
     }
   }, [initialServiceId, isOpen]);
 
   useEffect(() => {
     setCategoryRetrySucceeded(false);
-    setRating(5);
-    setReviewText("");
     setFamilyHelpConfirmOpen(false);
+    setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
+    setFamilyHelpFeedback(null);
     setContactModalOpen(false);
+    setReviewingRecord(null);
+    setAcceptanceReview(null);
+    setReviewSubmitError("");
     if (acceptanceScenario === "filter-empty") {
       setSelectedCategoryCode("water");
       setView("list");
@@ -207,10 +345,18 @@ export default function SpecialServicesPage({
       setAssistance({ stage: "idle" });
       return;
     }
-    if (["family-help-idle", "family-help-confirm", "family-help-pending", "family-help-handled", "service-completed", "service-reviewed"].includes(acceptanceScenario)) {
+    if (["family-help-pending", "family-help-handled", "service-completed", "service-reviewed"].includes(acceptanceScenario)) {
       setSelectedCategoryCode("all");
       setSelectedServiceId(services[0].id);
       setAssistance(scenarioRecord(acceptanceScenario));
+      setView("records");
+      return;
+    }
+    if (["family-help-idle", "family-help-confirm"].includes(acceptanceScenario)) {
+      setSelectedCategoryCode("all");
+      setSelectedServiceId(services[0].id);
+      setAssistance(scenarioRecord(acceptanceScenario));
+      setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
       setFamilyHelpConfirmOpen(acceptanceScenario === "family-help-confirm");
       setView("detail");
       return;
@@ -219,33 +365,135 @@ export default function SpecialServicesPage({
     setSelectedServiceId(null);
     setAssistance({ stage: "idle" });
     setView("list");
-  }, [acceptanceScenario]);
+  }, [acceptanceActionSignal, acceptanceScenario, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || acceptanceScenario !== "default") return undefined;
+    const syncStoredRecord = () => {
+      setSharedRecords(readCurrentElderRecords());
+      if (selectedServiceId) {
+        const storedRecord = findSharedRecord(selectedServiceId);
+        if (storedRecord) setAssistance(toAssistanceRecord(storedRecord));
+      }
+    };
+    syncStoredRecord();
+    const timer = window.setInterval(syncStoredRecord, 1200);
+    return () => window.clearInterval(timer);
+  }, [acceptanceScenario, isOpen, selectedServiceId]);
 
   const openService = (serviceId: string) => {
     setSelectedServiceId(serviceId);
-    setAssistance({ stage: "idle" });
-    setRating(5);
-    setReviewText("");
+    const storedRecord = findSharedRecord(serviceId);
+    setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
     setFamilyHelpConfirmOpen(false);
+    setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
+    setFamilyHelpFeedback(null);
     setContactModalOpen(false);
     setView("detail");
   };
 
-  const requestFamilyHelp = () => setFamilyHelpConfirmOpen(true);
+  const requestFamilyHelp = () => {
+    const latestRecord = effectiveScenario === "default" && selectedService
+      ? getLatestServiceAssistanceRecord(sharedRecords, elderProfileMock.id, selectedService.id)
+      : assistance.stage === "idle"
+        ? null
+        : { status: assistance.stage === "completed" || assistance.stage === "reviewed" ? "handled" : assistance.stage };
+    setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(latestRecord));
+    setFamilyHelpConfirmOpen(true);
+  };
+  const openServiceReview = (record: SharedAssistanceRecord) => {
+    if (!canReviewServiceAssistance(record, elderProfileMock.id)) return;
+    setReviewingRecord(record);
+    setReviewRating(5);
+    setReviewText("");
+    setReviewSubmitError("");
+  };
+  const submitServiceReview = () => {
+    if (!reviewingRecord || !canReviewServiceAssistance(reviewingRecord, elderProfileMock.id) || reviewSubmitting) return;
+    const review = {
+      rating: reviewRating,
+      text: reviewText.trim(),
+      submittedAt: new Date().toISOString(),
+      edited: false,
+    };
+    setReviewSubmitting(true);
+    setReviewSubmitError("");
+    try {
+      if (reviewingRecord.id.startsWith("HELP-MOCK-")) {
+        setAcceptanceReview({ ...review, elderId: elderProfileMock.id });
+      } else {
+        const updated = submitSharedServiceReview(reviewingRecord.id, elderProfileMock.id, { rating: reviewRating, text: reviewText });
+        if (!updated) throw new Error("review update failed");
+        setSharedRecords(readCurrentElderRecords());
+      }
+      setReviewingRecord(null);
+    } catch {
+      setReviewSubmitError("评价提交失败，请稍后重试。");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
   const confirmFamilyHelp = () => {
+    if (submissionGuardRef.current) return;
+    submissionGuardRef.current = true;
     setFamilyHelpConfirmOpen(false);
-    setAssistance({ stage: "pending", requestedAt: "刚刚" });
+    if (!selectedService) {
+      submissionGuardRef.current = false;
+      return;
+    }
+    const now = new Date().toISOString();
+    const record: SharedAssistanceRecord = {
+      id: `HELP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      projectId: "PRJ-001",
+      communityId: elderProfileMock.communityId ?? "COM-001",
+      elder: {
+        id: elderProfileMock.id ?? "elder-wang-jianguo",
+        name: elderProfileMock.name,
+        phone: elderProfileMock.phone ?? "+65 8603 2918",
+      },
+      service: {
+        id: selectedService.id,
+        name: selectedService.name,
+        categoryName: selectedService.categoryName,
+      },
+      provider: { name: selectedService.provider, phone: selectedService.providerPhone },
+      requestReason: "请家人协助联系服务商",
+      requestedAt: now,
+      status: "pending",
+      recipientIds: getActiveFamilyRelationships().map((relationship) => relationship.id),
+      handledBy: null,
+      handledAt: null,
+      resultSummary: null,
+      serviceStatus: "not_completed",
+      completedAt: null,
+      review: null,
+    };
+    try {
+      const savedRecord = upsertSharedServiceAssistanceRecord(record) as SharedAssistanceRecord;
+      setAssistance(toAssistanceRecord(savedRecord));
+      setSharedRecords(readCurrentElderRecords());
+      setFamilyHelpFeedback("success");
+    } catch {
+      setFamilyHelpFeedback("error");
+    } finally {
+      window.setTimeout(() => {
+        submissionGuardRef.current = false;
+      }, 800);
+    }
   };
-  const submitReview = () => {
-    if (assistance.stage !== "completed") return;
-    setAssistance({ ...assistance, stage: "reviewed", review: { rating, text: reviewText.trim(), submittedAt: "刚刚" } });
-  };
-
   if (!isOpen) return null;
 
   return (
     <main className="special-services-page" aria-label="特约服务">
-      <SecondaryPageHeader title="特约服务" icon={<HandHeart aria-hidden="true" />} onBack={onClose} />
+      <SecondaryPageHeader
+        title="特约服务"
+        icon={<HandHeart aria-hidden="true" />}
+        onBack={view === "records" ? () => setView("list") : onClose}
+        backLabel={view === "records" ? "返回服务目录" : "返回首页"}
+        actions={view === "records"
+          ? undefined
+          : <button type="button" className="special-services-bookings-entry" onClick={() => setView("records")}><ClipboardList aria-hidden="true" />服务记录{sharedRecords.length > 0 && <span>{sharedRecords.length}</span>}</button>}
+      />
 
       {view === "list" && (
         <div className="special-services-list-view">
@@ -266,6 +514,32 @@ export default function SpecialServicesPage({
           </div>
         </div>
       )}
+
+      {view === "records" && <div className="special-services-records-view">
+        <section aria-label="服务记录">
+          <header>
+            <div><span>服务记录</span><h2>查看家人协助进度</h2></div>
+            <p>共 {visibleRecords.length} 条</p>
+          </header>
+          {visibleRecords.length === 0
+            ? <div className="special-services-records-empty"><ClipboardList aria-hidden="true" /><strong>暂无服务记录</strong><p>在服务详情中选择“请家人帮忙”后，记录会显示在这里。</p></div>
+            : <div className="special-services-records-list">{visibleRecords.map((record) => <article key={record.id}>
+              <span><HandHeart aria-hidden="true" /></span>
+              <div>
+                <div><small>{record.service.categoryName}</small><strong>{getSharedRecordStatus(record)}</strong></div>
+                <h3>{record.service.name}</h3>
+                <p>{record.provider.name} · {record.provider.phone}</p>
+                <time>请求于 {formatAssistanceTime(record.requestedAt)}</time>
+                {record.status === "expired" && <em>{serviceAssistanceExpiryMessage}</em>}
+                {record.handledBy && record.handledAt && <em>由 {record.handledBy} 于 {formatAssistanceTime(record.handledAt)} 处理</em>}
+                {record.resultSummary && <em>处理结果：{record.resultSummary}</em>}
+                {record.completedAt && <em>服务完成于 {formatAssistanceTime(record.completedAt)}</em>}
+                {record.review && <em>我的评价：{"★".repeat(record.review.rating)}{record.review.text ? ` · ${record.review.text}` : ""}<br />评价人：{record.elder.name} · {formatAssistanceTime(record.review.submittedAt)}</em>}
+                {canReviewServiceAssistance(record, elderProfileMock.id) && <button type="button" className="special-services-review-entry" onClick={() => openServiceReview(record)}><Star aria-hidden="true" />评价服务</button>}
+              </div>
+            </article>)}</div>}
+        </section>
+      </div>}
 
       {view === "detail" && selectedService && <section className="special-services-detail-view" role="dialog" aria-modal="true" aria-label={`查看服务：${selectedService.name}`}>
         <header className="special-services-flow-header"><button type="button" className="special-services-flow-nav" onClick={() => initialServiceId ? onClose() : setView("list")}><X aria-hidden="true" /><strong>收起</strong></button><strong>特约服务</strong></header>
@@ -300,32 +574,14 @@ export default function SpecialServicesPage({
                 <ChevronRight aria-hidden="true" />
               </button>
 
-              {assistance.stage === "idle" && <>
-                <div className="special-services-assistance__or"><span>或</span></div>
-                <button type="button" className="special-services-family-option" onClick={requestFamilyHelp}>
-                  <span><HandHeart aria-hidden="true" /></span>
-                  <span><strong>请家人帮忙</strong><small>协助确认上门时间和费用</small></span>
-                  <ChevronRight aria-hidden="true" />
-                </button>
-              </>}
+              <div className="special-services-assistance__or"><span>或</span></div>
 
-              {assistance.stage !== "idle" && <section className="special-services-family-progress" aria-label="家人协助进度">
-                <header><HandHeart aria-hidden="true" /><h3>家人协助进度</h3></header>
-                <div className={`special-services-assistance-status is-${assistance.stage}`}>
-                <span>{statusLabel[assistance.stage]}</span>
-                {assistance.stage === "pending" && <strong>已通知家人，请等待联系</strong>}
-                {(assistance.stage === "handled" || assistance.stage === "completed" || assistance.stage === "reviewed") && <><strong>家人已处理</strong><p>{assistance.handledBy} · {assistance.handledAt}</p><small>{assistance.resultSummary}</small></>}
-                {(assistance.stage === "completed" || assistance.stage === "reviewed") && <p className="special-services-completed"><CheckCircle2 aria-hidden="true" />服务完成于 {assistance.completedAt}</p>}
-                </div>
-              </section>}
-
-              {assistance.stage === "handled" && <p className="special-services-waiting-note">家人已完成联系；服务完成后，这里会出现评价入口。</p>}
-
-              {assistance.stage === "completed" && <section className="special-services-review" aria-label="服务评价"><h3>评价本次服务</h3><p>请选择 1–5 星，文字评价可以不填。</p><div role="radiogroup" aria-label="服务星级">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className={value <= rating ? "is-active" : ""} role="radio" aria-checked={rating === value} aria-label={`${value} 星`} onClick={() => setRating(value)}><Star aria-hidden="true" /></button>)}</div><textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} maxLength={120} placeholder="可以填写想说的话（选填）" /><button type="button" className="special-services-family-action" onClick={submitReview}>提交评价</button></section>}
-
-              {assistance.stage === "reviewed" && assistance.review && <section className="special-services-reviewed"><CheckCircle2 aria-hidden="true" /><div><h3>评价已提交</h3><p>{"★".repeat(assistance.review.rating)}{"☆".repeat(5 - assistance.review.rating)}</p>{assistance.review.text && <blockquote>{assistance.review.text}</blockquote>}<small>{assistance.review.submittedAt}</small></div></section>}
+              <button type="button" className="special-services-family-option" onClick={requestFamilyHelp}>
+                <span><HandHeart aria-hidden="true" /></span>
+                <span><strong>请家人帮忙</strong><small>协助确认上门时间和费用</small></span>
+                <ChevronRight aria-hidden="true" />
+              </button>
             </div>
-
           </aside>
         </div>
       </section>}
@@ -333,12 +589,22 @@ export default function SpecialServicesPage({
       {familyHelpConfirmOpen && <div className="special-services-family-confirm-overlay" role="presentation">
         <section role="dialog" aria-modal="true" aria-labelledby="special-services-family-confirm-title">
           <span><HandHeart aria-hidden="true" /></span>
-          <h2 id="special-services-family-confirm-title">请家人帮您联系？</h2>
-          <p>家人会帮您联系服务商，并确认上门时间和费用。</p>
+          <h2 id="special-services-family-confirm-title">{familyHelpConfirmation.title}</h2>
+          <p>{familyHelpConfirmation.description}</p>
+          <small>{familyHelpConfirmation.hint}</small>
           <div>
             <button type="button" className="is-primary" onClick={confirmFamilyHelp}>通知家人</button>
             <button type="button" onClick={() => setFamilyHelpConfirmOpen(false)}>暂不</button>
           </div>
+        </section>
+      </div>}
+
+      {familyHelpFeedback && <div className="special-services-family-confirm-overlay" role="presentation">
+        <section className="is-feedback" role="dialog" aria-modal="true" aria-labelledby="special-services-family-feedback-title">
+          <span>{familyHelpFeedback === "success" ? <CheckCircle2 aria-hidden="true" /> : <WifiOff aria-hidden="true" />}</span>
+          <h2 id="special-services-family-feedback-title">{familyHelpFeedback === "success" ? "已通知家人" : "通知失败"}</h2>
+          <p>{familyHelpFeedback === "success" ? "家人可以在手机端查看协助请求，并帮您联系服务商。" : "暂时无法通知家人，请稍后重试。"}</p>
+          <div><button type="button" className="is-primary" onClick={() => setFamilyHelpFeedback(null)}>我知道了</button></div>
         </section>
       </div>}
 
@@ -352,6 +618,24 @@ export default function SpecialServicesPage({
           <button type="button" onClick={() => setContactModalOpen(false)}>我知道了</button>
         </section>
       </div>}
+
+      {reviewingRecord && <div className="special-services-family-confirm-overlay special-services-review-overlay" role="presentation">
+        <section role="dialog" aria-modal="true" aria-labelledby="special-services-review-title">
+          <span><Star aria-hidden="true" /></span>
+          <h2 id="special-services-review-title">评价服务</h2>
+          <p>{reviewingRecord.service.name}</p>
+          <div className="special-services-review-stars" role="radiogroup" aria-label="服务评分">
+            {[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" className={rating <= reviewRating ? "is-active" : ""} onClick={() => setReviewRating(rating)} aria-label={`${rating}星`} aria-checked={reviewRating === rating} role="radio"><Star aria-hidden="true" /></button>)}
+          </div>
+          <textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} maxLength={100} placeholder="写下评价（选填）" />
+          {reviewSubmitError && <small className="is-error" role="alert">{reviewSubmitError}</small>}
+          <div className="special-services-review-actions">
+            <button type="button" onClick={() => setReviewingRecord(null)} disabled={reviewSubmitting}>取消</button>
+            <button type="button" className="is-primary" onClick={submitServiceReview} disabled={reviewSubmitting}>{reviewSubmitting ? "提交中…" : "提交评价"}</button>
+          </div>
+        </section>
+      </div>}
+
     </main>
   );
 }

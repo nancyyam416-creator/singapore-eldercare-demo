@@ -231,9 +231,9 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
 
 const activationEntryLabels = {
   wifi: "连接无线网络",
+  device: "平板未登记",
   profile: "填写个人信息",
-  confirm: "确认信息",
-  success: "完成绑定",
+  success: "绑定完成",
 } as const;
 
 interface AcceptanceConsoleDragState {
@@ -1119,8 +1119,8 @@ export default function InteractionAcceptanceConsole({
 
             {activeSection === "special-services" && <section>
               <div className="interaction-acceptance-field">
-                <h2><HandHeart aria-hidden="true" />特约服务流程场景</h2>
-                <p>选择场景后直接打开现有特约服务页，验收台保持展开。</p>
+                <h2><HandHeart aria-hidden="true" />特约服务可见状态</h2>
+                <p>选择状态后点击下方按钮，在正式服务详情或服务记录中查看结果。</p>
                 <div className="interaction-acceptance-scenario-list">
                   {(Object.keys(specialServicesScenarioLabels) as SpecialServicesAcceptanceScenario[]).map((scenario) => (
                     <button
@@ -1138,7 +1138,7 @@ export default function InteractionAcceptanceConsole({
                   <ChevronRight aria-hidden="true" />打开当前特约服务场景
                 </button>
               </div>
-              <p className="interaction-acceptance-note">中控屏只展示服务电话，不发起拨号；主要动作为“请家人帮忙”，不展示预约成功。</p>
+              <p className="interaction-acceptance-note">详情操作区始终只有“联系服务商”和“请家人帮忙”；协助进度、处理结果和评价统一在服务记录中验收。</p>
             </section>}
 
             {activeSection === "community-staff" && <section>
@@ -1284,14 +1284,16 @@ export default function InteractionAcceptanceConsole({
               <div className="interaction-acceptance-field">
                 <h2><DatabaseBackup aria-hidden="true" />跨端契约状态</h2>
                 <dl className="activation-contract-status">
-                  <div><dt>激活码</dt><dd>{activationContractState.activationCode.status}</dd></div>
-                  <div><dt>目标设备</dt><dd>{activationContractState.device.status}</dd></div>
+                  <div><dt>平板 SN</dt><dd>{activationContractState.device.sn}</dd></div>
+                  <div><dt>SN 登记</dt><dd>{activationContractState.device.registered ? "已登记" : "未登记"}</dd></div>
+                  <div><dt>平板状态</dt><dd>{activationContractState.device.status}</dd></div>
                   <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
                   <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>
                   <div><dt>老人姓名</dt><dd>{activationContractState.elderly.name || "待填写"}</dd></div>
+              <div><dt>性别</dt><dd>{activationContractState.elderly.gender || "待选择"}</dd></div>
                   <div><dt>联系电话</dt><dd>{activationContractState.elderly.phone || "待填写"}</dd></div>
                   <div><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
-                  <div><dt>可重复使用</dt><dd>{activationContractState.activationCode.reusable ? "是" : "否"}</dd></div>
+                  <div><dt>社区归属</dt><dd>{activationContractState.elderly.projectCommunity || "绑定后同步"}</dd></div>
                 </dl>
               </div>
               <div className="interaction-acceptance-field">

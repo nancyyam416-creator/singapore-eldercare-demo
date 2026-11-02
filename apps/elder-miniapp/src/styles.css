@@ -1055,6 +1055,9 @@ button:active { transform: scale(.98); }
 .appointment-record header span { color: #2563eb; font-size: 12px; font-weight: 800; }
 .appointment-record header b { padding: 5px 9px; border-radius: 999px; color: #9a5605; background: #fff1d6; font-size: 12px; }
 .appointment-record.handled header b { color: #087b59; background: #edf8f3; }
+.appointment-record.expired { border-color: #d8dee8; background: #f8fafc; }
+.appointment-record.expired header b { color: #64748b; background: #e9eef5; }
+.appointment-record .appointment-expiry-copy { color: #64748b; }
 .appointment-record h3 { margin: 12px 0; font-size: 18px; }
 .appointment-record > p { margin: 8px 0; display: flex; align-items: flex-start; gap: 7px; color: #526078; font-size: 13px; line-height: 1.45; }
 .appointment-record > p svg { width: 17px; height: 17px; flex: none; color: #64748b; }
@@ -1073,13 +1076,13 @@ button:active { transform: scale(.98); }
 .appointment-call-button { width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 .appointment-call-button span { padding-left: 2px; font-size: 13px; opacity: .88; }
 .appointment-family-help-button { width: 100%; min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
-.appointment-help-hint { margin: -5px 4px 0 !important; color: #64748b !important; font-size: 12px !important; line-height: 1.55 !important; text-align: center; }
 @media (max-width: 639px) {
   .appointment-detail-actions { left: 12px; right: 12px; bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 .appointment-assistance-result { display: grid; gap: 14px; padding: 28px 20px; border: 1px solid #dbe4ef; border-radius: 22px; background: #fff; text-align: center; }
 .appointment-assistance-result > span { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto; border-radius: 50%; color: #1d4ed8; background: #eaf2ff; }
 .appointment-assistance-result.handled > span { color: #087b59; background: #dff7ec; }
+.appointment-assistance-result.expired > span { color: #64748b; background: #e9eef5; }
 .appointment-assistance-result > span svg { width: 34px; height: 34px; }
 .appointment-assistance-result h2 { margin: 0; font-size: 24px; }
 .appointment-assistance-result > p { margin: 0; color: #526078; font-size: 14px; line-height: 1.6; }
@@ -1089,6 +1092,20 @@ button:active { transform: scale(.98); }
 .appointment-assistance-result dt { color: #64748b; font-size: 12px; }
 .appointment-assistance-result dd { min-width: 0; margin: 0; color: #1e293b; font-size: 13px; font-weight: 800; line-height: 1.45; overflow-wrap: anywhere; }
 .appointment-assistance-result .secondary-button { width: 100%; }
+.appointment-assistance-result > .primary-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.appointment-assistance-result > .primary-button svg { width: 20px; height: 20px; }
+.appointment-help-confirm-overlay { position: fixed; z-index: 90; inset: 0; display: grid; place-items: center; padding: 26px; background: rgba(15,23,42,.42); backdrop-filter: blur(3px); }
+.appointment-help-confirm-overlay > section { width: min(360px, 100%); display: grid; justify-items: center; gap: 14px; padding: 26px 22px 22px; border-radius: 24px; background: #fff; box-shadow: 0 24px 60px rgba(15,23,42,.24); }
+.appointment-help-confirm-overlay > section > span { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 20px; color: #1d4ed8; background: #eaf2ff; }
+.appointment-help-confirm-overlay > section > span svg { width: 34px; height: 34px; }
+.appointment-help-confirm-overlay h2 { margin: 0; color: #1e293b; font-size: 23px; text-align: center; }
+.appointment-help-confirm-overlay p { margin: 0; color: #526078; font-size: 14px; line-height: 1.65; text-align: center; }
+.appointment-help-confirm-overlay small { padding: 10px 12px; border-radius: 12px; color: #7c5b15; background: #fff7e6; font-size: 12px; line-height: 1.5; text-align: center; }
+.appointment-help-confirm-overlay .appointment-help-submit-error { width: 100%; padding: 10px 12px; border-radius: 12px; color: #be123c; background: #fff1f2; font-size: 13px; font-weight: 700; }
+.appointment-help-confirm-overlay section > div { width: 100%; display: grid; grid-template-columns: 1fr 1.25fr; gap: 10px; margin-top: 4px; }
+.appointment-help-confirm-overlay section > div button { min-height: 50px; border: 1px solid #dbe4ef; border-radius: 14px; color: #526078; background: #f8fafc; font-size: 14px; font-weight: 800; }
+.appointment-help-confirm-overlay section > div button.is-primary { border-color: #2563eb; color: #fff; background: #2563eb; }
+.appointment-help-confirm-overlay section > div button:disabled { cursor: wait; opacity: .65; }
 .service-review-form, .service-review-result { display: grid; gap: 12px; padding: 16px; border: 1px solid #dbe4ef; border-radius: 16px; background: #f8fafc; text-align: left; }
 .service-review-form > strong, .service-review-result > strong { font-size: 16px; }
 .service-review-stars { display: flex; justify-content: center; gap: 8px; }
@@ -1100,7 +1117,9 @@ button:active { transform: scale(.98); }
 .service-review-result > div svg { width: 22px; height: 22px; color: #cbd5e1; }
 .service-review-result > div svg.active { color: #f59e0b; fill: currentColor; }
 .service-review-result p { margin: 0; color: #526078; font-size: 14px; line-height: 1.55; }
-.service-review-result button { justify-self: start; padding: 7px 10px; border: 1px solid #bfdbfe; border-radius: 9px; color: #1d4ed8; background: #eff6ff; font-weight: 800; }
+.service-review-result small { color: #718096; font-size: 13px; }
+.service-review-error { margin: 0; color: #dc2626; font-size: 13px; font-weight: 700; }
+.appointment-record-review { width: 100%; min-height: 42px; margin-top: 8px; border: 1px solid #bfdbfe; border-radius: 11px; color: #1d4ed8; background: #eff6ff; font-weight: 850; }
 .profile-reminder-entry > span { color: #1d4ed8; background: #eff6ff; }
 
 /* Community keeps activities and alert items as separate second-level modules. */
