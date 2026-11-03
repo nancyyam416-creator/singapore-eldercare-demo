@@ -37,7 +37,7 @@ export interface HealthStats {
 
 export type HomeCareScenario = 'normal' | 'medication_on_track' | 'medication_overdue' | 'medication_expired' | 'inactivity';
 
-export type ElderStatusCardScenario = 'normal' | 'device_offline' | 'location_empty';
+export type ElderStatusCardScenario = 'normal' | 'device_offline' | 'location_empty' | 'phone_location_last' | 'phone_location_unshared' | 'phone_location_empty';
 
 export type HomeActivityScenario =
   | 'normal'

@@ -98,7 +98,10 @@ interface H5InteractionWorkbenchProps {
 const elderScenarios: Array<{ value: ElderStatusCardScenario; label: string; description: string }> = [
   { value: 'normal', label: '正常', description: '设备在线，存在最后位置' },
   { value: 'device_offline', label: '设备离线', description: '提示离线并保留最后位置' },
-  { value: 'location_empty', label: '无位置', description: '没有可展示的位置记录' }
+  { value: 'location_empty', label: '无居家位置', description: '没有可展示的居家位置记录' },
+  { value: 'phone_location_last', label: '手机 · 上次位置', description: '点击老人卡片查看位置，保留旧上报时间' },
+  { value: 'phone_location_unshared', label: '手机 · 未共享', description: '点击查看位置，展示老人尚未开启共享' },
+  { value: 'phone_location_empty', label: '手机 · 无记录', description: '点击查看位置，展示等待首次上报' }
 ];
 
 const homeActivityScenarios: Array<{ value: HomeActivityScenario; label: string; description: string; status: string }> = [
@@ -572,7 +575,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                 <section aria-label="老人信息模块状态">
                   <div className="mb-2">
                     <h3 className="text-[11px] font-extrabold text-slate-500">模块状态</h3>
-                    <p className="mt-0.5 text-[10px] text-slate-400">只改变老人信息卡</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400">验证老人信息卡；手机位置场景请点击卡片内“查看位置”</p>
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
                     {elderScenarios.map(option => {

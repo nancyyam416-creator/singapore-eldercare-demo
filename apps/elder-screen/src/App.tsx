@@ -1463,6 +1463,7 @@ export default function App() {
               setIsSOSOpen(true);
             }}
             emergencyAssistanceStatus={emergencyAssistanceEvent?.status}
+            emergencyAssistanceTargetName={emergencyAssistanceEvent?.callRoute?.activeTargetName}
             acceptanceTimeOverride={acceptanceTimeOverride}
             acceptanceAlbumScenario={acceptanceAlbumScenario}
             acceptanceHeartScenario={acceptanceHeartScenario}

@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { H5ElderLocationSheet, PhoneLocationScenario } from './H5ElderLocationSheet';
 import { AlertCircle, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { ElderStatusCardScenario } from '../types';
 
@@ -16,12 +18,12 @@ interface H5ElderStatusCardProps {
   children?: React.ReactNode;
 }
 
-const scenarioCopy: Record<ElderStatusCardScenario, {
+const scenarioCopy: Partial<Record<ElderStatusCardScenario, {
   alert?: string;
   location?: string;
   updatedAt: string;
   tone: 'normal' | 'warning' | 'empty';
-}> = {
+}>> = {
   normal: {
     updatedAt: '更新于 1 分钟前',
     tone: 'normal'
@@ -47,7 +49,10 @@ export const H5ElderStatusCard: React.FC<H5ElderStatusCardProps> = ({
   onSwitchElder,
   children
 }) => {
-  const state = scenarioCopy[scenario];
+  const [showLocation, setShowLocation] = useState(false);
+  useEffect(() => setShowLocation(false), [parentProfile.name]);
+  const state = scenarioCopy[scenario] ?? scenarioCopy.normal!;
+  const phoneScenario: PhoneLocationScenario = scenario === 'phone_location_last' ? 'last' : scenario === 'phone_location_unshared' ? 'unshared' : scenario === 'phone_location_empty' ? 'empty' : parentProfile.name === '张健康' ? 'latest' : 'unshared';
   const location = state.location ?? currentLocation;
 
   return (
@@ -83,6 +88,8 @@ export const H5ElderStatusCard: React.FC<H5ElderStatusCardProps> = ({
         </button>
       </div>
 
+      <button type="button" onClick={() => setShowLocation(true)} className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/15"><MapPin size={16} /><span>查看位置</span><span className="ml-auto text-[10px] font-normal text-white/60">手机位置</span><ChevronRight size={14} /></button>
+      {showLocation && createPortal(<H5ElderLocationSheet name={parentProfile.name} scenario={phoneScenario} onClose={() => setShowLocation(false)} />, document.getElementById('h5-phone-screen') ?? document.body)}
       {onSwitchElder && (
         <button type="button" onClick={onSwitchElder} className="mt-3 flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-bold text-white hover:bg-white/15">
           <span>切换家人</span><ChevronDown size={15} />

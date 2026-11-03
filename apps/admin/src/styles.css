@@ -5967,6 +5967,10 @@ th.sticky-right { background: #f7f8fa; }
   width: 560px;
 }
 
+.admin-style-theme .inactivity-rule-drawer > header p {
+  display: none;
+}
+
 .admin-style-theme .activity-date {
   padding: 5px 9px;
   border-radius: 6px;
@@ -12917,4 +12921,20 @@ th.sticky-right { background: #f7f8fa; }
   .admin-style-theme .audit-log-filters > .filter-actions { grid-column: 1; }
   .admin-style-theme .audit-date-range > div { grid-template-columns: minmax(0, 1fr); }
   .admin-style-theme .audit-date-range i { line-height: 1; }
+}
+
+.admin-style-theme .device-alert-policy-metrics {
+  margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.admin-style-theme .device-alert-policy-table { min-width: 960px; }
+.admin-style-theme .device-alert-policy-table th,
+.admin-style-theme .device-alert-policy-table td { padding: 13px 16px; vertical-align: top; }
+.admin-style-theme .device-alert-policy-table th { white-space: nowrap; }
+.admin-style-theme .device-alert-policy-table td:nth-child(1) { min-width: 150px; }
+.admin-style-theme .device-alert-policy-table td:nth-child(2) { min-width: 140px; }
+.admin-style-theme .device-alert-policy-table td:nth-child(5) { min-width: 200px; }
+
+@media (max-width: 1100px) {
+  .admin-style-theme .device-alert-policy-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

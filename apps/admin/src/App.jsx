@@ -122,6 +122,7 @@ const communityMenuGroups = [
     label: "设备与数据",
     items: [
       { key: "tabletDevices", label: "平板设备", icon: MonitorSmartphone },
+      { key: "deviceAlertPolicies", label: "设备告警策略", icon: SlidersHorizontal },
     ],
   },
   {
@@ -199,6 +200,7 @@ const pageMeta = {
   services: { title: "服务协助记录", description: "查看老人从中控屏发起的“请家人帮忙”请求及家人处理结果", add: "" },
   serviceCatalog: { title: "服务目录", description: "维护老人可查看的服务内容与服务范围", add: "新增服务" },
   tabletDevices: { title: "平板设备", description: "查看平板自动上报、老人绑定和在线状态", add: "" },
+  deviceAlertPolicies: { title: "设备告警策略", description: "按设备类型和事件维护当前社区已有的告警判断规则", add: "" },
   platformTabletDevices: { title: "平板设备", description: "跨项目查看平板版本、升级进度与执行结果", add: "" },
   tabletOta: { title: "平板 OTA 升级", description: "统一管理平板 ROM 固件与 APK 应用版本，并向指定项目下发升级任务", add: "上传升级包" },
   careScripts: { title: "天气关怀话术", description: "按和风天气现象代码分组维护老人端可匹配展示的话术", add: "" },
@@ -1581,7 +1583,7 @@ function StatisticsEmptyState({ type, scenario, scope = "elderly" }) {
   return <div className="statistics-empty-state"><span>{offline ? <AlertTriangle size={24}/> : type === "activity" ? <Activity size={24}/> : <MonitorSmartphone size={24}/>}</span><h4>{offline ? "设备离线，当前数据不足" : "当前周期暂无统计数据"}</h4><p>{offline ? (type === "activity" ? "房间活动传感器恢复在线并持续上报后，将重新生成老人维度统计。" : "老人平板恢复在线并产生操作记录后，将重新生成屏幕使用统计。") : emptyCopy}</p></div>;
 }
 
-function CommunityElderlyUsageOverview({ communityName, records, tablets, sensors, view, onViewChange, onOpenElderly, inactivityRule, onEditInactivityRule }) {
+function CommunityElderlyUsageOverview({ communityName, records, tablets, sensors, view, onViewChange, onOpenElderly, inactivityRule, onOpenInactivityPolicies }) {
   const { type, period, scenario } = view;
   const inactivityRecordsRef = useRef(null);
   const setView = (patch) => onViewChange((current) => ({ ...current, ...patch }));
@@ -1652,7 +1654,7 @@ function CommunityElderlyUsageOverview({ communityName, records, tablets, sensor
       <div className="statistics-type-tabs" role="tablist" aria-label="社区老人使用统计类型"><button className={type === "activity" ? "active" : ""} onClick={() => setView({ type: "activity" })}><Activity size={15}/>活动情况</button><button className={type === "screen" ? "active" : ""} onClick={() => setView({ type: "screen" })}><MonitorSmartphone size={15}/>屏幕使用</button></div>
       <div className="statistics-toolbar-controls"><div className="statistics-period-tabs" role="tablist" aria-label="统计周期">{elderlyStatisticsPeriods.map((item) => <button className={period === item.value ? "active" : ""} key={item.value} onClick={() => setView({ period: item.value })}>{item.label}</button>)}</div><label className="statistics-scenario-select"><span>数据状态</span><select value={scenario} onChange={(event) => setView({ scenario: event.target.value })}><option value="normal">常规</option><option value="empty">无数据</option><option value="offline">设备离线</option></select></label></div>
     </div>
-    {type === "activity" && <div className="community-inactivity-toolbar"><div><b>无活动规则</b><span>{inactivityRule?.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动 · ${inactivityRule.startTime}–${inactivityRule.endTime}` : "规则已停用"}</span></div><div><button className="secondary-button" onClick={onEditInactivityRule}><Settings size={15}/>设置规则</button><button className="text-button" onClick={() => inactivityRecordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>查看记录 <ChevronRight size={15}/></button></div></div>}
+    {type === "activity" && <div className="community-inactivity-toolbar"><div><b>无活动告警摘要</b><span>{inactivityRule?.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动 · ${inactivityRule.startTime}–${inactivityRule.endTime} · 当前社区` : "策略已停用"}</span></div><div><button className="secondary-button" onClick={onOpenInactivityPolicies}><SlidersHorizontal size={15}/>查看告警策略</button><button className="text-button" onClick={() => inactivityRecordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>查看记录 <ChevronRight size={15}/></button></div></div>}
     <div className="statistics-context"><div><b>{type === "activity" ? "活动情况" : "屏幕使用"}</b><span>{periodLabel} · 仅当前社区</span></div><StatusTag>{scenario === "normal" ? "数据正常" : scenario === "empty" ? "无数据" : "数据不足"}</StatusTag></div>
     <StatisticsMetricGrid items={type === "screen" ? screenMetrics : activityMetrics} muted={!isNormal}/>
     {isNormal ? <div className="statistics-grid two-columns">{type === "screen" ? <><StatisticsTrendChart title="社区屏幕使用趋势" description={`${periodLabel}有效操作会话分布`} values={screenData.trend} labels={screenData.labels} tone="violet"/><StatisticsDistribution title="功能使用分布" description="按有效操作次数汇总" items={featureDistribution} tone="violet"/></> : <><StatisticsTrendChart title="社区活动趋势" description={`${periodLabel}检测到活动的次数变化`} values={activityData.trend} labels={activityData.labels}/><StatisticsDistribution title="房间分布" description="各房间检测到活动的占比" items={roomDistribution} tone="teal"/></>}</div> : <StatisticsEmptyState type={type} scenario={scenario} scope="community"/>}
@@ -1666,6 +1668,36 @@ function CommunityElderlyUsageOverview({ communityName, records, tablets, sensor
 
 function ElderlyDataDashboardPage(props) {
   return <><div className="page-heading"><div><h1>老人使用分析</h1><p>查看当前社区老人活动情况、屏幕使用、设备数据与趋势分析</p></div></div><CommunityElderlyUsageOverview {...props}/></>;
+}
+
+const buildDeviceAlertPolicyRows = ({ inactivityRule }) => [{
+  id: "room-activity-sensor:inactivity",
+  deviceTypeId: "room-activity-sensor",
+  deviceType: "房间活动传感器",
+  eventId: "inactivity",
+  eventName: "连续无活动",
+  eventDescription: "房间活动判断",
+  condition: inactivityRule.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动` : "已停用",
+  monitoringPeriod: `${inactivityRule.startTime}–${inactivityRule.endTime}`,
+  resultName: "后台待关注",
+  resultDescription: "不触发平板、电话或联系人通知",
+  enabled: inactivityRule.enabled,
+}];
+
+function DeviceAlertPoliciesPage({ communityName, policies, onEdit }) {
+  const policyRows = useMemo(() => Array.from(new Map(policies.map((policy) => [`${policy.deviceTypeId}:${policy.eventId}`, policy])).values()), [policies]);
+  const deviceTypes = useMemo(() => [...new Set(policyRows.map((policy) => policy.deviceType))], [policyRows]);
+  return <>
+    <div className="page-heading"><div><h1>设备告警策略</h1><p>{communityName} · 按设备类型和事件维护当前社区已有的告警判断规则</p></div></div>
+    <div className="platform-metric-grid device-alert-policy-metrics" aria-label="设备告警策略概览">
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>设备类型</span><MetricHelp label="设备类型指标说明" content="仅统计当前社区已有策略的设备类型"/></div><b>{deviceTypes.length}<small> 类</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>已有策略</span><MetricHelp label="已有策略指标说明" content="按设备类型和事件去重后的当前社区策略数量"/></div><b>{policyRows.length}<small> 条</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>已启用</span><MetricHelp label="已启用指标说明" content="当前社区正在生效的策略数量"/></div><b>{policyRows.filter((policy) => policy.enabled).length}<small> 条</small></b></div>
+    </div>
+    <section className="panel device-alert-policy-panel">
+      <div className="table-scroll"><table className="device-alert-policy-table"><thead><tr><th>设备类型</th><th>事件</th><th>触发条件</th><th>监测时段</th><th>告警结果</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>{policyRows.map((policy) => <tr key={policy.id}><td><b>{policy.deviceType}</b></td><td><div className="stacked-cell"><b>{policy.eventName}</b><small>{policy.eventDescription}</small></div></td><td><b>{policy.condition}</b></td><td>{policy.monitoringPeriod}</td><td><div className="stacked-cell"><b>{policy.resultName}</b><small>{policy.resultDescription}</small></div></td><td><StatusTag>{policy.enabled ? "已启用" : "已停用"}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(policy)}>设置策略</button></td></tr>)}{!policyRows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无告警策略</div></td></tr>}</tbody></table></div>
+    </section>
+  </>;
 }
 
 function ElderlyDataStatisticsPanel({ record, sensors }) {
@@ -1728,10 +1760,10 @@ function ElderlyDataStatisticsPanel({ record, sensors }) {
   </div>;
 }
 
-function InactivityRuleDrawer({ rule, onClose, onSave }) {
+function InactivityRuleDrawer({ rule, communityName, onClose, onSave }) {
   const [form, setForm] = useState(rule);
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer inactivity-rule-drawer" role="dialog" aria-modal="true" aria-label="设置全局无活动轻提醒"><header><div><h2>设置全局无活动轻提醒</h2></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>全局提醒规则</h3><label><span>规则状态</span><select className="select-control form-select-native" value={form.enabled ? "启用" : "停用"} onChange={(event) => update("enabled", event.target.value === "启用")}><option>启用</option><option>停用</option></select></label><label><span>连续无活动时长</span><select className="select-control form-select-native" value={form.thresholdHours} onChange={(event) => update("thresholdHours", Number(event.target.value))}><option value="1">1 小时</option><option value="2">2 小时</option><option value="3">3 小时</option><option value="4">4 小时</option><option value="6">6 小时</option><option value="8">8 小时</option></select></label><div className="form-two-cols"><label><span>监测开始时间</span><input type="time" value={form.startTime} onChange={(event) => update("startTime", event.target.value)}/></label><label><span>监测结束时间</span><input type="time" value={form.endTime} onChange={(event) => update("endTime", event.target.value)}/></label></div></div><div className="form-tip"><ShieldCheck size={18}/><div><b>全局生效范围</b><p>保存后对全部已安装房间活动传感器的老人统一生效，不需要逐个老人重复设置。</p></div></div><div className="form-tip"><ShieldCheck size={18}/><div><b>轻提醒判断口径</b><p>监测时间段内，所有已安装且在线的房间传感器连续超过设定时长没有检测到活动，后台生成“待关注”提醒。任一设备离线时不判断老人无活动。</p></div></div><div className="form-tip neutral"><Bell size={18}/><div><b>提醒范围</b><p>一期仅在运营后台展示，不触发平板警报、电话或紧急联系人通知。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={() => onSave(form)}>保存全局规则</button></footer></aside></div>;
+  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer inactivity-rule-drawer" role="dialog" aria-modal="true" aria-label="设置连续无活动告警策略"><header><div><h2>设置连续无活动策略</h2><p>房间活动传感器 · {communityName}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>策略条件</h3><label><span>策略状态</span><select className="select-control form-select-native" value={form.enabled ? "启用" : "停用"} onChange={(event) => update("enabled", event.target.value === "启用")}><option>启用</option><option>停用</option></select></label><label><span>连续无活动时长</span><select className="select-control form-select-native" value={form.thresholdHours} onChange={(event) => update("thresholdHours", Number(event.target.value))}><option value="1">1 小时</option><option value="2">2 小时</option><option value="3">3 小时</option><option value="4">4 小时</option><option value="6">6 小时</option><option value="8">8 小时</option></select></label><div className="form-two-cols"><label><span>监测开始时间</span><input type="time" value={form.startTime} onChange={(event) => update("startTime", event.target.value)}/></label><label><span>监测结束时间</span><input type="time" value={form.endTime} onChange={(event) => update("endTime", event.target.value)}/></label></div></div><div className="form-tip"><ShieldCheck size={18}/><div><b>当前社区生效范围</b><p>保存后对 {communityName} 全部已安装房间活动传感器的老人统一生效，不需要逐个老人重复设置。</p></div></div><div className="form-tip"><ShieldCheck size={18}/><div><b>告警判断口径</b><p>监测时间段内，所有已安装且在线的房间传感器连续超过设定时长没有检测到活动，后台生成“待关注”提醒。任一设备离线时不判断老人无活动。</p></div></div><div className="form-tip neutral"><Bell size={18}/><div><b>告警结果</b><p>一期仅在运营后台展示，不触发平板警报、电话或紧急联系人通知。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={() => onSave(form)}>保存策略</button></footer></aside></div>;
 }
 
 function FamilyRelationshipPanel({ relations, onUnlinkRelation }) {
@@ -4356,12 +4388,15 @@ export function App() {
       return initialInactivityRules;
     }
   });
-  const [globalInactivityRule, setGlobalInactivityRule] = useState(() => {
+  const [communityInactivityRules, setCommunityInactivityRules] = useState(() => {
     try {
+      const savedCommunityRules = window.localStorage.getItem("u2g-community-inactivity-rules");
+      if (savedCommunityRules) return JSON.parse(savedCommunityRules);
       const savedRule = window.localStorage.getItem("u2g-global-inactivity-rule");
-      return savedRule ? { ...initialGlobalInactivityRule, ...JSON.parse(savedRule) } : initialGlobalInactivityRule;
+      const legacyRule = savedRule ? { ...initialGlobalInactivityRule, ...JSON.parse(savedRule) } : initialGlobalInactivityRule;
+      return Object.fromEntries(["PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"].map((projectId) => [projectId, { ...legacyRule }]));
     } catch {
-      return initialGlobalInactivityRule;
+      return Object.fromEntries(["PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"].map((projectId) => [projectId, { ...initialGlobalInactivityRule }]));
     }
   });
   const [weatherLocations, setWeatherLocations] = useState(() => {
@@ -4404,6 +4439,7 @@ export function App() {
   const [pendingProjectId, setPendingProjectId] = useState("");
   const currentMenuGroups = platformMode === "platform" ? platformMenuGroups : communityMenuGroups;
   const currentProject = projects.find((project) => project.id === currentProjectId) || projects.find((project) => project.status === "启用") || projects[0];
+  const currentInactivityRule = communityInactivityRules[currentProjectId] || initialGlobalInactivityRule;
   const currentCommunityMember = communityMembers.find((member) => member.projectId === currentProject?.id && member.name === "赵亚男" && member.status === "已启用")
     || communityMembers.find((member) => member.projectId === currentProject?.id && member.status === "已启用");
   const currentCommunityRole = roles.find((role) => role.id === currentCommunityMember?.roleId);
@@ -4411,7 +4447,7 @@ export function App() {
   const currentPlatformMember = communityMembers.find((member) => !member.projectId && member.name === "赵亚男" && member.status === "已启用")
     || communityMembers.find((member) => !member.projectId && member.status === "已启用");
   const currentPlatformRole = roles.find((role) => role.id === currentPlatformMember?.roleId);
-  const permissionModuleId = (moduleId) => ({ tabletDevices: "devices", platformTabletDevices: "tabletOta" })[moduleId] || moduleId;
+  const permissionModuleId = (moduleId) => ({ tabletDevices: "devices", deviceAlertPolicies: "devices", platformTabletDevices: "tabletOta" })[moduleId] || moduleId;
   const canViewMenuItem = (moduleId) => platformMode === "platform"
     ? Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.[permissionModuleId(moduleId)]?.includes("view"))
     : hasCommunityPermission(permissionModuleId(moduleId), "view");
@@ -4507,7 +4543,7 @@ export function App() {
   const applyCommunitySwitch = (projectId) => {
     setCurrentProjectId(projectId);
     closeOpenEditors();
-    setActive(active === "elderlyDataDashboard" ? "elderlyDataDashboard" : "overview");
+    setActive(["elderlyDataDashboard", "deviceAlertPolicies"].includes(active) ? active : "overview");
     setPendingProjectId("");
     window.scrollTo({ top: 0, behavior: "auto" });
   };
@@ -4537,6 +4573,7 @@ export function App() {
     setCareScripts(initialCareScripts);
     setReminderPolicies(initialReminderPolicies);
     setTabletDevices(initialTabletDevices);
+    setCommunityInactivityRules(Object.fromEntries(["PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"].map((projectId) => [projectId, { ...initialGlobalInactivityRule }])));
     setEmergencyHelpEvents(initialEmergencyHelpEvents.map(normalizeEmergencyAssistanceEvent));
     window.localStorage.removeItem(tabletOtaStorageKey);
     window.localStorage.removeItem(reminderPolicyStatusStorageKey);
@@ -4711,8 +4748,8 @@ export function App() {
   }, [inactivityRules]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-global-inactivity-rule", JSON.stringify(globalInactivityRule));
-  }, [globalInactivityRule]);
+    window.localStorage.setItem("u2g-community-inactivity-rules", JSON.stringify(communityInactivityRules));
+  }, [communityInactivityRules]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-weather-locations-v11", JSON.stringify(weatherLocations));
@@ -5346,7 +5383,7 @@ export function App() {
             : safeActive === "overview"
             ? <Overview onNavigate={navigateFromOverview} onQuickAction={openOverviewQuickAction} quickPermissions={overviewQuickPermissions} scenario={overviewScenario} resetSignal={acceptanceResetSignal} scope={{ name: currentProject?.name || "未选择社区", project: currentProject?.name || "未选择社区" }} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} reminders={scopedReminderRecords.filter((reminder) => !reminder.deletedAt)}/>
             : safeActive === "elderlyDataDashboard"
-              ? <ElderlyDataDashboardPage communityName={currentProject?.name || "未选择社区"} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} view={communityUsageView} onViewChange={setCommunityUsageView} inactivityRule={globalInactivityRule} onEditInactivityRule={() => setGlobalRuleOpen(true)} onOpenElderly={(record) => navigateFromOverview({ page: "elderly", elderlyName: record.name, detailTab: "statistics", filter: `${currentProject?.name || "当前社区"} · ${record.name} · 数据统计` })}/>
+              ? <ElderlyDataDashboardPage communityName={currentProject?.name || "未选择社区"} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} view={communityUsageView} onViewChange={setCommunityUsageView} inactivityRule={currentInactivityRule} onOpenInactivityPolicies={() => setActive("deviceAlertPolicies")} onOpenElderly={(record) => navigateFromOverview({ page: "elderly", elderlyName: record.name, detailTab: "statistics", filter: `${currentProject?.name || "当前社区"} · ${record.name} · 数据统计` })}/>
             : safeActive === "elderly"
               ? <ElderlyPage records={scopedElderlyRecords} tabletDevices={scopedTabletDevices} onOpen={(mode, record) => { if (mode === "view") { setElderlyDetailInitialTab("profile"); setElderlyDetailId(record.id); } else setDrawer({ kind: "elderly", mode, record }); }} onManageTablet={setTabletTarget}/>
               : safeActive === "relations"
@@ -5381,6 +5418,8 @@ export function App() {
                       : <RoleManagementPage currentProject={currentProject} projects={projects} roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                 : safeActive === "platformTabletDevices"
                   ? <PlatformTabletDevicesPage devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
+                  : safeActive === "deviceAlertPolicies"
+                    ? <DeviceAlertPoliciesPage key={currentProjectId} communityName={currentProject?.name || "当前社区"} policies={buildDeviceAlertPolicyRows({ inactivityRule: currentInactivityRule })} onEdit={() => setGlobalRuleOpen(true)}/>
                   : safeActive === "tabletDevices"
                     ? <DeviceManagementPage key={`${safeActive}-${currentProjectId}`} deviceType="tablet" tablets={scopedTabletDevices} sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} currentProject={currentProject} onViewTablet={(device) => setDeviceDrawer({ kind: "tabletView", device })} onManageTablet={setTabletTarget} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate" })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })}/>
                   : safeActive === "tabletOta"
@@ -5396,7 +5435,7 @@ export function App() {
                     : <ManagementPage page={safeActive} onCreate={() => setDrawer({ kind: "generic" })}/>}
         </main>
       </div>
-      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...globalInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: globalInactivityRule.enabled, thresholdHours: globalInactivityRule.thresholdHours, startTime: globalInactivityRule.startTime, endTime: globalInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onViewReminderPlan={(record) => setDrawer({ kind: "reminderPlan", record })} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
+      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onViewReminderPlan={(record) => setDrawer({ kind: "reminderPlan", record })} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
       {relativeDetailRecord && <RelativeDetailDrawer account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} onClose={() => setRelativeDetailId(null)} onOpenElderly={(record) => { setActive("elderly"); setRelativeDetailId(null); setElderlyDetailId(record.id); window.scrollTo({ top: 0, behavior: "auto" }); }}/>}
       {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={currentProject ? [currentProject] : []} tablet={scopedTabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>}
       {drawer?.kind === "overviewReminderPicker" && <ElderlyPickerModal records={scopedElderlyRecords} value="" onClose={() => setDrawer(null)} onConfirm={(elderlyId) => setDrawer({ kind: "reminder", elderlyId, source: "overview" })}/>}
@@ -5435,7 +5474,7 @@ export function App() {
       {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
       {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>}
       {tabletTarget && <TabletBindingModal record={tabletTarget} devices={tabletDevices} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
-      {globalRuleOpen && <InactivityRuleDrawer rule={globalInactivityRule} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setGlobalInactivityRule(rule); setGlobalRuleOpen(false); }}/>}
+      {globalRuleOpen && <InactivityRuleDrawer rule={currentInactivityRule} communityName={currentProject?.name || "当前社区"} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setCommunityInactivityRules((rules) => ({ ...rules, [currentProjectId]: rule })); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.name}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
       {pendingNavigation && <div className="modal-layer"><button className="modal-backdrop" aria-label="继续编辑" onClick={() => setPendingNavigation(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="离开休闲娱乐配置"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>离开当前页面？</h3><p>当前休闲娱乐配置尚未保存。离开后，本次修改将不会保留。</p><div><button className="secondary-button" onClick={() => setPendingNavigation(null)}>继续编辑</button><button className="danger-button" onClick={confirmPendingNavigation}>放弃修改并离开</button></div></section></div>}
       {overviewToast && <AdminToast message={overviewToast} onClose={() => setOverviewToast("")}/>}

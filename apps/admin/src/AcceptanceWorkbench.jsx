@@ -19,6 +19,7 @@ const acceptanceHierarchy = [
   ] },
   { id: "device-data", label: "设备与数据", modules: [
     { id: "tabletDevices", label: "平板设备" },
+    { id: "deviceAlertPolicies", label: "设备告警策略" },
   ] },
   { id: "platform-public", label: "平台公共能力", modules: [
     { id: "careScripts", label: "天气关怀话术" },

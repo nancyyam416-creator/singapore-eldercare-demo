@@ -1,4 +1,5 @@
 import unifiedMockSource from "../../产品理解/90 原型与Mock素材/mock/紧急协助跨端统一Mock.json";
+import { elderProfileMock, getActiveFamilyRelationships } from "./elder-profile";
 
 export type EmergencyAssistanceStatus = "待接听" | "未接通" | "待回拨" | "处理中" | "需跟进" | "已完成" | "已取消";
 
@@ -7,7 +8,29 @@ export type EmergencyAcceptanceScenario =
   | "waiting"
   | "no-answer"
   | "connected"
-  | "cancelled";
+  | "cancelled"
+  | "contacts-none"
+  | "contacts-single"
+  | "contacts-multiple";
+
+export interface EmergencyCallTarget {
+  id: string;
+  name: string;
+  relationship: string;
+  maskedPhone: string;
+  targetType: "contact" | "call-center";
+}
+
+export interface EmergencyCallContact extends EmergencyCallTarget {
+  targetType: "contact";
+}
+
+export interface EmergencyCallAttempt {
+  targetId: string;
+  targetName: string;
+  targetType: "contact" | "call-center";
+  result: "未接通" | "已接通";
+}
 
 export interface EmergencyChildNotification {
   id: string;
@@ -36,6 +59,15 @@ export interface EmergencyAssistanceEvent {
   completedAt: string;
   resultSummary: string;
   resultNote: string;
+  callRoute: {
+    orderedTargets: EmergencyCallTarget[];
+    orderedContacts: EmergencyCallContact[];
+    attempts: EmergencyCallAttempt[];
+    activeTargetType: "contact" | "call-center";
+    activeTargetName: string;
+    activeContactId: string | null;
+    assumptionPendingConfirmation: true;
+  };
 }
 
 interface UnifiedEmergencyMock {
@@ -55,27 +87,114 @@ interface UnifiedEmergencyMock {
 }
 
 const unifiedMock = unifiedMockSource as UnifiedEmergencyMock;
+export const emergencyContactOrderStorageKey = "u2g-online-assistance-contact-order-v1";
+export const emergencyCallSequenceAssumption = "原型假设（待确认）：按已保存顺序依次呼叫家人与官方乐龄呼叫中心；未接通时继续下一位。本原型不设置自动等待时长。";
+export const emergencyCallCenterTarget: EmergencyCallTarget = {
+  id: "call-center",
+  name: "乐龄呼叫中心",
+  relationship: "官方服务",
+  maskedPhone: "网络电话",
+  targetType: "call-center",
+};
+
+const isBrowser = () => typeof window !== "undefined";
+
+export const getEmergencyCallContacts = (): EmergencyCallContact[] => {
+  const contacts = getActiveFamilyRelationships().map((relationship) => ({
+    id: relationship.id,
+    name: relationship.displayName,
+    relationship: relationship.relationship,
+    maskedPhone: relationship.maskedPhone ?? "电话待完善",
+    targetType: "contact" as const,
+  }));
+  if (elderProfileMock.emergencyContact && !contacts.some((contact) => contact.name === elderProfileMock.emergencyContact?.name)) {
+    contacts.unshift({
+      id: "profile-emergency-contact",
+      name: elderProfileMock.emergencyContact.name,
+      relationship: elderProfileMock.emergencyContact.relationship,
+      maskedPhone: elderProfileMock.emergencyContact.maskedPhone,
+      targetType: "contact",
+    });
+  }
+  return contacts;
+};
+
+export const readEmergencyContactOrder = () => {
+  if (!isBrowser()) return [] as string[];
+  try {
+    const value = JSON.parse(window.localStorage.getItem(emergencyContactOrderStorageKey) ?? "[]");
+    return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [] as string[];
+  }
+};
+
+export const saveEmergencyContactOrder = (contactIds: string[]) => {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(emergencyContactOrderStorageKey, JSON.stringify(contactIds));
+};
+
+export const getOrderedEmergencyCallContacts = () => {
+  return getOrderedEmergencyCallTargets().filter((target): target is EmergencyCallContact => target.targetType === "contact");
+};
+
+export const getOrderedEmergencyCallTargets = (): EmergencyCallTarget[] => {
+  const targets: EmergencyCallTarget[] = [...getEmergencyCallContacts(), emergencyCallCenterTarget];
+  const order = readEmergencyContactOrder();
+  const rank = new Map(order.map((id, index) => [id, index]));
+  return [...targets].sort((first, second) => (rank.get(first.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(second.id) ?? Number.MAX_SAFE_INTEGER));
+};
+
+export const getEmergencyScenarioContacts = (scenario: EmergencyAcceptanceScenario) => {
+  const contacts = getOrderedEmergencyCallContacts();
+  if (scenario === "contacts-none") return [];
+  if (scenario === "contacts-single") return contacts.slice(0, 1);
+  return contacts;
+};
+
+export const getEmergencyScenarioTargets = (scenario: EmergencyAcceptanceScenario): EmergencyCallTarget[] => {
+  const targets = getOrderedEmergencyCallTargets();
+  const contacts = targets.filter((target) => target.targetType === "contact");
+  if (scenario === "contacts-none") return [emergencyCallCenterTarget];
+  if (scenario === "contacts-single") {
+    const allowedIds = new Set([contacts[0]?.id, emergencyCallCenterTarget.id]);
+    return targets.filter((target) => allowedIds.has(target.id));
+  }
+  return targets;
+};
 
 export const emergencyScenarioDefinitions: Record<EmergencyAcceptanceScenario, { label: string; description: string }> = {
   "normal-connected": {
-    label: "确认并正常接通",
-    description: "从确认页发起网络电话，先显示正在连接，再显示呼叫中心已接听。",
+    label: "默认联系顺序",
+    description: "从确认页查看并保存联系顺序，再手动模拟接通或未接通。",
   },
   waiting: {
-    label: "正在连接",
-    description: "网络电话正在连接乐龄呼叫中心，老人可取消本次连接。",
+    label: "Mock 呼叫中",
+    description: "显示当前呼叫目标，可模拟接通、未接通或取消。",
   },
   "no-answer": {
     label: "连接失败，可重试",
     description: "网络电话暂时未能接通呼叫中心，老人可重新连接或返回首页。",
   },
   connected: {
-    label: "呼叫中心已接听",
-    description: "网络电话已经接通，老人可直接与呼叫中心工作人员说话。",
+    label: "当前目标已接听",
+    description: "展示联系人或呼叫中心的 Mock 已接听状态。",
   },
   cancelled: {
     label: "老人已取消",
     description: "本次网络电话连接已取消，没有继续呼叫呼叫中心。",
+  },
+  "contacts-none": {
+    label: "无紧急联系人",
+    description: "没有可用紧急联系人时，直接进入乐龄呼叫中心 Mock 连接。",
+  },
+  "contacts-single": {
+    label: "1位紧急联系人",
+    description: "唯一家人与官方呼叫中心按已保存顺序呼叫。",
+  },
+  "contacts-multiple": {
+    label: "多位紧急联系人",
+    description: "多位家人与官方呼叫中心共同按已保存顺序呼叫。",
   },
 };
 
@@ -87,6 +206,7 @@ export const onlineAssistanceCompletionResult = {
 export function createEmergencyAssistanceEvent(
   scenario: EmergencyAcceptanceScenario,
   status: EmergencyAssistanceStatus = "待接听",
+  targets: EmergencyCallTarget[] = getEmergencyScenarioTargets(scenario),
 ): EmergencyAssistanceEvent {
   const notifications = unifiedMock.children.map((child) => ({
     ...child,
@@ -96,6 +216,7 @@ export function createEmergencyAssistanceEvent(
   const callCenterStatus: EmergencyAssistanceEvent["callCenter"]["status"] = status === "已取消"
     ? "待接听"
     : status;
+  const activeTarget = targets[0] ?? emergencyCallCenterTarget;
 
   return {
     id: unifiedMock.eventId,
@@ -116,6 +237,15 @@ export function createEmergencyAssistanceEvent(
     completedAt: status === "已完成" ? "2026-07-28 10:06:35" : "",
     resultSummary: status === "已完成" ? onlineAssistanceCompletionResult.summary : "",
     resultNote: status === "已完成" ? onlineAssistanceCompletionResult.note : "",
+    callRoute: {
+      orderedTargets: targets,
+      orderedContacts: targets.filter((target): target is EmergencyCallContact => target.targetType === "contact"),
+      attempts: [],
+      activeTargetType: activeTarget.targetType,
+      activeTargetName: activeTarget.name,
+      activeContactId: activeTarget.targetType === "contact" ? activeTarget.id : null,
+      assumptionPendingConfirmation: true,
+    },
   };
 }
 

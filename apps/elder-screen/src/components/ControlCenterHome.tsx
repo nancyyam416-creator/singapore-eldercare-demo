@@ -21,6 +21,7 @@ import {
   RefreshCw,
   RotateCcw,
   Send,
+  Settings,
   Sun,
   CloudRain,
   CloudSun,
@@ -28,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import HomeTaskRail from "./HomeTaskRail";
+import HomeSettingsPage from "./HomeSettingsPage";
 import type { HomeNotificationQueueItem } from "../home-notification-queue";
 import type { EmergencyAssistanceStatus } from "../emergency-assistance";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
@@ -107,6 +109,7 @@ interface ControlCenterHomeProps {
   onOpenMore: () => void;
   onTriggerSOS: () => void;
   emergencyAssistanceStatus?: EmergencyAssistanceStatus;
+  emergencyAssistanceTargetName?: string;
   acceptanceTimeOverride?: string | null;
   acceptanceAlbumScenario?: AcceptanceAlbumScenario;
   acceptanceHeartScenario?: AcceptanceHeartScenario;
@@ -184,6 +187,7 @@ export default function ControlCenterHome({
   onOpenMore,
   onTriggerSOS,
   emergencyAssistanceStatus,
+  emergencyAssistanceTargetName = "乐龄呼叫中心",
   acceptanceTimeOverride = null,
   acceptanceAlbumScenario = "default",
   acceptanceHeartScenario = "not-liked",
@@ -197,15 +201,16 @@ export default function ControlCenterHome({
   familyWeather,
 }: ControlCenterHomeProps) {
   const isAssistanceCallActive = emergencyAssistanceStatus === "处理中" || emergencyAssistanceStatus === "需跟进";
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [callFloatPosition, setCallFloatPosition] = useState<{ left: number; top: number } | null>(null);
   const callFloatRef = useRef<HTMLButtonElement | null>(null);
   const callFloatDragRef = useRef<{
     pointerId: number;
-    parentLeft: number;
-    parentTop: number;
+    startClientX: number;
+    startClientY: number;
+    startLeft: number;
+    startTop: number;
     scale: number;
-    offsetX: number;
-    offsetY: number;
     maxLeft: number;
     maxTop: number;
     moved: boolean;
@@ -250,14 +255,13 @@ export default function ControlCenterHome({
     const scale = parent.offsetWidth > 0 ? parentRect.width / parent.offsetWidth : 1;
     const currentLeft = (buttonRect.left - parentRect.left) / scale;
     const currentTop = (buttonRect.top - parentRect.top) / scale;
-    setCallFloatPosition({ left: currentLeft, top: currentTop });
     callFloatDragRef.current = {
       pointerId: event.pointerId,
-      parentLeft: parentRect.left,
-      parentTop: parentRect.top,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startLeft: currentLeft,
+      startTop: currentTop,
       scale,
-      offsetX: (event.clientX - buttonRect.left) / scale,
-      offsetY: (event.clientY - buttonRect.top) / scale,
       maxLeft: Math.max(16, parent.offsetWidth - button.offsetWidth - 16),
       maxTop: Math.max(16, parent.offsetHeight - button.offsetHeight - 16),
       moved: false,
@@ -268,9 +272,12 @@ export default function ControlCenterHome({
   const handleCallFloatPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
     const drag = callFloatDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const nextLeft = (event.clientX - drag.parentLeft) / drag.scale - drag.offsetX;
-    const nextTop = (event.clientY - drag.parentTop) / drag.scale - drag.offsetY;
-    if (Math.abs(event.movementX) + Math.abs(event.movementY) > 1) drag.moved = true;
+    const deltaX = (event.clientX - drag.startClientX) / drag.scale;
+    const deltaY = (event.clientY - drag.startClientY) / drag.scale;
+    if (Math.hypot(deltaX, deltaY) > 6) drag.moved = true;
+    if (!drag.moved) return;
+    const nextLeft = drag.startLeft + deltaX;
+    const nextTop = drag.startTop + deltaY;
     setCallFloatPosition({
       left: Math.min(drag.maxLeft, Math.max(16, nextLeft)),
       top: Math.min(drag.maxTop, Math.max(16, nextTop)),
@@ -658,11 +665,18 @@ export default function ControlCenterHome({
           </div>
         </div>
 
-        <button className="sos-button" type="button" onClick={onTriggerSOS} aria-label="通过网络电话连接乐龄呼叫中心">
-          <Phone aria-hidden="true" />
-          <span>在线协助</span>
-        </button>
+        <div className="control-header-actions">
+          <button className="sos-button" type="button" onClick={onTriggerSOS} aria-label="通过网络电话连接乐龄呼叫中心">
+            <Phone aria-hidden="true" />
+            <span>在线协助</span>
+          </button>
+          <button className="home-settings-button" type="button" onClick={() => setIsSettingsOpen(true)} aria-label="打开设置">
+            <Settings aria-hidden="true" />
+          </button>
+        </div>
       </header>
+
+      <HomeSettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {isAssistanceCallActive && (
         <button
@@ -675,12 +689,12 @@ export default function ControlCenterHome({
           onPointerMove={handleCallFloatPointerMove}
           onPointerUp={handleCallFloatPointerUp}
           onPointerCancel={handleCallFloatPointerUp}
-          aria-label="展开正在进行的乐龄呼叫中心通话"
+          aria-label={`展开正在进行的${emergencyAssistanceTargetName} Mock 通话`}
         >
           <span className="assistance-call-float__icon"><Phone aria-hidden="true" /></span>
           <span className="assistance-call-float__copy">
             <small><i aria-hidden="true" />通话中</small>
-            <strong>乐龄呼叫中心</strong>
+            <strong>{emergencyAssistanceTargetName}</strong>
           </span>
         </button>
       )}

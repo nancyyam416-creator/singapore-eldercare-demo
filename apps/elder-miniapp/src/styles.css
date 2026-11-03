@@ -588,6 +588,9 @@ button:active { transform: scale(.98); }
 .profile-binding-entry strong { font-size: 17px; }
 .profile-binding-entry small { color: #64748b; font-size: 12px; }
 .profile-binding-entry > svg { color: #94a3b8; }
+.profile-location-entry > span { color: #2563eb; background: #eaf2ff; }
+.profile-location-entry > b { flex: none; padding: 5px 8px; border-radius: 999px; color: #64748b; background: #f1f5f9; font-size: 11px; }
+.profile-location-entry > b.is-on { color: #047857; background: #d1fae5; }
 .profile-notification-dot { width: 10px; height: 10px; position: absolute; top: 10px; right: 10px; border: 2px solid #fff; border-radius: 50%; background: #ef3154; box-shadow: 0 0 0 1px rgba(239,49,84,.14); }
 .guardian-avatar.family { background: #8b5cf6; }
 .guardian-row.newly-bound { background: #f5f3ff; }
@@ -623,6 +626,29 @@ button:active { transform: scale(.98); }
 .binding-confirm > span svg { width: 31px; height: 31px; }
 .binding-confirm h2 { margin: 0; font-size: 22px; }
 .binding-confirm h2 + .primary-button { margin-top: 20px; }
+.location-sharing-overlay { z-index: 82; }
+.location-sharing-panel { position: relative; padding: 26px 20px 18px; border-radius: 24px; background: #fff; box-shadow: 0 18px 50px rgba(15,23,42,.2); text-align: center; }
+.location-sharing-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #64748b; background: #f1f5f9; }
+.location-sharing-close svg { width: 20px; height: 20px; }
+.location-sharing-icon { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 10px; border-radius: 20px; color: #2563eb; background: #eaf2ff; }
+.location-sharing-icon svg { width: 32px; height: 32px; }
+.location-sharing-icon.is-on { color: #047857; background: #d1fae5; }
+.location-sharing-icon.is-denied { color: #b91c1c; background: #fee2e2; }
+.mock-location-label { display: inline-block; padding: 4px 8px; border-radius: 999px; color: #475569; background: #f1f5f9; font-size: 11px; font-weight: 800; }
+.location-sharing-panel h2 { margin: 9px 0 7px; font-size: 23px; }
+.location-sharing-panel > p { margin: 0 6px 16px; color: #64748b; font-size: 13px; line-height: 1.55; }
+.location-sharing-status { display: grid; gap: 0; margin-bottom: 16px; overflow: hidden; border: 1px solid #dbe4ef; border-radius: 16px; text-align: left; }
+.location-sharing-status span { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-bottom: 1px solid #e8edf4; }
+.location-sharing-status span:last-child { border-bottom: 0; }
+.location-sharing-status b { color: #64748b; font-size: 12px; }
+.location-sharing-status strong { color: #1e293b; font-size: 13px; text-align: right; }
+.location-sharing-panel .primary-button, .location-sharing-panel .secondary-button { min-height: 52px; }
+.location-sharing-panel .secondary-button { width: 100%; margin-top: 10px; }
+.location-sharing-panel .danger-text { color: #b91c1c; }
+.location-permission-note { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px; border-radius: 14px; color: #b91c1c; background: #fff1f2; text-align: left; }
+.location-permission-note > svg { width: 24px; height: 24px; flex: none; }
+.location-permission-note span { display: grid; gap: 3px; }
+.location-permission-note small { color: #7f1d1d; font-size: 12px; }
 .binding-confirm .primary-button, .binding-confirm .secondary-button { min-height: 56px; font-size: 17px; }
 .binding-confirm .secondary-button { width: 100%; margin-top: 9px; }
 

@@ -24,6 +24,7 @@ export interface FamilyRelationshipSnapshot {
   displayName: string;
   relationship: string;
   avatar: string;
+  maskedPhone?: string;
   weatherUserId: string;
   active: boolean;
 }
@@ -44,6 +45,7 @@ export const familyRelationshipMocks: FamilyRelationshipSnapshot[] = [
     displayName: "女儿小敏",
     relationship: "女儿",
     avatar: "https://picsum.photos/seed/xiaomin/240/240",
+    maskedPhone: "138 **** 5201",
     weatherUserId: "daughter-xiaomin",
     active: true,
   },
@@ -52,6 +54,7 @@ export const familyRelationshipMocks: FamilyRelationshipSnapshot[] = [
     displayName: "儿子小刚",
     relationship: "儿子",
     avatar: "https://picsum.photos/seed/xiaogang/240/240",
+    maskedPhone: "139 **** 6618",
     weatherUserId: "son-xiaogang",
     active: true,
   },

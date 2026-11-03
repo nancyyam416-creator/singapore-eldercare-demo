@@ -16,6 +16,8 @@ import {
   Home,
   Images,
   Info,
+  LocateFixed,
+  MapPin,
   Mic,
   PhoneCall,
   Pill,
@@ -50,6 +52,8 @@ type BindingStatus = 'pending' | 'success' | 'rejected' | 'expired' | 'tablet-ap
 type PhotoVoiceState = 'idle' | 'listening' | 'processing' | 'error';
 type ReminderFilter = 'all' | ReminderType;
 type ReminderView = 'today' | 'rules';
+type LocationPermissionState = 'prompt' | 'granted' | 'denied';
+type LocationSharingState = 'off' | 'on';
 type ReminderItem = { id: string; ruleId: string; type: ReminderType; time: string; title: string; detail: string; repeat: string; completed: boolean };
 type ReminderRule = { id: string; type: ReminderType; title: string; detail: string; times: string[]; repeat: string; nextAt: string; enabled: boolean };
 
@@ -184,6 +188,10 @@ export default function App() {
   const [familyAlbumScenario, setFamilyAlbumScenario] = useState('default');
   const [activityListScenario, setActivityListScenario] = useState('default');
   const [guardianScenario, setGuardianScenario] = useState('default');
+  const [locationPanelOpen, setLocationPanelOpen] = useState(false);
+  const [locationPermission, setLocationPermission] = useState<LocationPermissionState>('prompt');
+  const [locationSharing, setLocationSharing] = useState<LocationSharingState>('off');
+  const [locationUpdatedAt, setLocationUpdatedAt] = useState<string | null>(null);
 
   const pageTitle = bindingOpen ? '家人绑定确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '服务协助' : '我的';
   const currentService = serviceData[serviceCategory];
@@ -258,6 +266,7 @@ export default function App() {
   };
 
   const goTo = (next: MainTab) => {
+    setLocationPanelOpen(false);
     setSelectedFamilyPhoto(null);
     setSelectedActivity(null);
     setSelectedAlert(null);
@@ -285,6 +294,7 @@ export default function App() {
     setServicesOpen(false);
     setServiceStep('detail');
     setBindingConfirmOpen(false);
+    setLocationPanelOpen(false);
     setActivityIntentFailure(null);
     setActivitySubmitShouldFail(false);
     window.speechSynthesis.cancel();
@@ -332,6 +342,26 @@ export default function App() {
       setBindingStatus(scenario as BindingStatus);
       setBindingOpen(true);
     }
+    if (moduleId === 'profile-location') {
+      setLocationPanelOpen(true);
+      if (scenario === 'sharing') {
+        setLocationPermission('granted');
+        setLocationSharing('on');
+        setLocationUpdatedAt('刚刚');
+      } else if (scenario === 'denied') {
+        setLocationPermission('denied');
+        setLocationSharing('off');
+        setLocationUpdatedAt(null);
+      } else if (scenario === 'off') {
+        setLocationPermission('granted');
+        setLocationSharing('off');
+        setLocationUpdatedAt('今天 18:26');
+      } else {
+        setLocationPermission('prompt');
+        setLocationSharing('off');
+        setLocationUpdatedAt(null);
+      }
+    }
   };
 
   const runAcceptanceAction = (action: string) => {
@@ -343,6 +373,7 @@ export default function App() {
     if (action === 'open-first-alert') { setTab('activities'); setCommunityView('alerts'); openAlert(communityAlerts[0]); setAcceptancePageId('activities'); setAcceptanceModuleId('community-alerts'); }
     if (action === 'open-services') goTo('services');
     if (action === 'open-binding') { setTab('profile'); setBindingStatus('pending'); setBindingOpen(true); setAcceptancePageId('profile'); setAcceptanceModuleId('profile-binding'); }
+    if (action === 'open-location') { setTab('profile'); setLocationPanelOpen(true); setAcceptancePageId('profile'); setAcceptanceModuleId('profile-location'); }
   };
 
   const toggleReminderRule = (rule: ReminderRule) => {
@@ -511,6 +542,7 @@ export default function App() {
       </div>
     </section>
     <button className="profile-binding-entry profile-reminder-entry" onClick={() => goTo('reminders')}>{todayPendingCount > 0 && <i className="profile-notification-dot" aria-hidden="true" />}<span><BellRing /></span><div><strong>提醒事项</strong><small>{todayPendingCount > 0 ? `今天还有 ${todayPendingCount} 项待完成` : '今天的提醒已经完成'}</small></div><ChevronRight /></button>
+    <button className="profile-binding-entry profile-location-entry" onClick={() => { setLocationPanelOpen(true); setAcceptancePageId('profile'); setAcceptanceModuleId('profile-location'); }}><span><MapPin /></span><div><strong>与家人共享位置</strong><small>{locationSharing === 'on' ? `共享中 · ${locationUpdatedAt ?? '等待上报'}` : locationPermission === 'denied' ? '定位权限未允许' : '未开启位置共享'}</small></div><b className={locationSharing === 'on' ? 'is-on' : ''}>{locationSharing === 'on' ? '共享中' : '未开启'}</b><ChevronRight /></button>
     <button className="profile-binding-entry" onClick={() => { setBindingStatus('pending'); setBindingOpen(true); }}>{bindingStatus === 'pending' && <i className="profile-notification-dot" aria-hidden="true" />}<span><Heart /></span><div><strong>家人绑定确认</strong><small>{bindingStatus === 'success' ? '最近一项绑定已确认' : '有 1 位家人等待您确认'}</small></div><ChevronRight /></button>
   </>;
 
@@ -575,6 +607,23 @@ export default function App() {
     {toast && <div className="toast" role="status"><CheckCircle2 />{toast}</div>}
 
     {bindingConfirmOpen && <div className="confirm-overlay" role="presentation"><section className="binding-confirm" role="dialog" aria-modal="true" aria-labelledby="binding-confirm-title"><span><ShieldCheck /></span><h2 id="binding-confirm-title">确认同意张建国绑定？</h2><button className="primary-button" onClick={() => { setBindingConfirmOpen(false); setBindingStatus('success'); }}>确认同意</button><button className="secondary-button" onClick={() => setBindingConfirmOpen(false)}>再核对一下</button></section></div>}
+
+    {locationPanelOpen && <div className="confirm-overlay location-sharing-overlay" role="presentation"><section className="location-sharing-panel" role="dialog" aria-modal="true" aria-labelledby="location-sharing-title">
+      <button className="location-sharing-close" type="button" onClick={() => setLocationPanelOpen(false)} aria-label="关闭位置共享设置"><X /></button>
+      <span className={`location-sharing-icon ${locationSharing === 'on' ? 'is-on' : locationPermission === 'denied' ? 'is-denied' : ''}`}>{locationSharing === 'on' ? <LocateFixed /> : locationPermission === 'denied' ? <ShieldAlert /> : <MapPin />}</span>
+      <small className="mock-location-label">Mock 交互原型</small>
+      <h2 id="location-sharing-title">与家人共享位置</h2>
+      <p>仅模拟手机前台的位置上报，不读取您的真实定位，也不会在后台持续采集。</p>
+      <div className="location-sharing-status">
+        <span><b>共享状态</b><strong>{locationSharing === 'on' ? '正在共享' : locationPermission === 'denied' ? '权限未允许' : '未开启'}</strong></span>
+        <span><b>模拟位置</b><strong>{locationSharing === 'on' ? '红山社区活动室附近' : '—'}</strong></span>
+        <span><b>最近上报</b><strong>{locationUpdatedAt ?? '尚未上报'}</strong></span>
+      </div>
+      {locationPermission === 'prompt' && <><button className="primary-button" type="button" onClick={() => { setLocationPermission('granted'); setLocationSharing('on'); setLocationUpdatedAt('刚刚'); showToast('已开启 Mock 位置共享'); }}><MapPin />允许并开启</button><button className="secondary-button" type="button" onClick={() => { setLocationPermission('denied'); setLocationSharing('off'); setLocationUpdatedAt(null); }}>暂不允许</button></>}
+      {locationPermission === 'denied' && <><div className="location-permission-note"><ShieldAlert /><span><strong>定位权限未允许</strong><small>这是 Mock 拒绝状态，您可以重新选择。</small></span></div><button className="primary-button" type="button" onClick={() => setLocationPermission('prompt')}>重新选择权限</button></>}
+      {locationPermission === 'granted' && locationSharing === 'on' && <><button className="primary-button" type="button" onClick={() => { setLocationUpdatedAt('刚刚'); showToast('已模拟一次前台位置上报'); }}><LocateFixed />模拟前台上报</button><button className="secondary-button danger-text" type="button" onClick={() => { setLocationSharing('off'); showToast('位置共享已关闭'); }}>关闭位置共享</button></>}
+      {locationPermission === 'granted' && locationSharing === 'off' && <button className="primary-button" type="button" onClick={() => { setLocationSharing('on'); setLocationUpdatedAt('刚刚'); showToast('已重新开启 Mock 位置共享'); }}><MapPin />重新开启共享</button>}
+    </section></div>}
 
     {overlay === 'photo' && <Sheet title="发相册" onClose={() => { setPhotoVoiceState('idle'); setOverlay(null); }}>{photoStep === 'success' ? <SuccessPanel title="相册发布成功" description="照片已经分享给家人。" onDone={() => setOverlay(null)} /> : <>
       <div className="form-group"><label>选择照片或视频</label><div className="media-picker"><button onClick={() => setSelectedPhotos([1, 2])}><Camera /><span>拍照片</span></button><button onClick={() => setSelectedPhotos([1, 2, 3])}><Images /><span>从手机选择</span></button></div></div>

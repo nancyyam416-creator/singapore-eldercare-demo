@@ -15,7 +15,8 @@ export type AcceptanceModuleId =
   | 'community-alerts'
   | 'service-booking'
   | 'profile-guardians'
-  | 'profile-binding';
+  | 'profile-binding'
+  | 'profile-location';
 
 type ScenarioOption = { value: string; label: string; description: string; status: string };
 type ActionOption = { id: string; label: string };
@@ -93,6 +94,12 @@ const pages: AcceptancePage[] = [
       { value: 'network', label: '网络失败', description: '展示可重试的网络失败结果。', status: '可重试' },
       { value: 'expired', label: '申请失效', description: '展示申请已失效结果。', status: '失败' },
     ] },
+    { id: 'profile-location', label: '位置共享', scenarios: [
+      { value: 'prompt', label: '等待授权', description: '展示 Mock 权限选择，不读取真实定位。', status: '待授权' },
+      { value: 'sharing', label: '共享中', description: '展示模拟位置和最近一次前台上报时间。', status: '共享中' },
+      { value: 'denied', label: '已拒绝', description: '展示权限被拒绝后的重新选择入口。', status: '未授权' },
+      { value: 'off', label: '已关闭', description: '保留最近一次 Mock 上报记录，可重新开启。', status: '已关闭' },
+    ], actions: [{ id: 'open-location', label: '打开位置共享' }] },
   ] },
 ];
 
