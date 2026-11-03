@@ -27,6 +27,7 @@ import {
 import {
   canReviewServiceAssistance,
   getLatestServiceAssistanceRecord,
+  getServiceReviewSummary,
   getServiceAssistanceConfirmationCopy,
   readSharedServiceAssistanceRecords,
   requestSharedServiceAssistance,
@@ -270,6 +271,9 @@ const readCurrentElderRecords = () => (readSharedServiceAssistanceRecords() as S
   .filter((record) => record.elder?.id === (elderProfileMock.id ?? "elder-wang-jianguo"))
   .sort((first, second) => second.requestedAt.localeCompare(first.requestedAt));
 
+const readAllSharedRecords = () => (readSharedServiceAssistanceRecords() as SharedAssistanceRecord[])
+  .sort((first, second) => second.requestedAt.localeCompare(first.requestedAt));
+
 const getSharedRecordStatus = (record: SharedAssistanceRecord) => {
   if (record.review) return "已评价";
   if (isFamilyHandlingCompleted(record)) return "家人处理完成";
@@ -288,6 +292,7 @@ export default function SpecialServicesPage({
   acceptanceActionSignal = 0,
 }: SpecialServicesPageProps) {
   const [view, setView] = useState<"list" | "detail" | "records">("list");
+  const [detailTab, setDetailTab] = useState<"details" | "reviews">("details");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedCategoryCode, setSelectedCategoryCode] = useState<"all" | ServiceCategoryCode>("all");
   const [categoryRetrySucceeded, setCategoryRetrySucceeded] = useState(false);
@@ -297,6 +302,7 @@ export default function SpecialServicesPage({
   const [familyHelpFeedback, setFamilyHelpFeedback] = useState<"notified" | "reminded" | "notify-error" | "remind-error" | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [sharedRecords, setSharedRecords] = useState<SharedAssistanceRecord[]>(readCurrentElderRecords);
+  const [allSharedRecords, setAllSharedRecords] = useState<SharedAssistanceRecord[]>(readAllSharedRecords);
   const [reviewingRecord, setReviewingRecord] = useState<SharedAssistanceRecord | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
@@ -320,10 +326,20 @@ export default function SpecialServicesPage({
   const visibleRecords = acceptanceRecord
     ? [{ ...acceptanceRecord, review: acceptanceReview ?? acceptanceRecord.review }]
     : sharedRecords;
+  const reviewSourceRecords = effectiveScenario === "service-reviewed" && acceptanceRecord
+    ? [{ ...acceptanceRecord, review: acceptanceReview ?? acceptanceRecord.review }]
+    : allSharedRecords;
+  const serviceReviewSummary = useMemo(() => {
+    return new Map(services.map((service) => [service.id, getServiceReviewSummary(service.id, reviewSourceRecords)]));
+  }, [reviewSourceRecords]);
+  const selectedServiceReviewSummary = selectedService
+    ? serviceReviewSummary.get(selectedService.id)
+    : undefined;
 
   useEffect(() => {
     if (!isOpen) {
       setView("list");
+      setDetailTab("details");
       setSelectedServiceId(null);
       setAssistance({ stage: "idle" });
       setFamilyHelpConfirmOpen(false);
@@ -336,6 +352,7 @@ export default function SpecialServicesPage({
     }
     if (initialServiceId && services.some((service) => service.id === initialServiceId)) {
       setSelectedServiceId(initialServiceId);
+      setDetailTab("details");
       const storedRecord = findSharedRecord(initialServiceId);
       setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
       setView("detail");
@@ -384,6 +401,7 @@ export default function SpecialServicesPage({
     if (!isOpen || acceptanceScenario !== "default") return undefined;
     const syncStoredRecord = () => {
       setSharedRecords(readCurrentElderRecords());
+      setAllSharedRecords(readAllSharedRecords());
       if (selectedServiceId) {
         const storedRecord = findSharedRecord(selectedServiceId);
         if (storedRecord) setAssistance(toAssistanceRecord(storedRecord));
@@ -396,6 +414,7 @@ export default function SpecialServicesPage({
 
   const openService = (serviceId: string) => {
     setSelectedServiceId(serviceId);
+    setDetailTab("details");
     const storedRecord = findSharedRecord(serviceId);
     setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
     setFamilyHelpConfirmOpen(false);
@@ -438,6 +457,7 @@ export default function SpecialServicesPage({
         const updated = submitSharedServiceReview(reviewingRecord.id, elderProfileMock.id, { rating: reviewRating, text: reviewText });
         if (!updated) throw new Error("review update failed");
         setSharedRecords(readCurrentElderRecords());
+        setAllSharedRecords(readAllSharedRecords());
       }
       setReviewingRecord(null);
     } catch {
@@ -527,7 +547,11 @@ export default function SpecialServicesPage({
               {!elderProfileMock.communityId ? <section className="special-services-state" role="status"><MapPinOff aria-hidden="true" /><h2>社区未设置</h2><p>请先完成社区资料设置。</p></section>
                 : effectiveScenario === "category-load-failure" ? <section className="special-services-state" role="status"><WifiOff aria-hidden="true" /><h2>服务分类暂时加载失败</h2><p>请检查网络后重新加载，其他功能不受影响。</p><button type="button" onClick={() => setCategoryRetrySucceeded(true)}>重新加载</button></section>
                 : visibleServices.length === 0 ? <section className="special-services-state" role="status"><HandHeart aria-hidden="true" /><h2>{selectedCategoryCode === "all" ? "当前暂无可用服务" : "该分类暂时没有可用服务"}</h2><p>可以稍后再来看看。</p>{selectedCategoryCode !== "all" && <button type="button" onClick={() => setSelectedCategoryCode("all")}>返回全部服务</button>}</section>
-                  : <div className="special-services-grid">{visibleServices.map((service) => <article key={service.id} className="special-service-card"><img className="special-service-card__image" src={service.coverImage} alt={`${service.name}服务场景`} /><div className="special-service-card__copy"><span>{service.categoryName}</span><h3>{service.name}</h3><p>{service.description}</p><div className="special-service-card__provider"><span><UserRound aria-hidden="true" />服务商</span><strong>{service.provider}</strong></div></div><div className="special-service-card__aside"><strong>{service.priceRange}</strong><small>{service.businessHours}</small><button type="button" onClick={() => openService(service.id)}>查看服务<ChevronRight aria-hidden="true" /></button></div></article>)}</div>}
+                  : <div className="special-services-grid">{visibleServices.map((service) => {
+                    const reviewSummary = serviceReviewSummary.get(service.id);
+                    const hasReviews = Boolean(reviewSummary && reviewSummary.count > 0 && reviewSummary.average !== null);
+                    return <article key={service.id} className="special-service-card"><img className="special-service-card__image" src={service.coverImage} alt={`${service.name}服务场景`} /><div className="special-service-card__copy"><span>{service.categoryName}</span><h3>{service.name}</h3><p>{service.description}</p><div className="special-service-card__provider"><span><UserRound aria-hidden="true" />服务商</span><strong>{service.provider}</strong></div></div><div className="special-service-card__aside"><strong>{service.priceRange}</strong><small>{service.businessHours}</small><div className={`special-service-card__rating${hasReviews ? " has-reviews" : ""}`}><Star aria-hidden="true" /><span>{hasReviews ? `${reviewSummary!.average!.toFixed(1)} · ${reviewSummary!.count}条评价` : "暂无评价"}</span></div><button type="button" onClick={() => openService(service.id)}>查看服务<ChevronRight aria-hidden="true" /></button></div></article>;
+                  })}</div>}
             </section>
           </div>
         </div>
@@ -565,19 +589,33 @@ export default function SpecialServicesPage({
         <div className="special-services-detail-layout">
           <article className="special-services-detail">
             <header><img className="special-services-detail__header-image" src={selectedService.coverImage} alt={`${selectedService.name}服务场景`} /><div><span>{selectedService.categoryName}</span><h2>{selectedService.name}</h2><p>{selectedService.description}</p><div className="special-services-detail__price"><small>参考价格</small><strong>{selectedService.priceRange}</strong></div></div></header>
-            <section className="special-services-detail__description">
-              <div className="special-services-intro-section"><h4>服务内容</h4><p>{selectedService.serviceContent}</p></div>
-              <div className="special-services-intro-section is-notice"><h4>注意事项</h4><ul>{selectedService.precautions.map((precaution) => <li key={precaution}>{precaution}</li>)}</ul></div>
-            </section>
-            <div className="special-services-detail__facts">
-              <p><UserRound aria-hidden="true" /><span><small>服务商</small><strong>{selectedService.provider}</strong></span></p>
-              <p><Clock3 aria-hidden="true" /><span><small>营业时间</small><strong>{selectedService.businessHours}</strong></span></p>
-              <p><Phone aria-hidden="true" /><span><small>服务电话</small><strong>{selectedService.providerPhone}</strong></span></p>
-            </div>
-            <section className="special-services-detail__gallery" aria-label="服务详情">
-              <h3>服务详情</h3>
-              <div>{selectedService.detailImages.map((image, index) => <img key={image} src={image} alt={`${selectedService.name}服务详情 ${index + 1}`} />)}</div>
-            </section>
+            <nav className="special-services-detail__tabs" aria-label="服务详情内容" role="tablist">
+              <button type="button" role="tab" aria-selected={detailTab === "details"} className={detailTab === "details" ? "is-active" : ""} onClick={() => setDetailTab("details")}>服务详情</button>
+              <button type="button" role="tab" aria-selected={detailTab === "reviews"} className={detailTab === "reviews" ? "is-active" : ""} onClick={() => setDetailTab("reviews")}>服务评价{selectedServiceReviewSummary?.count ? ` (${selectedServiceReviewSummary.count})` : ""}</button>
+            </nav>
+            {detailTab === "details" ? <div className="special-services-detail__tab-panel" role="tabpanel">
+              <section className="special-services-detail__description">
+                <div className="special-services-intro-section"><h4>服务内容</h4><p>{selectedService.serviceContent}</p></div>
+                <div className="special-services-intro-section is-notice"><h4>注意事项</h4><ul>{selectedService.precautions.map((precaution) => <li key={precaution}>{precaution}</li>)}</ul></div>
+              </section>
+              <div className="special-services-detail__facts">
+                <p><UserRound aria-hidden="true" /><span><small>服务商</small><strong>{selectedService.provider}</strong></span></p>
+                <p><Clock3 aria-hidden="true" /><span><small>营业时间</small><strong>{selectedService.businessHours}</strong></span></p>
+                <p><Phone aria-hidden="true" /><span><small>服务电话</small><strong>{selectedService.providerPhone}</strong></span></p>
+              </div>
+              <section className="special-services-detail__gallery" aria-label="服务详情">
+                <h3>服务详情图示</h3>
+                <div>{selectedService.detailImages.map((image, index) => <img key={image} src={image} alt={`${selectedService.name}服务详情 ${index + 1}`} />)}</div>
+              </section>
+            </div> : <section className="special-services-detail__reviews is-tab-panel" aria-label="服务评价" role="tabpanel">
+              <header>
+                <h3>服务评价</h3>
+                {selectedServiceReviewSummary && selectedServiceReviewSummary.average !== null && <strong><Star aria-hidden="true" />{selectedServiceReviewSummary.average.toFixed(1)} · {selectedServiceReviewSummary.count}条评价</strong>}
+              </header>
+              {!selectedServiceReviewSummary || selectedServiceReviewSummary.reviews.length === 0
+                ? <div className="special-services-detail__reviews-empty"><Star aria-hidden="true" /><span><strong>暂无评价</strong><small>当前还没有用户评价这项服务。</small></span></div>
+                : <div className="special-services-detail__review-list">{selectedServiceReviewSummary.reviews.map((review) => <article key={review.recordId}><div><strong>{"★".repeat(review.rating)}</strong><time>{formatAssistanceTime(review.submittedAt)}</time></div><p>{review.text || "未填写文字评价"}</p><small>评价人：{review.reviewerName}</small></article>)}</div>}
+            </section>}
           </article>
 
           <aside className="special-services-assistance">

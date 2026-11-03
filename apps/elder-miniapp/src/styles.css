@@ -1004,8 +1004,8 @@ button:active { transform: scale(.98); }
 .appointment-categories button { min-height: 42px; flex: none; padding: 0 14px; border: 1px solid #dbe4ef; border-radius: 999px; color: #526078; background: #fff; font-size: 13px; font-weight: 800; }
 .appointment-categories button.active { border-color: #2563eb; color: #fff; background: #2563eb; }
 .appointment-service-list, .appointment-records { display: grid; gap: 12px; }
-.appointment-service-card { min-height: 132px; display: grid; grid-template-columns: 96px 1fr 22px; align-items: center; gap: 13px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 18px; color: #1e293b; background: #fff; text-align: left; box-shadow: 0 4px 12px rgba(31,42,68,.04); }
-.appointment-service-card > img { width: 96px; height: 106px; border-radius: 13px; object-fit: cover; background: #f1f5f9; }
+.appointment-service-card { min-height: 148px; display: grid; grid-template-columns: 96px 1fr 22px; align-items: center; gap: 13px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 18px; color: #1e293b; background: #fff; text-align: left; box-shadow: 0 4px 12px rgba(31,42,68,.04); }
+.appointment-service-card > img { width: 96px; height: 122px; border-radius: 13px; object-fit: cover; background: #f1f5f9; }
 .appointment-service-card > div { min-width: 0; }
 .appointment-service-card small { color: #2563eb; font-size: 12px; font-weight: 800; }
 .appointment-service-card h3 { margin: 5px 0; font-size: 18px; line-height: 1.35; }
@@ -1013,6 +1013,10 @@ button:active { transform: scale(.98); }
 .appointment-service-card b { color: #1d4ed8; font-size: 18px; }
 .appointment-service-card em { color: #64748b; font-size: 12px; font-style: normal; }
 .appointment-service-card > svg { color: #94a3b8; }
+.appointment-service-rating { display: flex; align-items: center; gap: 4px; margin-top: 9px; color: #b45309; font-size: 13px; font-weight: 850; }
+.appointment-service-rating svg { width: 16px; height: 16px; fill: #f59e0b; color: #f59e0b; }
+.appointment-service-rating em { margin-left: 2px; color: #718096; font-weight: 700; }
+.appointment-service-rating.is-empty { color: #94a3b8; font-size: 12px; font-weight: 700; }
 .appointment-detail { display: grid; gap: 16px; padding-bottom: 176px; }
 .appointment-detail .text-back { margin-bottom: 0; }
 .appointment-detail-hero-image { position: relative; overflow: hidden; border-radius: 22px; background: #f1f5f9; }
@@ -1026,6 +1030,32 @@ button:active { transform: scale(.98); }
 .appointment-price-highlight small { color: #526078; font-size: 12px; font-weight: 800; }
 .appointment-price-highlight strong { color: #1d4ed8; font-size: 26px; line-height: 1.1; }
 .appointment-price-highlight > span { max-width: 150px; color: #64748b; font-size: 12px; line-height: 1.45; text-align: right; }
+.appointment-detail-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border-radius: 16px; background: #e9eef5; }
+.appointment-detail-tabs button { min-height: 50px; border: 0; border-radius: 12px; color: #64748b; background: transparent; font-size: 15px; font-weight: 850; }
+.appointment-detail-tabs button.active { color: #1d4ed8; background: #fff; box-shadow: 0 2px 8px rgba(31,42,68,.08); }
+.appointment-service-reviews { display: grid; gap: 14px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; }
+.appointment-service-reviews > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid #e2e8f0; }
+.appointment-service-reviews > header > div { display: grid; gap: 3px; }
+.appointment-service-reviews h3, .appointment-service-reviews header p { margin: 0; }
+.appointment-service-reviews h3 { font-size: 20px; }
+.appointment-service-reviews header p { color: #718096; font-size: 12px; }
+.appointment-service-reviews header > strong { display: flex; align-items: center; gap: 5px; color: #b45309; font-size: 21px; }
+.appointment-service-reviews header > strong svg { width: 21px; height: 21px; fill: #f59e0b; color: #f59e0b; }
+.appointment-service-review-list { display: grid; gap: 12px; }
+.appointment-service-review-list article { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #eef2f6; }
+.appointment-service-review-list article:last-child { padding-bottom: 0; border-bottom: 0; }
+.appointment-service-review-list article > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.appointment-service-review-list article span { color: #334155; font-size: 14px; font-weight: 800; }
+.appointment-service-review-list article small { color: #94a3b8; font-size: 11px; }
+.appointment-service-review-list article p { margin: 0; color: #526078; font-size: 14px; line-height: 1.55; }
+.appointment-service-review-stars { display: flex; gap: 3px; }
+.appointment-service-review-stars svg { width: 16px; height: 16px; color: #cbd5e1; }
+.appointment-service-review-stars svg.active { fill: #f59e0b; color: #f59e0b; }
+.appointment-service-review-empty { min-height: 76px; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; color: #94a3b8; background: #f8fafc; }
+.appointment-service-review-empty > svg { width: 26px; height: 26px; flex: none; }
+.appointment-service-review-empty > span { display: grid; gap: 4px; }
+.appointment-service-review-empty strong { color: #526078; font-size: 14px; }
+.appointment-service-review-empty small { color: #718096; font-size: 12px; line-height: 1.45; }
 .appointment-introduction, .appointment-service-info, .appointment-detail-gallery { display: grid; gap: 16px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; }
 .appointment-introduction > h3, .appointment-service-info > h3, .appointment-detail-gallery > h3 { margin: 0; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; font-size: 20px; }
 .appointment-introduction > div { display: grid; gap: 7px; }

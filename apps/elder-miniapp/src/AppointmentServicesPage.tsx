@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BellRing, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, HandHeart, MapPin, PhoneCall, Star, UserRound, Wrench, XCircle } from 'lucide-react';
 import ElderPageHeader from './ElderPageHeader';
 import { appointmentCategories, appointmentCategoryName, appointmentServices, currentElderProfile, initialServiceAssistanceRecords, type AppointmentCategoryCode, type AppointmentService, type ServiceAssistanceRecord } from './appointmentData';
-import { canReviewServiceAssistance, getLatestServiceAssistanceRecord, getServiceAssistanceConfirmationCopy, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, requestSharedServiceAssistance, serviceAssistanceExpiryMessage, submitSharedServiceReview, subscribeSharedServiceAssistanceRecords } from '../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js';
+import { canReviewServiceAssistance, getLatestServiceAssistanceRecord, getServiceAssistanceConfirmationCopy, getServiceReviewSummary, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, requestSharedServiceAssistance, serviceAssistanceExpiryMessage, submitSharedServiceReview, subscribeSharedServiceAssistanceRecords, type ServiceReviewSummary } from '../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js';
 
 export type AppointmentScenario = 'default' | 'detail' | 'requested' | 'handling' | 'expired' | 'cancelled' | 'handled' | 'completed' | 'reviewed' | 'records';
 type Filter = 'all' | AppointmentCategoryCode;
 type View = 'list' | 'detail' | 'result' | 'records';
+type DetailTab = 'detail' | 'reviews';
 
 const CHILD_NOTIFICATION_KEY = 'u2g-child-service-assistance-notifications-v1';
 const BOUND_FAMILY_IDS = ['child-zhang-xiaoyan', 'child-zhang-jianping'];
@@ -52,6 +53,7 @@ type Props = { scenario: AppointmentScenario; onViewChange?: (scenario: Appointm
 
 export default function AppointmentServicesPage({ scenario, onViewChange }: Props) {
   const [view, setViewState] = useState<View>('list');
+  const [detailTab, setDetailTab] = useState<DetailTab>('detail');
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<AppointmentService>(appointmentServices[0]);
   const [records, setRecords] = useState<ServiceAssistanceRecord[]>(readRecords);
@@ -74,7 +76,10 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
 
   useEffect(() => {
     if (scenario === 'default') setViewState('list');
-    if (scenario === 'detail') setViewState('detail');
+    if (scenario === 'detail') {
+      setDetailTab('detail');
+      setViewState('detail');
+    }
     if (scenario === 'records') setViewState('records');
     if (scenario === 'requested' || scenario === 'handling' || scenario === 'expired' || scenario === 'cancelled' || scenario === 'handled' || scenario === 'completed' || scenario === 'reviewed') {
       setLatest(current => {
@@ -105,6 +110,13 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
   const communityServices = useMemo(() => appointmentServices.filter(service => service.coverageMode === 'all' || service.coverageCommunityIds.includes(currentElderProfile.communityId)), []);
   const visible = useMemo(() => filter === 'all' ? communityServices : communityServices.filter(item => item.category === filter), [communityServices, filter]);
   const counts = useMemo(() => Object.fromEntries(appointmentCategories.map(item => [item.code, communityServices.filter(service => service.category === item.code).length])), [communityServices]);
+  const serviceReviewSummaries = useMemo(() => new Map(communityServices.map(service => [
+    service.id,
+    getServiceReviewSummary(service.id, records) as ServiceReviewSummary,
+  ])), [communityServices, records]);
+  const selectedReviewSummary = serviceReviewSummaries.get(selected.id) ?? { count: 0, average: null, reviews: [] };
+  const selectedReviews = selectedReviewSummary.reviews;
+  const selectedAverageRating = selectedReviewSummary.average;
 
   const requestFamilyHelp = (service = selected) => {
     const scenarioRecord = latest?.service.id === service.id ? latest : null;
@@ -197,15 +209,27 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
 
   return <>
     {(view === 'list' || view === 'records') && <>{header}{switcher}</>}
-    {view === 'list' && <><div className="appointment-categories"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>全部 {communityServices.length}</button>{appointmentCategories.map(item => <button key={item.code} className={filter === item.code ? 'active' : ''} onClick={() => setFilter(item.code)}>{item.name} {counts[item.code]}</button>)}</div><section className="appointment-service-list">{visible.map(service => <button key={service.id} className="appointment-service-card" onClick={() => { setSelected(service); setView('detail', 'detail'); }}><img src={service.coverImage} alt="" /><div><small>{appointmentCategoryName(service.category)}</small><h3>{service.name}</h3><p>{service.provider}</p><b>{service.priceRange}<em> 参考价格区间</em></b></div><ChevronRight /></button>)}</section></>}
+    {view === 'list' && <><div className="appointment-categories"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>全部 {communityServices.length}</button>{appointmentCategories.map(item => <button key={item.code} className={filter === item.code ? 'active' : ''} onClick={() => setFilter(item.code)}>{item.name} {counts[item.code]}</button>)}</div><section className="appointment-service-list">{visible.map(service => {
+      const reviewSummary = serviceReviewSummaries.get(service.id) ?? { count: 0, average: null, reviews: [] };
+      return <button key={service.id} className="appointment-service-card" onClick={() => { setSelected(service); setDetailTab('detail'); setView('detail', 'detail'); }}><img src={service.coverImage} alt="" /><div><small>{appointmentCategoryName(service.category)}</small><h3>{service.name}</h3><p>{service.provider}</p><b>{service.priceRange}<em> 参考价格区间</em></b><span className={`appointment-service-rating${reviewSummary.count ? '' : ' is-empty'}`}>{reviewSummary.count ? <><Star />{reviewSummary.average!.toFixed(1)}<em>{reviewSummary.count} 条评价</em></> : '暂无评价'}</span></div><ChevronRight /></button>;
+    })}</section></>}
 
     {view === 'detail' && <section className="appointment-detail">
       <div className="appointment-detail-hero-image"><img src={selected.coverImage} alt={selected.name} /><span>{appointmentCategoryName(selected.category)}</span></div>
       <div className="appointment-detail-basics"><h2>{selected.name}</h2><p>{selected.description}</p></div>
       <div className="appointment-price-highlight"><div><small>参考价格区间</small><strong>{selected.priceRange}</strong></div><span>具体费用以服务人员上门确认为准</span></div>
-      <section className="appointment-introduction"><h3>服务介绍</h3><div><h4>服务内容</h4><p>{selected.serviceContent}</p></div><div><h4>注意事项</h4><ul>{selected.precautions.map(item => <li key={item}>{item}</li>)}</ul></div></section>
-      <section className="appointment-service-info"><h3>服务信息</h3><div className="appointment-provider"><UserRound /><div className="appointment-provider-content"><div className="appointment-provider-heading"><small>服务商</small><strong>{selected.provider}</strong></div><dl className="appointment-provider-facts"><div><dt><Clock3 />营业时间</dt><dd>{selected.businessHours}</dd></div><div><dt><MapPin />支持区域</dt><dd>{selected.serviceArea}</dd></div><div><dt><PhoneCall />服务电话</dt><dd><a href={`tel:${selected.providerPhone.replace(/\s/g, '')}`}>{selected.providerPhone}</a></dd></div></dl></div></div></section>
-      <section className="appointment-detail-gallery"><h3>服务详情</h3><div className="appointment-detail-images">{selected.detailImages.map(image => <img key={image} src={image} alt={`${selected.name}服务详情`} />)}</div></section>
+      <div className="appointment-detail-tabs" role="tablist" aria-label="服务详情内容">
+        <button type="button" role="tab" aria-selected={detailTab === 'detail'} className={detailTab === 'detail' ? 'active' : ''} onClick={() => setDetailTab('detail')}>详情</button>
+        <button type="button" role="tab" aria-selected={detailTab === 'reviews'} className={detailTab === 'reviews' ? 'active' : ''} onClick={() => setDetailTab('reviews')}>服务评价{selectedReviewSummary.count ? ` ${selectedReviewSummary.count}` : ''}</button>
+      </div>
+      {detailTab === 'detail' ? <>
+        <section className="appointment-introduction"><h3>服务介绍</h3><div><h4>服务内容</h4><p>{selected.serviceContent}</p></div><div><h4>注意事项</h4><ul>{selected.precautions.map(item => <li key={item}>{item}</li>)}</ul></div></section>
+        <section className="appointment-service-info"><h3>服务信息</h3><div className="appointment-provider"><UserRound /><div className="appointment-provider-content"><div className="appointment-provider-heading"><small>服务商</small><strong>{selected.provider}</strong></div><dl className="appointment-provider-facts"><div><dt><Clock3 />营业时间</dt><dd>{selected.businessHours}</dd></div><div><dt><MapPin />支持区域</dt><dd>{selected.serviceArea}</dd></div><div><dt><PhoneCall />服务电话</dt><dd><a href={`tel:${selected.providerPhone.replace(/\s/g, '')}`}>{selected.providerPhone}</a></dd></div></dl></div></div></section>
+        <section className="appointment-detail-gallery"><h3>服务详情</h3><div className="appointment-detail-images">{selected.detailImages.map(image => <img key={image} src={image} alt={`${selected.name}服务详情`} />)}</div></section>
+      </> : <section className="appointment-service-reviews">
+        {selectedAverageRating !== null && <header><div><h3>综合评分</h3></div><strong><Star />{selectedAverageRating.toFixed(1)}</strong></header>}
+        {selectedReviews.length ? <div className="appointment-service-review-list">{selectedReviews.map(review => <article key={review.recordId}><div><span>{review.reviewerName}</span><small>{formatTime(review.submittedAt)}</small></div><div className="appointment-service-review-stars" aria-label={`${review.rating} 星评价`}>{[1, 2, 3, 4, 5].map(value => <Star key={value} className={value <= review.rating ? 'active' : ''} />)}</div><p>{review.text || '未填写文字评价'}</p></article>)}</div> : <div className="appointment-service-review-empty"><Star /><strong>暂无评价</strong></div>}
+      </section>}
       <div className="appointment-detail-actions"><a className="primary-button appointment-call-button" href={`tel:${selected.providerPhone.replace(/\s/g, '')}`}><PhoneCall />拨打服务电话<span>{selected.providerPhone}</span></a><button className="secondary-button appointment-family-help-button" onClick={() => requestFamilyHelp()}><HandHeart />请家人帮忙</button></div>
     </section>}
 

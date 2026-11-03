@@ -10242,6 +10242,38 @@ th.sticky-right { background: #f7f8fa; }
   object-fit: cover;
 }
 
+.admin-style-theme .service-detail-summary { margin-bottom: 0; }
+.admin-style-theme .service-detail-tabs { margin: 16px 0; }
+.admin-style-theme .service-detail-tabs small {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #64748b;
+  background: #f1f5f9;
+  font-size: 10px;
+}
+.admin-style-theme .service-detail-tabs button.active small { color: #2563eb; background: #dbeafe; }
+.admin-style-theme .service-detail-tab-content { display: grid; gap: var(--admin-group-gap); }
+
+.admin-style-theme .service-review-summary { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
+.admin-style-theme .service-review-summary b { color: #b7791f; font-size: 12px; }
+.admin-style-theme .service-review-summary small { color: #94a3b8; font-size: 10px; }
+.admin-style-theme .service-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-style-theme .service-review-heading h3 { margin: 0; }
+.admin-style-theme .service-review-heading > span { color: #64748b; font-size: 11px; white-space: nowrap; }
+.admin-style-theme .service-review-heading > span b { color: #b7791f; }
+.admin-style-theme .service-review-list { margin-top: 12px; display: grid; gap: 8px; }
+.admin-style-theme .service-review-list article { padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+.admin-style-theme .service-review-list header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-style-theme .service-review-list header b { color: #b7791f; font-size: 12px; letter-spacing: 1px; }
+.admin-style-theme .service-review-list header span { color: #94a3b8; font-size: 10px; }
+.admin-style-theme .service-review-list p { margin: 7px 0 0; color: #475569; font-size: 12px; line-height: 1.65; }
+.admin-style-theme .service-review-empty { margin-top: 10px; padding: 22px 12px; border-radius: 8px; color: #94a3b8; background: #f8fafc; font-size: 12px; text-align: center; }
+
 .admin-style-theme .service-introduction p {
   margin: 0;
   color: #475569;

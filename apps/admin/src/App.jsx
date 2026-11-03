@@ -8,7 +8,7 @@ import communityLifeMock from "../../产品理解/90 原型与Mock素材/mock/�
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { unifiedCommunities, unifiedServiceCatalog } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
-import { readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
+import { getServiceReviewSummary, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import {
   careScriptMockApi,
   formatWeatherLocation,
@@ -197,7 +197,7 @@ const pageMeta = {
   activities: { title: "社区活动", description: "发布活动并跟踪老人参与意向与触达结果", add: "发布活动" },
   communityStaff: { title: "社区人员", description: "维护面向当前社区老人展示的社区人员与服务联系人", add: "新增人员" },
   services: { title: "服务协助记录", description: "查看老人从中控屏发起的“请家人帮忙”请求及家人处理结果", add: "" },
-  serviceCatalog: { title: "服务目录", description: "维护服务内容、服务图片与适用社区范围", add: "新增服务" },
+  serviceCatalog: { title: "服务目录", description: "维护老人可查看的服务内容与服务范围", add: "新增服务" },
   tabletDevices: { title: "平板设备", description: "查看平板自动上报、老人绑定和在线状态", add: "" },
   platformTabletDevices: { title: "平板设备", description: "跨项目查看平板版本、升级进度与执行结果", add: "" },
   tabletOta: { title: "平板 OTA 升级", description: "统一管理平板 ROM 固件与 APK 应用版本，并向指定项目下发升级任务", add: "上传升级包" },
@@ -443,7 +443,7 @@ const mapSharedServiceAssistanceRecord = (record) => {
   completedAt: record.completedAt || "",
   rating: record.review?.rating ?? null,
   reviewContent: record.review?.text || "",
-  reviewer: record.handledBy || "",
+  reviewer: record.elder?.name || "",
   reviewedAt: record.review?.submittedAt || "",
   source: "老人中控屏",
   };
@@ -3139,7 +3139,7 @@ function ServiceAssistanceRecordPage({ records, elderlyRecords, projects, commun
   );
 }
 
-function ServiceCatalogPage({ catalog, projects, onCreate, onView, onEdit }) {
+function ServiceCatalogPage({ catalog, projects, reviewSummaries, onCreate, onView, onEdit }) {
   const initialFilters = { query: "", category: "全部分类" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
@@ -3155,16 +3155,16 @@ function ServiceCatalogPage({ catalog, projects, onCreate, onView, onEdit }) {
     setFilters(initialFilters);
   };
   return <>
-    <div className="page-heading"><div><h1>服务目录</h1><p>维护服务内容、服务图片与适用社区范围</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增服务</button></div>
+    <div className="page-heading"><div><h1>服务目录</h1><p>维护老人可查看的服务内容与服务范围</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增服务</button></div>
     <section className="panel management-panel service-catalog-panel">
       <div className="filters service-catalog-filters">
         <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="服务名称、服务商、电话或介绍"/></div></label>
         <label><span>服务分类</span><select className="select-control filter-select" value={draftFilters.category} onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}><option>全部分类</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
         <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
       </div>
-      <div className="table-scroll"><table className="service-catalog-table"><thead><tr><th>服务名称</th><th>分类</th><th>服务介绍</th><th>服务商</th><th>电话</th><th>参考价格</th><th>营业时间</th><th>服务范围</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {visibleCatalog.map((service) => <tr key={service.id}><td><button className="service-catalog-name" onClick={() => onView(service)}><img src={service.coverImage} alt=""/><b>{service.name}</b></button></td><td>{service.category}</td><td>{service.description}</td><td>{service.provider}</td><td>{service.providerPhone}</td><td>{service.priceRange}</td><td>{service.businessHours}</td><td>{getServiceCoverageLabel(service, projects)}</td><td className="sticky-right"><button className="table-action" onClick={() => onView(service)}>详情</button><button className="table-action" onClick={() => onEdit(service)}>编辑</button></td></tr>)}
-        {!visibleCatalog.length && <tr><td colSpan="9"><div className="empty-table-state">暂无符合条件的服务</div></td></tr>}
+      <div className="table-scroll"><table className="service-catalog-table"><thead><tr><th>服务名称</th><th>分类</th><th>服务介绍</th><th>服务商</th><th>电话</th><th>参考价格</th><th>营业时间</th><th>服务范围</th><th>评价</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {visibleCatalog.map((service) => { const summary = reviewSummaries[service.id]; return <tr key={service.id}><td><button className="service-catalog-name" onClick={() => onView(service)}><img src={service.coverImage} alt=""/><b>{service.name}</b></button></td><td>{service.category}</td><td>{service.description}</td><td>{service.provider}</td><td>{service.providerPhone}</td><td>{service.priceRange}</td><td>{service.businessHours}</td><td>{getServiceCoverageLabel(service, projects)}</td><td>{summary?.count > 0 ? <div className="service-review-summary"><b>★ {summary.average.toFixed(1)}</b><small>{summary.count} 条评价</small></div> : <span className="muted-value">暂无评价</span>}</td><td className="sticky-right"><button className="table-action" onClick={() => onView(service)}>详情</button><button className="table-action" onClick={() => onEdit(service)}>编辑</button></td></tr>; })}
+        {!visibleCatalog.length && <tr><td colSpan="10"><div className="empty-table-state">暂无符合条件的服务</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>当前展示 {visibleCatalog.length} 条数据</span></div>
     </section>
   </>;
@@ -3287,14 +3287,19 @@ function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
   </AdminDrawer>;
 }
 
-function ServiceCatalogDetailDrawer({ record, projects, onClose, onEdit }) {
+function ServiceCatalogDetailDrawer({ record, projects, reviewSummary, onClose, onEdit }) {
+  const [activeTab, setActiveTab] = useState("detail");
+  useEffect(() => setActiveTab("detail"), [record.id]);
   return <AdminDrawer title="服务详情" ariaLabel="服务详情" className="service-catalog-detail-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>关闭</button><button className="primary-button" onClick={onEdit}>编辑服务</button></>}>
     <img className="service-detail-hero" src={record.coverImage} alt={`${record.name}封面图`}/>
-    <section className="detail-section"><h3>{record.name}</h3><p>{record.description}</p></section>
-    <section className="detail-section service-introduction"><h3>服务内容</h3><p>{record.serviceContent}</p></section>
-    <section className="detail-section service-introduction"><h3>注意事项</h3><p>{record.precautions}</p></section>
-    <section className="detail-section"><h3>服务信息</h3><div className="info-grid"><div><span>服务商</span><b>{record.provider}</b></div><div><span>营业时间</span><b>{record.businessHours}</b></div><div><span>服务范围</span><b>{getServiceCoverageLabel(record, projects)}</b></div><div><span>电话</span><b>{record.providerPhone}</b></div><div><span>参考价格</span><b>{record.priceRange}</b></div><div><span>分类</span><b>{record.category}</b></div></div></section>
-    <section className="detail-section service-introduction"><h3>服务详情</h3>{record.detailImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt={`${record.name}服务详情长图 ${index + 1}`}/>)}</section>
+    <section className="detail-section service-detail-summary"><h3>{record.name}</h3><p>{record.description}</p></section>
+    <div className="service-module-tabs service-detail-tabs" role="tablist" aria-label="服务详情视图"><button type="button" role="tab" aria-selected={activeTab === "detail"} className={activeTab === "detail" ? "active" : ""} onClick={() => setActiveTab("detail")}>服务详情</button><button type="button" role="tab" aria-selected={activeTab === "reviews"} className={activeTab === "reviews" ? "active" : ""} onClick={() => setActiveTab("reviews")}>服务评价 {reviewSummary?.count > 0 && <small>{reviewSummary.count}</small>}</button></div>
+    {activeTab === "detail" ? <div className="service-detail-tab-content">
+      <section className="detail-section service-introduction"><h3>服务内容</h3><p>{record.serviceContent}</p></section>
+      <section className="detail-section service-introduction"><h3>注意事项</h3><p>{record.precautions}</p></section>
+      <section className="detail-section"><h3>服务信息</h3><div className="info-grid"><div><span>服务商</span><b>{record.provider}</b></div><div><span>营业时间</span><b>{record.businessHours}</b></div><div><span>服务范围</span><b>{getServiceCoverageLabel(record, projects)}</b></div><div><span>电话</span><b>{record.providerPhone}</b></div><div><span>参考价格</span><b>{record.priceRange}</b></div><div><span>分类</span><b>{record.category}</b></div></div></section>
+      <section className="detail-section service-introduction"><h3>服务详情</h3>{record.detailImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt={`${record.name}服务详情长图 ${index + 1}`}/>)}</section>
+    </div> : <section className="detail-section service-review-section"><div className="service-review-heading"><h3>服务评价</h3>{reviewSummary?.count > 0 && <span><b>★ {reviewSummary.average.toFixed(1)}</b> · {reviewSummary.count} 条评价</span>}</div>{reviewSummary?.count > 0 ? <div className="service-review-list">{reviewSummary.reviews.map((review) => <article key={review.recordId}><header><b>{formatServiceRating(review.rating)}</b><span>{review.reviewerName} · {formatServiceAssistanceTime(review.submittedAt)}</span></header><p>{review.text || "仅评分，未填写评价内容"}</p></article>)}</div> : <div className="service-review-empty">暂无评价</div>}</section>}
   </AdminDrawer>;
 }
 
@@ -4440,6 +4445,7 @@ export function App() {
   const scopedTopicComments = useMemo(() => topicComments.filter((record) => record.projectId === currentProject?.id), [topicComments, currentProject?.id]);
   const scopedServiceCategories = useMemo(() => serviceCategories.filter((category) => category.projectId === currentProject?.id), [serviceCategories, currentProject?.id]);
   const scopedServiceBookings = useMemo(() => serviceBookings.filter((booking) => booking.projectId === currentProject?.id), [serviceBookings, currentProject?.id]);
+  const serviceReviewSummaries = useMemo(() => Object.fromEntries(serviceCatalog.map((service) => [service.id, getServiceReviewSummary(service.id)])), [serviceBookings, serviceCatalog]);
   const scopedRecommendationStrategies = useMemo(() => recommendationStrategies
     .filter((record) => (record.projectId || "PRJ-001") === currentProject?.id)
     .map((record) => {
@@ -5362,7 +5368,7 @@ export function App() {
               : safeActive === "services"
                 ? <ServiceAssistanceRecordPage records={platformMode === "platform" ? serviceBookings : scopedServiceBookings} elderlyRecords={platformMode === "platform" ? elderlyRecords : scopedElderlyRecords} projects={projects} communityName={currentProject?.name || "当前社区"} showCommunity={platformMode === "platform"} onOpen={(record) => setDrawer({ kind: "serviceAssistanceRecord", record })}/>
               : safeActive === "serviceCatalog" && platformMode === "platform"
-                ? <ServiceCatalogPage catalog={serviceCatalog} projects={unifiedCommunities} onCreate={() => setDrawer({ kind: "serviceCatalog" })} onView={(record) => setDrawer({ kind: "serviceCatalogDetail", record })} onEdit={(record) => setDrawer({ kind: "serviceCatalog", record })}/>
+                ? <ServiceCatalogPage catalog={serviceCatalog} projects={unifiedCommunities} reviewSummaries={serviceReviewSummaries} onCreate={() => setDrawer({ kind: "serviceCatalog" })} onView={(record) => setDrawer({ kind: "serviceCatalogDetail", record })} onEdit={(record) => setDrawer({ kind: "serviceCatalog", record })}/>
               : safeActive === "projects"
                 ? <ProjectPage projects={projects} members={communityMembers} roles={roles} onSave={saveProject} onToggle={toggleProject} onSaveMember={saveCommunityMember} onToggleMember={toggleCommunityMember}/>
                 : safeActive === "userManagement"
@@ -5420,7 +5426,7 @@ export function App() {
       {drawer?.kind === "serviceAssistanceRecord" && <ServiceAssistanceRecordDrawer record={drawer.record} elderly={(platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>}
       {drawer?.kind === "serviceCategory" && <ServiceCategoryDrawer key={drawer.record?.id || `new-service-category-${currentProjectId}`} record={drawer.record} categories={scopedServiceCategories} communityName={currentProject?.name || "当前社区"} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>}
       {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} projects={unifiedCommunities} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>}
-      {drawer?.kind === "serviceCatalogDetail" && <ServiceCatalogDetailDrawer record={drawer.record} projects={unifiedCommunities} onClose={() => setDrawer(null)} onEdit={() => setDrawer({ kind: "serviceCatalog", record: drawer.record })}/>}
+      {drawer?.kind === "serviceCatalogDetail" && <ServiceCatalogDetailDrawer record={drawer.record} projects={unifiedCommunities} reviewSummary={serviceReviewSummaries[drawer.record.id]} onClose={() => setDrawer(null)} onEdit={() => setDrawer({ kind: "serviceCatalog", record: drawer.record })}/>}
       {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>}
       {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.record?.id || drawer.condition?.code || "new-care-script"} condition={drawer.condition} availableConditions={drawer.availableConditions} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>}
       {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>}

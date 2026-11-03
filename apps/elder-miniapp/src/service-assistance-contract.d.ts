@@ -2,9 +2,15 @@ declare module '*服务协助记录共享Mock.js' {
   export const serviceAssistanceExpiryMessage: string;
   export const serviceAssistanceExpiryMs: number;
   export type ServiceAssistanceConfirmationCopy = { title: string; description: string; hint: string; confirmLabel: string; successMessage: string };
+  export type ServiceReviewSummary = {
+    count: number;
+    average: number | null;
+    reviews: Array<{ recordId: string; serviceId: string; rating: number; text: string; reviewerName: string; submittedAt: string }>;
+  };
   export function normalizeServiceAssistanceRecord<T extends Record<string, unknown>>(record: T, now?: number): T;
   export function getLatestServiceAssistanceRecord<T extends Record<string, unknown>>(records: T[], elderId: string | null | undefined, serviceId: string): T | null;
   export function getServiceAssistanceConfirmationCopy(record?: Record<string, unknown> | null): ServiceAssistanceConfirmationCopy;
+  export function getServiceReviewSummary(serviceId: string, records?: Record<string, unknown>[]): ServiceReviewSummary;
   export function readSharedServiceAssistanceRecords(): Record<string, unknown>[];
   export function upsertSharedServiceAssistanceRecord<T extends Record<string, unknown>>(record: T): T;
   export function requestSharedServiceAssistance<T extends Record<string, unknown>>(record: T): { record: T; reminded: boolean; message: string };

@@ -179,3 +179,16 @@ export const requestSharedServiceAssistance = (candidate) => {
   const record = upsertSharedServiceAssistanceRecord(candidate);
   return { record, reminded: false, message: "已通知家人" };
 };
+
+// 仅按服务 ID 汇总真实已提交评价，每条协助记录最多一条。
+export const getServiceReviewSummary = (serviceId, records = readSharedServiceAssistanceRecords()) => {
+  const seen = new Set();
+  const reviews = records.filter(record => {
+    if (record.service?.id !== serviceId || !record.review || seen.has(record.id)) return false;
+    if (!Number.isInteger(record.review.rating) || record.review.rating < 1 || record.review.rating > 5) return false;
+    if (record.review.elderId && record.review.elderId !== record.elder?.id) return false;
+    seen.add(record.id);
+    return true;
+  }).map(record => ({ recordId: record.id, serviceId, rating: record.review.rating, text: record.review.text || '', reviewerName: record.elder?.name || '老人', submittedAt: record.review.submittedAt }));
+  return { count: reviews.length, average: reviews.length ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)) : null, reviews };
+};

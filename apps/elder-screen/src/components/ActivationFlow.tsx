@@ -352,7 +352,7 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
             <button type="button" className="activation-modal__close" onClick={() => setShowHelp(false)} aria-label="关闭帮助"><X aria-hidden="true" /></button>
             <span className="activation-modal__icon"><CircleHelp aria-hidden="true" /></span>
             <h2 id="activation-help-title">无法完成设置？</h2>
-            <p>请先检查无线网密码。如果平板 SN 未登记，请联系工作人员完成登记后再重新检查。</p>
+            <p>请先检查无线网密码。若网络已连接但暂时无法查询绑定关系，请稍后重试。</p>
             <div className="activation-help-device"><span>联系服务人员时，请告知平板 SN</span><strong>{contractState.device.sn}</strong></div>
             <button type="button" className="activation-primary-action" onClick={() => setShowHelp(false)}>我知道了</button>
           </section>
