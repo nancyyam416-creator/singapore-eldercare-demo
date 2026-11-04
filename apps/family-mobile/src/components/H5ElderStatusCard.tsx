@@ -34,7 +34,7 @@ const scenarioCopy: Partial<Record<ElderStatusCardScenario, {
     tone: 'warning'
   },
   location_empty: {
-    alert: '暂未获取到老人位置',
+    alert: '暂未获取到居家位置',
     location: '暂无位置',
     updatedAt: '等待首次上报',
     tone: 'empty'
@@ -71,16 +71,16 @@ export const H5ElderStatusCard: React.FC<H5ElderStatusCardProps> = ({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-1.5">
+          <button type="button" onClick={onSwitchElder} disabled={!onSwitchElder} aria-label={`${parentProfile.name}，切换家人`} className="flex min-h-11 max-w-full items-center gap-1 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-white">
             <strong className="truncate text-lg font-extrabold text-white">{parentProfile.name}</strong>
             <span className="shrink-0 text-[11px] font-semibold text-white/55">（{parentProfile.age}岁）</span>
-          </div>
+            {onSwitchElder && <ChevronDown size={16} className="shrink-0 text-white/80" />}
+          </button>
           <div className="mt-1.5 flex min-w-0 items-center gap-1 text-[11px] font-semibold text-white/55">
             <MapPin size={13} className={`shrink-0 ${state.tone === 'normal' ? 'text-emerald-400' : state.tone === 'warning' ? 'text-amber-300' : 'text-slate-400'}`} />
-            <span className={`shrink-0 font-bold ${state.tone === 'empty' ? 'text-white/60' : 'text-white/85'}`}>位置：{location}</span>
-            <span className="text-white/25">·</span>
-            <span className="truncate">{state.updatedAt}</span>
+            <span className={`shrink-0 font-bold ${state.tone === 'empty' ? 'text-white/60' : 'text-white/85'}`}>居家位置：{location}</span>
           </div>
+          <p className="mt-1 text-[10px] text-white/45">{state.updatedAt}</p>
         </div>
 
         <button type="button" onClick={onOpenProfile} aria-label={`查看${parentProfile.name}的老人档案`} className="flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-[10px] font-bold text-white/75 transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
@@ -88,13 +88,8 @@ export const H5ElderStatusCard: React.FC<H5ElderStatusCardProps> = ({
         </button>
       </div>
 
-      <button type="button" onClick={() => setShowLocation(true)} className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/15"><MapPin size={16} /><span>查看位置</span><span className="ml-auto text-[10px] font-normal text-white/60">手机位置</span><ChevronRight size={14} /></button>
+      <button type="button" onClick={() => setShowLocation(true)} className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/15"><MapPin size={16} /><span>查看手机位置</span><ChevronRight size={14} className="ml-auto" /></button>
       {showLocation && createPortal(<H5ElderLocationSheet name={parentProfile.name} scenario={phoneScenario} onClose={() => setShowLocation(false)} />, document.getElementById('h5-phone-screen') ?? document.body)}
-      {onSwitchElder && (
-        <button type="button" onClick={onSwitchElder} className="mt-3 flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-bold text-white hover:bg-white/15">
-          <span>切换家人</span><ChevronDown size={15} />
-        </button>
-      )}
 
       {children}
     </section>
