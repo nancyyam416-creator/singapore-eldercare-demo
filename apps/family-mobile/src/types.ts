@@ -240,7 +240,7 @@ export interface ServiceCategory {
   status: 'enabled' | 'disabled';
 }
 
-export type StoreCategoryScenario = 'default' | 'alternate_community' | 'empty' | 'load_error' | 'category_disabled';
+export type StoreCategoryScenario = 'records' | 'default' | 'alternate_community' | 'empty' | 'load_error' | 'category_disabled';
 
 export interface Order {
   id: string;

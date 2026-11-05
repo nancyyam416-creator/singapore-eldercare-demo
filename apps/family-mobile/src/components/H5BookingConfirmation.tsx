@@ -14,7 +14,12 @@ const toStatus = (record: { status: string; familyHandlingStatus?: string }) => 
 ) as Status;
 const statusStyle: Record<Status, string> = { '家人处理完成': 'bg-emerald-50 text-emerald-700', '已失效': 'bg-slate-100 text-slate-500', '待处理': 'bg-amber-50 text-amber-700', '处理中': 'bg-blue-50 text-blue-600', '已处理': 'bg-emerald-50 text-emerald-700', '已取消': 'bg-slate-100 text-slate-500' };
 const StatusBadge = ({ state }: { state: Status }) => <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusStyle[state]}`}>{state === '待处理' ? '待家人处理' : state}</span>;
-const initial = () => initialServiceAssistanceRecords.map(record => normalizeServiceAssistanceRecord(record)).map(record => ({ ...record, state: toStatus(record) }));
+const pendingExample = { ...initialServiceAssistanceRecords[0], id: 'HELP-CHILD-PREVIEW-20261105', requestedAt: new Date().toISOString() };
+export function addPendingServiceAssistanceExample() {
+  upsertSharedServiceAssistanceRecord({ ...pendingExample, id: `HELP-PREVIEW-${Date.now()}`, requestedAt: new Date().toISOString() });
+  syncSharedRecords();
+}
+const initial = () => [pendingExample, ...initialServiceAssistanceRecords].map(record => normalizeServiceAssistanceRecord(record)).map(record => ({ ...record, state: toStatus(record) }));
 let records = initial();
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
@@ -23,7 +28,7 @@ const currentHandler = '张女士';
 const syncSharedRecords = () => {
   const shared = readSharedServiceAssistanceRecords().map((record) => ({ ...record, state: toStatus(record) }));
   const sharedIds = new Set(shared.map((record) => record.id));
-  const next = [...shared, ...initial().filter(record => !sharedIds.has(record.id))];
+  const next = [...shared, ...initial().filter(record => !sharedIds.has(record.id))].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   if (JSON.stringify(next) === JSON.stringify(records)) return;
   records = next;
   listeners.forEach(listener => listener());

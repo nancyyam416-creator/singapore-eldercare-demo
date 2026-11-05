@@ -1,3 +1,4 @@
+import { addPendingServiceAssistanceExample } from './H5BookingConfirmation';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -33,7 +34,7 @@ import {
 type ElderAcceptanceTarget = 'card' | 'profile';
 type FamilyPhotoAcceptanceTarget = 'list' | 'publish';
 type AcceptancePage = 'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile';
-type AcceptanceModule = 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding' | 'assistance_home';
+type AcceptanceModule = 'service_records' | 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding' | 'assistance_home';
 type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
@@ -243,7 +244,8 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
     { value: 'family_photos', label: '家庭相册' }
   ],
   care: [
-    { value: 'service_store', label: '服务目录' }
+    { value: 'service_store', label: '服务目录' },
+    { value: 'service_records', label: '服务协助记录' }
   ],
   profile: [
     { value: 'family_notifications', label: '消息' },
@@ -493,7 +495,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                   if (nextModule === 'login') onOpenLogin();
                   if (acceptancePage === 'home') onOpenHome();
                   if (nextModule === 'reminders') onOpenReminders();
-                  if (nextModule === 'service_store') onOpenStore();
+                  if (nextModule === 'service_store') { onStoreCategoryScenarioChange('default'); onOpenStore(); }
+                  if (nextModule === 'service_records') { onStoreCategoryScenarioChange('records'); onOpenStore(); }
                   if (nextModule === 'family_messages') onOpenFamilyMessages();
                   if (nextModule === 'family_notifications') onOpenFamilyNotifications();
                   if (nextModule === 'family_photos') {
@@ -976,6 +979,13 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
               </>
             )}
 
+            {acceptanceModule === 'service_records' && <section className="space-y-3" aria-label="服务协助记录交互">
+              <h3 className="text-xs font-bold text-slate-700">服务协助记录</h3>
+              <p className="text-[11px] leading-5 text-slate-500">在手机内选择待处理记录，接手事项、填写处理结果，再确认处理完成。取消和返回均可直接验收。</p>
+              <button type="button" onClick={() => { onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg bg-blue-600 p-3 text-xs font-bold text-white">打开服务协助记录</button>
+              <button type="button" onClick={() => { addPendingServiceAssistanceExample(); onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-bold text-blue-600">新增一条待处理协助</button>
+              <p className="text-[10px] text-slate-400">新增记录保留原有记录，48小时未处理后失效。</p>
+            </section>}
             {acceptanceModule === 'service_store' && (
               <>
                 <section aria-label="服务目录场景">
