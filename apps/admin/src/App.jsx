@@ -5,6 +5,7 @@ import activityMusicCover from "./activity-music.svg";
 import activityHealthCover from "./activity-health.svg";
 import u2gLogo from "./u2g-logo.png";
 import communityLifeMock from "../../产品理解/90 原型与Mock素材/mock/社区生活跨端统一Mock.json";
+import { readSharedCommunityAnnouncements, setSharedCommunityAnnouncementStatus, subscribeSharedCommunityAnnouncements, upsertSharedCommunityAnnouncement } from "../../产品理解/90 原型与Mock素材/mock/社区公告共享Mock.js";
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { unifiedCommunities, unifiedServiceCatalog } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
@@ -312,8 +313,7 @@ const legacySafetyNews = [
 ];
 
 function getCommunityContentStatus(record) {
-  if (record.status === "已停用") return "已停用";
-  if (record.status === "未发布" || record.publishAt > communityContentMockNow) return "未发布";
+  if (record.status === "已停用" || record.status === "未发布" || record.publishAt > communityContentMockNow) return "已停用";
   return "已发布";
 }
 
@@ -694,7 +694,7 @@ const communityContentTypeLabels = {
   topic: "社区话题",
   alert: "警惕事项",
 };
-const communityContentStatusLabels = { unpublished: "未发布", published: "已发布", disabled: "已停用" };
+const communityContentStatusLabels = { unpublished: "已停用", published: "已发布", disabled: "已停用" };
 const communityParticipationStatusLabels = { interested: "想参加", not_interested: "暂不参加" };
 const communityLiveStatusLabels = { not_started: "未开始", live: "直播中", ended: "已结束" };
 const communityActivityMockNow = new Date("2026-08-24T15:00:00+08:00").getTime();
@@ -779,6 +779,57 @@ const initialSafetyNews = communityLifeMock.communityContents.map((item) => ({
   updatedAt: formatMockDateTime(item.updatedAt),
 }));
 
+const sharedAnnouncementToSafetyNews = (item) => ({
+  id: item.id,
+  projectId: item.projectId,
+  communityId: item.communityId,
+  resourceType: "announcement",
+  type: "社区公告",
+  title: item.title,
+  description: item.summary,
+  content: richTextToPlainText(item.bodyHtml),
+  contentHtml: item.bodyHtml,
+  cover: item.coverUrl || "",
+  coverUrl: item.coverUrl || "",
+  coverKind: item.coverKind || (item.coverUrl ? "image" : "default_icon"),
+  source: item.source,
+  audience: item.audience || "当前社区全部老人",
+  publishAt: formatMockDateTime(item.publishAt),
+  validUntil: formatMockDateTime(item.validUntil),
+  displayOrder: item.displayOrder,
+  status: item.publishStatus === "disabled" ? "已停用" : "已发布",
+  syncToRecommendation: item.syncToRecommendation !== false,
+  recommendationStartsAt: item.recommendationStartsAt || "",
+  recommendationEndsAt: item.recommendationEndsAt || "",
+  updatedAt: formatMockDateTime(item.updatedAt),
+});
+
+const safetyNewsToSharedAnnouncement = (record) => ({
+  id: record.id,
+  projectId: record.projectId,
+  communityId: record.communityId || record.projectId,
+  resourceType: "announcement",
+  title: record.title,
+  summary: record.description,
+  bodyHtml: record.contentHtml || legacyContentToHtml(record.content),
+  coverUrl: record.coverUrl || "",
+  source: record.source,
+  audience: "当前社区全部老人",
+  publishAt: record.publishAt,
+  validUntil: record.validUntil,
+  displayOrder: record.displayOrder,
+  publishStatus: getCommunityContentStatus(record) === "已停用" ? "disabled" : "published",
+  syncToRecommendation: record.syncToRecommendation !== false,
+  recommendationStartsAt: record.recommendationStartsAt || "",
+  recommendationEndsAt: record.recommendationEndsAt || "",
+  updatedAt: record.updatedAt,
+});
+
+const mergeSharedAnnouncements = (records, sharedRecords = readSharedCommunityAnnouncements()) => [
+  ...records.filter((record) => record.type !== "社区公告"),
+  ...sharedRecords.map(sharedAnnouncementToSafetyNews),
+];
+
 const initialCommunityTopics = (communityLifeMock.communityTopics || []).map((item) => ({
   ...item,
   createdAt: formatMockDateTime(item.createdAt),
@@ -859,6 +910,41 @@ function normalizeRecommendationSourceDateTime(value, endOfDay = false) {
   const normalized = String(value).replace(" ", "T");
   if (normalized.includes("T")) return normalized.slice(0, 16);
   return `${normalized.slice(0, 10)}T${endOfDay ? "23:59" : "00:00"}`;
+}
+
+function formatLocalDateTimeValue(date) {
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
+  return localTime.toISOString().slice(0, 16);
+}
+
+function createAutomaticRecommendationValidity(publishedAt) {
+  const startsAt = normalizeRecommendationSourceDateTime(publishedAt);
+  const startDate = new Date(startsAt);
+  const safeStartDate = Number.isNaN(startDate.getTime()) ? new Date(recommendationMockNow) : startDate;
+  return {
+    recommendationStartsAt: formatLocalDateTimeValue(safeStartDate),
+    recommendationEndsAt: formatLocalDateTimeValue(new Date(safeStartDate.getTime() + 24 * 60 * 60 * 1000)),
+  };
+}
+
+function findSourceRecommendation(items, sourceId, type) {
+  const matches = items.filter((item) => item.sourceId === sourceId && item.type === type);
+  return matches.find((item) => item.sourceManaged)
+    || matches.find((item) => item.enabled && item.startsAt <= recommendationMockNow && item.endsAt >= recommendationMockNow)
+    || matches.find((item) => item.enabled)
+    || matches[0];
+}
+
+function dedupeSourceRecommendations(items) {
+  const keepBySource = new Map();
+  items.forEach((item) => {
+    if (!item.sourceId || item.type === "third_party_entertainment") return;
+    const key = `${item.type}:${item.sourceId}`;
+    if (!keepBySource.has(key)) keepBySource.set(key, findSourceRecommendation(items, item.sourceId, item.type)?.id);
+  });
+  return items
+    .filter((item) => !item.sourceId || item.type === "third_party_entertainment" || keepBySource.get(`${item.type}:${item.sourceId}`) === item.id)
+    .map((item) => item.sourceId && item.type !== "third_party_entertainment" ? { ...item, sourceManaged: true } : item);
 }
 
 const recommendationMockNow = "2026-08-21T10:00";
@@ -1790,13 +1876,10 @@ function FamilyRelationshipPanel({ relations, onUnlinkRelation }) {
   );
 }
 
-function ElderlyReminderPanel({ reminders, onCreate, onEdit, onDelete, onViewPlan }) {
-  const [view, setView] = useState("current");
+function ElderlyReminderPanel({ reminders, onCreate, onEdit, onDelete }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState("");
-  const currentDefinitions = reminders.filter((reminder) => !reminder.deletedAt);
-  const deletedHistory = reminders.filter((reminder) => reminder.deletedAt).sort((left, right) => right.deletedAt.localeCompare(left.deletedAt));
-  const rows = view === "current" ? currentDefinitions : deletedHistory;
+  const rows = reminders.filter((reminder) => !reminder.deletedAt);
 
   const confirmDelete = () => {
     const result = onDelete(deleteTarget.id);
@@ -1810,8 +1893,8 @@ function ElderlyReminderPanel({ reminders, onCreate, onEdit, onDelete, onViewPla
 
   return <>
     <section className="panel detail-page-panel elderly-reminder-panel elderly-detail-content">
-      <div className="panel-title"><div><h3>提醒事项</h3></div><div className="panel-title-actions"><div className="reminder-view-tabs" role="tablist" aria-label="提醒记录范围"><button className={view === "current" ? "active" : ""} onClick={() => setView("current")}>当前提醒 <span>{currentDefinitions.length}</span></button><button className={view === "history" ? "active" : ""} onClick={() => setView("history")}>已删除记录 <span>{deletedHistory.length}</span></button></div>{view === "current" && <button className="primary-button" onClick={onCreate}><Plus size={15}/>新建提醒</button>}</div></div>
-      <div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>计划时间</th><th>重复方式</th><th>{view === "current" ? "最后更新" : "删除时间"}</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span>{view === "current" ? <Bell size={16}/> : <FileClock size={16}/>}</span><div><b>{reminder.title}</b><small>{view === "history" ? "提醒定义已删除，不再产生后续实例" : reminder.type === "用药提醒" ? [reminder.dosage, reminder.usage].filter(Boolean).join(" · ") || reminder.note || "暂无用药说明" : reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time} · 老人当地时间</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{view === "current" ? reminder.updatedBy || reminder.createdBy : reminder.deletedBy}</b><small>{view === "current" ? reminder.updatedAt || reminder.createdAt : reminder.deletedAt}</small></div></td><td className="sticky-right">{view === "current" ? <><button className="table-action" onClick={() => onViewPlan(reminder)}>详细计划</button><button className="table-action" onClick={() => onEdit(reminder)}>编辑</button><button className="table-action danger-text" onClick={() => { setDeleteTarget(reminder); setDeleteError(""); }}>删除</button></> : <button className="table-action" onClick={() => onViewPlan(reminder)}>查看执行历史</button>}</td></tr>)}{!rows.length && <tr><td colSpan="6"><div className="empty-table-state">{view === "current" ? "当前老人暂无提醒事项，可点击“新建提醒”进行配置" : "当前老人暂无已删除提醒记录"}</div></td></tr>}</tbody></table></div>
+      <div className="panel-title"><div><h3>提醒事项</h3></div><div className="panel-title-actions"><button className="primary-button" onClick={onCreate}><Plus size={15}/>新建提醒</button></div></div>
+      <div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>计划时间</th><th>重复方式</th><th>最后更新</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.type === "用药提醒" ? [reminder.dosage, reminder.usage].filter(Boolean).join(" · ") || reminder.note || "暂无用药说明" : reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time}</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{reminder.updatedBy || reminder.createdBy}</b><small>{reminder.updatedAt || reminder.createdAt}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(reminder)}>编辑</button><button className="table-action danger-text" onClick={() => { setDeleteTarget(reminder); setDeleteError(""); }}>删除</button></td></tr>)}{!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人暂无提醒事项，可点击“新建提醒”进行配置</div></td></tr>}</tbody></table></div>
     </section>
     {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.title}”？`} description="删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。" error={deleteError} confirmLabel={deleteError ? "重试删除" : "确认删除"} icon={<Trash2 size={20}/>} onClose={() => { setDeleteTarget(null); setDeleteError(""); }} onConfirm={confirmDelete}/>}
   </>;
@@ -1824,7 +1907,7 @@ function ArchiveSubjectSummary({ name, details }) {
   </section>;
 }
 
-function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelations, inactivityRule, initialTab = "profile", onClose, onEdit, onManageSpaces, onAddSensor, onViewSensor, onManageTablet, onUnlinkRelation, onCreateReminder, onEditReminder, onDeleteReminder, onViewReminderPlan }) {
+function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelations, inactivityRule, initialTab = "profile", onClose, onEdit, onManageSpaces, onAddSensor, onViewSensor, onManageTablet, onUnlinkRelation, onCreateReminder, onEditReminder, onDeleteReminder }) {
   const [tab, setTab] = useState(initialTab);
   const emergencyContacts = getEmergencyContacts(record);
   tablet = tablet ? { ...tablet, id: formatDisplayId(tablet.id) } : tablet;
@@ -1850,7 +1933,7 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
       </div>
     </div>}
     {tab === "family" && <FamilyRelationshipPanel relations={familyRelations} onUnlinkRelation={onUnlinkRelation}/>}
-    {tab === "reminders" && <ElderlyReminderPanel reminders={reminders} onCreate={onCreateReminder} onEdit={onEditReminder} onDelete={onDeleteReminder} onViewPlan={onViewReminderPlan}/>}
+    {tab === "reminders" && <ElderlyReminderPanel reminders={reminders} onCreate={onCreateReminder} onEdit={onEditReminder} onDelete={onDeleteReminder}/>}
     {tab === "spaces" && <section className="panel sensor-relation-panel elderly-detail-content"><div className="panel-title"><div><h3>房间与活动传感器</h3></div><div className="panel-title-actions"><button className="secondary-button" onClick={onManageSpaces}>管理房间</button><button className="primary-button" onClick={onAddSensor}><Plus size={15}/>添加传感器</button></div></div><div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称</th><th>安装房间</th><th>设备型号 / SN</th><th>在线状态</th><th>最近上报</th><th>操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><b>{sensor.name}</b></td><td>{sensor.room}</td><td><div className="stacked-cell"><b>{sensor.model}</b><small>{sensor.sn}</small></div></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastReport}</td><td><button className="table-action" onClick={() => onViewSensor(sensor)}>详情</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section>}
     {tab === "tablet" && <section className="panel tablet-detail-page elderly-detail-content">
       <div className="panel-title"><div><h3>平板设备</h3></div>{tablet && <button className="primary-button" onClick={onManageTablet}>管理绑定</button>}</div>
@@ -2366,7 +2449,7 @@ function RecommendationDayScheduleDrawer({ mode, date, record, strategies, sched
   </AdminDrawer>;
 }
 
-function RecommendationStrategyPage({ strategies, reminderPolicies, communityName, acceptanceScenario = "normal", onCreate, onEdit, onToggle, onMove }) {
+function RecommendationStrategyPage({ strategies, reminderPolicies, communityName, acceptanceScenario = "normal", calendarInsert, onCreate, onEdit, onToggle, onMove }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("全部类型");
   const [status, setStatus] = useState("全部状态");
@@ -2387,12 +2470,12 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [scheduleToast, setScheduleToast] = useState(null);
   const [daySortDrag, setDaySortDrag] = useState(null);
+  const handledCalendarInsertRef = useRef("");
   const sortedStrategies = sortRecommendations(strategies);
   const todayKey = recommendationMockNow.slice(0, 10);
   const weekDays = buildRecommendationWeek(selectedDate);
   const calendarDays = calendarMode === "month" ? buildRecommendationCalendar(calendarMonth.year, calendarMonth.month) : weekDays;
   const calendarTitle = calendarMode === "month" ? `${calendarMonth.year} 年 ${calendarMonth.month + 1} 月` : formatRecommendationWeekRange(weekDays);
-  const selectedIsToday = selectedDate === todayKey;
   useEffect(() => {
     try {
       window.localStorage.setItem(recommendationScheduleOverrideStorageKey, JSON.stringify(scheduleOverrides));
@@ -2450,10 +2533,6 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
   const manageDate = (date) => {
     setSelectedDate(date);
   };
-  const openAddSchedule = (date) => {
-    setSelectedDate(date);
-    setScheduleDrawer({ mode: "add", date });
-  };
   const openEditSchedule = (date, item) => {
     setSelectedDate(date);
     setScheduleDrawer({ mode: "edit", date, itemId: item.id });
@@ -2472,6 +2551,16 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
     setScheduleToast({ message: `${source.name}的当天排期已${scheduleDrawer.mode === "edit" ? "更新" : "新增"}` });
     return true;
   };
+  useEffect(() => {
+    if (!calendarInsert || handledCalendarInsertRef.current === calendarInsert.token) return;
+    const source = strategies.find((item) => item.id === calendarInsert.itemId);
+    if (!source) return;
+    handledCalendarInsertRef.current = calendarInsert.token;
+    const currentItems = dayItems(calendarInsert.date);
+    if (!currentItems.some((item) => item.id === source.id)) setDayItems(calendarInsert.date, [...currentItems, source]);
+    setSelectedDate(calendarInsert.date);
+    setScheduleToast({ message: `${source.name}已新增并加入${Number(calendarInsert.date.slice(5, 7))}月${Number(calendarInsert.date.slice(8, 10))}日排期` });
+  }, [calendarInsert, strategies]);
   const reorderDayItem = (date, itemId, offset) => {
     const items = dayItems(date);
     const index = items.findIndex((item) => item.id === itemId);
@@ -2524,9 +2613,9 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
 
   return (
     <>
-      <div className="page-heading"><div><h1>推荐策略</h1><p>配置老人端推荐内容的展示顺序、有效时间与轮换参数</p></div>{activeView === "content" && <button className="primary-button" onClick={() => onCreate()}><Plus size={16}/>新增推荐内容</button>}</div>
+      <div className="page-heading"><div><h1>推荐策略</h1><p>配置老人端推荐内容的展示顺序、有效时间与轮换参数</p></div><button className="primary-button" onClick={() => onCreate(activeView === "calendar" ? selectedDate : undefined)}><Plus size={16}/>新增推荐内容</button></div>
       <div className="recommendation-calendar-summary"><div><div className="admin-metric-heading"><span>当前可展示</span><MetricHelp label="当前可展示指标说明" content="当前启用且处于生效时间的内容"/></div><b>{todayAvailableCount}<small>条</small></b></div><div><div className="admin-metric-heading"><span>未来 7 天有排期</span><MetricHelp label="未来 7 天有排期指标说明" content="未来7天至少有1条有效内容的天数"/></div><b>{displayedSevenDayCoverage.filter(Boolean).length}<small>天</small></b></div><div className={displayedSevenDayCoverage.some((count) => !count) ? "warning" : ""}><div className="admin-metric-heading"><span>未来 7 天无排期</span><MetricHelp label="未来 7 天无排期指标说明" content="未来7天没有有效内容的天数"/></div><b>{displayedSevenDayCoverage.filter((count) => !count).length}<small>天</small></b></div></div>
-      <div className="service-module-tabs recommendation-view-tabs" role="tablist" aria-label="推荐策略视图"><button type="button" role="tab" aria-selected={activeView === "calendar"} className={activeView === "calendar" ? "active" : ""} onClick={() => setActiveView("calendar")}>排期日历</button><button type="button" role="tab" aria-selected={activeView === "content"} className={activeView === "content" ? "active" : ""} onClick={() => { setActiveView("content"); setDateFilterEnabled(false); }}>内容管理 <small>{strategies.length}</small></button></div>
+      <div className="service-module-tabs recommendation-view-tabs" role="tablist" aria-label="推荐策略视图"><button type="button" role="tab" aria-selected={activeView === "calendar"} className={activeView === "calendar" ? "active" : ""} onClick={() => setActiveView("calendar")}>排期日历</button><button type="button" role="tab" aria-selected={activeView === "content"} className={activeView === "content" ? "active" : ""} onClick={() => { setActiveView("content"); setDateFilterEnabled(false); }}>内容管理</button></div>
       {activeView === "calendar" && <section className="panel recommendation-calendar-panel"><div className={`recommendation-calendar-layout ${calendarMode === "week" ? "week-view" : "month-view"}`}>
           <div className="recommendation-calendar-box">
             <div className="recommendation-calendar-toolbar"><div className="recommendation-calendar-navigation"><button type="button" aria-label={calendarMode === "month" ? "上个月" : "上一周"} onClick={() => moveCalendarPeriod(-1)}><ChevronLeft size={16}/></button><b>{calendarTitle}</b><button type="button" aria-label={calendarMode === "month" ? "下个月" : "下一周"} onClick={() => moveCalendarPeriod(1)}><ChevronRight size={16}/></button></div><div className="recommendation-calendar-toolbar-actions"><button type="button" className="recommendation-calendar-today" aria-label="回到今天" onClick={goToRecommendationToday}>今天</button><div className="recommendation-calendar-mode" role="group" aria-label="日历显示方式"><button type="button" aria-pressed={calendarMode === "week"} className={calendarMode === "week" ? "active" : ""} onClick={() => changeCalendarMode("week")}>周</button><button type="button" aria-pressed={calendarMode === "month"} className={calendarMode === "month" ? "active" : ""} onClick={() => changeCalendarMode("month")}>月</button></div></div></div>
@@ -2538,7 +2627,7 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
               const count = items.length;
               const hasNoSchedule = scheduledItems.length === 0;
               return <div key={date} role="button" tabIndex="0" aria-label={`查看 ${date} 推荐内容，共${count}条`} className={`recommendation-calendar-day ${date === selectedDate ? "selected" : ""} ${date === todayKey ? "today" : ""}`} onClick={() => manageDate(date)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); manageDate(date); } }}>
-                <div className="recommendation-calendar-day-head"><span>{Number(date.slice(8, 10))}</span><button type="button" aria-label={`新增${date}当天排期`} onClick={(event) => { event.stopPropagation(); openAddSchedule(date); }}><Plus size={12}/></button></div>
+                <div className="recommendation-calendar-day-head"><span>{Number(date.slice(8, 10))}</span></div>
                 <div className="recommendation-calendar-chips">{items.slice(0, calendarMode === "week" ? items.length : 2).map((item) => <button type="button" key={item.id} aria-label={item.automatic ? `${item.name}，系统自动来源：${item.sourceName}` : `${item.name}，回车编辑，Delete删除`} className={`type-${item.type} ${item.automatic ? "automatic" : ""}`} onClick={(event) => event.stopPropagation()} onDoubleClick={() => { if (!item.automatic) openEditSchedule(date, item); }} onKeyDown={(event) => { if (!item.automatic) handleChipKeyDown(event, date, item); }}>{item.automatic && <small>自动</small>}{item.name}</button>)}{calendarMode === "month" && count > 2 && <small>+{count - 2}</small>}</div>
                 {hasNoSchedule && <small className="recommendation-calendar-empty">无排期</small>}
               </div>;
@@ -2546,8 +2635,8 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
             <div className="recommendation-calendar-legend recommendation-type-legend" aria-label="推荐内容类型颜色说明"><b>内容类型</b>{recommendationTypes.map((item) => <span key={item.key}><i className={`type-${item.key}`}/>{item.label}</span>)}</div>
           </div>
           <div className="recommendation-day-preview">
-            <div className="recommendation-day-preview-heading"><div><span>{selectedDateLabel}</span><h4>当天排期</h4></div><div className="recommendation-day-preview-actions"><StatusTag>{selectedIsToday ? "可展示" : "排期"} {selectedScheduledItems.length} 条</StatusTag><button type="button" className="primary-button" aria-label={`新增${selectedDateLabel}排期`} onClick={() => openAddSchedule(selectedDate)}><Plus size={15}/>新增排期</button></div></div>
-            {selectedScheduledItems.length === 0 && <div className="recommendation-preview-empty"><CalendarDays size={22}/><div><b>当天暂无推荐内容</b><span>可新增当天排期，或前往内容管理维护推荐内容。</span></div></div>}
+            <div className="recommendation-day-preview-heading"><div><h4>当天排期</h4><span>{selectedDateLabel}</span></div></div>
+            {selectedScheduledItems.length === 0 && <div className="recommendation-preview-empty"><CalendarDays size={22}/><div><b>当天暂无推荐内容</b><span>可通过页面右上角新增推荐内容。</span></div></div>}
             {selectedDayItems.length > 0 && <div className="recommendation-day-list">{selectedDayItems.map((item, index) => item.automatic ? <div key={item.id} className="automatic-reminder-row"><span className="recommendation-auto-handle"><Bell size={14}/></span><em>自动</em><span><b>{item.name}</b><small>触发来源：{item.sourceName} · 终端：{item.policy.terminals.join("、")}</small></span></div> : <div key={item.id} className={daySortDrag === item.id ? "sorting" : ""} onDragOver={(event) => { if (daySortDrag) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (!daySortDrag || daySortDrag === item.id) return; const items = dayItems(selectedDate); const sourceIndex = items.findIndex((candidate) => candidate.id === daySortDrag); const targetIndex = items.findIndex((candidate) => candidate.id === item.id); const next = [...items]; const [moved] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, moved); setDayItems(selectedDate, next); setDaySortDrag(null); setScheduleToast({ message: `已调整${selectedDateLabel}的展示顺序` }); }}><span className="recommendation-sort-handle" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDaySortDrag(item.id); }} onDragEnd={() => setDaySortDrag(null)} aria-label={`拖拽调整${item.name}顺序`}><GripVertical size={15}/></span><em>{index + 1}</em><span><b>{item.name}</b><small>{item.sourceName || "未关联来源"} · 展示 {item.dayDurationSeconds ?? item.durationSeconds} 秒 · {(item.dayAfterView ?? item.afterView) === "exit" ? "查看后退出" : "继续轮换"}</small></span><div className="recommendation-day-actions"><button type="button" className="icon-button" disabled={index === 0} aria-label={`${item.name}上移`} onClick={() => reorderDayItem(selectedDate, item.id, -1)}><ChevronLeft size={14}/></button><button type="button" className="icon-button" disabled={index === selectedDayItems.length - 1} aria-label={`${item.name}下移`} onClick={() => reorderDayItem(selectedDate, item.id, 1)}><ChevronRight size={14}/></button><button type="button" className="table-action" onClick={() => openEditSchedule(selectedDate, item)}>编辑</button><button type="button" className="table-action danger-text" onClick={() => setDeleteTarget({ date: selectedDate, itemId: item.id, name: item.name })}>删除</button></div></div>)}</div>}
           </div>
         </div></section>}
@@ -2556,9 +2645,9 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
           <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索内容名称、编号或来源"/></div><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>可展示</option><option>未生效</option><option>已过期</option><option>已停用</option><option>来源不可用</option></select>{dateFilterEnabled && <button type="button" className="recommendation-date-chip" onClick={() => setDateFilterEnabled(false)}>{selectedDateLabel}排期 <X size={13}/></button>}</div>
         </div>
         <div className="table-scroll">
-          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>内容来源</th><th>内容类型</th><th>生效时间 / 失效时间</th><th>顺序</th><th>展示时长</th><th>查看后</th><th>同步状态</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-            {rows.map((item) => { const availability = getRecommendationAvailability(item); const isThirdParty = item.type === "third_party_entertainment"; const linkedSource = Boolean(item.sourceId) && !isThirdParty; return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>{item.id} · 创建 {item.createdAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{isThirdParty ? item.thirdPartyUrl || "来源链接不可用" : `${item.sourceId || "—"} · ${item.sourceStatus || "来源状态未知"}`}</small></div></td><td><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><b>{item.durationSeconds} 秒 / 次</b></td><td>{item.afterView === "exit" ? "退出推荐" : "继续轮换"}</td><td><StatusTag>{linkedSource ? item.sourceSyncEnabled ? "已同步" : "未同步" : "独立维护"}</StatusTag></td><td><div className="stacked-cell"><StatusTag>{availability}</StatusTag><button type="button" role="switch" aria-checked={item.sourceSyncEnabled ?? item.enabled} aria-label={`${item.name}同步到推荐状态`} className={`strategy-status-switch ${(item.sourceSyncEnabled ?? item.enabled) ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{(item.sourceSyncEnabled ?? item.enabled) ? "启用" : "停用"}</span></button></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
-            {!rows.length && <tr><td colSpan="10"><div className="empty-table-state">暂无符合条件的推荐内容</div></td></tr>}
+          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>内容来源</th><th>内容类型</th><th>生效时间 / 失效时间</th><th>顺序</th><th>同步状态</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+            {rows.map((item) => { const availability = getRecommendationAvailability(item); const isThirdParty = item.type === "third_party_entertainment"; const linkedSource = Boolean(item.sourceId) && !isThirdParty; return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>{item.id} · 创建 {item.createdAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{isThirdParty ? item.thirdPartyUrl || "来源链接不可用" : `${item.sourceId || "—"} · ${item.sourceStatus || "来源状态未知"}`}</small></div></td><td><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><StatusTag>{linkedSource ? item.sourceSyncEnabled ? "已同步" : "未同步" : "独立维护"}</StatusTag></td><td><div className="stacked-cell"><StatusTag>{availability}</StatusTag><button type="button" role="switch" aria-checked={item.sourceSyncEnabled ?? item.enabled} aria-label={`${item.name}同步到推荐状态`} className={`strategy-status-switch ${(item.sourceSyncEnabled ?? item.enabled) ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{(item.sourceSyncEnabled ?? item.enabled) ? "启用" : "停用"}</span></button></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
+            {!rows.length && <tr><td colSpan="8"><div className="empty-table-state">暂无符合条件的推荐内容</div></td></tr>}
           </tbody></table>
         </div>
         <div className="pagination"><span>共 {strategies.length} 条推荐内容，筛选后展示 {rows.length} 条{dateFilterEnabled ? ` · 当前仅看 ${selectedDateLabel}` : ""}</span></div>
@@ -2602,13 +2691,12 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activiti
     if (!form.sourceId) nextErrors.sourceId = isThirdParty ? "请选择平台已启用的娱乐入口" : "请选择需要推荐的来源内容";
     else if (isThirdParty && !currentGroup.items.some((item) => item.id === form.sourceId)) nextErrors.sourceId = "当前娱乐入口已停用，请重新选择平台已启用的入口";
     if (!isThirdParty && !form.name.trim()) nextErrors.name = "请输入内容名称";
-    if (!["continue", "exit"].includes(form.afterView)) nextErrors.afterView = "请选择老人查看后的处理方式";
     if (!form.startsAt || !form.endsAt) nextErrors.validity = "请选择生效和失效时间";
     if (form.startsAt && form.endsAt && form.startsAt >= form.endsAt) nextErrors.validity = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     const { sourceUnavailable: _sourceUnavailable, audience: _audience, ...cleanForm } = form;
-    onSave({ ...cleanForm, name: isThirdParty ? selectedResource.name : form.name.trim(), sourceId: selectedResource.id, sourceName: selectedResource.name, sourceUpdatedAt: selectedResource.date, thirdPartyUrl: isThirdParty ? selectedResource.url : "", enabled: isThirdParty ? true : form.enabled, displayOrder: Number(form.displayOrder), durationSeconds: Number(form.durationSeconds) });
+    onSave({ ...cleanForm, scheduleDate: presetDate || "", name: isThirdParty ? selectedResource.name : form.name.trim(), sourceId: selectedResource.id, sourceName: selectedResource.name, sourceUpdatedAt: selectedResource.date, thirdPartyUrl: isThirdParty ? selectedResource.url : "", enabled: isThirdParty ? true : form.enabled, displayOrder: Number(form.displayOrder), durationSeconds: Number(form.durationSeconds) });
   };
   return (
     <div className="drawer-layer">
@@ -2622,10 +2710,9 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, activiti
           {!isThirdParty && <label><span>内容名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：明早一起练太极"/>{errors.name && <small className="field-error">{errors.name}</small>}</label>}
           {isThirdParty && <div className="form-tip"><ShieldCheck size={18}/><div><b>平台统一维护</b><p>社区只能选择娱乐入口并配置推荐参数，不能修改名称、URL 或白名单。</p></div></div>}
           <div className="form-row"><label><span>生效时间 *</span><input type="datetime-local" value={form.startsAt} onChange={(event) => update("startsAt", event.target.value)}/></label><label><span>失效时间 *</span><input type="datetime-local" value={form.endsAt} onChange={(event) => update("endsAt", event.target.value)}/></label></div>{errors.validity && <small className="field-error">{errors.validity}</small>}
-          <h3>排序与轮换</h3>
-          <div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label><label><span>单次展示时长（秒）*</span><input type="number" min="5" max="120" value={form.durationSeconds} onChange={(event) => update("durationSeconds", event.target.value)}/></label></div>
-          <label><span>老人查看后 *</span><div className="strategy-enable-options"><button type="button" className={form.afterView === "continue" ? "active" : ""} onClick={() => update("afterView", "continue")}><b>继续轮换</b><small>下一轮仍可按规则再次展示</small></button><button type="button" className={form.afterView === "exit" ? "active" : ""} onClick={() => update("afterView", "exit")}><b>退出推荐</b><small>本轮退出，不删除原内容记录</small></button></div>{errors.afterView && <small className="field-error">{errors.afterView}</small>}<small className="section-helper">仅成功进入内容详情或第三方链接页后执行；打开失败不触发。</small></label>
-          {!isThirdParty && <label><span>启用状态 *</span><div className="strategy-enable-options"><button type="button" className={form.enabled ? "active" : ""} onClick={() => update("enabled", true)}><b>启用</b><small>符合有效期与轮换条件时可展示</small></button><button type="button" className={!form.enabled ? "active" : ""} onClick={() => update("enabled", false)}><b>停用</b><small>保留配置但不进入有效顺序</small></button></div></label>}
+          <h3>展示设置</h3>
+          <label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label>
+          {!isThirdParty && <label><span>启用状态 *</span><div className="strategy-enable-options compact-options"><button type="button" className={form.enabled ? "active" : ""} onClick={() => update("enabled", true)}><b>启用</b></button><button type="button" className={!form.enabled ? "active" : ""} onClick={() => update("enabled", false)}><b>停用</b></button></div></label>}
         </div></div>
         <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存内容</button></footer>
       </aside>
@@ -2747,76 +2834,6 @@ function EmergencyHelpDrawer({ event, elderly, onClose, onRetry, onSaveProcessin
   </aside></div>;
 }
 
-function ReminderManagementPage({ reminders, elderlyRecords, onCreate, onEdit, onDelete, onViewPlan }) {
-  const initialFilters = { query: "", type: "全部类型", date: "" };
-  const [view, setView] = useState("current");
-  const [draftFilters, setDraftFilters] = useState(initialFilters);
-  const [filters, setFilters] = useState(initialFilters);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleteError, setDeleteError] = useState("");
-  const [feedback, setFeedback] = useState(null);
-  const currentDefinitions = reminders.filter((reminder) => !reminder.deletedAt);
-  const deletedHistory = reminders.filter((reminder) => reminder.deletedAt).sort((left, right) => right.deletedAt.localeCompare(left.deletedAt));
-  const rows = (view === "current" ? currentDefinitions : deletedHistory).map((reminder) => ({
-    ...reminder,
-    elderly: elderlyRecords.find((record) => record.id === reminder.elderlyId),
-  })).filter((reminder) => {
-    const keyword = filters.query.trim().toLowerCase();
-    const matchesKeyword = !keyword || [reminder.title, reminder.elderly?.name, reminder.elderly?.phone, reminder.elderly?.project].some((field) => `${field || ""}`.toLowerCase().includes(keyword));
-    return matchesKeyword && (filters.type === "全部类型" || reminder.type === filters.type) && (!filters.date || reminder.date === filters.date);
-  });
-  const reset = () => {
-    setDraftFilters(initialFilters);
-    setFilters(initialFilters);
-  };
-  const showFeedback = (type, message) => {
-    setFeedback({ type, message });
-    window.setTimeout(() => setFeedback(null), 2600);
-  };
-  const confirmDelete = () => {
-    const result = onDelete(deleteTarget.id);
-    if (result?.ok === false) {
-      setDeleteError("删除失败，请重试。");
-      showFeedback("error", "删除失败，提醒仍保留在列表中，请重试。");
-      return;
-    }
-    const title = deleteTarget.title;
-    setDeleteTarget(null);
-    setDeleteError("");
-    showFeedback("success", `“${title}”已删除，历史执行记录仍可查询`);
-  };
-
-  return (
-    <>
-      <div className="page-heading"><div><h1>提醒事项</h1><p>为老人创建用药或日常提醒，并同步显示到老人档案</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新建提醒</button></div>
-      <section className="panel management-panel reminder-management-panel">
-        <div className="reminder-view-tabs" role="tablist" aria-label="提醒记录范围">
-          <button type="button" role="tab" aria-selected={view === "current"} className={view === "current" ? "active" : ""} onClick={() => setView("current")}>当前提醒定义 <span>{currentDefinitions.length}</span></button>
-          <button type="button" role="tab" aria-selected={view === "history"} className={view === "history" ? "active" : ""} onClick={() => setView("history")}>已删除执行记录 <span>{deletedHistory.length}</span></button>
-        </div>
-        <div className="filters reminder-filters">
-          <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="提醒名称、老人姓名或手机号"/></div></label>
-          <label><span>提醒类型</span><select className="select-control filter-select" value={draftFilters.type} onChange={(event) => setDraftFilters((current) => ({ ...current, type: event.target.value }))}><option>全部类型</option><option>用药提醒</option><option>日常提醒</option></select></label>
-          <label><span>提醒日期</span><input className="select-control filter-select" type="date" value={draftFilters.date} onChange={(event) => setDraftFilters((current) => ({ ...current, date: event.target.value }))}/></label>
-          <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
-        </div>
-        <div className="table-scroll">
-          {view === "current" ? <table className="reminder-table">
-            <thead><tr><th>提醒名称</th><th>所属老人</th><th>提醒类型</th><th>提醒时间</th><th>重复方式</th><th>创建信息</th><th className="sticky-right">操作</th></tr></thead>
-            <tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.type === "用药提醒" ? [reminder.dosage, reminder.usage].filter(Boolean).join(" · ") || reminder.note || "暂无用药说明" : reminder.note || "暂无补充说明"}</small></div></div></td><td>{reminder.elderly ? <div className="stacked-cell"><b>{reminder.elderly.name}</b><small>{reminder.elderly.project}</small></div> : "老人档案已移除"}</td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time} · 老人当地时间</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{reminder.createdBy}</b><small>{reminder.createdAt}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => onViewPlan(reminder)}>详细计划</button><button className="table-action" onClick={() => onEdit(reminder)}>编辑</button><button className="table-action danger-text" onClick={() => { setDeleteTarget(reminder); setDeleteError(""); }}>删除提醒</button></td></tr>)}{!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无提醒事项，请新建提醒或调整筛选条件</div></td></tr>}</tbody>
-          </table> : <table className="reminder-table reminder-history-table">
-            <thead><tr><th>提醒名称</th><th>所属老人</th><th>提醒类型</th><th>原计划</th><th>删除信息</th><th>保留记录</th><th className="sticky-right">操作</th></tr></thead>
-            <tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><FileClock size={16}/></span><div><b>{reminder.title}</b><small>提醒定义已删除，不再产生后续实例</small></div></div></td><td>{reminder.elderly ? <div className="stacked-cell"><b>{reminder.elderly.name}</b><small>{reminder.elderly.project}</small></div> : "老人档案已移除"}</td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date} {reminder.time}</b><small>{reminder.repeat} · 老人当地时间</small></div></td><td><div className="stacked-cell"><b>{reminder.deletedBy}</b><small>{reminder.deletedAt}</small></div></td><td><div className="stacked-cell"><b>{reminder.occurrences?.length || 0} 条执行记录</b><small>已停止 {reminder.stoppedFutureCount || 0} 条后续实例</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => onViewPlan(reminder)}>查看执行历史</button></td></tr>)}{!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无已删除提醒的执行记录</div></td></tr>}</tbody>
-          </table>}
-        </div>
-        <div className="pagination"><span>当前展示 {rows.length} 条数据</span></div>
-      </section>
-      {deleteTarget && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭删除确认" onClick={() => setDeleteTarget(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="删除提醒"><span className="confirm-icon danger"><Trash2 size={20}/></span><h3>删除“{deleteTarget.title}”？</h3><p>删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。</p>{deleteError && <div className="reminder-delete-error"><AlertTriangle size={15}/>{deleteError}</div>}<div><button className="secondary-button" onClick={() => setDeleteTarget(null)}>取消</button><button className="danger-button" onClick={confirmDelete}>{deleteError ? "重试删除" : "确认删除"}</button></div></section></div>}
-      {feedback && <div className={`reminder-feedback ${feedback.type}`}><span>{feedback.type === "success" ? <ShieldCheck size={16}/> : <AlertTriangle size={16}/>}</span>{feedback.message}</div>}
-    </>
-  );
-}
-
 function ReminderDrawer({ record, elderlyRecords, initialElderlyId = "", lockElderly = false, onClose, onSave }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [errors, setErrors] = useState({});
@@ -2881,17 +2898,6 @@ function ReminderDrawer({ record, elderlyRecords, initialElderlyId = "", lockEld
       {pickerOpen && !lockElderly && <ElderlyPickerModal records={elderlyRecords} value={form.elderlyId} onClose={() => setPickerOpen(false)} onConfirm={selectElderly}/>}
     </div>
   );
-}
-
-function ReminderPlanDrawer({ reminder, elderly, onClose }) {
-  const occurrences = reminder.occurrences || [];
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭详细计划" onClick={onClose}/><aside className="drawer reminder-plan-drawer" role="dialog" aria-modal="true" aria-label="提醒详细计划"><header><div><h2>{reminder.deletedAt ? "提醒执行历史" : "提醒详细计划"}</h2></div><button className="icon-button" aria-label="关闭详细计划" onClick={onClose}><X size={19}/></button></header><div className="drawer-body">
-    {reminder.deletedAt && <div className="reminder-history-notice"><FileClock size={18}/><div><b>提醒定义已删除</b><p>后续实例已停止，以下仅保留删除前已经发生的执行记录。</p></div></div>}
-    <section className="detail-section"><h3>提醒定义快照</h3><div className="info-grid"><div><span>提醒类型</span><StatusTag>{reminder.type}</StatusTag></div><div><span>所属老人</span><b>{elderly?.name || "老人档案已移除"}</b></div><div><span>开始日期</span><b>{reminder.date}</b></div><div><span>提醒时间</span><b>{reminder.time}</b></div><div><span>重复方式</span><b>{reminder.repeat}</b></div><div><span>时间口径</span><b>老人当地时间</b></div>{reminder.type === "用药提醒" && <><div><span>剂量</span><b>{reminder.dosage || "未填写"}</b></div><div><span>用法</span><b>{reminder.usage || reminder.note || "未填写"}</b></div></>}<div className="full"><span>事项说明</span><b>{reminder.note || "暂无补充说明"}</b></div></div></section>
-    <section className="detail-section"><div className="detail-section-title"><h3>执行实例</h3><span className="relation-count">{occurrences.length} 条</span></div><p className="reminder-plan-caption">执行状态只属于某一次提醒，不作为提醒定义字段。</p><div className="table-scroll"><table className="reminder-plan-table"><thead><tr><th>计划日期</th><th>提醒时间</th><th>执行状态</th><th>结果时间</th></tr></thead><tbody>{occurrences.map((item) => <tr key={item.id}><td>{item.date}</td><td>{item.time}</td><td><StatusTag>{item.status}</StatusTag></td><td>{item.resultAt}</td></tr>)}{!occurrences.length && <tr><td colSpan="4"><div className="empty-table-state">暂无已生成的执行实例</div></td></tr>}</tbody></table></div></section>
-    <section className="detail-section"><h3>管理信息</h3><div className="info-grid"><div><span>创建人</span><b>{reminder.createdBy}</b></div><div><span>创建时间</span><b>{reminder.createdAt}</b></div><div><span>最近修改人</span><b>{reminder.updatedBy || reminder.createdBy}</b></div><div><span>最近修改时间</span><b>{reminder.updatedAt || reminder.createdAt}</b></div>{reminder.deletedAt && <><div><span>删除人</span><b>{reminder.deletedBy}</b></div><div><span>删除时间</span><b>{reminder.deletedAt}</b></div><div className="full"><span>停止的后续实例</span><b>{reminder.stoppedFutureCount || 0} 条</b></div></>}</div></section>
-    <div className="form-tip"><ShieldCheck size={18}/><div><b>后台仅查看执行结果</b><p>后台不能代替老人确认已服药或已完成；删除提醒定义只停止后续实例，已发生记录不被改写。</p></div></div>
-  </div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
 }
 
 function TabletAssetDrawer({ device, onClose }) {
@@ -3418,6 +3424,10 @@ function richTextToPlainText(html = "") {
   return (container.textContent || "").replace(/\s+/g, " ").trim();
 }
 
+function countVisibleCharacters(value = "") {
+  return Array.from(String(value)).length;
+}
+
 function RichTextEditor({ label, value, readOnly = false, error, onChange }) {
   const editorRef = useRef(null);
   const savedRangeRef = useRef(null);
@@ -3487,22 +3497,63 @@ function RichTextEditor({ label, value, readOnly = false, error, onChange }) {
   </div>;
 }
 
+function RecommendationSyncSection({ checked, onChange, startsAt, endsAt, onStartsAtChange, onEndsAtChange, validityError }) {
+  return <div className="form-section recommendation-sync-section">
+    <h3>推荐同步</h3>
+    <label className="recommendation-sync-control">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)}/>
+      <span>
+        <b>同步到推荐</b>
+        <small>启用后，此内容将在设定时间内同步展示到推荐区域。</small>
+      </span>
+      <StatusTag>{checked ? "已开启" : "未开启"}</StatusTag>
+    </label>
+    {checked && <div className="recommendation-sync-validity">
+      <div className="form-row">
+        <label><span>生效时间 *</span><input type="datetime-local" value={startsAt} onChange={(event) => onStartsAtChange(event.target.value)}/></label>
+        <label><span>失效时间 *</span><input type="datetime-local" value={endsAt} onChange={(event) => onEndsAtChange(event.target.value)}/></label>
+      </div>
+      {validityError && <small className="field-error">{validityError}</small>}
+    </div>}
+  </div>;
+}
+
 function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClose, onSave, onSetLiveMockState }) {
   const readOnly = mode === "view";
   const [form, setForm] = useState(() => {
+    const defaultRecommendationValidity = createAutomaticRecommendationValidity(communityContentMockNow);
     if (record) {
       const { contentImages = [], ...rest } = record;
       return { ...rest, syncToRecommendation: record.syncToRecommendation ?? true, contentHtml: record.contentHtml || legacyContentToHtml(record.description, contentImages) };
     }
-    return { projectId: currentProject?.id, title: "", category: "", description: "", contentHtml: "<p><br></p>", cover: "", startAt: "", endAt: "", location: "", capacity: 30, registrationStartAt: "", registrationEndAt: "", isOffline: false, contact: "", liveEnabled: false, liveStatus: "not_started", scheduledLiveStartAt: "", zoomMeetingId: "", zoomMeetingPassword: "", zoomJoinUrl: "", liveMockState: "normal", syncToRecommendation: true };
+    return { projectId: currentProject?.id, title: "", category: "", description: "", contentHtml: "<p><br></p>", cover: "", startAt: "", endAt: "", location: "", capacity: 30, registrationStartAt: "", registrationEndAt: "", isOffline: false, contact: "", liveEnabled: false, liveStatus: "not_started", scheduledLiveStartAt: "", zoomMeetingId: "", zoomMeetingPassword: "", zoomJoinUrl: "", liveMockState: "normal", syncToRecommendation: true, ...defaultRecommendationValidity, recommendationEndAuto: true };
   });
   const [errors, setErrors] = useState({});
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
   const uploadCover = (file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => update("cover", String(reader.result || ""));
     reader.readAsDataURL(file);
+  };
+  const updateRecommendationStartsAt = (value) => {
+    setForm((current) => ({
+      ...current,
+      recommendationStartsAt: value,
+      recommendationEndsAt: current.recommendationEndAuto ? (value ? createAutomaticRecommendationValidity(value).recommendationEndsAt : "") : current.recommendationEndsAt,
+    }));
+    setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
+  };
+  const updateRecommendationEndsAt = (value) => {
+    setForm((current) => ({ ...current, recommendationEndsAt: value, recommendationEndAuto: false }));
+    setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
   };
   const save = () => {
     const nextErrors = {};
@@ -3513,12 +3564,14 @@ function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClos
     if (!form.registrationStartAt || !form.registrationEndAt) nextErrors.registration = "请选择报名开始和截止时间";
     if (!form.location.trim()) nextErrors.location = "请输入活动地点";
     if (!form.contact.trim()) nextErrors.contact = "请输入联系电话";
+    if (form.syncToRecommendation && (!form.recommendationStartsAt || !form.recommendationEndsAt)) nextErrors.recommendationValidity = "请选择推荐生效时间和失效时间";
+    else if (form.syncToRecommendation && form.recommendationEndsAt <= form.recommendationStartsAt) nextErrors.recommendationValidity = "失效时间必须晚于生效时间";
     Object.assign(nextErrors, validateActivityLiveConfig(form));
     const plainContent = richTextToPlainText(form.contentHtml);
     if (!plainContent) nextErrors.contentHtml = "请输入活动详情内容";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSave({ ...form, title: form.title.trim(), location: form.location.trim(), contact: form.contact.trim(), zoomMeetingId: form.zoomMeetingId.trim(), zoomMeetingPassword: form.zoomMeetingPassword.trim(), zoomJoinUrl: form.zoomJoinUrl.trim(), description: plainContent, contentHtml: form.contentHtml });
+    onSave({ ...form, isOffline: record ? form.isOffline : false, title: form.title.trim(), location: form.location.trim(), contact: form.contact.trim(), zoomMeetingId: form.zoomMeetingId.trim(), zoomMeetingPassword: form.zoomMeetingPassword.trim(), zoomJoinUrl: form.zoomJoinUrl.trim(), description: plainContent, contentHtml: form.contentHtml });
   };
   const retainedLiveConfig = Boolean(form.scheduledLiveStartAt || form.zoomMeetingId || form.zoomMeetingPassword || form.zoomJoinUrl);
   const livePresentation = getActivityLivePresentation(form);
@@ -3531,8 +3584,8 @@ function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClos
         {(form.liveEnabled || (readOnly && retainedLiveConfig)) && <div className="activity-live-fields"><label><span>预计开播时间 *</span><input type="datetime-local" value={form.scheduledLiveStartAt} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("scheduledLiveStartAt", event.target.value)}/>{errors.scheduledLiveStartAt && <small className="field-error">{errors.scheduledLiveStartAt}</small>}</label><div className="form-row"><label><span>Zoom 会议 ID *</span><input inputMode="numeric" value={form.zoomMeetingId} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomMeetingId", event.target.value)} placeholder="例如：856 2011 4028"/>{errors.zoomMeetingId && <small className="field-error">{errors.zoomMeetingId}</small>}</label><label><span>Zoom 会议密码</span><input value={form.zoomMeetingPassword} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomMeetingPassword", event.target.value)} placeholder="如会议设置密码则填写"/></label></div><label><span>Zoom 加入链接</span><input value={form.zoomJoinUrl} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomJoinUrl", event.target.value)} placeholder="可选，例如：https://zoom.us/j/85620114028"/><small className="field-help">老人端优先拉起 Zoom App；拉起失败时使用该链接进入 Zoom H5。</small>{errors.zoomJoinUrl && <small className="field-error">{errors.zoomJoinUrl}</small>}</label></div>}
         {!form.liveEnabled && !retainedLiveConfig && <div className="activity-live-empty">当前活动不提供直播，老人端仅展示线下活动信息。</div>}
       </div>
-      <div className="form-section recommendation-sync-section"><h3>推荐同步</h3><label className="recommendation-sync-control"><input type="checkbox" role="switch" checked={Boolean(form.syncToRecommendation)} disabled={readOnly} onChange={(event) => update("syncToRecommendation", event.target.checked)}/><span><b>同步到推荐</b><small>保存活动后自动创建或恢复唯一推荐；关闭后仅停止推荐同步，不删除关联记录。</small></span><StatusTag>{form.syncToRecommendation ? "已开启" : "未开启"}</StatusTag></label></div>
-    </div><footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={save}>保存活动</button>}</footer>
+      {!record && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={(checked) => update("syncToRecommendation", checked)} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
+    </div><footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={save}>{record ? "保存修改" : "发布活动"}</button>}</footer>
   </aside></div>;
 }
 
@@ -3606,7 +3659,7 @@ function SafetyNewsPage({ records, contentType, communityName, onCreate, onView,
     return record.type === contentType
       && matchesKeyword
       && (filters.status === "全部状态" || derivedStatus === filters.status);
-  });
+  }).sort((first, second) => `${second.publishAt || ""}`.localeCompare(`${first.publishAt || ""}`) || first.id.localeCompare(second.id));
   const reset = () => {
     setDraftFilters(initialFilters);
     setFilters(initialFilters);
@@ -3618,15 +3671,15 @@ function SafetyNewsPage({ records, contentType, communityName, onCreate, onView,
       <section className="panel management-panel safety-news-panel">
         <div className="filters safety-news-filters">
           <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="内容标题、摘要或正文"/></div></label>
-          <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>未发布</option><option>已发布</option><option>已停用</option></select></label>
+          <label><span>发布状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>已发布</option><option>已停用</option></select></label>
           <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
         </div>
         <div className="table-scroll">
           <table className="safety-news-table">
-            <thead><tr><th>内容标题</th><th>适用对象</th><th>发布时间</th><th>展示顺序</th><th>推荐同步</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>内容标题</th><th>适用对象</th><th>发布时间</th><th>推荐同步</th><th>状态</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
-              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td>{record.audience}</td><td>{status === "未发布" ? <span className="muted-text">—</span> : record.publishAt}</td><td>{record.displayOrder}</td><td><StatusTag>{record.syncToRecommendation ? "已同步" : "未同步"}</StatusTag></td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button><button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "发布"}</button></td></tr>; })}
-              {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无符合条件的内容</div></td></tr>}
+              {rows.map((record) => { const status = getCommunityContentStatus(record); return <tr key={record.id}><td><button className="safety-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.description || "未填写摘要"}</small></button></td><td>{record.audience}</td><td>{record.publishAt || <span className="muted-text">—</span>}</td><td><StatusTag>{record.syncToRecommendation ? "已同步" : "未同步"}</StatusTag></td><td><StatusTag>{status}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button><button className="table-action" onClick={() => onEdit(record)}>编辑</button><button className={`table-action ${status === "已发布" ? "danger-text" : ""}`} onClick={() => status === "已发布" ? setConfirmTarget(record) : onStatusChange(record.id, "已发布")}>{status === "已发布" ? "停用" : "重新发布"}</button></td></tr>; })}
+              {!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前社区暂无符合条件的内容</div></td></tr>}
             </tbody>
           </table>
         </div>
@@ -3639,10 +3692,19 @@ function SafetyNewsPage({ records, contentType, communityName, onCreate, onView,
 
 function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告", currentProject, onClose, onSave }) {
   const readOnly = mode === "view";
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(() => {
+    const defaultRecommendationValidity = createAutomaticRecommendationValidity(communityContentMockNow);
     if (record) {
       const { contentImages = [], ...rest } = record;
-      return { ...rest, syncToRecommendation: record.syncToRecommendation ?? true, contentHtml: record.contentHtml || legacyContentToHtml(record.content, contentImages) };
+      return {
+        ...rest,
+        source: record.source || currentProject?.name || "",
+        audience: record.audience || "当前社区全部老人",
+        displayOrder: Number.isInteger(Number(record.displayOrder)) && Number(record.displayOrder) >= 1 ? Number(record.displayOrder) : 1,
+        syncToRecommendation: record.syncToRecommendation ?? true,
+        contentHtml: record.contentHtml || legacyContentToHtml(record.content, contentImages),
+      };
     }
     return {
       projectId: currentProject?.id,
@@ -3657,8 +3719,10 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
       publishAt: "2026-08-24 10:00",
       validUntil: "2026-09-24 23:59",
       displayOrder: 1,
-      status: "未发布",
+      status: "已发布",
       syncToRecommendation: true,
+      ...defaultRecommendationValidity,
+      recommendationEndAuto: true,
     };
   });
   const [errors, setErrors] = useState({});
@@ -3667,27 +3731,70 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
+      if (field === "title" && countVisibleCharacters(String(value).trim()) > 50) next.title = "内容标题最多 50 个字符";
+      if (field === "description" && countVisibleCharacters(value) > 200) next.description = "内容摘要最多 200 个字符";
+      if (field === "contentHtml" && countVisibleCharacters(richTextToPlainText(value)) > 10000) next.contentHtml = "正文内容最多 10000 个字符";
       return next;
     });
+  };
+  const selectCover = (file, input) => {
+    if (!file) return;
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    const supportedType = ["image/jpeg", "image/png", "image/webp"].includes(file.type) || (!file.type && ["jpg", "jpeg", "png", "webp"].includes(extension));
+    if (!supportedType) {
+      setErrors((current) => ({ ...current, cover: "封面图片仅支持 JPG、PNG 或 WebP 格式" }));
+      if (input) input.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((current) => ({ ...current, cover: "封面图片不能超过 5MB" }));
+      if (input) input.value = "";
+      return;
+    }
+    update("cover", file.name);
+    if (input) input.value = "";
+  };
+  const updateRecommendationStartsAt = (value) => {
+    setForm((current) => ({
+      ...current,
+      recommendationStartsAt: value,
+      recommendationEndsAt: current.recommendationEndAuto ? (value ? createAutomaticRecommendationValidity(value).recommendationEndsAt : "") : current.recommendationEndsAt,
+    }));
+    setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
+  };
+  const updateRecommendationEndsAt = (value) => {
+    setForm((current) => ({ ...current, recommendationEndsAt: value, recommendationEndAuto: false }));
+    setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
   };
   const submit = () => {
     const nextErrors = {};
     const plainContent = richTextToPlainText(form.contentHtml);
-    if (!form.title.trim()) nextErrors.title = "请输入内容标题";
+    const trimmedTitle = form.title.trim();
+    if (!trimmedTitle) nextErrors.title = "请输入内容标题";
+    else if (countVisibleCharacters(trimmedTitle) > 50) nextErrors.title = "内容标题最多 50 个字符";
+    if (countVisibleCharacters(form.description) > 200) nextErrors.description = "内容摘要最多 200 个字符";
     if (!plainContent) nextErrors.contentHtml = "请输入正文内容";
-    if (!Number.isInteger(Number(form.displayOrder)) || Number(form.displayOrder) < 1) nextErrors.displayOrder = "展示顺序必须为大于等于 1 的整数";
+    else if (countVisibleCharacters(plainContent) > 10000) nextErrors.contentHtml = "正文内容最多 10000 个字符";
+    if (form.syncToRecommendation && (!form.recommendationStartsAt || !form.recommendationEndsAt)) nextErrors.recommendationValidity = "请选择推荐生效时间和失效时间";
+    else if (form.syncToRecommendation && form.recommendationEndsAt <= form.recommendationStartsAt) nextErrors.recommendationValidity = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSave({
-      ...form,
-      title: form.title.trim(),
-      content: plainContent,
-      contentHtml: form.contentHtml,
-      audience: "当前社区全部老人",
-      source: `${form.source || ""}`.trim() || currentProject?.name || "",
-      displayOrder: Number(form.displayOrder),
-      publishAt: form.publishAt || "2026-08-24 10:00",
-    });
+    setSaving(true);
+    try {
+      onSave({
+        ...form,
+        title: form.title.trim(),
+        content: plainContent,
+        contentHtml: form.contentHtml,
+        audience: "当前社区全部老人",
+        source: `${form.source || ""}`.trim() || currentProject?.name || "",
+        status: record ? form.status : "已发布",
+        publishAt: record ? form.publishAt || communityContentMockNow : communityContentMockNow,
+      });
+    } catch (error) {
+      setErrors((current) => ({ ...current, submit: error.message || "发布失败，请重试" }));
+      setSaving(false);
+    }
   };
 
   return (
@@ -3698,19 +3805,15 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
         <div className="drawer-body" inert={readOnly ? true : undefined}>
           <div className="form-section safety-content-section">
             <h3>内容信息</h3>
-            <div className="cover-field"><span>封面图片</span><div className="cover-upload-control"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover || "上传封面图片"}</b><small>用于内容列表入口，与正文图片分开维护</small></div></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept="image/*" onChange={(event) => update("cover", event.target.files?.[0]?.name || "")}/></label></div></div>
+            <div className="cover-field"><span>封面图片</span>{readOnly ? <div className="cover-upload-control cover-readonly"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover ? "已配置封面" : "默认内容图标"}</b><small>{form.cover ? "封面仅用于列表入口" : "未上传封面时由老人端展示默认图标"}</small></div></div></div> : <div className="cover-upload-control"><div className="cover-upload-copy"><span><Upload size={17}/></span><div><b>{form.cover || "上传封面图片"}</b><small>单张 JPG、PNG 或 WebP，大小不超过 5MB</small></div></div><label className="secondary-button">{form.cover ? "更换图片" : "选择图片"}<input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(event) => selectCover(event.target.files?.[0], event.target)}/></label></div>}{errors.cover && <small className="field-error">{errors.cover}</small>}</div>
             <label><span>内容标题 *</span><input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="请输入内容标题"/>{errors.title && <small className="field-error">{errors.title}</small>}</label>
-            <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/></label>
+            <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/>{errors.description && <small className="field-error">{errors.description}</small>}</label>
             <RichTextEditor label="正文内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/>
           </div>
-          <div className="form-section safety-publish-section">
-            <h3>发布设置</h3>
-            <div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)} placeholder="请输入大于等于 1 的整数"/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><label><span>发布来源</span><input value={form.source} onChange={(event) => update("source", event.target.value)} placeholder={currentProject?.name || "当前社区名称"}/></label></div>
-            <label><span>适用对象</span><input value="当前社区全部老人" disabled/><small className="field-help">本轮适用对象固定为当前社区全部老人，不支持手工选择老人、标签或人群。</small></label>
-            <label className="recommendation-sync-control"><input type="checkbox" role="switch" checked={Boolean(form.syncToRecommendation)} disabled={readOnly} onChange={(event) => update("syncToRecommendation", event.target.checked)}/><span><b>同步到推荐</b><small>{getCommunityContentStatus(form) === "已发布" ? "修改后立即同步到推荐内容；关闭后保留关联记录但停止展示。" : "发布时自动创建推荐；草稿阶段不会生成推荐记录。"}</small></span><StatusTag>{form.syncToRecommendation ? "已开启" : "未开启"}</StatusTag></label>
-          </div>
+          {!record && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={(checked) => update("syncToRecommendation", checked)} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
+          {errors.submit && <div className="form-error-banner">{errors.submit}</div>}
         </div>
-        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={submit}>{record ? "保存修改" : "保存内容"}</button>}</footer>
+        <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" disabled={saving} onClick={submit}>{saving ? "处理中..." : record ? "保存修改" : "发布"}</button>}</footer>
       </aside>
     </div>
   );
@@ -4296,7 +4399,7 @@ export function App() {
   const [recommendationStrategies, setRecommendationStrategies] = useState(() => {
     try {
       const savedStrategies = window.localStorage.getItem("u2g-right-recommendations-v19-created-at-order");
-      if (!savedStrategies) return initialRecommendationStrategies;
+      if (!savedStrategies) return dedupeSourceRecommendations(initialRecommendationStrategies);
       const mergedStrategies = JSON.parse(savedStrategies).map((item) => {
         const preset = initialRecommendationStrategies.find((record) => record.id === item.id);
         const merged = preset ? { ...preset, ...item, createdAt: item.createdAt || preset.createdAt, sourceId: item.sourceId || preset.sourceId, sourceName: item.sourceName || preset.sourceName, sourceUpdatedAt: item.sourceUpdatedAt || preset.sourceUpdatedAt } : { ...item, createdAt: item.createdAt || recommendationMockNow };
@@ -4305,11 +4408,12 @@ export function App() {
         return directEntertainment;
       });
       const savedIds = new Set(mergedStrategies.map((item) => item.id));
-      return [...mergedStrategies, ...initialRecommendationStrategies.filter((item) => !savedIds.has(item.id))];
+      return dedupeSourceRecommendations([...mergedStrategies, ...initialRecommendationStrategies.filter((item) => !savedIds.has(item.id))]);
     } catch {
-      return initialRecommendationStrategies;
+      return dedupeSourceRecommendations(initialRecommendationStrategies);
     }
   });
+  const [recommendationCalendarInsert, setRecommendationCalendarInsert] = useState(null);
   const [communityStaff, setCommunityStaff] = useState(initialCommunityStaff);
   const [communityMembers, setCommunityMembers] = useState(readCommunityMembers);
   const [roles, setRoles] = useState(readRoles);
@@ -4317,9 +4421,22 @@ export function App() {
     try {
       const savedNews = window.localStorage.getItem("u2g-community-content-v22-topics-split");
       const records = savedNews ? JSON.parse(savedNews) : initialSafetyNews;
-      return records.map((record) => ({ ...record, syncToRecommendation: typeof record.syncToRecommendation === "boolean" ? record.syncToRecommendation : recommendationStrategies.some((item) => item.sourceId === record.id && item.type === recommendationTypeByCommunityContent[record.type] && item.enabled) }));
+      return mergeSharedAnnouncements(records).map((record) => {
+        const recommendationType = recommendationTypeByCommunityContent[record.type];
+        const linked = findSourceRecommendation(recommendationStrategies, record.id, recommendationType);
+        return {
+          ...record,
+          syncToRecommendation: typeof record.syncToRecommendation === "boolean" ? record.syncToRecommendation : Boolean(linked?.enabled),
+          recommendationStartsAt: record.recommendationStartsAt || linked?.startsAt || normalizeRecommendationSourceDateTime(record.publishAt),
+          recommendationEndsAt: record.recommendationEndsAt || linked?.endsAt || normalizeRecommendationSourceDateTime(record.validUntil, true),
+        };
+      });
     } catch {
-      return initialSafetyNews.map((record) => ({ ...record, syncToRecommendation: recommendationStrategies.some((item) => item.sourceId === record.id && item.type === recommendationTypeByCommunityContent[record.type] && item.enabled) }));
+      return mergeSharedAnnouncements(initialSafetyNews).map((record) => {
+        const recommendationType = recommendationTypeByCommunityContent[record.type];
+        const linked = findSourceRecommendation(recommendationStrategies, record.id, recommendationType);
+        return { ...record, syncToRecommendation: Boolean(linked?.enabled), recommendationStartsAt: linked?.startsAt || normalizeRecommendationSourceDateTime(record.publishAt), recommendationEndsAt: linked?.endsAt || normalizeRecommendationSourceDateTime(record.validUntil, true) };
+      });
     }
   });
   const [communityTopics, setCommunityTopics] = useState(() => {
@@ -4359,9 +4476,20 @@ export function App() {
     try {
       const savedActivities = window.localStorage.getItem("u2g-community-activities-v26-derived-status");
       const records = savedActivities ? JSON.parse(savedActivities) : initialCommunityActivities;
-      return records.map((record) => ({ ...record, syncToRecommendation: typeof record.syncToRecommendation === "boolean" ? record.syncToRecommendation : recommendationStrategies.some((item) => item.sourceId === record.id && item.type === "activity" && item.enabled) }));
+      return records.map((record) => {
+        const linked = findSourceRecommendation(recommendationStrategies, record.id, "activity");
+        return {
+          ...record,
+          syncToRecommendation: typeof record.syncToRecommendation === "boolean" ? record.syncToRecommendation : Boolean(linked?.enabled),
+          recommendationStartsAt: record.recommendationStartsAt || linked?.startsAt || normalizeRecommendationSourceDateTime(record.startAt),
+          recommendationEndsAt: record.recommendationEndsAt || linked?.endsAt || normalizeRecommendationSourceDateTime(record.endAt, true),
+        };
+      });
     } catch {
-      return initialCommunityActivities.map((record) => ({ ...record, syncToRecommendation: recommendationStrategies.some((item) => item.sourceId === record.id && item.type === "activity" && item.enabled) }));
+      return initialCommunityActivities.map((record) => {
+        const linked = findSourceRecommendation(recommendationStrategies, record.id, "activity");
+        return { ...record, syncToRecommendation: Boolean(linked?.enabled), recommendationStartsAt: linked?.startsAt || normalizeRecommendationSourceDateTime(record.startAt), recommendationEndsAt: linked?.endsAt || normalizeRecommendationSourceDateTime(record.endAt, true) };
+      });
     }
   });
   const [familyAlbumBatches] = useState(() => {
@@ -4699,6 +4827,10 @@ export function App() {
     window.localStorage.setItem("u2g-community-content-v22-topics-split", JSON.stringify(safetyNews));
   }, [safetyNews]);
 
+  useEffect(() => subscribeSharedCommunityAnnouncements((sharedRecords) => {
+    setSafetyNews((items) => mergeSharedAnnouncements(items, sharedRecords));
+  }), []);
+
   useEffect(() => {
     window.localStorage.setItem("u2g-community-topics-v11", JSON.stringify(communityTopics));
   }, [communityTopics]);
@@ -4947,20 +5079,37 @@ export function App() {
   };
 
   const saveRecommendationStrategy = (strategy) => {
-    const nextSyncEnabled = Boolean(strategy.enabled);
-    if (strategy.id) {
-      const linkedSource = recommendationStrategies.find((item) => item.id === strategy.id);
-      setRecommendationStrategies((items) => items.map((item) => item.id === strategy.id
-        ? { ...item, ...strategy, enabled: nextSyncEnabled && !item.sourceUnavailable, sourceSyncEnabled: nextSyncEnabled }
-        : linkedSource?.sourceId && item.sourceId === linkedSource.sourceId && item.type === linkedSource.type
-          ? { ...item, enabled: nextSyncEnabled && !item.sourceUnavailable, sourceSyncEnabled: nextSyncEnabled }
-          : item));
+    const { scheduleDate, ...savedStrategy } = strategy;
+    const nextSyncEnabled = Boolean(savedStrategy.enabled);
+    let savedItemId = savedStrategy.id;
+    if (savedStrategy.id) {
+      const linkedSource = recommendationStrategies.find((item) => item.id === savedStrategy.id);
+      setRecommendationStrategies((items) => items.reduce((result, item) => {
+        const sameSource = linkedSource?.sourceId && item.sourceId === linkedSource.sourceId && item.type === linkedSource.type;
+        if (sameSource && item.id !== savedStrategy.id) return result;
+        result.push(item.id === strategy.id ? { ...item, ...savedStrategy, enabled: nextSyncEnabled && !item.sourceUnavailable, sourceSyncEnabled: nextSyncEnabled, sourceManaged: Boolean(linkedSource?.sourceId) } : item);
+        return result;
+      }, []));
     } else {
-      const nextNumber = Math.max(0, ...recommendationStrategies.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      setRecommendationStrategies((items) => [{ ...strategy, id: `REC-${String(nextNumber).padStart(3, "0")}`, createdAt: strategy.createdAt || recommendationMockNow }, ...items]);
+      const linkedSource = savedStrategy.type === "third_party_entertainment" ? null : findSourceRecommendation(recommendationStrategies, savedStrategy.sourceId, savedStrategy.type);
+      if (linkedSource) {
+        savedItemId = linkedSource.id;
+        setRecommendationStrategies((items) => items.reduce((result, item) => {
+          const sameSource = item.sourceId === savedStrategy.sourceId && item.type === savedStrategy.type;
+          if (sameSource && item.id !== linkedSource.id) return result;
+          result.push(item.id === linkedSource.id ? { ...item, ...savedStrategy, enabled: nextSyncEnabled && !item.sourceUnavailable, sourceSyncEnabled: nextSyncEnabled, sourceManaged: true } : item);
+          return result;
+        }, []));
+      } else {
+        const nextNumber = Math.max(0, ...recommendationStrategies.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
+        savedItemId = `REC-${String(nextNumber).padStart(3, "0")}`;
+        setRecommendationStrategies((items) => [{ ...savedStrategy, id: savedItemId, createdAt: savedStrategy.createdAt || recommendationMockNow }, ...items]);
+      }
+      if (scheduleDate) setRecommendationCalendarInsert({ itemId: savedItemId, date: scheduleDate, token: `${savedItemId}-${scheduleDate}-${Date.now()}` });
     }
-    if (strategy.type === "activity") setCommunityActivities((items) => items.map((item) => item.id === strategy.sourceId ? { ...item, syncToRecommendation: nextSyncEnabled } : item));
-    else if (["announcement", "life_info", "alert"].includes(strategy.type)) setSafetyNews((items) => items.map((item) => item.id === strategy.sourceId ? { ...item, syncToRecommendation: nextSyncEnabled } : item));
+    const sourceRecommendationFields = { syncToRecommendation: nextSyncEnabled, recommendationStartsAt: savedStrategy.startsAt, recommendationEndsAt: savedStrategy.endsAt };
+    if (savedStrategy.type === "activity") setCommunityActivities((items) => items.map((item) => item.id === savedStrategy.sourceId ? { ...item, ...sourceRecommendationFields } : item));
+    else if (["announcement", "life_info", "alert"].includes(savedStrategy.type)) setSafetyNews((items) => items.map((item) => item.id === savedStrategy.sourceId ? { ...item, ...sourceRecommendationFields } : item));
     setDrawer(null);
   };
 
@@ -5020,14 +5169,16 @@ export function App() {
     if (!source?.id || !recommendationType) return;
     const shouldSync = Boolean(source.syncToRecommendation);
     setRecommendationStrategies((items) => {
-      const matches = items.filter((item) => item.sourceId === source.id && item.type === recommendationType);
-      const linked = matches.find((item) => item.sourceManaged) || matches[0];
+      const linked = findSourceRecommendation(items, source.id, recommendationType);
       if (!linked && (!shouldSync || !sourceAvailable)) return items;
       const isActivity = recommendationType === "activity";
-      const startsAt = normalizeRecommendationSourceDateTime(isActivity ? source.startAt : source.publishAt);
-      const endsAt = normalizeRecommendationSourceDateTime(isActivity ? source.endAt : source.validUntil || linked?.endsAt, true);
+      const publishedAt = source.publishedAt || source.publishAt || recommendationMockNow;
+      const automaticValidity = createAutomaticRecommendationValidity(publishedAt);
+      const startsAt = normalizeRecommendationSourceDateTime(source.recommendationStartsAt || linked?.startsAt || automaticValidity.recommendationStartsAt);
+      const endsAt = normalizeRecommendationSourceDateTime(source.recommendationEndsAt || linked?.endsAt || automaticValidity.recommendationEndsAt, true);
+      const projectId = source.projectId || currentProject.id;
       const sourceFields = {
-        projectId: source.projectId || currentProject.id,
+        projectId,
         name: source.title,
         type: recommendationType,
         sourceId: source.id,
@@ -5041,10 +5192,20 @@ export function App() {
         sourceStatus: isActivity ? getCommunityActivityStatus(source) : getCommunityContentStatus(source),
         sourceManaged: true,
       };
-      if (linked) return items.map((item) => item.sourceId === source.id && item.type === recommendationType ? { ...item, ...sourceFields, sourceManaged: item.id === linked.id || item.sourceManaged } : item);
+      if (linked) return items.reduce((result, item) => {
+        const sameSource = item.sourceId === source.id && item.type === recommendationType;
+        if (sameSource && item.id !== linked.id) return result;
+        result.push(item.id === linked.id ? { ...item, ...sourceFields, sourceManaged: true } : item);
+        return result;
+      }, []);
       const nextNumber = Math.max(0, ...items.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      const nextOrder = Math.max(0, ...items.filter((item) => (item.projectId || "PRJ-001") === (source.projectId || currentProject.id)).map((item) => Number(item.displayOrder) || 0)) + 1;
-      return [...items, { ...sourceFields, id: `REC-${String(nextNumber).padStart(3, "0")}`, displayOrder: nextOrder, durationSeconds: 20, afterView: "continue", createdAt: recommendationMockNow }];
+      const publishDay = startsAt.slice(0, 10);
+      const sameCommunityDayItems = items.filter((item) => (
+        (item.projectId || "PRJ-001") === projectId
+        && normalizeRecommendationSourceDateTime(item.createdAt).slice(0, 10) === publishDay
+      ));
+      const nextOrder = Math.max(0, ...sameCommunityDayItems.map((item) => Number(item.displayOrder) || 0)) + 1;
+      return [...items, { ...sourceFields, id: `REC-${String(nextNumber).padStart(3, "0")}`, displayOrder: nextOrder, durationSeconds: 20, afterView: "continue", createdAt: startsAt }];
     });
   };
 
@@ -5057,9 +5218,20 @@ export function App() {
       setSafetyNews((items) => items.map((item) => item.id === record.id ? savedRecord : item));
     } else {
       const nextNumber = Math.max(0, ...safetyNews.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      savedRecord = { ...record, projectId: currentProject.id, id: `SAF-${String(nextNumber).padStart(3, "0")}`, status: record.status || "未发布", updatedAt };
+      const publishAt = record.publishAt || communityContentMockNow;
+      savedRecord = {
+        ...record,
+        projectId: currentProject.id,
+        communityId: communityLifeMock.communities.find((item) => item.projectId === currentProject.id)?.communityId || currentProject.id,
+        id: `SAF-${String(nextNumber).padStart(3, "0")}`,
+        status: "已发布",
+        publishAt,
+        syncToRecommendation: record.syncToRecommendation !== false,
+        updatedAt,
+      };
       setSafetyNews((items) => [savedRecord, ...items]);
     }
+    if (savedRecord.type === "社区公告") upsertSharedCommunityAnnouncement(safetyNewsToSharedAnnouncement(savedRecord));
     syncRecommendationSource(savedRecord, recommendationTypeByCommunityContent[savedRecord.type], isCommunityContentAvailable(savedRecord));
     if (created && savedRecord.type === "社区公告") completeOverviewQuickAction("社区公告已新增，运营概览已刷新");
     setDrawer(null);
@@ -5069,8 +5241,9 @@ export function App() {
     const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
     const source = safetyNews.find((item) => item.id === id);
     if (!source) return;
-    const next = { ...source, status, publishAt: status === "已发布" && getCommunityContentStatus(source) === "未发布" ? communityContentMockNow : source.publishAt, updatedAt };
+    const next = { ...source, status, publishAt: status === "已发布" ? communityContentMockNow : source.publishAt, updatedAt };
     setSafetyNews((items) => items.map((item) => item.id === id ? next : item));
+    if (next.type === "社区公告") setSharedCommunityAnnouncementStatus(next.id, status === "已停用" ? "disabled" : "published", updatedAt, next.publishAt);
     syncRecommendationSource(next, recommendationTypeByCommunityContent[next.type], status === "已发布" && isCommunityContentAvailable(next));
   };
 
@@ -5148,14 +5321,21 @@ export function App() {
 
   const saveCommunityActivity = (activity) => {
     const created = !activity.id;
-    const publishedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const publishedAt = formatLocalDateTimeValue(new Date()).replace("T", " ");
     let savedActivity;
     if (activity.id) {
-      savedActivity = { ...communityActivities.find((item) => item.id === activity.id), ...activity, publishedAt };
+      savedActivity = { ...communityActivities.find((item) => item.id === activity.id), ...activity };
       setCommunityActivities((items) => items.map((item) => item.id === activity.id ? savedActivity : item));
     } else {
       const nextNumber = Math.max(0, ...communityActivities.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
-      savedActivity = { ...activity, projectId: currentProject.id, id: `ACT-${String(nextNumber).padStart(3, "0")}`, publishedAt };
+      savedActivity = {
+        ...activity,
+        projectId: currentProject.id,
+        isOffline: false,
+        id: `ACT-${String(nextNumber).padStart(3, "0")}`,
+        publishedAt,
+        syncToRecommendation: activity.syncToRecommendation !== false,
+      };
       setCommunityActivities((items) => [savedActivity, ...items]);
     }
     syncRecommendationSource(savedActivity, "activity", !savedActivity.isOffline);
@@ -5395,7 +5575,7 @@ export function App() {
               : safeActive === "familyAlbums"
                 ? <FamilyAlbumBatchManagementPage batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
               : safeActive === "recommendations"
-                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} reminderPolicies={reminderPolicies.filter((item) => item.enabled && !item.queueExcluded)} communityName={currentProject?.name} acceptanceScenario={recommendationScenario} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
+                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} reminderPolicies={reminderPolicies.filter((item) => item.enabled && !item.queueExcluded)} communityName={currentProject?.name} acceptanceScenario={recommendationScenario} calendarInsert={recommendationCalendarInsert} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
               : safeActive === "activities"
                 ? <CommunityActivityPage records={communityActivityRecords} registrations={scopedRegistrations} communityName={currentProject?.name} onCreate={() => setDrawer({ kind: "activity", mode: "edit" })} onView={(record) => setDrawer({ kind: "activity", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "activity", mode: "edit", record })} onUnpublish={unpublishCommunityActivity} onRestore={restoreCommunityActivity} onViewRegistrations={(record) => setDrawer({ kind: "activityRegistrations", record })}/>
               : safeActive === "communityStaff"
@@ -5417,11 +5597,11 @@ export function App() {
                       ? <PlatformRoleManagementPage roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                       : <RoleManagementPage currentProject={currentProject} projects={projects} roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                 : safeActive === "platformTabletDevices"
-                  ? <PlatformTabletDevicesPage devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
+                  ? <PlatformTabletDevicesPage scope="platform" devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
                   : safeActive === "deviceAlertPolicies"
                     ? <DeviceAlertPoliciesPage key={currentProjectId} communityName={currentProject?.name || "当前社区"} policies={buildDeviceAlertPolicyRows({ inactivityRule: currentInactivityRule })} onEdit={() => setGlobalRuleOpen(true)}/>
                   : safeActive === "tabletDevices"
-                    ? <DeviceManagementPage key={`${safeActive}-${currentProjectId}`} deviceType="tablet" tablets={scopedTabletDevices} sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} currentProject={currentProject} onViewTablet={(device) => setDeviceDrawer({ kind: "tabletView", device })} onManageTablet={setTabletTarget} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate" })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })}/>
+                    ? <PlatformTabletDevicesPage key={`${safeActive}-${currentProjectId}`} scope="community" devices={scopedTabletDevices} elderlyRecords={scopedElderlyRecords} projects={currentProject ? [currentProject] : []} onManageTablet={setTabletTarget}/>
                   : safeActive === "tabletOta"
                     ? <TabletOtaPage projects={projects} devices={tabletDevices.map((device) => ({ ...device, projectName: projects.find((project) => project.id === device.projectId)?.name || "未归属项目", elderlyName: elderlyRecords.find((record) => record.id === device.boundElderlyId)?.name || "" }))} resetSignal={acceptanceResetSignal} onApplyUpgrade={applyTabletOtaUpgrade}/>
                   : safeActive === "careScripts"
@@ -5435,12 +5615,11 @@ export function App() {
                     : <ManagementPage page={safeActive} onCreate={() => setDrawer({ kind: "generic" })}/>}
         </main>
       </div>
-      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onViewReminderPlan={(record) => setDrawer({ kind: "reminderPlan", record })} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
+      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
       {relativeDetailRecord && <RelativeDetailDrawer account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} onClose={() => setRelativeDetailId(null)} onOpenElderly={(record) => { setActive("elderly"); setRelativeDetailId(null); setElderlyDetailId(record.id); window.scrollTo({ top: 0, behavior: "auto" }); }}/>}
       {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={currentProject ? [currentProject] : []} tablet={scopedTabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>}
       {drawer?.kind === "overviewReminderPicker" && <ElderlyPickerModal records={scopedElderlyRecords} value="" onClose={() => setDrawer(null)} onConfirm={(elderlyId) => setDrawer({ kind: "reminder", elderlyId, source: "overview" })}/>}
       {drawer?.kind === "reminder" && <ReminderDrawer key={drawer.record?.id || `new-reminder-${drawer.elderlyId}`} record={drawer.record} elderlyRecords={scopedElderlyRecords} initialElderlyId={drawer.elderlyId} lockElderly onClose={() => setDrawer(null)} onSave={saveReminder}/>}
-      {drawer?.kind === "reminderPlan" && <ReminderPlanDrawer reminder={drawer.record} elderly={scopedElderlyRecords.find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>}
       {drawer?.kind === "emergencyHelp" && (() => {
         const event = emergencyHelpEvents.find((item) => item.id === drawer.eventId);
         if (!event) return null;
