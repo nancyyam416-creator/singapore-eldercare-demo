@@ -53,7 +53,7 @@ import {
 } from "../activation-contract";
 import "./interaction-acceptance-console.css";
 
-export type AcceptanceTaskContentScenario = "medicine" | "schedule" | "activity";
+export type AcceptanceTaskContentScenario = "medicine" | "schedule";
 export type AcceptanceAlbumScenario =
   | "default"
   | "notice-photo"
@@ -119,6 +119,10 @@ export type AcceptanceCommunityScenario =
   | "default"
   | "empty"
   | "load-failure"
+  | "announcement-empty"
+  | "announcement-load-failure"
+  | "announcement-disabled"
+  | "announcement-no-cover"
   | "topic-normal"
   | "topic-elder"
   | "topic-backend"
@@ -266,11 +270,11 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "schedule-unconfirmed": { label: "事项尚未完成（30分钟）", description: "到点满30分钟转为未确认并退出右侧，在今日全览中仍可处理。" },
   "schedule-grouped": { label: "同一时间多项事项", description: "同时间、同阶段的多项事项合并展示；点击右侧进入今日全览。" },
   "schedule-expired": { label: "事项次日已过期", description: "切换至次日00:00；记录转为已过期，退出首页右侧和今日全览，历史记录保留。" },
-  "activity-started": { label: "活动开始了", description: "到达活动开始时间后显示活动弹窗；关闭弹窗不改变提醒状态，点击右侧仍可进入社区活动。" },
+  "activity-started": { label: "活动开始了", description: "到达活动开始时间后仅在首页右侧显示活动入口，不弹窗、不语音；点击后进入社区活动。" },
   "activity-upcoming": { label: "活动快开始了", description: "活动开始前30分钟显示开始时间和活动名称；点击右侧进入社区活动。" },
   "activity-updated": { label: "活动信息已更新", description: "不弹窗、不语音，右侧直接读取更新后的活动时间和地点。" },
   "activity-cancelled": { label: "活动已取消", description: "取消活动立即退出右侧候选，继续展示下一条有效内容。" },
-  "activity-reminder-valid": { label: "报名成功 · 开始前30分钟", description: "活动和报名均有效时生成一次开始提醒；关闭后再次触发同一报名不会重复提醒。" },
+  "activity-reminder-valid": { label: "报名成功 · 开始前30分钟", description: "活动和报名均有效时生成一次首页右侧提醒，不进入时间提醒弹窗队列；同一报名不会重复提醒。" },
   "activity-reminder-registration-cancelled": { label: "报名已取消 · 不提醒", description: "报名取消后不生成活动开始提醒，首页继续展示原有内容。" },
   "activity-reminder-activity-cancelled": { label: "活动已取消 · 不提醒", description: "活动取消后不生成活动开始提醒，首页继续展示原有内容。" },
   "reminder-daytime": { label: "日间首次播报", description: "固定日间时间；同一提醒仅首次到点进行语音播报。" },
@@ -283,7 +287,7 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "no-content": { label: "无待展示消息", description: "当前没有任何高、中、低级消息时，右侧固定显示 AI 语音入口。" },
   "ai-assistant-fallback": { label: "AI 兜底让位与恢复", description: "无消息时显示 AI 语音；低级消息进入后立即让位，清空消息后自动恢复。AI 不入队、不计数、不生成送达记录。" },
   "interaction-locked": { label: "操作中暂不换位", description: "正在操作右侧内容时先记录新留言，结束后再应用新排序。" },
-  "same-priority-event-content": { label: "同级提醒同时触发", description: "到期日程与警惕事项同时进入队列；先展示事件，关闭或处理后再展示内容，提醒不合并、不覆盖。" },
+  "same-priority-event-content": { label: "同级时间提醒同时触发", description: "到期日程与喝水提醒同时进入时间提醒队列；仅真实时间提醒弹出，警惕事项等内容推荐不进入弹窗队列。" },
 };
 
 const rightContentConditionLabels: Record<AcceptanceRightContentCondition, { label: string; description: string }> = {
@@ -402,9 +406,13 @@ const reminderLabels: Record<AcceptanceReminderScenario, string> = {
 };
 
 const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: string; description: string }> = {
-  default: { label: "五类正常内容", description: "公告、资讯、话题、活动和警惕事项均可进入。" },
+  default: { label: "六类正常内容", description: "社区人员、公告、资讯、话题、活动和警惕事项均可进入。" },
   empty: { label: "当前分类无内容", description: "展示温和空状态，不影响其他模块。" },
   "load-failure": { label: "内容加载失败", description: "展示失败提示并支持重新加载。" },
+  "announcement-empty": { label: "公告为空", description: "当前社区没有已发布公告时展示空状态。" },
+  "announcement-load-failure": { label: "公告加载失败", description: "公告读取失败时提示重试，不影响其他分类。" },
+  "announcement-disabled": { label: "公告已停用", description: "已打开公告被停用后隐藏正文并返回列表。" },
+  "announcement-no-cover": { label: "公告无封面", description: "未配置封面时使用社区公告默认图标。" },
   "topic-normal": { label: "话题正常", description: "展示话题列表、引用摘要和评论数量。" },
   "topic-elder": { label: "老人发起", description: "展示当前老人发起且可继续评论的话题。" },
   "topic-backend": { label: "后台发起", description: "后台发布的话题同样支持查看和评论。" },
@@ -1062,11 +1070,6 @@ export default function InteractionAcceptanceConsole({
                 {rightContentScenario === "schedule-due" && (
                   <button type="button" className="interaction-acceptance-wide" onClick={() => onOpenHomeReminderAlert("schedule", 0)}>
                     <CalendarDays />再次显示事项到点弹窗
-                  </button>
-                )}
-                {rightContentScenario === "activity-started" && (
-                  <button type="button" className="interaction-acceptance-wide" onClick={() => onOpenHomeReminderAlert("activity", 0)}>
-                    <CalendarDays />显示活动开始弹窗
                   </button>
                 )}
                 {!rightContentActionLabel && rightContentScenario === "no-content" && (

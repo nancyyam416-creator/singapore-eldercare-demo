@@ -4,21 +4,16 @@ export type HomeNotificationStatus = "pending" | "completed";
 interface HomeNotificationQueueItemBase {
   id: string;
   priority: HomeNotificationPriority;
-  triggerType: "event" | "content";
+  triggerType: "event";
   createdAt: string;
   title: string;
   description: string;
   status: HomeNotificationStatus;
 }
 
-export interface HomeScheduleNotificationQueueItem extends HomeNotificationQueueItemBase {
-  kind: "schedule";
+export interface HomeTimedReminderNotificationQueueItem extends HomeNotificationQueueItemBase {
+  kind: "time-reminder";
   reminderId: string;
-}
-
-export interface HomeSecurityNotificationQueueItem extends HomeNotificationQueueItemBase {
-  kind: "security";
-  tipId: string;
 }
 
 export interface HomeActivityNotificationQueueItem extends HomeNotificationQueueItemBase {
@@ -29,8 +24,7 @@ export interface HomeActivityNotificationQueueItem extends HomeNotificationQueue
 }
 
 export type HomeNotificationQueueItem =
-  | HomeScheduleNotificationQueueItem
-  | HomeSecurityNotificationQueueItem
+  | HomeTimedReminderNotificationQueueItem
   | HomeActivityNotificationQueueItem;
 
 const priorityRank: Record<HomeNotificationPriority, number> = {
@@ -39,25 +33,18 @@ const priorityRank: Record<HomeNotificationPriority, number> = {
   P2: 1,
 };
 
-const triggerRank: Record<HomeNotificationQueueItem["triggerType"], number> = {
-  event: 2,
-  content: 1,
-};
-
 export const orderHomeNotificationQueue = (items: HomeNotificationQueueItem[]) => [...items].sort((first, second) => {
   const priorityDifference = priorityRank[second.priority] - priorityRank[first.priority];
   if (priorityDifference !== 0) return priorityDifference;
-  const triggerDifference = triggerRank[second.triggerType] - triggerRank[first.triggerType];
-  if (triggerDifference !== 0) return triggerDifference;
   const createdAtDifference = new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
   if (createdAtDifference !== 0) return createdAtDifference;
   return first.id.localeCompare(second.id);
 });
 
-export const createSamePriorityNotificationQueue = (): HomeNotificationQueueItem[] => orderHomeNotificationQueue([
+export const createSamePriorityTimedReminderQueue = (): HomeNotificationQueueItem[] => orderHomeNotificationQueue([
   {
     id: "queue-schedule-walk",
-    kind: "schedule",
+    kind: "time-reminder",
     reminderId: "schedule-self-walk",
     priority: "P0",
     triggerType: "event",
@@ -67,14 +54,14 @@ export const createSamePriorityNotificationQueue = (): HomeNotificationQueueItem
     status: "pending",
   },
   {
-    id: "queue-security-tip-1",
-    kind: "security",
-    tipId: "tip-1",
+    id: "queue-schedule-drink-water",
+    kind: "time-reminder",
+    reminderId: "schedule-drink-water",
     priority: "P0",
-    triggerType: "content",
+    triggerType: "event",
     createdAt: "2026-09-18T17:00:00+08:00",
-    title: "警惕“冒充公检法安全账户”巨额骗局",
-    description: "社区警惕事项发布",
+    title: "喝一杯温水",
+    description: "喝水提醒到点事件",
     status: "pending",
   },
 ]);

@@ -72,7 +72,7 @@ export default function MoreFunctionsDrawer({
     {
       id: "community",
       title: "社区生活",
-      description: "公告、资讯、话题、活动与警惕事项",
+      description: "社区人员、公告、资讯、话题、活动与警惕事项",
       icon: Landmark,
       tone: "blue",
       action: onOpenCommunity,

@@ -5,7 +5,6 @@ import EmergencyModal, { type EmergencyAcceptanceScenario } from "./components/E
 import SmartAssistantModal from "./components/SmartAssistantModal";
 import MedicationCelebration from "./components/MedicationCelebration";
 import HomeReminderAlert, { resetHomeReminderSpeechTracking } from "./components/HomeReminderAlert";
-import HomeSafetyAlert from "./components/HomeSafetyAlert";
 import ContactsPage, { type FamilyMediaFocusRequest, type ServiceConversationAcceptanceScenario } from "./components/ContactsCommunicationPage";
 import type {
   FamilyRelationshipRequestCondition,
@@ -53,7 +52,7 @@ import {
 } from "./emergency-assistance";
 import {
   createActivityStartNotification,
-  createSamePriorityNotificationQueue,
+  createSamePriorityTimedReminderQueue,
   type HomeNotificationQueueItem,
 } from "./home-notification-queue";
 import "./control-center.css";
@@ -248,17 +247,17 @@ const createDefaultReminders = (): MedicationReminder[] => [
   },
 ];
 
-const createActivityStartReminder = (): MedicationReminder => ({
-  id: "activity-start-act-1-registration-001",
-  time: "10:00",
-  scheduledAt: "2026-09-19T10:00:00+08:00",
-  name: "社区剪纸活动",
-  dosage: "活动地点：社区多功能活动室",
+const createSamePriorityWaterReminder = (): MedicationReminder => ({
+  id: "schedule-drink-water",
+  time: "17:00",
+  scheduledAt: "2026-09-18T17:00:00+08:00",
+  name: "喝一杯温水",
+  dosage: "慢慢喝完一杯温水",
   status: "pending",
   priority: "P0",
   category: "schedule",
-  creationSource: "admin",
-  creatorName: "社区服务站",
+  creationSource: "elder",
+  creatorName: "本人",
 });
 
 const createDefaultMessages = (): FamilyMessage[] => [
@@ -714,20 +713,36 @@ export default function App() {
   };
 
   const activeHomeNotification = homeNotificationQueue[homeNotificationQueueCursor] ?? null;
-  const pendingHomeNotificationCount = homeNotificationQueue.filter((item) => item.status === "pending").length;
   const advanceHomeNotificationQueue = () => {
+    setHomeNotificationQueue((queue) => queue.map((item, index) => (
+      index === homeNotificationQueueCursor
+        ? { ...item, status: "completed" as const }
+        : item
+    )));
     setHomeNotificationQueueCursor((cursor) => Math.min(cursor + 1, homeNotificationQueue.length));
   };
+
+  useEffect(() => {
+    if (acceptanceRightContentScenario !== "same-priority-event-content"
+      || activeHomeNotification?.kind !== "time-reminder"
+      || activeHomeNotification.status !== "pending") return;
+    setHomeReminderAlert((current) => current?.reminderId === activeHomeNotification.reminderId
+      ? current
+      : {
+          reminderId: activeHomeNotification.reminderId,
+          minutesUntil: 0,
+          source: "acceptance",
+        });
+  }, [acceptanceRightContentScenario, activeHomeNotification?.id, activeHomeNotification?.status]);
 
   const triggerActivityStartReminder = () => {
     const notification = createActivityStartNotification();
     if (activityStartReminderDeliveriesRef.current.has(notification.registrationId)) return;
     activityStartReminderDeliveriesRef.current.add(notification.registrationId);
-    setHomeReminderAlert({
-      reminderId: notification.reminderId,
-      minutesUntil: 30,
-      source: "acceptance",
-    });
+    setHomeNotificationQueue((current) => (
+      current.some((item) => item.id === notification.id) ? current : [notification]
+    ));
+    setHomeNotificationQueueCursor(0);
   };
 
   const openSafetyInformation = (autoPlay = false, mode: "security" | "alert" = "security") => {
@@ -737,11 +752,6 @@ export default function App() {
   };
 
   const handleReadSafetyTip = (tipId: string) => {
-    setHomeNotificationQueue((queue) => queue.map((item) => (
-      item.kind === "security" && item.tipId === tipId
-        ? { ...item, status: "completed" as const }
-        : item
-    )));
     if (safetyReadIds.includes(tipId)) return;
     const nextReadIds = [...safetyReadIds, tipId];
     setSafetyReadIds(nextReadIds);
@@ -765,7 +775,7 @@ export default function App() {
       prev.map((r) => (r.id === item.id ? finishedReminder : r))
     );
     setHomeNotificationQueue((queue) => queue.map((queueItem) => (
-      (queueItem.kind === "schedule" || queueItem.kind === "activity") && queueItem.reminderId === item.id
+      (queueItem.kind === "time-reminder" || queueItem.kind === "activity") && queueItem.reminderId === item.id
         ? { ...queueItem, status: "completed" as const }
         : queueItem
     )));
@@ -848,9 +858,7 @@ export default function App() {
     minutesUntil = 0,
     autoDismissMs?: number,
   ) => {
-    const targetId = category === "activity"
-      ? "activity-start-act-1-registration-001"
-      : category === "schedule"
+    const targetId = category === "schedule"
       ? "schedule-self-walk"
       : "med-2";
     showHomeForAcceptance();
@@ -858,10 +866,7 @@ export default function App() {
       ? acceptanceTimeOverride
       : undefined;
     setReminders((current) => {
-      const source = category === "activity" && !current.some((reminder) => reminder.id === targetId)
-        ? [...current, createActivityStartReminder()]
-        : current;
-      return source.map((reminder) => (
+      return current.map((reminder) => (
         reminder.id === targetId
           ? (() => {
               const effectiveNow = acceptanceTimeOverride?.includes("T")
@@ -974,23 +979,20 @@ export default function App() {
     );
 
     if (scenario === "same-priority-event-content") {
-      const queue = createSamePriorityNotificationQueue();
+      const queue = createSamePriorityTimedReminderQueue();
       setAcceptanceTimeOverride("2026-09-18T17:00:00+08:00");
-      setReminders(defaults.map((reminder) => reminder.id === "schedule-self-walk"
-        ? { ...reminder, status: "pending" as const, priority: "P0" as const }
-        : { ...reminder, priority: "P1" as const }));
+      setReminders([
+        ...defaults.map((reminder) => reminder.id === "schedule-self-walk"
+          ? { ...reminder, status: "pending" as const, priority: "P0" as const }
+          : { ...reminder, priority: "P1" as const }),
+        createSamePriorityWaterReminder(),
+      ]);
       setHomeNotificationQueue(queue);
       setHomeNotificationQueueCursor(0);
-      const nextReadIds = safetyReadIds.filter((tipId) => tipId !== "tip-1");
-      setSafetyReadIds(nextReadIds);
-      window.localStorage.setItem(SAFETY_READ_STORAGE_KEY, JSON.stringify(nextReadIds));
     } else if (scenario === "activity-reminder-valid") {
       const notification = createActivityStartNotification();
       setAcceptanceTimeOverride("2026-09-19T09:30:00+08:00");
-      setReminders([
-        ...defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })),
-        createActivityStartReminder(),
-      ]);
+      setReminders(defaults.map((reminder) => ({ ...reminder, priority: "P1" as const })));
       setHomeNotificationQueue([notification]);
       setHomeNotificationQueueCursor(0);
     } else if (scenario === "activity-reminder-registration-cancelled"
@@ -1143,6 +1145,8 @@ export default function App() {
         ? "empty"
         : scenario === "load-failure"
           ? "load-failure"
+          : scenario.startsWith("announcement-")
+            ? scenario
           : scenario.startsWith("topic-")
             ? scenario
             : "default",
@@ -1298,7 +1302,7 @@ export default function App() {
 
   const dismissHomeReminderAlert = () => {
     const isQueuedSchedule = acceptanceRightContentScenario === "same-priority-event-content"
-      && activeHomeNotification?.kind === "schedule"
+      && activeHomeNotification?.kind === "time-reminder"
       && activeHomeNotification.reminderId === activeHomeReminder?.id;
     if (activeHomeReminder && homeReminderAlert?.source === "automatic") {
       const now = new Date();
@@ -1472,7 +1476,6 @@ export default function App() {
             acceptanceRightContentActionSignal={acceptanceRightContentActionSignal}
             acceptanceRevision={acceptanceRevision}
             notificationQueue={homeNotificationQueue}
-            notificationQueueCursor={homeNotificationQueueCursor}
             acceptanceCommand={acceptanceCommand}
             familyWeather={familyWeather}
           />
@@ -1519,25 +1522,6 @@ export default function App() {
             shouldSpeak={homeReminderAlert.source !== "manual"}
           />
         )}
-
-        {isHomeSurfaceActive && activeHomeNotification?.kind === "security" && (() => {
-          const tip = scamTips.find((item) => item.id === activeHomeNotification.tipId);
-          if (!tip) return null;
-          return (
-            <HomeSafetyAlert
-              tip={tip}
-              position={homeNotificationQueueCursor + 1}
-              total={homeNotificationQueue.length}
-              onView={() => {
-                advanceHomeNotificationQueue();
-                setCommunityAlertInitialId(tip.id);
-                setReturnToCommunityLife(false);
-                openSafetyInformation(false, "alert");
-              }}
-              onDismiss={advanceHomeNotificationQueue}
-            />
-          );
-        })()}
 
         {/* SOS OVERLAY PORTAL */}
         <EmergencyModal
@@ -1724,7 +1708,7 @@ export default function App() {
           onClose={() => {
             setIsCelebrationOpen(false);
             if (acceptanceRightContentScenario === "same-priority-event-content"
-              && activeHomeNotification?.kind === "schedule") {
+              && activeHomeNotification?.kind === "time-reminder") {
               advanceHomeNotificationQueue();
             }
           }}

@@ -118,7 +118,6 @@ interface ControlCenterHomeProps {
   acceptanceRightContentActionSignal?: number;
   acceptanceRevision?: number;
   notificationQueue?: HomeNotificationQueueItem[];
-  notificationQueueCursor?: number;
   acceptanceCommand?: { id: number; type: AcceptanceHomeCommand } | null;
   familyWeather: FamilyWeatherSnapshot;
 }
@@ -196,7 +195,6 @@ export default function ControlCenterHome({
   acceptanceRightContentActionSignal = 0,
   acceptanceRevision = 0,
   notificationQueue = [],
-  notificationQueueCursor = 0,
   acceptanceCommand = null,
   familyWeather,
 }: ControlCenterHomeProps) {
@@ -833,7 +831,6 @@ export default function ControlCenterHome({
           acceptanceRightContentActionSignal={acceptanceRightContentActionSignal}
           acceptanceRevision={acceptanceRevision}
           notificationQueue={notificationQueue}
-          notificationQueueCursor={notificationQueueCursor}
         />
       </section>
 

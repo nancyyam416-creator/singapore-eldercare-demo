@@ -79,7 +79,6 @@ interface HomeTaskRailProps {
   acceptanceRightContentActionSignal?: number;
   acceptanceRevision?: number;
   notificationQueue?: HomeNotificationQueueItem[];
-  notificationQueueCursor?: number;
 }
 
 const senderRelation = (sender?: string) => sender?.match(/^(女儿|儿子|孙女|孙子|老伴)/)?.[1] ?? sender ?? "家人";
@@ -104,7 +103,6 @@ export default function HomeTaskRail({
   acceptanceRightContentActionSignal = 0,
   acceptanceRevision = 0,
   notificationQueue = [],
-  notificationQueueCursor = 0,
 }: HomeTaskRailProps) {
   const [recommendationRuntime, setRecommendationRuntime] = useState<Record<string, RecommendationRuntimeState>>(createRecommendationRuntime);
   const [activeRecommendationId, setActiveRecommendationId] = useState(HOME_RECOMMENDATION_CONFIGS[0].contentId);
@@ -143,12 +141,11 @@ export default function HomeTaskRail({
   const recommendationConfigs = useMemo(() => acceptanceRightContentScenario === "no-content"
     || acceptanceRightContentScenario === "next-day-exit"
     || acceptanceRightContentScenario === "ai-assistant-fallback"
+    || acceptanceRightContentScenario === "same-priority-event-content"
     || dailyRecommendationsExpired
     ? HOME_RECOMMENDATION_CONFIGS.map((item) => ({ ...item, enabled: false }))
     : HOME_RECOMMENDATION_CONFIGS.map((item) => (
-      acceptanceRightContentScenario === "same-priority-event-content"
-        ? { ...item, enabled: item.kind === "security" }
-        : ["third-party-entertainment", "third-party-entertainment-failure"].includes(acceptanceRightContentScenario)
+      ["third-party-entertainment", "third-party-entertainment-failure"].includes(acceptanceRightContentScenario)
         ? { ...item, enabled: item.kind === "entertainment" }
         : acceptanceRightContentScenario === "single-recommendation"
         ? { ...item, enabled: item.contentId === HOME_RECOMMENDATION_CONFIGS[0].contentId }
@@ -404,14 +401,11 @@ export default function HomeTaskRail({
     Icon: MessageCircleHeart,
   };
 
-  const activeNotificationQueueItem = notificationQueue[notificationQueueCursor] ?? null;
   const pendingNotificationCount = notificationQueue.filter((item) => item.status === "pending").length;
   const queuePrimaryContent = acceptanceRightContentScenario === "same-priority-event-content"
-    ? activeNotificationQueueItem?.kind === "security"
-      ? { ...recommendationItem, count: pendingNotificationCount }
-      : timeItems[0]
-        ? { ...timeItems[0], count: pendingNotificationCount }
-        : { ...recommendationItem, count: pendingNotificationCount }
+    ? timeItems[0]
+      ? { ...timeItems[0], count: pendingNotificationCount }
+      : null
     : null;
   const aiFallbackIncomingItem: RightContentItem | null = acceptanceRightContentScenario === "ai-assistant-fallback"
     && aiFallbackHasPendingMessage

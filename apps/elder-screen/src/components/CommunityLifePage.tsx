@@ -26,6 +26,16 @@ import {
 } from "lucide-react";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import { getActiveCommunityStaff } from "../community-staff";
+import {
+  communityAnnouncementBodyParagraphs,
+  formatCommunityAnnouncementPublishAt,
+  markCommunityAnnouncementViewed,
+  readCommunityAnnouncements,
+  readViewedCommunityAnnouncementIds,
+  subscribeCommunityAnnouncements,
+  type SharedCommunityAnnouncement,
+} from "../community-announcements";
+import { elderProfileMock } from "../elder-profile";
 import type { AntiScamTip, CommunityActivity } from "../types";
 import "./community-life-page.css";
 
@@ -33,6 +43,10 @@ export type CommunityLifeAcceptanceScenario =
   | "default"
   | "empty"
   | "load-failure"
+  | "announcement-empty"
+  | "announcement-load-failure"
+  | "announcement-disabled"
+  | "announcement-no-cover"
   | "topic-normal"
   | "topic-elder"
   | "topic-backend"
@@ -74,10 +88,11 @@ interface CommunityInfoItem {
   category: CommunityInfoCategory;
   title: string;
   summary: string;
-  source: string;
+  source?: string;
   publishAt: string;
   coverUrl?: string;
   body: string[];
+  publishStatus?: "published" | "disabled";
 }
 
 interface CommunityTopicReference {
@@ -121,32 +136,6 @@ const categories: CommunityCategoryDefinition[] = [
 
 const communityInfoItems: CommunityInfoItem[] = [
   {
-    id: "announcement-lift",
-    category: "announcement",
-    title: "本周三上午进行电梯例行检查",
-    summary: "上午 09:00—11:00 检查，期间请使用东侧电梯。",
-    source: "安心到家社区服务中心",
-    publishAt: "今天 08:30",
-    coverUrl: "https://loremflickr.com/720/480/elevator,building?lock=41",
-    body: [
-      "本周三上午 09:00—11:00，物业将对西侧电梯进行例行安全检查。检查期间，西侧电梯暂停使用。",
-      "需要出行的居民请使用东侧电梯。行动不便、需要协助的居民，可以提前联系社区服务站。",
-    ],
-  },
-  {
-    id: "announcement-clinic",
-    category: "announcement",
-    title: "周五便民测量血压服务时间调整",
-    summary: "本周五服务时间调整为下午 14:00—16:00。",
-    source: "安心到家社区服务中心",
-    publishAt: "昨天 16:20",
-    coverUrl: "https://loremflickr.com/720/480/blood-pressure,health?lock=42",
-    body: [
-      "本周五便民测量血压服务调整到下午 14:00—16:00，地点仍在社区一楼健康服务角。",
-      "到场后请按工作人员引导排队，不需要提前报名。",
-    ],
-  },
-  {
     id: "life-summer-water",
     category: "life-info",
     title: "天气炎热，少量多次补水更舒适",
@@ -173,6 +162,32 @@ const communityInfoItems: CommunityInfoItem[] = [
     ],
   },
 ];
+
+const announcementAcceptanceFallback: SharedCommunityAnnouncement = {
+  id: "acceptance-announcement",
+  projectId: "PRJ-001",
+  communityId: elderProfileMock.communityId ?? "COM-001",
+  resourceType: "announcement",
+  title: "社区公共区域维护通知",
+  summary: "请留意现场指引，经过作业区域时慢行。",
+  bodyHtml: "<p>社区公共区域将进行例行维护，请居民按照现场指引通行。</p>",
+  coverUrl: "",
+  coverKind: "default_icon",
+  publishAt: "2026-11-05T09:00:00+08:00",
+  publishStatus: "published",
+  updatedAt: "2026-11-05T09:00:00+08:00",
+};
+
+const toCommunityInfoItem = (announcement: SharedCommunityAnnouncement): CommunityInfoItem => ({
+  id: announcement.id,
+  category: "announcement",
+  title: announcement.title,
+  summary: announcement.summary,
+  publishAt: formatCommunityAnnouncementPublishAt(announcement.publishAt),
+  coverUrl: announcement.coverUrl || undefined,
+  body: communityAnnouncementBodyParagraphs(announcement.bodyHtml),
+  publishStatus: announcement.publishStatus,
+});
 
 const baseTopics: CommunityTopic[] = [
   {
@@ -270,17 +285,43 @@ export default function CommunityLifePage({
   const [commentTextEditing, setCommentTextEditing] = useState(false);
   const [publishState, setPublishState] = useState<"idle" | "submitting" | "error">("idle");
   const [commentState, setCommentState] = useState<"idle" | "submitting" | "error">("idle");
-  const [readIds, setReadIds] = useState<string[]>([]);
+  const elderId = elderProfileMock.id ?? "current-elder";
+  const [readIds, setReadIds] = useState<string[]>(() => readViewedCommunityAnnouncementIds(elderId));
+  const [announcements, setAnnouncements] = useState<SharedCommunityAnnouncement[]>([]);
+  const [announcementLoadFailed, setAnnouncementLoadFailed] = useState(false);
   const [retrySucceeded, setRetrySucceeded] = useState(false);
   const communityStaff = useMemo(() => getActiveCommunityStaff(), []);
 
-  const effectiveScenario = (acceptanceScenario === "load-failure" || acceptanceScenario === "topic-load-failure") && retrySucceeded
-    ? (acceptanceScenario === "topic-load-failure" ? "topic-normal" : "default")
+  const effectiveScenario = ["load-failure", "topic-load-failure", "announcement-load-failure"].includes(acceptanceScenario) && retrySucceeded
+    ? (acceptanceScenario === "topic-load-failure" ? "topic-normal" : acceptanceScenario === "announcement-load-failure" ? "announcement-no-cover" : "default")
     : acceptanceScenario;
 
+  const scenarioAnnouncements = useMemo(() => {
+    const scoped = announcements.filter((announcement) => announcement.communityId === elderProfileMock.communityId);
+    if (effectiveScenario === "announcement-empty") return [];
+    if (effectiveScenario === "announcement-no-cover") {
+      const first = scoped[0] ?? announcementAcceptanceFallback;
+      return [{ ...first, coverUrl: "", coverKind: "default_icon" as const }, ...scoped.slice(1)];
+    }
+    if (effectiveScenario === "announcement-disabled") {
+      const first = scoped[0] ?? announcementAcceptanceFallback;
+      return [{ ...first, publishStatus: "disabled" as const }, ...scoped.slice(1)];
+    }
+    return scoped;
+  }, [announcements, effectiveScenario]);
+
+  const announcementItems = useMemo(
+    () => scenarioAnnouncements.map(toCommunityInfoItem),
+    [scenarioAnnouncements],
+  );
+  const allInfoItems = useMemo(
+    () => [...announcementItems, ...communityInfoItems],
+    [announcementItems],
+  );
+
   const selectedItem = useMemo(
-    () => communityInfoItems.find((item) => item.id === selectedItemId) ?? null,
-    [selectedItemId],
+    () => allInfoItems.find((item) => item.id === selectedItemId) ?? null,
+    [allInfoItems, selectedItemId],
   );
   const selectedTopic = useMemo(
     () => topics.find((topic) => topic.id === selectedTopicId) ?? null,
@@ -288,10 +329,12 @@ export default function CommunityLifePage({
   );
   const isGenericEmpty = effectiveScenario === "empty";
   const isGenericLoadFailure = effectiveScenario === "load-failure";
+  const isAnnouncementEmpty = effectiveScenario === "announcement-empty";
+  const isAnnouncementLoadFailure = effectiveScenario === "announcement-load-failure" || announcementLoadFailed;
   const isTopicEmpty = effectiveScenario === "topic-empty";
   const isTopicLoadFailure = effectiveScenario === "topic-load-failure";
-  const visibleInfoItems = !isGenericEmpty && !isGenericLoadFailure
-    ? communityInfoItems.filter((item) => item.category === selectedCategory)
+  const visibleInfoItems = !isGenericEmpty && !isGenericLoadFailure && !(selectedCategory === "announcement" && (isAnnouncementEmpty || isAnnouncementLoadFailure))
+    ? allInfoItems.filter((item) => item.category === selectedCategory && item.publishStatus !== "disabled")
     : [];
   const visibleCount = selectedCategory === "community-staff"
     ? communityStaff.length
@@ -303,6 +346,29 @@ export default function CommunityLifePage({
         ? (isTopicEmpty || isTopicLoadFailure ? 0 : topics.length)
       : visibleInfoItems.length;
   const categoryDefinition = categories.find((item) => item.id === selectedCategory) ?? categories[0];
+  const isAnnouncementListEmpty = selectedCategory === "announcement"
+    && !isAnnouncementLoadFailure
+    && visibleInfoItems.length === 0;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    try {
+      setAnnouncements(readCommunityAnnouncements());
+      setAnnouncementLoadFailed(false);
+    } catch {
+      setAnnouncementLoadFailed(true);
+    }
+    const unsubscribe = subscribeCommunityAnnouncements((records) => {
+      if (!active) return;
+      setAnnouncements(records);
+      setAnnouncementLoadFailed(false);
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -366,6 +432,12 @@ export default function CommunityLifePage({
     }
   }, [acceptanceScenario]);
 
+  useEffect(() => {
+    if (!isOpen || effectiveScenario !== "announcement-disabled" || !announcementItems[0]) return;
+    setSelectedCategory("announcement");
+    setSelectedItemId(announcementItems[0].id);
+  }, [announcementItems, effectiveScenario, isOpen]);
+
   if (!isOpen) return null;
 
   const chooseCategory = (category: CommunityLifeCategory) => {
@@ -376,8 +448,23 @@ export default function CommunityLifePage({
   };
 
   const openItem = (item: CommunityInfoItem) => {
+    if (item.publishStatus === "disabled") return;
     setSelectedItemId(item.id);
-    setReadIds((current) => current.includes(item.id) ? current : [...current, item.id]);
+    setReadIds((current) => {
+      if (item.category !== "announcement") return current.includes(item.id) ? current : [...current, item.id];
+      return markCommunityAnnouncementViewed(elderId, item.id);
+    });
+  };
+
+  const retryContent = () => {
+    setRetrySucceeded(true);
+    if (selectedCategory !== "announcement") return;
+    try {
+      setAnnouncements(readCommunityAnnouncements());
+      setAnnouncementLoadFailed(false);
+    } catch {
+      setAnnouncementLoadFailed(true);
+    }
   };
 
   const openTopicComposer = (reference?: CommunityTopicReference) => {
@@ -529,16 +616,16 @@ export default function CommunityLifePage({
             </div>
           </header>
 
-          {(isGenericLoadFailure || (selectedCategory === "topic" && isTopicLoadFailure)) ? (
+          {(isGenericLoadFailure || (selectedCategory === "topic" && isTopicLoadFailure) || (selectedCategory === "announcement" && isAnnouncementLoadFailure)) ? (
             <div className="community-life-state is-error" role="alert">
               <CircleAlert aria-hidden="true" />
               <h3>内容暂时没有加载出来</h3>
               <p>请稍后再试，其他功能不受影响。</p>
-              <button type="button" onClick={() => setRetrySucceeded(true)}>
+              <button type="button" onClick={retryContent}>
                 <RefreshCcw aria-hidden="true" />重新加载
               </button>
             </div>
-          ) : (isGenericEmpty || (selectedCategory === "topic" && isTopicEmpty)) ? (
+          ) : (isGenericEmpty || (selectedCategory === "topic" && isTopicEmpty) || (selectedCategory === "announcement" && (isAnnouncementEmpty || isAnnouncementListEmpty))) ? (
             <div className="community-life-state">
               <Newspaper aria-hidden="true" />
               <h3>当前暂无内容</h3>
@@ -651,9 +738,9 @@ export default function CommunityLifePage({
                       {item.coverUrl && <img src={item.coverUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} />}
                     </span>
                     <span className="community-life-info-list__copy">
-                      <span><small>{item.source}</small>{hasRead ? <em>已查看</em> : <b>新内容</b>}</span>
+                      <span>{item.source && <small>{item.source}</small>}{hasRead ? <em>已查看</em> : <b>新内容</b>}</span>
                       <strong>{item.title}</strong>
-                      <p>{item.summary}</p>
+                      {item.summary && <p>{item.summary}</p>}
                       <small>{item.publishAt}</small>
                     </span>
                     <ChevronRight aria-hidden="true" />
@@ -671,42 +758,59 @@ export default function CommunityLifePage({
             <button type="button" onClick={() => setSelectedItemId(null)}><X aria-hidden="true" />收起</button>
             <strong>{categoryDefinition.label}</strong>
           </header>
-          <article>
-            <div className="community-life-detail__meta">
-              <span><BadgeCheck aria-hidden="true" />已查看</span>
-              <small>{selectedItem.source} · {selectedItem.publishAt}</small>
-            </div>
-            <h2>{selectedItem.title}</h2>
-            <p className="community-life-detail__summary">{selectedItem.summary}</p>
-            <div className="community-life-detail__body">
-              {selectedItem.body.map((paragraph, index) => (
-                <Fragment key={paragraph}>
-                  <p>{paragraph}</p>
-                  {index === 0 && selectedItem.coverUrl && (
-                    <img
-                      className="community-life-detail__inline-image"
-                      src={selectedItem.coverUrl}
-                      alt=""
-                      onError={(event) => { event.currentTarget.hidden = true; }}
-                    />
-                  )}
-                </Fragment>
-              ))}
-              {selectedItem.body.length === 0 && selectedItem.coverUrl && (
-                <img
-                  className="community-life-detail__inline-image"
-                  src={selectedItem.coverUrl}
-                  alt=""
-                  onError={(event) => { event.currentTarget.hidden = true; }}
-                />
+          {selectedItem.publishStatus === "disabled" ? (
+            <article className="community-life-detail__unavailable" role="alert">
+              <CircleAlert aria-hidden="true" />
+              <h2>该公告已停止展示</h2>
+              <p>社区已停用这条公告，正文不再提供查看。</p>
+              <button type="button" onClick={() => setSelectedItemId(null)}>返回公告列表</button>
+            </article>
+          ) : (
+            <article>
+              <div className="community-life-detail__meta">
+                <span><BadgeCheck aria-hidden="true" />已查看</span>
+                <small>{selectedItem.source ? `${selectedItem.source} · ` : ""}{selectedItem.publishAt}</small>
+              </div>
+              <h2>{selectedItem.title}</h2>
+              {selectedItem.summary && <p className="community-life-detail__summary">{selectedItem.summary}</p>}
+              <div className="community-life-detail__body">
+                {selectedItem.body.map((paragraph, index) => (
+                  <Fragment key={`${paragraph}-${index}`}>
+                    <p>{paragraph}</p>
+                    {index === 0 && (
+                      <div className="community-life-detail__default-cover" aria-label={selectedItem.coverUrl ? undefined : `${categoryDefinition.label}默认图标`}>
+                        <CategoryIcon aria-hidden="true" />
+                        {selectedItem.coverUrl && (
+                          <img
+                            src={selectedItem.coverUrl}
+                            alt=""
+                            onError={(event) => { event.currentTarget.hidden = true; }}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </Fragment>
+                ))}
+                {selectedItem.body.length === 0 && (
+                  <div className="community-life-detail__default-cover" aria-label="社区公告默认图标">
+                    <CategoryIcon aria-hidden="true" />
+                    {selectedItem.coverUrl && (
+                      <img
+                        src={selectedItem.coverUrl}
+                        alt=""
+                        onError={(event) => { event.currentTarget.hidden = true; }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+              {selectedItem.category === "life-info" && (
+                <button className="community-life-detail__quote-action" type="button" onClick={() => openTopicComposer(referenceFromInfo(selectedItem))}>
+                  <Quote aria-hidden="true" />引用整篇资讯发起话题
+                </button>
               )}
-            </div>
-            {selectedItem.category === "life-info" && (
-              <button className="community-life-detail__quote-action" type="button" onClick={() => openTopicComposer(referenceFromInfo(selectedItem))}>
-                <Quote aria-hidden="true" />引用整篇资讯发起话题
-              </button>
-            )}
-          </article>
+            </article>
+          )}
         </section>
       )}
 
