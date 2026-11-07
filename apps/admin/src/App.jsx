@@ -3521,12 +3521,11 @@ function RecommendationSyncSection({ checked, onChange, startsAt, endsAt, onStar
 function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClose, onSave, onSetLiveMockState }) {
   const readOnly = mode === "view";
   const [form, setForm] = useState(() => {
-    const defaultRecommendationValidity = createAutomaticRecommendationValidity(communityContentMockNow);
     if (record) {
       const { contentImages = [], ...rest } = record;
       return { ...rest, syncToRecommendation: record.syncToRecommendation ?? true, contentHtml: record.contentHtml || legacyContentToHtml(record.description, contentImages) };
     }
-    return { projectId: currentProject?.id, title: "", category: "", description: "", contentHtml: "<p><br></p>", cover: "", startAt: "", endAt: "", location: "", capacity: 30, registrationStartAt: "", registrationEndAt: "", isOffline: false, contact: "", liveEnabled: false, liveStatus: "not_started", scheduledLiveStartAt: "", zoomMeetingId: "", zoomMeetingPassword: "", zoomJoinUrl: "", liveMockState: "normal", syncToRecommendation: true, ...defaultRecommendationValidity, recommendationEndAuto: true };
+    return { projectId: currentProject?.id, title: "", category: "", description: "", contentHtml: "<p><br></p>", cover: "", startAt: "", endAt: "", location: "", capacity: 30, registrationStartAt: "", registrationEndAt: "", isOffline: false, contact: "", liveEnabled: false, liveStatus: "not_started", scheduledLiveStartAt: "", zoomMeetingId: "", zoomMeetingPassword: "", zoomJoinUrl: "", liveMockState: "normal", syncToRecommendation: false, recommendationStartsAt: "", recommendationEndsAt: "", recommendationEndAuto: true };
   });
   const [errors, setErrors] = useState({});
   const update = (key, value) => {
@@ -3553,6 +3552,15 @@ function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClos
   };
   const updateRecommendationEndsAt = (value) => {
     setForm((current) => ({ ...current, recommendationEndsAt: value, recommendationEndAuto: false }));
+    setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
+  };
+  const toggleRecommendationSync = (checked) => {
+    setForm((current) => {
+      if (!checked) return { ...current, syncToRecommendation: false };
+      if (current.recommendationStartsAt && current.recommendationEndsAt) return { ...current, syncToRecommendation: true };
+      const validity = createAutomaticRecommendationValidity(current.recommendationStartsAt || communityContentMockNow);
+      return { ...current, syncToRecommendation: true, recommendationStartsAt: current.recommendationStartsAt || validity.recommendationStartsAt, recommendationEndsAt: validity.recommendationEndsAt, recommendationEndAuto: true };
+    });
     setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
   };
   const save = () => {
@@ -3584,7 +3592,7 @@ function CommunityActivityDrawer({ record, mode = "edit", currentProject, onClos
         {(form.liveEnabled || (readOnly && retainedLiveConfig)) && <div className="activity-live-fields"><label><span>预计开播时间 *</span><input type="datetime-local" value={form.scheduledLiveStartAt} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("scheduledLiveStartAt", event.target.value)}/>{errors.scheduledLiveStartAt && <small className="field-error">{errors.scheduledLiveStartAt}</small>}</label><div className="form-row"><label><span>Zoom 会议 ID *</span><input inputMode="numeric" value={form.zoomMeetingId} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomMeetingId", event.target.value)} placeholder="例如：856 2011 4028"/>{errors.zoomMeetingId && <small className="field-error">{errors.zoomMeetingId}</small>}</label><label><span>Zoom 会议密码</span><input value={form.zoomMeetingPassword} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomMeetingPassword", event.target.value)} placeholder="如会议设置密码则填写"/></label></div><label><span>Zoom 加入链接</span><input value={form.zoomJoinUrl} disabled={readOnly || !form.liveEnabled} onChange={(event) => update("zoomJoinUrl", event.target.value)} placeholder="可选，例如：https://zoom.us/j/85620114028"/><small className="field-help">老人端优先拉起 Zoom App；拉起失败时使用该链接进入 Zoom H5。</small>{errors.zoomJoinUrl && <small className="field-error">{errors.zoomJoinUrl}</small>}</label></div>}
         {!form.liveEnabled && !retainedLiveConfig && <div className="activity-live-empty">当前活动不提供直播，老人端仅展示线下活动信息。</div>}
       </div>
-      {!record && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={(checked) => update("syncToRecommendation", checked)} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
+      {!record && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={toggleRecommendationSync} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
     </div><footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" onClick={save}>{record ? "保存修改" : "发布活动"}</button>}</footer>
   </aside></div>;
 }
@@ -3694,7 +3702,6 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
   const readOnly = mode === "view";
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(() => {
-    const defaultRecommendationValidity = createAutomaticRecommendationValidity(communityContentMockNow);
     if (record) {
       const { contentImages = [], ...rest } = record;
       return {
@@ -3720,8 +3727,9 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
       validUntil: "2026-09-24 23:59",
       displayOrder: 1,
       status: "已发布",
-      syncToRecommendation: true,
-      ...defaultRecommendationValidity,
+      syncToRecommendation: false,
+      recommendationStartsAt: "",
+      recommendationEndsAt: "",
       recommendationEndAuto: true,
     };
   });
@@ -3764,6 +3772,15 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
   };
   const updateRecommendationEndsAt = (value) => {
     setForm((current) => ({ ...current, recommendationEndsAt: value, recommendationEndAuto: false }));
+    setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
+  };
+  const toggleRecommendationSync = (checked) => {
+    setForm((current) => {
+      if (!checked) return { ...current, syncToRecommendation: false };
+      if (current.recommendationStartsAt && current.recommendationEndsAt) return { ...current, syncToRecommendation: true };
+      const validity = createAutomaticRecommendationValidity(current.recommendationStartsAt || communityContentMockNow);
+      return { ...current, syncToRecommendation: true, recommendationStartsAt: current.recommendationStartsAt || validity.recommendationStartsAt, recommendationEndsAt: validity.recommendationEndsAt, recommendationEndAuto: true };
+    });
     setErrors((current) => { const next = { ...current }; delete next.recommendationValidity; return next; });
   };
   const submit = () => {
@@ -3810,7 +3827,7 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
             <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/>{errors.description && <small className="field-error">{errors.description}</small>}</label>
             <RichTextEditor label="正文内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/>
           </div>
-          {!record && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={(checked) => update("syncToRecommendation", checked)} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
+          {!record && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={toggleRecommendationSync} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
           {errors.submit && <div className="form-error-banner">{errors.submit}</div>}
         </div>
         <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" disabled={saving} onClick={submit}>{saving ? "处理中..." : record ? "保存修改" : "发布"}</button>}</footer>
