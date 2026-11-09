@@ -1,5 +1,6 @@
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { elderProfileMock, type ElderGender } from "./elder-profile";
+import { formatSingaporeAddress, normalizeSingaporeUnit } from "./singapore-address";
 
 export type ActivationAcceptanceScenario =
   | "normal"
@@ -14,10 +15,11 @@ export interface ActivationProfileDraft {
   name: string;
   phone: string;
   gender: ElderGender | "";
-  country: "新加坡";
+  country: "Singapore";
   postalCode: string;
   streetAddress: string;
   unit: string;
+  buildingName?: string;
 }
 
 export type ActivationScenarioEntry = "wifi" | "profile" | "success";
@@ -43,6 +45,7 @@ export interface ActivationContractState {
     postalCode: string;
     streetAddress: string;
     unit: string;
+    buildingName?: string;
     addressSummary: string;
     communityId: string | null;
     projectCommunity: string | null;
@@ -55,20 +58,22 @@ const defaultProfile: ActivationProfileDraft = {
   name: "",
   phone: "",
   gender: "",
-  country: "新加坡",
+  country: "Singapore",
   postalCode: "",
   streetAddress: "",
   unit: "",
+  buildingName: "",
 };
 
 const boundProfile: ActivationProfileDraft = {
   name: elderProfileMock.name,
   phone: elderProfileMock.phone?.replace(/\D/g, "").slice(-8) ?? "86032918",
   gender: "男",
-  country: "新加坡",
+  country: "Singapore",
   postalCode: "560123",
   streetAddress: "12 Ang Mo Kio Avenue 3",
   unit: "#08-21",
+  buildingName: "Grandeur 8",
 };
 
 export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario, {
@@ -99,7 +104,7 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
     label: "必填项缺失",
     description: "姓名、性别、联系电话、邮政编码和街道地址为空，就地显示必填提示。",
     entry: "profile",
-    profile: { name: "", phone: "", gender: "", country: "新加坡", postalCode: "", streetAddress: "", unit: "" },
+    profile: { name: "", phone: "", gender: "", country: "Singapore", postalCode: "", streetAddress: "", unit: "", buildingName: "" },
   },
   phoneInvalid: {
     label: "电话格式错误",
@@ -125,27 +130,36 @@ export const formatActivationPhone = (phone: string) => phone.length === 8
   ? `+65 ${phone.slice(0, 4)} ${phone.slice(4)}`
   : `+65 ${phone}`;
 
-export const formatActivationAddress = (profile: ActivationProfileDraft) => [
-  profile.streetAddress.trim(),
-  profile.unit.trim(),
-  profile.country,
-  profile.postalCode.trim(),
-].filter(Boolean).join(" · ");
+export const formatActivationAddress = (profile: ActivationProfileDraft) => formatSingaporeAddress(profile);
 
-const createElderlyContractProfile = (profile: ActivationProfileDraft) => ({
-  id: elderProfileMock.id ?? tabletActivationMock.elderlyId,
+export const normalizeActivationProfile = (profile: ActivationProfileDraft): ActivationProfileDraft => ({
+  ...profile,
   name: profile.name.trim(),
-  phone: formatActivationPhone(profile.phone),
-  gender: profile.gender,
-  country: profile.country,
-  postalCode: profile.postalCode,
+  phone: profile.phone.trim(),
+  postalCode: profile.postalCode.trim(),
   streetAddress: profile.streetAddress.trim(),
-  unit: profile.unit.trim(),
-  addressSummary: formatActivationAddress(profile),
-  communityId: elderProfileMock.communityId ?? null,
-  projectCommunity: elderProfileMock.projectCommunity ?? null,
-  currentTabletId: null as string | null,
+  unit: normalizeSingaporeUnit(profile.unit),
+  buildingName: profile.buildingName?.trim() ?? "",
 });
+
+const createElderlyContractProfile = (profileDraft: ActivationProfileDraft) => {
+  const profile = normalizeActivationProfile(profileDraft);
+  return ({
+    id: elderProfileMock.id ?? tabletActivationMock.elderlyId,
+    name: profile.name,
+    phone: formatActivationPhone(profile.phone),
+    gender: profile.gender,
+    country: profile.country,
+    postalCode: profile.postalCode,
+    streetAddress: profile.streetAddress,
+    unit: profile.unit,
+    buildingName: profile.buildingName,
+    addressSummary: formatActivationAddress(profile),
+    communityId: elderProfileMock.communityId ?? null,
+    projectCommunity: elderProfileMock.projectCommunity ?? null,
+    currentTabletId: null as string | null,
+  });
+};
 
 export const createInitialActivationContractState = (): ActivationContractState => ({
   contractVersion: tabletActivationMock.contractVersion,
@@ -159,7 +173,7 @@ export const createInitialActivationContractState = (): ActivationContractState 
     boundElderlyId: null,
   },
   elderly: {
-    ...createElderlyContractProfile({ name: "", phone: "", gender: "", country: "新加坡", postalCode: "", streetAddress: "", unit: "" }),
+    ...createElderlyContractProfile({ name: "", phone: "", gender: "", country: "Singapore", postalCode: "", streetAddress: "", unit: "", buildingName: "" }),
     communityId: null,
     projectCommunity: null,
   },

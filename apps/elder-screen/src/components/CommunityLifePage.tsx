@@ -36,6 +36,11 @@ import {
   type SharedCommunityAnnouncement,
 } from "../community-announcements";
 import { elderProfileMock } from "../elder-profile";
+import {
+  isCommunityTopicReferenceAvailable,
+  resolveCommunityTopicAccountName,
+  sortCommunityTopicsByPublishedAt,
+} from "../../../产品理解/90 原型与Mock素材/mock/社区话题共享Mock.js";
 import type { AntiScamTip, CommunityActivity } from "../types";
 import "./community-life-page.css";
 
@@ -46,7 +51,7 @@ export type CommunityLifeAcceptanceScenario =
   | "announcement-empty"
   | "announcement-load-failure"
   | "announcement-disabled"
-  | "announcement-no-cover"
+  | "announcement-cover-load-failure"
   | "topic-normal"
   | "topic-elder"
   | "topic-backend"
@@ -93,6 +98,7 @@ interface CommunityInfoItem {
   coverUrl?: string;
   body: string[];
   publishStatus?: "published" | "disabled";
+  resourceType?: "announcement" | "life_info";
 }
 
 interface CommunityTopicReference {
@@ -106,7 +112,8 @@ interface CommunityTopicReference {
 
 interface CommunityTopicComment {
   id: string;
-  author: string;
+  authorId: string;
+  authorName: string;
   publishAt: string;
   content: string;
 }
@@ -115,9 +122,12 @@ interface CommunityTopic {
   id: string;
   title: string;
   body: string;
-  initiator: string;
+  initiatorId: string;
+  initiatorName: string;
   initiatorType: "community" | "elder" | "backend";
   publishAt: string;
+  publishedAt: string;
+  creationOrder: number;
   status: "open" | "closed";
   reference?: CommunityTopicReference;
   comments: CommunityTopicComment[];
@@ -138,6 +148,7 @@ const communityInfoItems: CommunityInfoItem[] = [
   {
     id: "life-summer-water",
     category: "life-info",
+    resourceType: "life_info",
     title: "天气炎热，少量多次补水更舒适",
     summary: "不要等到口渴再喝水，外出时记得随身带水。",
     source: "社区健康服务站",
@@ -151,6 +162,7 @@ const communityInfoItems: CommunityInfoItem[] = [
   {
     id: "life-home-light",
     category: "life-info",
+    resourceType: "life_info",
     title: "夜间起身先开灯，减少跌倒风险",
     summary: "床边保留容易触及的灯，通道上不要堆放杂物。",
     source: "社区居家安全小组",
@@ -171,8 +183,7 @@ const announcementAcceptanceFallback: SharedCommunityAnnouncement = {
   title: "社区公共区域维护通知",
   summary: "请留意现场指引，经过作业区域时慢行。",
   bodyHtml: "<p>社区公共区域将进行例行维护，请居民按照现场指引通行。</p>",
-  coverUrl: "",
-  coverKind: "default_icon",
+  coverUrl: "/mock/community-life/covers/announcement-maintenance.svg",
   publishAt: "2026-11-05T09:00:00+08:00",
   publishStatus: "published",
   updatedAt: "2026-11-05T09:00:00+08:00",
@@ -181,6 +192,7 @@ const announcementAcceptanceFallback: SharedCommunityAnnouncement = {
 const toCommunityInfoItem = (announcement: SharedCommunityAnnouncement): CommunityInfoItem => ({
   id: announcement.id,
   category: "announcement",
+  resourceType: "announcement",
   title: announcement.title,
   summary: announcement.summary,
   publishAt: formatCommunityAnnouncementPublishAt(announcement.publishAt),
@@ -194,9 +206,12 @@ const baseTopics: CommunityTopic[] = [
     id: "topic-garden",
     title: "社区花园秋季想增加哪些植物？",
     body: "大家平时喜欢哪些花草？社区想在秋季补充一批好打理的植物，欢迎留下想法。",
-    initiator: "社区园艺工作组",
+    initiatorId: "ADMIN-001",
+    initiatorName: "赵亚男",
     initiatorType: "community",
     publishAt: "今天 10:30",
+    publishedAt: "2026-11-09T10:30:00+08:00",
+    creationOrder: 1,
     status: "open",
     reference: {
       infoId: "life-home-light",
@@ -207,17 +222,20 @@ const baseTopics: CommunityTopic[] = [
       isAvailable: true,
     },
     comments: [
-      { id: "comment-garden-1", author: "李奶奶", publishAt: "今天 10:46", content: "我喜欢桂花，闻起来很舒服。" },
-      { id: "comment-garden-2", author: "王建国（我）", publishAt: "今天 10:52", content: "也可以留一块地种点葱和青菜。" },
+      { id: "comment-garden-1", authorId: "SG-E-000124", authorName: "李玉珍", publishAt: "今天 10:46", content: "我喜欢桂花，闻起来很舒服。" },
+      { id: "comment-garden-2", authorId: elderProfileMock.id ?? "current-elder", authorName: elderProfileMock.name, publishAt: "今天 10:52", content: "也可以留一块地种点葱和青菜。" },
     ],
   },
   {
     id: "topic-canteen",
     title: "长者食堂下月菜单想怎么调整？",
     body: "我们想减少过咸菜品，增加软烂和小份菜选择。大家有喜欢的菜可以留言。",
-    initiator: "社区服务后台",
+    initiatorId: "ADMIN-002",
+    initiatorName: "王淑芬",
     initiatorType: "backend",
     publishAt: "昨天 11:40",
+    publishedAt: "2026-11-08T11:40:00+08:00",
+    creationOrder: 2,
     status: "open",
     comments: [],
   },
@@ -225,12 +243,15 @@ const baseTopics: CommunityTopic[] = [
     id: "topic-elder-walk",
     title: "傍晚散步的时候一起结个伴",
     body: "我一般傍晚五点多在楼下慢走，有时间的邻居可以一起走走。",
-    initiator: "王建国（我）",
+    initiatorId: elderProfileMock.id ?? "current-elder",
+    initiatorName: elderProfileMock.name,
     initiatorType: "elder",
     publishAt: "周一 17:05",
+    publishedAt: "2026-11-02T17:05:00+08:00",
+    creationOrder: 3,
     status: "closed",
     comments: [
-      { id: "comment-walk-1", author: "陈爷爷", publishAt: "周一 17:18", content: "我也是这个时间，天气好就一起。" },
+      { id: "comment-walk-1", authorId: "SG-E-000126", authorName: "林秀英", publishAt: "周一 17:18", content: "我也是这个时间，天气好就一起。" },
     ],
   },
 ];
@@ -293,15 +314,15 @@ export default function CommunityLifePage({
   const communityStaff = useMemo(() => getActiveCommunityStaff(), []);
 
   const effectiveScenario = ["load-failure", "topic-load-failure", "announcement-load-failure"].includes(acceptanceScenario) && retrySucceeded
-    ? (acceptanceScenario === "topic-load-failure" ? "topic-normal" : acceptanceScenario === "announcement-load-failure" ? "announcement-no-cover" : "default")
+    ? (acceptanceScenario === "topic-load-failure" ? "topic-normal" : "default")
     : acceptanceScenario;
 
   const scenarioAnnouncements = useMemo(() => {
     const scoped = announcements.filter((announcement) => announcement.communityId === elderProfileMock.communityId);
     if (effectiveScenario === "announcement-empty") return [];
-    if (effectiveScenario === "announcement-no-cover") {
+    if (effectiveScenario === "announcement-cover-load-failure") {
       const first = scoped[0] ?? announcementAcceptanceFallback;
-      return [{ ...first, coverUrl: "", coverKind: "default_icon" as const }, ...scoped.slice(1)];
+      return [{ ...first, coverUrl: "/mock/community-life/covers/announcement-missing.svg" }, ...scoped.slice(1)];
     }
     if (effectiveScenario === "announcement-disabled") {
       const first = scoped[0] ?? announcementAcceptanceFallback;
@@ -318,14 +339,36 @@ export default function CommunityLifePage({
     () => [...announcementItems, ...communityInfoItems],
     [announcementItems],
   );
+  const visibleTopics = useMemo(() => {
+    const contentRecords = allInfoItems.map((item) => ({
+      id: item.id,
+      resourceType: item.resourceType ?? (item.category === "life-info" ? "life_info" : "announcement"),
+      publishStatus: item.publishStatus ?? "published",
+    }));
+    const normalized = topics.map((topic) => ({
+      ...topic,
+      initiatorName: resolveCommunityTopicAccountName(topic.initiatorId, topic.initiatorName),
+      reference: topic.reference ? {
+        ...topic.reference,
+        isAvailable: effectiveScenario === "topic-reference-expired"
+          ? false
+          : isCommunityTopicReferenceAvailable(topic.reference.infoId, contentRecords),
+      } : undefined,
+      comments: topic.comments.map((comment) => ({
+        ...comment,
+        authorName: resolveCommunityTopicAccountName(comment.authorId, comment.authorName),
+      })),
+    }));
+    return sortCommunityTopicsByPublishedAt(normalized) as CommunityTopic[];
+  }, [allInfoItems, effectiveScenario, topics]);
 
   const selectedItem = useMemo(
     () => allInfoItems.find((item) => item.id === selectedItemId) ?? null,
     [allInfoItems, selectedItemId],
   );
   const selectedTopic = useMemo(
-    () => topics.find((topic) => topic.id === selectedTopicId) ?? null,
-    [selectedTopicId, topics],
+    () => visibleTopics.find((topic) => topic.id === selectedTopicId) ?? null,
+    [selectedTopicId, visibleTopics],
   );
   const isGenericEmpty = effectiveScenario === "empty";
   const isGenericLoadFailure = effectiveScenario === "load-failure";
@@ -343,7 +386,7 @@ export default function CommunityLifePage({
     : selectedCategory === "alert"
       ? alerts.length
       : selectedCategory === "topic"
-        ? (isTopicEmpty || isTopicLoadFailure ? 0 : topics.length)
+        ? (isTopicEmpty || isTopicLoadFailure ? 0 : visibleTopics.length)
       : visibleInfoItems.length;
   const categoryDefinition = categories.find((item) => item.id === selectedCategory) ?? categories[0];
   const isAnnouncementListEmpty = selectedCategory === "announcement"
@@ -521,9 +564,12 @@ export default function CommunityLifePage({
       id: `topic-elder-${Date.now()}`,
       title: summarizeTopicTitle(topicBody, composerReference),
       body: topicBody,
-      initiator: "王建国（我）",
+      initiatorId: elderProfileMock.id ?? "current-elder",
+      initiatorName: elderProfileMock.name,
       initiatorType: "elder",
       publishAt: "刚刚",
+      publishedAt: new Date().toISOString(),
+      creationOrder: Date.now(),
       status: "open",
       reference: composerReference,
       comments: [],
@@ -546,7 +592,8 @@ export default function CommunityLifePage({
     }
     const nextComment: CommunityTopicComment = {
       id: `comment-${Date.now()}`,
-      author: "王建国（我）",
+      authorId: elderProfileMock.id ?? "current-elder",
+      authorName: elderProfileMock.name,
       publishAt: "刚刚",
       content: commentDraft.trim(),
     };
@@ -636,12 +683,12 @@ export default function CommunityLifePage({
             </div>
           ) : selectedCategory === "topic" ? (
             <div className="community-topic-list">
-              {topics.map((topic) => (
+              {visibleTopics.map((topic) => (
                 <button key={topic.id} type="button" className="community-topic-card" onClick={() => setSelectedTopicId(topic.id)}>
                   <span className="community-topic-card__icon"><MessageCircle aria-hidden="true" /></span>
                   <span className="community-topic-card__copy">
                     <span className="community-topic-card__meta">
-                      <small>{topic.initiator} · {topic.publishAt}</small>
+                      <small>{topic.initiatorName} · {topic.publishAt}</small>
                       {topic.status === "closed" && <em>话题已关闭</em>}
                     </span>
                     <strong>{topic.title}</strong>
@@ -734,7 +781,7 @@ export default function CommunityLifePage({
                 return (
                   <button key={item.id} type="button" onClick={() => openItem(item)}>
                     <span className={`community-life-info-list__media${item.coverUrl ? " has-cover" : ""}`}>
-                      <CategoryIcon aria-hidden="true" />
+                      {item.category !== "announcement" && <CategoryIcon aria-hidden="true" />}
                       {item.coverUrl && <img src={item.coverUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} />}
                     </span>
                     <span className="community-life-info-list__copy">
@@ -778,8 +825,8 @@ export default function CommunityLifePage({
                   <Fragment key={`${paragraph}-${index}`}>
                     <p>{paragraph}</p>
                     {index === 0 && (
-                      <div className="community-life-detail__default-cover" aria-label={selectedItem.coverUrl ? undefined : `${categoryDefinition.label}默认图标`}>
-                        <CategoryIcon aria-hidden="true" />
+                      <div className="community-life-detail__cover">
+                        {selectedItem.category !== "announcement" && <CategoryIcon aria-hidden="true" />}
                         {selectedItem.coverUrl && (
                           <img
                             src={selectedItem.coverUrl}
@@ -792,8 +839,8 @@ export default function CommunityLifePage({
                   </Fragment>
                 ))}
                 {selectedItem.body.length === 0 && (
-                  <div className="community-life-detail__default-cover" aria-label="社区公告默认图标">
-                    <CategoryIcon aria-hidden="true" />
+                  <div className="community-life-detail__cover">
+                    {selectedItem.category !== "announcement" && <CategoryIcon aria-hidden="true" />}
                     {selectedItem.coverUrl && (
                       <img
                         src={selectedItem.coverUrl}
@@ -899,7 +946,7 @@ export default function CommunityLifePage({
           <div className="community-topic-detail__scroll">
             <article className="community-topic-detail__article">
               <div className="community-topic-detail__meta">
-                <span>{selectedTopic.initiator}</span><small>{selectedTopic.publishAt}</small>
+                <span>{selectedTopic.initiatorName}</span><small>{selectedTopic.publishAt}</small>
                 {selectedTopic.status === "closed" && <em>话题已关闭</em>}
               </div>
               <h2>{selectedTopic.title}</h2>
@@ -926,7 +973,7 @@ export default function CommunityLifePage({
                 <div className="community-topic-comments__list">
                   {selectedTopic.comments.map((comment) => (
                     <article key={comment.id}>
-                      <div><strong>{comment.author}</strong><small>{comment.publishAt}</small></div>
+                      <div><strong>{comment.authorName}</strong><small>{comment.publishAt}</small></div>
                       <p>{comment.content}</p>
                     </article>
                   ))}

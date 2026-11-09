@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   activationScenarioDefinitions,
+  normalizeActivationProfile,
   type ActivationAcceptanceScenario,
   type ActivationContractState,
   type ActivationLookupStatus,
@@ -147,7 +148,9 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
   const submitProfile = () => {
     setTouchedProfileFields(new Set(profileFieldNames));
     if (!isProfileValid) return;
-    onBindingSubmitted(profile);
+    const normalizedProfile = normalizeActivationProfile(profile);
+    setProfile(normalizedProfile);
+    onBindingSubmitted(normalizedProfile);
     setStep("success");
   };
 
@@ -322,9 +325,14 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                     {showProfileError("streetAddress") && <small id="activation-address-error" role="alert">{showProfileError("streetAddress")}</small>}
                   </label>
 
-                  <label className="activation-form-field activation-form-field--wide">
+                  <label className="activation-form-field">
                     <span>单元号（选填）</span>
-                    <span className="activation-form-input"><MapPin aria-hidden="true" /><input value={profile.unit} onChange={(event) => updateProfile("unit", event.target.value)} placeholder="例如：#08-21" /></span>
+                    <span className="activation-form-input"><MapPin aria-hidden="true" /><input value={profile.unit} onChange={(event) => updateProfile("unit", event.target.value)} onBlur={() => setProfile((current) => normalizeActivationProfile(current))} placeholder="例如：#08-21" /></span>
+                  </label>
+
+                  <label className="activation-form-field">
+                    <span>楼栋名称（选填）</span>
+                    <span className="activation-form-input"><MapPin aria-hidden="true" /><input value={profile.buildingName ?? ""} onChange={(event) => updateProfile("buildingName", event.target.value)} placeholder="例如：Grandeur 8" /></span>
                   </label>
                 </div>
 

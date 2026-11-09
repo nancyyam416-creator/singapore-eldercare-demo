@@ -129,7 +129,7 @@ function TabletDeviceDetailDrawer({ device, scope, onClose, onOpenOta, onManageT
     <section className="admin-detail-summary platform-device-summary">
       <span className="admin-detail-summary-icon"><MonitorSmartphone size={22}/><small>PAD</small></span>
       <div className="admin-detail-summary-primary"><span>设备编号</span><b>{device.id}</b><small>{device.model} · {device.sn}</small></div>
-      {isPlatform ? <DeviceStatusTag status={device.upgradeStatus}/> : <OnlineStatusTag status={device.onlineStatus}/>}
+      {isPlatform ? <DeviceStatusTag status={device.upgradeStatus}/> : <OnlineStatusTag status={device.onlineStatus}/>} 
     </section>
     <section className="admin-detail-section"><h3>设备信息</h3><div className="admin-detail-property-grid">
       <div><span>设备编号</span><b>{device.id}</b></div>
@@ -248,6 +248,6 @@ export function PlatformTabletDevicesPage({ devices, elderlyRecords, projects, s
       </tbody></table></div>
       <div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div>
     </section>
-    {selectedDevice && <TabletDeviceDetailDrawer device={selectedDevice} scope={scope} onClose={() => setSelectedId("")} onManageTablet={onManageTablet} onOpenOta={onOpenOta ? () => { setSelectedId(""); onOpenOta(); } : undefined}/>}
+    {selectedDevice && <TabletDeviceDetailDrawer device={selectedDevice} scope={scope} onClose={() => setSelectedId("")} onManageTablet={onManageTablet} onOpenOta={onOpenOta ? () => { setSelectedId(""); onOpenOta(); } : undefined}/>} 
   </>;
 }

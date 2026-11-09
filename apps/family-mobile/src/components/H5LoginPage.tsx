@@ -208,7 +208,6 @@ export const H5LoginPage: React.FC<H5LoginPageProps> = ({ scenario, onLoginSucce
         </form>
       </div>
 
-      <p className="mt-6 text-center text-[10px] leading-relaxed text-slate-400">验证码仅用于本次身份验证，请勿向他人透露。</p>
     </div>
   );
 };

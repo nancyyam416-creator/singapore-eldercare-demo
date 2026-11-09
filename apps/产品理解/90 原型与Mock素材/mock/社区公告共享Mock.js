@@ -25,7 +25,6 @@ export const normalizeSharedCommunityAnnouncement = (record) => ({
   summary: String(record.summary ?? record.description ?? "").trim(),
   bodyHtml: String(record.bodyHtml ?? record.contentHtml ?? "<p><br></p>"),
   coverUrl: String(record.coverUrl || ""),
-  coverKind: record.coverUrl ? "image" : "default_icon",
   source: String(record.source || "").trim(),
   audience: "当前社区全部老人",
   publishAt: String(record.publishAt || ""),

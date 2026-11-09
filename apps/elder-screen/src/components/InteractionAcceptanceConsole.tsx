@@ -122,7 +122,7 @@ export type AcceptanceCommunityScenario =
   | "announcement-empty"
   | "announcement-load-failure"
   | "announcement-disabled"
-  | "announcement-no-cover"
+  | "announcement-cover-load-failure"
   | "topic-normal"
   | "topic-elder"
   | "topic-backend"
@@ -143,7 +143,6 @@ export type AcceptanceCommunityScenario =
   | "activity-live-active"
   | "activity-live-ended"
   | "activity-live-cancelled-conflict"
-  | "activity-live-invalid-access"
   | "activity-live-load-failure"
   | "activity-live-interrupted";
 export type AcceptanceHomeCommand =
@@ -412,7 +411,7 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
   "announcement-empty": { label: "公告为空", description: "当前社区没有已发布公告时展示空状态。" },
   "announcement-load-failure": { label: "公告加载失败", description: "公告读取失败时提示重试，不影响其他分类。" },
   "announcement-disabled": { label: "公告已停用", description: "已打开公告被停用后隐藏正文并返回列表。" },
-  "announcement-no-cover": { label: "公告无封面", description: "未配置封面时使用社区公告默认图标。" },
+  "announcement-cover-load-failure": { label: "公告封面加载失败", description: "隐藏失败图片，公告标题、摘要和正文仍可查看。" },
   "topic-normal": { label: "话题正常", description: "展示话题列表、引用摘要和评论数量。" },
   "topic-elder": { label: "老人发起", description: "展示当前老人发起且可继续评论的话题。" },
   "topic-backend": { label: "后台发起", description: "后台发布的话题同样支持查看和评论。" },
@@ -427,15 +426,14 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
   "topic-empty": { label: "话题空列表", description: "无话题时保留发起话题入口。" },
   "topic-load-failure": { label: "话题加载失败", description: "话题列表失败并提供重试。" },
   "activity-ended-cancelled": { label: "活动结束/取消", description: "不可再选择参加意向，活动状态优先展示。" },
-  "activity-submit-failure": { label: "意向提交失败", description: "保留原选择并支持重新提交。" },
+  "activity-submit-failure": { label: "意向提交失败", description: "参加意向未保存，保留重新提交入口。" },
   "activity-live-unconfigured": { label: "活动未配置直播", description: "不显示直播信息和直播入口。" },
   "activity-live-not-started": { label: "直播未开始", description: "显示预计开播时间，暂不可进入。" },
   "activity-live-active": { label: "直播进行中", description: "访问配置有效，可进入和退出直播。" },
   "activity-live-ended": { label: "直播已结束", description: "保留直播状态，不允许再次进入。" },
   "activity-live-cancelled-conflict": { label: "活动取消但直播为 live", description: "活动取消优先，直播入口不可进入。" },
-  "activity-live-invalid-access": { label: "直播地址失效", description: "直播中但访问配置无效，入口禁用。" },
-  "activity-live-load-failure": { label: "直播加载失败", description: "进入后显示加载失败，可重新加载或退出。" },
-  "activity-live-interrupted": { label: "直播中断", description: "进入后显示中断状态，可重新连接或退出。" },
+  "activity-live-load-failure": { label: "无法加入直播", description: "进入失败后可重试或返回活动详情。" },
+  "activity-live-interrupted": { label: "直播中断", description: "播放中断后可重试或返回活动详情。" },
 };
 
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
@@ -1116,7 +1114,7 @@ export default function InteractionAcceptanceConsole({
                   <ChevronRight aria-hidden="true" />打开当前社区生活场景
                 </button>
               </div>
-              <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向仅保留“我想参加”和“暂不参加”，与直播观看相互独立。</p>
+              <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向提交后不可重复提交或取消，与直播观看相互独立。</p>
             </section>}
 
             {activeSection === "special-services" && <section>
@@ -1295,7 +1293,7 @@ export default function InteractionAcceptanceConsole({
                   <div><dt>老人姓名</dt><dd>{activationContractState.elderly.name || "待填写"}</dd></div>
               <div><dt>性别</dt><dd>{activationContractState.elderly.gender || "待选择"}</dd></div>
                   <div><dt>联系电话</dt><dd>{activationContractState.elderly.phone || "待填写"}</dd></div>
-                  <div><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
+                  <div className="is-address"><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
                   <div><dt>社区归属</dt><dd>{activationContractState.elderly.projectCommunity || "绑定后同步"}</dd></div>
                 </dl>
               </div>

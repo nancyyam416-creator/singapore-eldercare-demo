@@ -1,3 +1,4 @@
+import { formatAddress, sampleAddresses } from './singaporeAddress';
 import { BoundElder, ElderBindingScenario, ElderRelation } from '../types';
 import { initialBoundElders } from './mockData';
 
@@ -14,9 +15,9 @@ export const bindingCandidates: BindingCandidate[] = [
   { ...initialBoundElders[1], countryCode: '+65', phone: '81230003', maskedName: '李*兰' },
   { id: 'elder-wang-jianguo', name: '王建国', maskedName: '王*国', age: 76,
     avatar: 'https://images.unsplash.com/photo-1581579438747-1dc8d17bbce4?auto=format&fit=crop&w=150&h=150&q=80',
-    project: '清华园社区养老服务项目', maskedAddress: '清华园社区 · **室', verificationAddress: '清华园社区 · 12号楼', countryCode: '+65', phone: '81230001' },
+    project: '清华园社区养老服务项目', maskedAddress: formatAddress(sampleAddresses.toaPayoh, true), verificationAddress: formatAddress(sampleAddresses.toaPayoh, true), countryCode: '+65', phone: '81230001' },
   { id: 'elder-lin', name: '林秀英', maskedName: '林*英', age: 73,
-    avatar: initialBoundElders[0].avatar, project: '社区居家养老服务', maskedAddress: '新加坡 · **街区', verificationAddress: '新加坡', countryCode: '+65', phone: '81230002' }
+    avatar: initialBoundElders[0].avatar, project: '社区居家养老服务', maskedAddress: formatAddress(sampleAddresses.queenstown, true), verificationAddress: formatAddress(sampleAddresses.queenstown, true), countryCode: '+65', phone: '81230002' }
 ];
 export type BindingRequestStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'withdrawn';
 export type BindingConfirmationChannel = 'elder_mobile' | 'elder_tablet';

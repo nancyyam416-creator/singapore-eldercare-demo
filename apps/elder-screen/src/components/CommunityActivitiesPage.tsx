@@ -14,10 +14,9 @@ export type CommunityActivityAcceptanceScenario =
   | "live-active"
   | "live-ended"
   | "live-cancelled-conflict"
-  | "live-invalid-access"
   | "live-load-failure"
   | "live-interrupted";
-type ParticipationState = "interested" | "not_interested";
+type ParticipationState = "submitted";
 type LivePlaybackState = "playing" | "load-failure" | "interrupted";
 
 interface CommunityActivitiesPageProps {
@@ -126,8 +125,6 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
       nextActivities[liveTargetIndex] = withLive(nextActivities[liveTargetIndex], { liveStatus: "ended" });
     } else if (acceptanceScenario === "live-cancelled-conflict") {
       nextActivities[liveTargetIndex] = withLive(nextActivities[liveTargetIndex], { status: "cancelled", liveStatus: "live" });
-    } else if (acceptanceScenario === "live-invalid-access") {
-      nextActivities[liveTargetIndex] = withLive(nextActivities[liveTargetIndex], { liveStatus: "live", playbackUrl: "" });
     }
     return nextActivities;
   }, [acceptanceScenario, activities]);
@@ -145,16 +142,18 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
 
   const getParticipation = (activity: CommunityActivity): ParticipationState | null => participation[activity.id] ?? null;
 
-  const saveIntent = (activity: CommunityActivity, intent: ParticipationState, retry = false) => {
+  const saveIntent = (activity: CommunityActivity, retry = false) => {
     if (activity.status === "ended" || activity.status === "cancelled") return;
-    if (acceptanceScenario === "submission-failure" && !retry) { setFailedIntent(intent); return; }
-    setParticipation((current) => ({ ...current, [activity.id]: intent }));
+    if (getParticipation(activity)) return;
+    if (acceptanceScenario === "submission-failure" && !retry) { setFailedIntent("submitted"); return; }
+    setParticipation((current) => ({ ...current, [activity.id]: "submitted" }));
     setFailedIntent(null);
-    speakText(intent === "interested" ? "已选择：我想参加" : "已选择：暂不参加", { fallbackKey: "generic-feedback", rate: 0.9 });
+    speakText("已提交参加意向", { fallbackKey: "generic-feedback", rate: 0.9 });
   };
 
   const openLiveStream = (activity: CommunityActivity) => {
     if (!canEnterLiveStream(activity)) return;
+    setSelectedActivityId(activity.id);
     setLiveActivityId(activity.id);
     setLivePlaybackState(
       acceptanceScenario === "live-load-failure"
@@ -173,22 +172,21 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
       <SecondaryPageHeader title="社区活动" icon={<Flag aria-hidden="true" />} onBack={onClose} />
       <div className="community-activities-content">
         <section className="community-activities-intro" aria-labelledby="community-activities-title">
-          <div><Sparkles aria-hidden="true" /><div><h2 id="community-activities-title">近期社区活动</h2><p>先查看详情，再选择是否想参加</p></div></div>
+          <div><Sparkles aria-hidden="true" /><div><h2 id="community-activities-title">近期社区活动</h2><p>查看详情后，可提交参加意向</p></div></div>
         </section>
         <div className="community-activities-list">
           {scenarioActivities.map((activity) => {
             const current = getParticipation(activity);
             const unavailable = isActivityUnavailable(activity);
             return (
-              <article key={activity.id} className={`community-activity-card${current === "interested" ? " is-interested" : ""}${unavailable ? " is-unavailable" : ""}`}>
+              <article key={activity.id} className={`community-activity-card${current === "submitted" ? " is-interested" : ""}${unavailable ? " is-unavailable" : ""}`}>
                 <div className="community-activity-card__image"><img src={activity.imageUrl} alt={`${activity.title}活动照片`} referrerPolicy="no-referrer" /></div>
                 <div className="community-activity-card__content">
                   <div className="community-activity-card__heading">
                     <span>{activity.tag}</span>
                     {unavailable && <em className="is-activity-state">{statusText(activity)}</em>}
                     {activity.liveEnabled && <em className="is-live"><Radio aria-hidden="true" />{liveStatusText(activity)}</em>}
-                    {current === "interested" && <em><Check aria-hidden="true" />已选择：我想参加</em>}
-                    {current === "not_interested" && <em>已选择：暂不参加</em>}
+                    {current === "submitted" && <em><Check aria-hidden="true" />已提交参加意向</em>}
                   </div>
                   <h3>{activity.title}</h3>
                   <p className="community-activity-card__description">{activity.description ?? "查看时间、地点和活动说明。"}</p>
@@ -215,11 +213,11 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
               <div className="community-activity-detail__facts"><span><CalendarClock aria-hidden="true" /><b>活动时间</b>{selectedActivity.time}</span><span><MapPin aria-hidden="true" /><b>活动地点</b>{selectedActivity.location}</span>{selectedActivity.liveEnabled && <><span className="is-live"><Video aria-hidden="true" /><b>参加方式</b>现场参加或线上直播</span><span className="is-live"><Radio aria-hidden="true" /><b>直播状态</b>{liveStatusText(selectedActivity)}</span></>}<span className="is-contact"><PhoneCall aria-hidden="true" /><b>咨询电话</b><strong>{selectedActivity.contact ?? "010-6258 8890"}</strong></span></div>
               {(selectedActivity.status === "ended" || selectedActivity.status === "cancelled") ? <div className="community-activity-detail__unavailable"><CircleAlert aria-hidden="true" /><strong>{statusText(selectedActivity)}</strong><p>当前不再接受参加意向。</p></div> : (
                 <div className="community-activity-detail__intentions">
-                  {failedIntent && <p className="community-activity-detail__error" role="alert"><CircleAlert aria-hidden="true" />提交失败，您的选择尚未保存。请重新提交。</p>}
-                  {getParticipation(selectedActivity) && !failedIntent && <p className="community-activity-detail__result" role="status"><Check aria-hidden="true" />{getParticipation(selectedActivity) === "interested" ? "已选择：我想参加" : "已选择：暂不参加"}</p>}
+                  {failedIntent && <p className="community-activity-detail__error" role="alert"><CircleAlert aria-hidden="true" />提交失败，参加意向尚未保存，请重试。</p>}
+                  {getParticipation(selectedActivity) && !failedIntent && <p className="community-activity-detail__result" role="status"><Check aria-hidden="true" />已提交参加意向</p>}
                   {selectedActivity.liveEnabled && <button type="button" className="community-activity-detail__live-entry" disabled={!canEnterLiveStream(selectedActivity)} onClick={() => openLiveStream(selectedActivity)}><Video aria-hidden="true" />{liveActionLabel(selectedActivity)}</button>}
-                  <div><button type="button" className="is-primary" onClick={() => saveIntent(selectedActivity, "interested")}><UserRoundCheck aria-hidden="true" />我想参加</button><button type="button" onClick={() => saveIntent(selectedActivity, "not_interested")}><X aria-hidden="true" />暂不参加</button></div>
-                  {failedIntent && <button className="community-activity-detail__retry" type="button" onClick={() => saveIntent(selectedActivity, failedIntent, true)}><RefreshCcw aria-hidden="true" />重新提交原选择</button>}
+                  {!getParticipation(selectedActivity) && !failedIntent && <div><button type="button" className="is-primary" onClick={() => saveIntent(selectedActivity)}><UserRoundCheck aria-hidden="true" />我想参加</button></div>}
+                  {failedIntent && <button className="community-activity-detail__retry" type="button" onClick={() => saveIntent(selectedActivity, true)}><RefreshCcw aria-hidden="true" />重新提交</button>}
                 </div>
               )}
             </article>
@@ -242,8 +240,8 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
             </> : <div className="community-live-room__error" role="alert">
               <CircleAlert aria-hidden="true" />
               <h2>{livePlaybackState === "load-failure" ? "直播暂时没有加载出来" : "直播画面暂时中断"}</h2>
-              <p>{livePlaybackState === "load-failure" ? "请检查网络后重新加载。" : "您的参加意向不会受到影响，可以尝试重新连接。"}</p>
-              <div><button type="button" onClick={() => setLivePlaybackState("playing")}><RefreshCcw aria-hidden="true" />{livePlaybackState === "load-failure" ? "重新加载" : "重新连接"}</button><button type="button" onClick={() => setLiveActivityId(null)}><X aria-hidden="true" />退出直播</button></div>
+              <p>{livePlaybackState === "load-failure" ? "暂时无法加入直播，请检查网络后重试。" : "您的参加意向不会受到影响，可以重试连接。"}</p>
+              <div><button type="button" onClick={() => setLivePlaybackState("playing")}><RefreshCcw aria-hidden="true" />重试</button><button type="button" onClick={() => setLiveActivityId(null)}><X aria-hidden="true" />返回活动详情</button></div>
             </div>}
           </div>
           <footer><span><CalendarClock aria-hidden="true" />{liveActivity.time}</span><span><MapPin aria-hidden="true" />线上直播 · {liveActivity.location.replace("（同步直播）", "")}</span></footer>

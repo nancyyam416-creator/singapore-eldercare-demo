@@ -116,6 +116,7 @@
 .personal-profile-field__copy { min-width: 0; display: grid; gap: 6px; text-align: left; }
 .personal-profile-field__copy small { color: var(--color-text-muted); font-size: 14px; font-weight: 800; }
 .personal-profile-field__copy strong { overflow: hidden; font-size: 19px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.personal-profile-field.is-multiline .personal-profile-field__copy strong { overflow: visible; text-overflow: clip; white-space: pre-line; }
 .personal-profile-field.is-missing .personal-profile-field__icon { color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 88%); }
 .personal-profile-field.is-missing .personal-profile-field__copy strong { color: var(--color-amber); }
 

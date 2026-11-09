@@ -6,7 +6,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
-import type { ElderProfileSnapshot } from "../elder-profile";
+import { getElderProfileAddressSummary, type ElderProfileSnapshot } from "../elder-profile";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./personal-profile-page.css";
 
@@ -22,11 +22,12 @@ interface ProfileFieldProps {
   value: string;
   icon: typeof UserRound;
   isMissing?: boolean;
+  multiline?: boolean;
 }
 
-function ProfileField({ label, value, icon: FieldIcon, isMissing = false }: ProfileFieldProps) {
+function ProfileField({ label, value, icon: FieldIcon, isMissing = false, multiline = false }: ProfileFieldProps) {
   return (
-    <div className={`personal-profile-field${isMissing ? " is-missing" : ""}`}>
+    <div className={`personal-profile-field${isMissing ? " is-missing" : ""}${multiline ? " is-multiline" : ""}`}>
       <span className="personal-profile-field__icon"><FieldIcon aria-hidden="true" /></span>
       <span className="personal-profile-field__copy">
         <small>{label}</small>
@@ -49,6 +50,7 @@ export default function PersonalProfilePage({
   const emergencyContact = profile.emergencyContact
     ? `${profile.emergencyContact.name} · ${profile.emergencyContact.relationship} · ${profile.emergencyContact.maskedPhone}`
     : "未完善";
+  const addressSummary = getElderProfileAddressSummary(profile);
 
   return (
     <main className="personal-profile-page" aria-label="我的信息">
@@ -83,7 +85,7 @@ export default function PersonalProfilePage({
             </header>
             <div className="personal-profile-grid">
               <ProfileField label="所属社区／项目" value={displayValue(profile.projectCommunity)} icon={UsersRound} isMissing={!profile.projectCommunity} />
-              <ProfileField label="居住地址" value={displayValue(profile.address)} icon={MapPin} isMissing={!profile.address} />
+              <ProfileField label="居住地址" value={displayValue(addressSummary)} icon={MapPin} isMissing={!addressSummary} multiline />
             </div>
           </section>
 

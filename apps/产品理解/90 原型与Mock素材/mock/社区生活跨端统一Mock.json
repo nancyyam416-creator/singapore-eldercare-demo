@@ -61,40 +61,41 @@
     {
       "id": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "title": "雨季居家防滑，您有哪些小妙招？",
       "bodyHtml": "<p>雨季地面容易湿滑，欢迎大家分享自己在卫生间、玄关防滑的经验。</p>",
-      "initiatorType": "admin", "initiatorId": "ADMIN-001", "initiatorName": "红山社区健康组",
+      "initiatorType": "admin", "initiatorId": "ADMIN-001", "initiatorName": "赵亚男",
       "referenceContentId": "SAF-002", "referenceSnapshot": { "title": "雨季居家防滑注意事项", "summary": "及时清理积水，重点检查卫生间和玄关。", "coverUrl": "/mock/community-life/covers/life-rain-safety.svg" },
-      "commentCount": 3, "createdAt": "2026-08-26T09:20:00+08:00", "status": "open"
+      "commentCount": 3, "createdAt": "2026-08-26T09:20:00+08:00", "publishedAt": "2026-08-26T09:20:00+08:00", "creationOrder": 1, "status": "open"
     },
     {
       "id": "TOPIC-002", "projectId": "PRJ-001", "communityId": "COM-001", "title": "您最怀念的邻里生活是什么样？",
       "bodyHtml": "<p>我记得小时候邻居会互相分享饭菜，大家有没有类似的回忆？</p>",
       "initiatorType": "elderly", "initiatorId": "SG-E-000128", "initiatorName": "陈美玲", "referenceContentId": null, "referenceSnapshot": null,
-      "commentCount": 2, "createdAt": "2026-08-26T14:08:00+08:00", "status": "open"
+      "commentCount": 2, "createdAt": "2026-08-26T14:08:00+08:00", "publishedAt": "2026-08-26T14:08:00+08:00", "creationOrder": 2, "status": "open"
     },
     {
       "id": "TOPIC-003", "projectId": "PRJ-001", "communityId": "COM-001", "title": "这个月想在社区学什么？",
       "bodyHtml": "<p>欢迎说说您想参加的课程，我们会汇总大家的想法。</p>",
-      "initiatorType": "admin", "initiatorId": "ADMIN-002", "initiatorName": "红山社区活动组", "referenceContentId": null, "referenceSnapshot": null,
-      "commentCount": 0, "createdAt": "2026-08-25T11:30:00+08:00", "status": "open"
+      "initiatorType": "admin", "initiatorId": "ADMIN-002", "initiatorName": "王淑芬", "referenceContentId": null, "referenceSnapshot": null,
+      "commentCount": 0, "createdAt": "2026-08-25T11:30:00+08:00", "publishedAt": "2026-08-25T11:30:00+08:00", "creationOrder": 3, "status": "open"
     },
     {
       "id": "TOPIC-004", "projectId": "PRJ-001", "communityId": "COM-001", "title": "夏日补水方式分享",
       "bodyHtml": "<p>大家平时如何提醒自己及时喝水？话题已结束，历史内容仍可查看。</p>",
-      "initiatorType": "admin", "initiatorId": "ADMIN-001", "initiatorName": "红山社区健康组",
+      "initiatorType": "admin", "initiatorId": "ADMIN-001", "initiatorName": "赵亚男",
       "referenceContentId": "SAF-008", "referenceSnapshot": { "title": "午后补水小提示", "summary": "已停止继续展示的生活资讯示例。", "coverUrl": "/mock/community-life/covers/life-hydration.svg" },
-      "commentCount": 1, "createdAt": "2026-08-18T10:15:00+08:00", "status": "closed"
+      "commentCount": 1, "createdAt": "2026-08-18T10:15:00+08:00", "publishedAt": "2026-08-18T10:15:00+08:00", "creationOrder": 4, "status": "closed",
+      "closedReason": "阶段性讨论已结束", "closedBy": "赵亚男", "closedAt": "2026-08-22T18:00:00+08:00"
     },
     {
       "id": "TOPIC-101", "projectId": "PRJ-002", "communityId": "COM-002", "title": "公共区域照明维修期间的出行建议",
       "bodyHtml": "<p>请大家分享维修期间经常使用的安全通行路线。</p>",
       "initiatorType": "elderly", "initiatorId": "SG-E-000127", "initiatorName": "黄国强", "referenceContentId": null, "referenceSnapshot": null,
-      "commentCount": 1, "createdAt": "2026-08-26T16:40:00+08:00", "status": "open"
+      "commentCount": 1, "createdAt": "2026-08-26T16:40:00+08:00", "publishedAt": "2026-08-26T16:40:00+08:00", "creationOrder": 5, "status": "open"
     }
   ],
   "topicComments": [
     { "id": "COMMENT-001", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000128", "authorName": "陈美玲", "content": "我会在玄关放一块吸水垫，下雨后及时晒干。", "createdAt": "2026-08-26T10:05:00+08:00" },
     { "id": "COMMENT-002", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000125", "authorName": "王德昌", "content": "卫生间夜里一定要开灯，我还加了防滑条。", "createdAt": "2026-08-26T10:28:00+08:00" },
-    { "id": "COMMENT-003", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "admin", "authorId": "ADMIN-001", "authorName": "红山社区健康组", "content": "已记录大家的经验，感谢分享。", "createdAt": "2026-08-26T11:10:00+08:00" },
+    { "id": "COMMENT-003", "topicId": "TOPIC-001", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "admin", "authorId": "ADMIN-001", "authorName": "赵亚男", "content": "已记录大家的经验，感谢分享。", "createdAt": "2026-08-26T11:10:00+08:00" },
     { "id": "COMMENT-004", "topicId": "TOPIC-002", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000125", "authorName": "王德昌", "content": "以前邻居家包饺子，都会给我们送一盘。", "createdAt": "2026-08-26T15:02:00+08:00" },
     { "id": "COMMENT-005", "topicId": "TOPIC-002", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000128", "authorName": "陈美玲", "content": "大家都认识，谁家需要帮忙都会去看看。", "createdAt": "2026-08-26T15:20:00+08:00" },
     { "id": "COMMENT-006", "topicId": "TOPIC-004", "projectId": "PRJ-001", "communityId": "COM-001", "authorType": "elderly", "authorId": "SG-E-000128", "authorName": "陈美玲", "content": "我会把水杯放在沙发旁边，看到就喝几口。", "createdAt": "2026-08-18T11:00:00+08:00" },

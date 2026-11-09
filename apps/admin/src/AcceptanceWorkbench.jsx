@@ -15,7 +15,7 @@ const acceptanceHierarchy = [
   ] },
   { id: "community-life", label: "社区生活", modules: [
     { id: "communityAnnouncements", label: "社区公告" }, { id: "lifeInformation", label: "生活资讯" },
-    { id: "alertItems", label: "警惕事项" }, { id: "activities", label: "社区活动" }, { id: "communityStaff", label: "社区人员" },
+    { id: "alertItems", label: "警惕事项" }, { id: "activities", label: "社区活动" }, { id: "communityTopics", label: "社区话题" }, { id: "communityStaff", label: "社区人员" },
   ] },
   { id: "device-data", label: "设备与数据", modules: [
     { id: "tabletDevices", label: "平板设备" },
@@ -57,6 +57,28 @@ const elderlyScenarios = [
   { value: "unbindFailure", label: "解绑失败可重试", description: "首次解除失败，保留原绑定关系并提供重试入口。", status: "失败" },
 ];
 
+const communityActivityScenarios = [
+  { value: "normal", label: "正常列表", description: "展示当前社区活动及现有搜索、筛选和分页功能。", status: "默认" },
+  { value: "loadError", label: "列表加载失败", description: "活动列表请求失败，保留当前搜索和筛选条件，并可点击重新加载恢复。", status: "失败可重试" },
+];
+
+const communityContentScenarios = [
+  { value: "normal", label: "正常列表", description: "列表不展示推荐同步列，内容与推荐排期分别维护。", status: "默认" },
+  { value: "createRecommendation", label: "新增推荐配置", description: "新增表单展示推荐同步配置，默认关闭，开启后才配置有效期。", status: "新增" },
+  { value: "editNoRecommendation", label: "编辑不改推荐", description: "编辑表单不展示推荐同步与有效期，保存正文不会改动已有推荐记录。", status: "编辑" },
+  { value: "detailNoRecommendation", label: "详情不展示推荐", description: "详情抽屉不展示推荐同步、生效时间或失效时间。", status: "详情" },
+];
+
+const communityTopicScenarios = [
+  { value: "normal", label: "正常列表", description: "展示当前社区话题、评论及关闭状态。", status: "默认" },
+  { value: "createSuccess", label: "创建成功", description: "打开创建话题抽屉，提交后成功进入当前社区列表。", status: "成功" },
+  { value: "createFailure", label: "创建失败可重试", description: "发布失败后保留标题、正文及引用资讯，可直接重试。", status: "失败可重试" },
+  { value: "createValidation", label: "创建字段校验", description: "打开空表单，验证标题与正文必填及长度限制。", status: "校验" },
+  { value: "empty", label: "暂无话题", description: "当前社区尚无任何话题。", status: "空状态" },
+  { value: "loadError", label: "列表加载失败", description: "保留搜索筛选条件，并可重新加载恢复。", status: "失败可重试" },
+  { value: "closeFailure", label: "关闭失败", description: "关闭操作失败，保留已填写的关闭原因供重试。", status: "操作失败" },
+];
+
 const leisureEntertainmentScenarios = [
   { value: "normal", label: "正常列表", description: "按展示顺序展示 YouTube、Spotify 和 MeRadio。", status: "默认" },
   { value: "empty", label: "空列表", description: "平台尚未配置任何娱乐入口。", status: "空状态" },
@@ -73,7 +95,7 @@ const findContext = (moduleId) => {
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, leisureEntertainmentScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, communityActivityScenario, communityContentScenario, communityTopicScenario, leisureEntertainmentScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onCommunityActivityScenarioChange, onCommunityContentScenarioChange, onCommunityTopicScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -87,10 +109,16 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
       ? recommendationScenarios
       : selectedModule.id === "elderly"
         ? elderlyScenarios
+        : selectedModule.id === "activities"
+          ? communityActivityScenarios
+        : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id)
+          ? communityContentScenarios
+        : selectedModule.id === "communityTopics"
+          ? communityTopicScenarios
         : selectedModule.id === "leisureEntertainment"
           ? leisureEntertainmentScenarios
       : [];
-  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
+  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "activities" ? communityActivityScenario : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? communityContentScenario : selectedModule.id === "communityTopics" ? communityTopicScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
   const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
   const hasScenarios = scenarioOptions.length > 0;
 
@@ -177,7 +205,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "activities" ? onCommunityActivityScenarioChange(event.target.value) : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? onCommunityContentScenarioChange(event.target.value) : selectedModule.id === "communityTopics" ? onCommunityTopicScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
           </div>
           <footer><a className="acceptance-component-center-link" href="?acceptance&component-center"><Boxes size={14}/>后台组件中心</a><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>

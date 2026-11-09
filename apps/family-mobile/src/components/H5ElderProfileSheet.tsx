@@ -145,7 +145,7 @@ export const H5ElderProfileSheet: React.FC<H5ElderProfileSheetProps> = ({
                 <img src={parentProfile.avatar} alt={parentProfile.name} className="h-14 w-14 rounded-2xl object-cover ring-2 ring-white/20" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2"><h3 className="text-base font-extrabold">{parentProfile.name}</h3><span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-200">{parentProfile.age}岁</span></div>
-                  <p className="mt-1 flex items-start gap-1 text-[10px] leading-relaxed text-white/60"><MapPin size={11} className="mt-0.5 shrink-0" />{parentProfile.address || '暂无居住地址'}</p>
+                  <p className="mt-1 flex items-start gap-1 text-[10px] leading-relaxed text-white/60"><MapPin size={11} className="mt-0.5 shrink-0" /><span className="whitespace-pre-line">{parentProfile.address || '暂无居住地址'}</span></p>
                 </div>
               </div>
             </section>

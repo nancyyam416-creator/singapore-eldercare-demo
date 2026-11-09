@@ -1,3 +1,5 @@
+import { formatSingaporeAddress } from "./singapore-address";
+
 export interface ElderEmergencyContact {
   name: string;
   relationship: string;
@@ -16,6 +18,10 @@ export interface ElderProfileSnapshot {
   birthDate?: string;
   projectCommunity?: string;
   address?: string;
+  streetAddress?: string;
+  unit?: string;
+  buildingName?: string;
+  postalCode?: string;
   emergencyContact?: ElderEmergencyContact;
 }
 
@@ -30,14 +36,26 @@ export interface FamilyRelationshipSnapshot {
 }
 
 // L2 统一 Mock：仅保留当前老人端激活流程和家庭关系中已经存在的数据。
+const elderProfileAddress = {
+  streetAddress: "12 Ang Mo Kio Avenue 3",
+  unit: "#08-21",
+  buildingName: "Grandeur 8",
+  postalCode: "560123",
+};
+
 export const elderProfileMock: ElderProfileSnapshot = {
   id: "elder-wang-jianguo",
   name: "王建国",
   phone: "+65 8603 2918",
   communityId: "COM-001",
   projectCommunity: "清华园社区养老服务项目",
-  address: "清华园社区 · 12号楼 · **01室",
+  ...elderProfileAddress,
+  address: formatSingaporeAddress(elderProfileAddress),
 };
+
+export const getElderProfileAddressSummary = (profile: ElderProfileSnapshot) => (
+  formatSingaporeAddress(profile) || profile.address?.trim() || ""
+);
 
 export const familyRelationshipMocks: FamilyRelationshipSnapshot[] = [
   {

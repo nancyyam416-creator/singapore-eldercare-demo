@@ -1,3 +1,4 @@
+import { formatAddress, sampleAddresses } from './singaporeAddress';
 import { unifiedElderProfiles, getUnifiedCommunityName } from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js';
 /**
  * @license
@@ -13,10 +14,10 @@ export const initialParentProfile = {
   conditions: "高血压、II型糖尿病、轻度膝关节退化",
   avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80",
   contact: "138-xxxx-5678",
-  address: "上海市静安区万航渡路888号302室"
+  address: formatAddress(sampleAddresses.redhill)
 };
 
-export const initialChildResidenceAddress = '新加坡中区乌节路 88 号';
+export const initialChildResidenceAddress = formatAddress(sampleAddresses.child);
 
 export const initialBoundElders: BoundElder[] = [
   {
@@ -27,13 +28,13 @@ export const initialBoundElders: BoundElder[] = [
     avatar: initialParentProfile.avatar,
     relation: '女儿',
     project: '红山社区养老计划 · 红山社区',
-    maskedAddress: '新加坡 · 红山 **号',
+    maskedAddress: formatAddress(sampleAddresses.redhill, true),
     relationshipStatus: 'active'
   },
   {
     id: 'elder-mother', communityId: unifiedElderProfiles.find(elder => elder.id === 'elder-mother')?.communityId, name: '李惠兰', age: 72,
     avatar: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=150&h=150&q=80',
-    relation: '女儿', project: '大巴窑关怀中心 · 大巴窑社区', maskedAddress: '新加坡 · 武吉知马 **号', relationshipStatus: 'active'
+    relation: '女儿', project: '大巴窑关怀中心 · 大巴窑社区', maskedAddress: formatAddress(sampleAddresses.toaPayoh, true), relationshipStatus: 'active'
   }
 ];
 
@@ -478,7 +479,7 @@ export const initialOrders: Order[] = [
     serviceDate: "2026-07-03",
     serviceTime: "14:00-16:00",
     parentName: "张健康",
-    parentAddress: "上海市静安区万航渡路888号302室",
+    parentAddress: formatAddress(sampleAddresses.redhill),
     status: "paid",
     statusLogs: [
       { time: "2026-07-01 10:20", text: "订单创建成功，子女已在线支付" },

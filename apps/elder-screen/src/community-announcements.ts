@@ -12,7 +12,6 @@ export interface SharedCommunityAnnouncement {
   summary: string;
   bodyHtml: string;
   coverUrl: string;
-  coverKind: "image" | "default_icon";
   publishAt: string;
   publishStatus: "published" | "disabled";
   updatedAt: string;
@@ -32,22 +31,30 @@ const normalizeAnnouncement = (record: SharedCommunityAnnouncement): SharedCommu
   publishStatus: record.publishStatus === "disabled" ? "disabled" : "published",
 });
 
+const sortAnnouncementsByPublishAt = (
+  records: SharedCommunityAnnouncement[],
+): SharedCommunityAnnouncement[] => records
+  .map((record, index) => ({ record, index }))
+  .sort((left, right) => {
+    const leftTimestamp = Date.parse(left.record.publishAt);
+    const rightTimestamp = Date.parse(right.record.publishAt);
+    if (Number.isNaN(leftTimestamp) || Number.isNaN(rightTimestamp) || leftTimestamp === rightTimestamp) {
+      return left.index - right.index;
+    }
+    return rightTimestamp - leftTimestamp;
+  })
+  .map(({ record }) => record);
+
 export const readCommunityAnnouncements = (): SharedCommunityAnnouncement[] => (
-  (readSharedCommunityAnnouncements() as SharedCommunityAnnouncement[])
-    .map(normalizeAnnouncement)
-    .sort((left, right) => {
-      const publishDelta = Date.parse(right.publishAt) - Date.parse(left.publishAt);
-      return Number.isNaN(publishDelta) ? 0 : publishDelta;
-    })
+  sortAnnouncementsByPublishAt(
+    (readSharedCommunityAnnouncements() as SharedCommunityAnnouncement[]).map(normalizeAnnouncement),
+  )
 );
 
 export const subscribeCommunityAnnouncements = (
   listener: (records: SharedCommunityAnnouncement[]) => void,
 ) => subscribeSharedCommunityAnnouncements((records: SharedCommunityAnnouncement[]) => {
-  listener(records.map(normalizeAnnouncement).sort((left, right) => {
-    const publishDelta = Date.parse(right.publishAt) - Date.parse(left.publishAt);
-    return Number.isNaN(publishDelta) ? 0 : publishDelta;
-  }));
+  listener(sortAnnouncementsByPublishAt(records.map(normalizeAnnouncement)));
 });
 
 const viewedStorageKey = (elderId: string) => `${viewedStoragePrefix}:${elderId}`;

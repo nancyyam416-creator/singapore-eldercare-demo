@@ -195,8 +195,8 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
           <div><h2 className="text-base font-black text-slate-900">我的常住地址</h2><p className="text-[10px] text-slate-500">填写您作为子女本人的居住地址</p></div>
         </div>
         <div className="mt-5 space-y-4">
-          <label className="block rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-700">详细地址</span><textarea value={draftAddress} onChange={event => setDraftAddress(event.target.value)} rows={4} maxLength={120} placeholder="请输入国家、城市及详细地址" className="mt-3 w-full resize-none rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-900 outline-none focus:ring-2 focus:ring-blue-100" /><span className="mt-2 block text-right text-[10px] text-slate-400">{draftAddress.length}/120</span></label>
-          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">此处保存的是子女本人的常住地址，不是老人的居住地址。修改后不会更改老人的地址。</p>
+          <label className="block rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-700">详细地址</span><textarea value={draftAddress} onChange={event => setDraftAddress(event.target.value)} rows={4} maxLength={120} placeholder="请输入楼栋和街道、#楼层-单元（可附楼名）、Singapore 和 6 位邮编" className="mt-3 w-full resize-none rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-900 outline-none focus:ring-2 focus:ring-blue-100" /><span className="mt-2 block text-right text-[10px] text-slate-400">{draftAddress.length}/120</span></label>
+          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">请分三行填写，最后一行为 Singapore 和 6 位邮编。</p>
           <button type="button" disabled={!draftAddress.trim()} onClick={saveAddress} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400">保存地址</button>
         </div>
       </div>

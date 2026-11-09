@@ -1,3 +1,4 @@
+import { formatAddress, sampleAddresses } from './singaporeAddress';
 import { ActivityLog, BoundElder, CareReminder, HealthStats, Medication, Order } from '../types';
 import { initialActivities, initialHealthStats, initialMedications, initialOrders, initialParentProfile } from './mockData';
 
@@ -20,7 +21,7 @@ export function createElderWorkspace(elder: BoundElder): ElderWorkspace {
   const profile = father ? { ...initialParentProfile } : {
     name: elder.name, gender: mother ? '女' : '未填写', age: elder.age, avatar: elder.avatar,
     conditions: mother ? '暂无慢性病记录' : '暂无健康资料', contact: mother ? '+65 812****03' : '暂无联系电话',
-    address: mother ? '新加坡武吉知马路 12 号' : elder.maskedAddress
+    address: mother ? formatAddress(sampleAddresses.toaPayoh) : elder.maskedAddress
   };
   const medications: Medication[] = father ? structuredClone(initialMedications) : mother ? [
     { id: 'mother-med-1', name: '维生素D滴剂', dosage: '遵医嘱', timeSlot: 'morning', timeStr: '09:00', status: 'taken', takenTime: '09:05', note: '早餐后' }

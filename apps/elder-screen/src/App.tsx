@@ -1127,7 +1127,6 @@ export default function App() {
       "activity-live-active": "live-active",
       "activity-live-ended": "live-ended",
       "activity-live-cancelled-conflict": "live-cancelled-conflict",
-      "activity-live-invalid-access": "live-invalid-access",
       "activity-live-load-failure": "live-load-failure",
       "activity-live-interrupted": "live-interrupted",
     };
@@ -1399,6 +1398,20 @@ export default function App() {
       onReset={resetAcceptanceState}
     />
   );
+
+  const activatedProfile = activationContractState.elderly.addressSummary
+    ? {
+      ...elderProfileMock,
+      name: activationContractState.elderly.name || elderProfileMock.name,
+      phone: activationContractState.elderly.phone || elderProfileMock.phone,
+      gender: activationContractState.elderly.gender || elderProfileMock.gender,
+      streetAddress: activationContractState.elderly.streetAddress,
+      unit: activationContractState.elderly.unit,
+      buildingName: activationContractState.elderly.buildingName,
+      postalCode: activationContractState.elderly.postalCode,
+      address: activationContractState.elderly.addressSummary,
+    }
+    : elderProfileMock;
 
   return (
     <>
@@ -1689,7 +1702,7 @@ export default function App() {
         <PersonalProfilePage
           isOpen={isPersonalProfileOpen}
           onClose={() => setIsPersonalProfileOpen(false)}
-          profile={elderProfileMock}
+          profile={activatedProfile}
           boundFamilyCount={activeFamilyRelationshipCount}
         />
 

@@ -360,7 +360,7 @@
 .community-activity-detail__facts span.is-contact { border-color: rgba(89, 199, 70, 0.5); background: rgba(26, 82, 44, 0.32); }
 .community-activity-detail__facts span.is-contact strong { color: #f5fff2; font-size: 22px; letter-spacing: 0.04em; }
 .community-activity-detail__intentions { margin-top: 26px; }
-.community-activity-detail__intentions > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.community-activity-detail__intentions > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .community-activity-detail__intentions button { min-height: 72px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; color: white; border: 2px solid var(--color-line); border-radius: 18px; background: var(--color-panel-raised); font-size: 17px; font-weight: 850; cursor: pointer; }
 .community-activity-detail__intentions button.is-primary { border-color: var(--color-green); background: var(--color-green-dark); }
 .community-activity-detail__intentions button svg { width: 24px; }

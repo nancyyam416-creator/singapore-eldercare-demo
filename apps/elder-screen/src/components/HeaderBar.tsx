@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Sun, CloudRain, CloudSun, ChevronRight, Phone, Siren, XCircle, UserRound, UsersRound, Wind, X, MapPin, HeartHandshake, RotateCcw, AlertTriangle } from "lucide-react";
+import { elderProfileMock, getElderProfileAddressSummary } from "../elder-profile";
 
 interface HeaderBarProps {
   onTriggerSOS: () => void;
@@ -18,6 +19,7 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
   const [showProfile, setShowProfile] = useState(false);
   const [showActivationConfirm, setShowActivationConfirm] = useState(false);
   const [showFamilyWeather, setShowFamilyWeather] = useState(false);
+  const profileAddress = getElderProfileAddressSummary(elderProfileMock);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -255,7 +257,7 @@ export default function HeaderBar({ onTriggerSOS, onResetActivation }: HeaderBar
             <dl className="grid grid-cols-2 gap-x-8 gap-y-6 py-7">
               <div>
                 <dt className="text-[15px] font-bold text-gray-500 flex items-center gap-2"><MapPin className="w-4 h-4" />居住信息</dt>
-                <dd className="text-[19px] font-black text-[#1C2C24] mt-2">12号楼 · **01室</dd>
+                <dd className="text-[19px] font-black text-[#1C2C24] mt-2 whitespace-pre-line">{profileAddress}</dd>
               </div>
               <div>
                 <dt className="text-[15px] font-bold text-gray-500 flex items-center gap-2"><HeartHandshake className="w-4 h-4" />服务顾问</dt>
