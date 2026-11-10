@@ -79,6 +79,16 @@ const communityTopicScenarios = [
   { value: "closeFailure", label: "关闭失败", description: "关闭操作失败，保留已填写的关闭原因供重试。", status: "操作失败" },
 ];
 
+const platformTabletDetailScenarios = [
+  { value: "normal", label: "正常列表", description: "展示全部项目平板及平台专属升级字段。", status: "默认" },
+  { value: "platformDetail", label: "平台端设备详情", description: "打开含项目归属、更新状态和升级任务执行记录的平台详情。", status: "平台角色" },
+];
+
+const communityTabletDetailScenarios = [
+  { value: "normal", label: "正常列表", description: "仅展示当前社区平板，不展示平台专属升级信息。", status: "默认" },
+  { value: "communityDetail", label: "项目端设备详情", description: "打开当前社区已绑定设备详情，具备权限时展示管理绑定。", status: "项目角色" },
+];
+
 const leisureEntertainmentScenarios = [
   { value: "normal", label: "正常列表", description: "按展示顺序展示 YouTube、Spotify 和 MeRadio。", status: "默认" },
   { value: "empty", label: "空列表", description: "平台尚未配置任何娱乐入口。", status: "空状态" },
@@ -95,7 +105,7 @@ const findContext = (moduleId) => {
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, communityActivityScenario, communityContentScenario, communityTopicScenario, leisureEntertainmentScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onCommunityActivityScenarioChange, onCommunityContentScenarioChange, onCommunityTopicScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommendationScenario, elderlyScenario, communityActivityScenario, communityContentScenario, communityTopicScenario, tabletDetailScenario, leisureEntertainmentScenario, overlayOpen = false, onModuleChange, onOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onCommunityActivityScenarioChange, onCommunityContentScenarioChange, onCommunityTopicScenarioChange, onTabletDetailScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -115,10 +125,14 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
           ? communityContentScenarios
         : selectedModule.id === "communityTopics"
           ? communityTopicScenarios
+        : selectedModule.id === "platformTabletDevices"
+          ? platformTabletDetailScenarios
+        : selectedModule.id === "tabletDevices"
+          ? communityTabletDetailScenarios
         : selectedModule.id === "leisureEntertainment"
           ? leisureEntertainmentScenarios
       : [];
-  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "activities" ? communityActivityScenario : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? communityContentScenario : selectedModule.id === "communityTopics" ? communityTopicScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
+  const scenarioValue = selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "activities" ? communityActivityScenario : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? communityContentScenario : selectedModule.id === "communityTopics" ? communityTopicScenario : ["platformTabletDevices", "tabletDevices"].includes(selectedModule.id) ? tabletDetailScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
   const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
   const hasScenarios = scenarioOptions.length > 0;
 
@@ -205,7 +219,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, recommen
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "activities" ? onCommunityActivityScenarioChange(event.target.value) : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? onCommunityContentScenarioChange(event.target.value) : selectedModule.id === "communityTopics" ? onCommunityTopicScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "activities" ? onCommunityActivityScenarioChange(event.target.value) : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? onCommunityContentScenarioChange(event.target.value) : selectedModule.id === "communityTopics" ? onCommunityTopicScenarioChange(event.target.value) : ["platformTabletDevices", "tabletDevices"].includes(selectedModule.id) ? onTabletDetailScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
           </div>
           <footer><a className="acceptance-component-center-link" href="?acceptance&component-center"><Boxes size={14}/>后台组件中心</a><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>

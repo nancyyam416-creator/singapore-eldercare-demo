@@ -6,7 +6,6 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import {
   ArrowLeft,
-  CheckCircle,
   ChevronRight,
   ClipboardList,
   Headphones,
@@ -28,8 +27,6 @@ interface H5ProfileTabProps {
   onLogin: () => void;
   onLogout: () => void;
   onOpenAssistance: () => void;
-  residenceAddress: string;
-  onSaveResidenceAddress: (address: string) => void;
   boundElders: BoundElder[];
   currentElderId: string | null;
   bindingScenario: ElderBindingScenario;
@@ -44,8 +41,6 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
   onLogin,
   onLogout,
   onOpenAssistance,
-  residenceAddress,
-  onSaveResidenceAddress,
   boundElders,
   currentElderId,
   bindingScenario,
@@ -58,9 +53,30 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [error, setError] = useState('');
-  const [profileView, setProfileView] = useState<'main' | 'address_edit' | 'elder_binding' | 'request_records'>('main');
-  const [draftAddress, setDraftAddress] = useState(residenceAddress);
-  const [addressSaved, setAddressSaved] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationLabel, setLocationLabel] = useState('');
+  const locate = () => {
+    if (!navigator.geolocation) { setLocationLabel('当前浏览器不支持定位'); return; }
+    setLocationBusy(true);
+    setLocationLabel('');
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        const query = new URLSearchParams({ latitude: coords.latitude.toFixed(2), longitude: coords.longitude.toFixed(2), localityLanguage: 'zh' });
+        const response = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?' + query, { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error();
+        const { countryName, city, locality } = await response.json();
+        const area = [...new Set([countryName, city, locality].filter(Boolean))].join(' · ');
+        if (!area) throw new Error();
+        setLocationLabel(area);
+      } catch { setLocationLabel('暂时无法识别地区，请重试'); }
+      finally { setLocationBusy(false); }
+    }, error => {
+      setLocationBusy(false);
+      setLocationLabel(error.code === 1 ? '请允许位置权限后重试' : '暂时无法获取位置，请重试');
+    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+  };
+
+  const [profileView, setProfileView] = useState<'main' | 'elder_binding' | 'request_records'>('main');
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,20 +116,6 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
       setError('');
       onLogout();
     }
-  };
-
-  const openAddressEditor = () => {
-    setDraftAddress(residenceAddress);
-    setAddressSaved(false);
-    setProfileView('address_edit');
-  };
-
-  const saveAddress = () => {
-    const value = draftAddress.trim();
-    if (!value) return;
-    onSaveResidenceAddress(value);
-    setAddressSaved(true);
-    setProfileView('main');
   };
 
   if (!isLoggedIn) {
@@ -187,22 +189,6 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
     );
   }
 
-  if (profileView === 'address_edit') {
-    return (
-      <div className="min-h-full bg-slate-50 p-4 pb-8">
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setProfileView('main')} className="rounded-full bg-white p-2 text-slate-600 shadow-xs" aria-label="返回"><ArrowLeft size={18} /></button>
-          <div><h2 className="text-base font-black text-slate-900">我的常住地址</h2><p className="text-[10px] text-slate-500">填写您作为子女本人的居住地址</p></div>
-        </div>
-        <div className="mt-5 space-y-4">
-          <label className="block rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-700">详细地址</span><textarea value={draftAddress} onChange={event => setDraftAddress(event.target.value)} rows={4} maxLength={120} placeholder="请输入楼栋和街道、#楼层-单元（可附楼名）、Singapore 和 6 位邮编" className="mt-3 w-full resize-none rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-900 outline-none focus:ring-2 focus:ring-blue-100" /><span className="mt-2 block text-right text-[10px] text-slate-400">{draftAddress.length}/120</span></label>
-          <p className="rounded-xl bg-slate-100 p-3 text-[10px] leading-relaxed text-slate-500">请分三行填写，最后一行为 Singapore 和 6 位邮编。</p>
-          <button type="button" disabled={!draftAddress.trim()} onClick={saveAddress} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400">保存地址</button>
-        </div>
-      </div>
-    );
-  }
-
   const requests = bindingState.requests.filter(request => request.applicantId === mockApplicantId);
   if (profileView === 'request_records') {
     return <div className="min-h-full space-y-4 bg-slate-50 p-4 pb-8">
@@ -221,7 +207,6 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
         initialRequestId={selectedRequestId}
         onCancel={() => setProfileView(selectedRequestId ? 'request_records' : 'main')}
         onEnterHome={onEnterElderHome}
-        onCompleteAddress={() => setProfileView('address_edit')}
       />
     );
   }
@@ -243,6 +228,8 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">138****8899</p>
+            <button type="button" disabled={locationBusy} onClick={locate} className="mt-2 inline-flex min-h-10 items-center gap-1 text-xs font-semibold text-blue-600"><MapPin size={14}/>{locationBusy ? '正在识别…' : '识别我的位置'}</button>
+            <p aria-live="polite" className="text-xs text-slate-500">{locationLabel || '允许后，由 BigDataCloud 根据大致位置识别地区。'}</p>
           </div>
         </div>
       </section>
@@ -283,11 +270,9 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
 
       <section aria-label="快捷入口" className="space-y-3">
         <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">{[
-          { label: '我的常住地址', Icon: MapPin, action: openAddressEditor },
           { label: '申请记录', Icon: ClipboardList, action: () => setProfileView('request_records') },
           { label: '家人在线协助', Icon: Headphones, action: onOpenAssistance }
         ].map(({ label, Icon, action }) => <button key={label} type="button" onClick={action} className="flex min-h-18 w-full items-center gap-3 p-4 text-left"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon size={19} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{label}</strong></span><ChevronRight size={17} className="text-slate-300" /></button>)}</div>
-        {addressSaved && <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-700"><CheckCircle size={15} />我的常住地址已更新</div>}
       </section>
 
       <button

@@ -1349,10 +1349,10 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
     <section className="panel management-panel platform-community-panel"><div className="panel-title"><div><h3>项目运行概况</h3><p>集中查看项目状态、联系信息与终端运行情况</p></div></div><div className="table-scroll"><table className="platform-community-table"><thead><tr><th>项目 / 位置</th><th>项目状态</th><th>联系信息</th><th>服务老人</th><th>平板在线</th><th>待处理</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}>
       <td><div className="project-name-cell"><span><Building2 size={17}/></span><div><b>{row.name}</b><small>{row.address || "地址待补充"}</small></div></div></td><td><StatusTag>{row.status}</StatusTag></td><td><div className="stacked-cell"><b>{row.contact || "待补充"}</b><small>{row.phone || "电话待补充"}</small></div></td><td>{row.elderlyCount} 位</td><td>{row.tabletCount ? `${row.onlineTabletCount} / ${row.tabletCount} 台` : <span className="muted-value">未配置</span>}</td><td><StatusTag>{row.pendingCount ? `${row.pendingCount} 类` : "正常"}</StatusTag></td><td className="sticky-right platform-overview-actions"><button className="table-action" onClick={() => setDetailProjectId(row.id)}>查看项目</button></td>
     </tr>)}</tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 个项目</span></div></section>
-    {detailRow && <PlatformProjectDetailDrawer row={detailRow} onClose={() => setDetailProjectId("")}/>} 
-    {detailIssue && <PlatformIssueDetailDrawer issue={detailIssue} onClose={() => setDetailIssueType("")} onHandle={handleIssue}/>} 
-    {editingProject && <ProjectDrawer project={editingProject} adminMember={members.find((member) => member.projectId === editingProject.id && member.roleId?.endsWith("-ADMIN"))} allMembers={members} onClose={() => setEditingProjectId("")} onSave={(project, adminMember) => { onSaveProject(project, adminMember); setEditingProjectId(""); }}/>} 
-    {creatingProject && <ProjectDrawer allMembers={members} onClose={() => setCreatingProject(false)} onSave={(project, adminMember) => { onSaveProject(project, adminMember); setCreatingProject(false); }}/>} 
+    {detailRow && <PlatformProjectDetailDrawer row={detailRow} onClose={() => setDetailProjectId("")}/>}
+    {detailIssue && <PlatformIssueDetailDrawer issue={detailIssue} onClose={() => setDetailIssueType("")} onHandle={handleIssue}/>}
+    {editingProject && <ProjectDrawer project={editingProject} adminMember={members.find((member) => member.projectId === editingProject.id && member.roleId?.endsWith("-ADMIN"))} allMembers={members} onClose={() => setEditingProjectId("")} onSave={(project, adminMember) => { onSaveProject(project, adminMember); setEditingProjectId(""); }}/>}
+    {creatingProject && <ProjectDrawer allMembers={members} onClose={() => setCreatingProject(false)} onSave={(project, adminMember) => { onSaveProject(project, adminMember); setCreatingProject(false); }}/>}
   </>;
 }
 
@@ -1529,8 +1529,8 @@ function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, reset
               : <div className="overview-module-empty"><ShieldCheck size={24}/><b>暂无待处理事项</b><span>当前没有尚未结束的关注线索。</span></div>}
         </section>
       </div>
-      {selectedAttention && <OverviewAttentionDrawer item={selectedAttention} onClose={() => setSelectedAttention(null)} onResolve={resolveAttention}/>} 
-      {attentionNotice && <AdminToast message={attentionNotice} onClose={() => setAttentionNotice("")}/>} 
+      {selectedAttention && <OverviewAttentionDrawer item={selectedAttention} onClose={() => setSelectedAttention(null)} onResolve={resolveAttention}/>}
+      {attentionNotice && <AdminToast message={attentionNotice} onClose={() => setAttentionNotice("")}/>}
     </>
   );
 }
@@ -1788,7 +1788,7 @@ function CommunityElderlyUsageOverview({ communityName, records, tablets, sensor
     {type === "activity" && <div className="community-inactivity-toolbar"><div><b>无活动告警摘要</b><span>{inactivityRule?.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动 · ${inactivityRule.startTime}–${inactivityRule.endTime} · 当前社区` : "策略已停用"}</span></div><div><button className="secondary-button" onClick={onOpenInactivityPolicies}><SlidersHorizontal size={15}/>查看告警策略</button><button className="text-button" onClick={() => inactivityRecordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>查看记录 <ChevronRight size={15}/></button></div></div>}
     <div className="statistics-context"><div><b>{type === "activity" ? "活动情况" : "屏幕使用"}</b><span>{periodLabel} · 仅当前社区</span></div><StatusTag>{scenario === "normal" ? "数据正常" : scenario === "empty" ? "无数据" : "数据不足"}</StatusTag></div>
     <StatisticsMetricGrid items={type === "screen" ? screenMetrics : activityMetrics} muted={!isNormal}/>
-    {isNormal ? <div className="statistics-grid two-columns">{type === "screen" ? <><StatisticsTrendChart title="社区屏幕使用趋势" description={`${periodLabel}有效操作会话分布`} values={screenData.trend} labels={screenData.labels} tone="violet"/><StatisticsDistribution title="功能使用分布" description="按有效操作次数汇总" items={featureDistribution} tone="violet"/></> : <><StatisticsTrendChart title="社区活动趋势" description={`${periodLabel}检测到活动的次数变化`} values={activityData.trend} labels={activityData.labels}/><StatisticsDistribution title="房间分布" description="各房间检测到活动的占比" items={roomDistribution} tone="teal"/></>}</div> : <StatisticsEmptyState type={type} scenario={scenario} scope="community"/>} 
+    {isNormal ? <div className="statistics-grid two-columns">{type === "screen" ? <><StatisticsTrendChart title="社区屏幕使用趋势" description={`${periodLabel}有效操作会话分布`} values={screenData.trend} labels={screenData.labels} tone="violet"/><StatisticsDistribution title="功能使用分布" description="按有效操作次数汇总" items={featureDistribution} tone="violet"/></> : <><StatisticsTrendChart title="社区活动趋势" description={`${periodLabel}检测到活动的次数变化`} values={activityData.trend} labels={activityData.labels}/><StatisticsDistribution title="房间分布" description="各房间检测到活动的占比" items={roomDistribution} tone="teal"/></>}</div> : <StatisticsEmptyState type={type} scenario={scenario} scope="community"/>}
     {type === "activity" && <section ref={inactivityRecordsRef} className="statistics-records community-inactivity-records"><div className="statistics-card-heading"><div><h4>无活动记录</h4><p>每位老人独立记录，设备离线不计为无活动</p></div><span className="result-count">共 {buildInactivityTodoItems(records).length} 条</span></div><div className="inactivity-record-list">{buildInactivityTodoItems(records).map((item) => <button key={item.id} onClick={() => onOpenElderly(records.find((record) => record.name === item.elderly) || records[0])}><span><b>{item.elderly} · {item.description}</b><small>{item.clue} · {item.status}</small></span><em>查看统计 <ChevronRight size={14}/></em></button>)}</div></section>}
     <section className="statistics-records community-usage-attention"><div className="statistics-card-heading"><div><h4>关注老人</h4><p>{type === "screen" ? "低频使用、无记录或设备数据不足" : "低活动、无数据或传感器离线"}；点击老人查看单人统计</p></div><span className="result-count">共 {attentionRows.length} 位</span></div>
       <div className="statistics-record-table community-usage-table"><div className="statistics-record-head"><span>老人</span><span>当前状态</span><span>数据摘要</span><span>最近记录</span><span>操作</span></div>{attentionRows.map((item) => { const status = item.status; const summary = type === "screen" ? (item.lowUsage ? "本周期使用频率偏低" : status === "无记录" ? "设备在线但无有效操作" : "平板离线或未完成激活") : status === "低活动" ? "活动次数低于社区关注阈值" : status === "无数据" ? "未安装传感器或无有效上报" : "传感器离线，不判断无活动"; return <div key={item.record.id}><button className="name-link" onClick={() => onOpenElderly(item.record)}>{item.record.name}</button><StatusTag>{item.lowUsage ? "低频使用" : status}</StatusTag><span>{summary}</span><span>{type === "screen" ? item.lastActive : item.lastActivity}</span><button className="table-action" onClick={() => onOpenElderly(item.record)}>查看统计</button></div>; })}{!attentionRows.length && <div className="community-usage-no-attention"><ShieldCheck size={18}/><span>当前周期没有需要关注的老人</span></div>}</div>
@@ -1878,14 +1878,14 @@ function ElderlyDataStatisticsPanel({ record, sensors }) {
           <div className="statistics-grid two-columns"><StatisticsTrendChart title="活动趋势" description="统计周期内检测到活动的次数变化" values={activityData.trend} labels={activityData.labels}/><StatisticsDistribution title="房间分布" description="各房间检测到活动的占比" items={roomDistribution}/></div>
           <div className="statistics-grid two-columns"><StatisticsDistribution title="时段分布" description="按活动发生时间汇总" items={timeDistribution} tone="teal"/><section className="statistics-chart-card statistics-clarification"><div className="statistics-card-heading"><div><h4>统计口径说明</h4><p>避免将设备数据误解为人物行为或健康结论</p></div></div><div><ShieldCheck size={18}/><p>活动传感器只表示对应房间检测到活动，不能判断具体人物、具体动作、跌倒、睡眠或任何健康结论。</p></div></section></div>
           <section className="statistics-records"><div className="statistics-card-heading"><div><h4>长时间无活动或夜间活动记录</h4><p>仅作为运营关注线索，不作为安全或健康判断</p></div></div><div className="statistics-record-table"><div className="statistics-record-head"><span>发生时间</span><span>记录类型</span><span>关联房间</span><span>持续/发生时段</span><span>状态</span></div><div><span>2026-10-21 18:24</span><b>长时间无活动</b><span>全部房间</span><span>3 小时 04 分</span><StatusTag>已恢复</StatusTag></div><div><span>2026-10-19 23:18</span><b>夜间活动</b><span>客厅</span><span>23:18–23:31</span><StatusTag>已记录</StatusTag></div></div></section>
-        </> : <StatisticsEmptyState type="activity" scenario={scenario}/>} 
+        </> : <StatisticsEmptyState type="activity" scenario={scenario}/>}
       </> : <>
         <StatisticsMetricGrid items={screenMetrics} muted={mutedMetrics}/>
         {isNormal ? <>
           <div className="statistics-grid two-columns"><StatisticsTrendChart title="使用趋势" description="统计周期内屏幕活跃时长变化" values={screenData.trend} labels={screenData.labels} tone="violet"/><StatisticsDistribution title="功能使用分布" description="按有效操作次数统计" items={featureDistribution} tone="violet"/></div>
           <div className="statistics-grid two-columns"><section className="statistics-chart-card statistics-summary-card"><div className="statistics-card-heading"><div><h4>音视频通话</h4><p>当前统计周期内的有效通话</p></div></div><div className="statistics-call-summary"><div><span>通话次数</span><b>{period === "today" ? "3 次" : period === "7days" ? "18 次" : "76 次"}</b></div><div><span>累计时长</span><b>{period === "today" ? "42 分钟" : period === "7days" ? "3 小时 26 分" : "14 小时 18 分"}</b></div></div></section><section className="statistics-chart-card statistics-summary-card"><div className="statistics-card-heading"><div><h4>提醒确认率</h4><p>已到时间提醒中由老人完成确认的比例</p></div></div><div className="statistics-confirmation"><div><b>86%</b><span>已确认 6 次 / 应确认 7 次</span></div><div><i style={{ width: "86%" }}/></div></div></section></div>
           <section className="statistics-records"><div className="statistics-card-heading"><div><h4>连续未使用或长时间离线记录</h4><p>用于判断设备可用性与是否需要运营跟进</p></div></div><div className="statistics-record-table"><div className="statistics-record-head"><span>发生时间</span><span>记录类型</span><span>持续时长</span><span>最后操作</span><span>状态</span></div><div><span>2026-10-20 22:10</span><b>连续未使用</b><span>4 小时 18 分</span><span>17:52</span><StatusTag>已恢复</StatusTag></div><div><span>2026-10-17 09:36</span><b>长时间离线</b><span>1 小时 12 分</span><span>08:24</span><StatusTag>已恢复</StatusTag></div></div></section>
-        </> : <StatisticsEmptyState type="screen" scenario={scenario}/>} 
+        </> : <StatisticsEmptyState type="screen" scenario={scenario}/>}
       </>}
     </section>
   </div>;
@@ -1941,7 +1941,7 @@ function ElderlyReminderPanel({ reminders, onCreate, onEdit, onDelete }) {
       <div className="panel-title"><div><h3>提醒事项</h3></div><div className="panel-title-actions"><button className="primary-button" onClick={onCreate}><Plus size={15}/>新建提醒</button></div></div>
       <div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>计划时间</th><th>重复方式</th><th>最后更新</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.type === "用药提醒" ? [reminder.dosage, reminder.usage].filter(Boolean).join(" · ") || reminder.note || "暂无用药说明" : reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time}</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{reminder.updatedBy || reminder.createdBy}</b><small>{reminder.updatedAt || reminder.createdAt}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(reminder)}>编辑</button><button className="table-action danger-text" onClick={() => { setDeleteTarget(reminder); setDeleteError(""); }}>删除</button></td></tr>)}{!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人暂无提醒事项，可点击“新建提醒”进行配置</div></td></tr>}</tbody></table></div>
     </section>
-    {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.title}”？`} description="删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。" error={deleteError} confirmLabel={deleteError ? "重试删除" : "确认删除"} icon={<Trash2 size={20}/>} onClose={() => { setDeleteTarget(null); setDeleteError(""); }} onConfirm={confirmDelete}/>} 
+    {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.title}”？`} description="删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。" error={deleteError} confirmLabel={deleteError ? "重试删除" : "确认删除"} icon={<Trash2 size={20}/>} onClose={() => { setDeleteTarget(null); setDeleteError(""); }} onConfirm={confirmDelete}/>}
   </>;
 }
 
@@ -1967,8 +1967,7 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
         <div className="panel-title"><div><h3>基础资料</h3></div><span className="result-count">更新于 {record.updatedAt || "—"}</span></div>
         <div className="elderly-detail-section-body"><div className="info-grid elderly-profile-info-grid">
           <div><span>出生日期</span><b>{record.birthday || "待补充"}</b></div><div><span>联系电话</span><b>{record.phone || "待补充"}</b></div>
-          <div><span>所属项目</span><b>{record.project || "待补充"}</b></div><div><span>所属社区</span><b>{record.community || "待补充"}</b></div>
-          <div><span>套餐类型</span><StatusTag>{getElderlyPackageLabel(record.packageType)}</StatusTag></div>
+          <div className="full"><span>套餐类型</span><StatusTag>{getElderlyPackageLabel(record.packageType)}</StatusTag></div>
           <div className="full"><span>居住地址</span><b><ElderlyAddress record={record}/></b></div>
           <div className="full"><span>运营标签</span><div className="profile-tags">{record.tags?.length ? record.tags.map((tag) => <span key={tag}>{tag}</span>) : <b>暂无标签</b>}</div></div>
         </div></div>
@@ -1977,9 +1976,9 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
         <section className="panel detail-page-panel elderly-contact-panel"><div className="panel-title"><div><h3>紧急联系人</h3></div></div><div className="elderly-detail-section-body emergency-contact-view-list">{emergencyContacts.map((contact) => <div className="relation-card" key={contact.id}><div><HeartHandshake size={18}/><span><b>{contact.name || "待补充"}</b><small>{contact.relation || "关系待补充"} · {contact.phone || "电话待补充"}</small></span></div></div>)}</div></section>
       </div>
     </div>}
-    {tab === "family" && <FamilyRelationshipPanel relations={familyRelations} onUnlinkRelation={onUnlinkRelation}/>} 
-    {tab === "reminders" && <ElderlyReminderPanel reminders={reminders} onCreate={onCreateReminder} onEdit={onEditReminder} onDelete={onDeleteReminder}/>} 
-    {tab === "spaces" && <section className="panel sensor-relation-panel elderly-detail-content"><div className="panel-title"><div><h3>房间与活动传感器</h3></div><div className="panel-title-actions"><button className="secondary-button" onClick={onManageSpaces}>管理房间</button><button className="primary-button" onClick={onAddSensor}><Plus size={15}/>添加传感器</button></div></div><div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称</th><th>安装房间</th><th>设备型号 / SN</th><th>在线状态</th><th>最近上报</th><th>操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><b>{sensor.name}</b></td><td>{sensor.room}</td><td><div className="stacked-cell"><b>{sensor.model}</b><small>{sensor.sn}</small></div></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastReport}</td><td><button className="table-action" onClick={() => onViewSensor(sensor)}>详情</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section>} 
+    {tab === "family" && <FamilyRelationshipPanel relations={familyRelations} onUnlinkRelation={onUnlinkRelation}/>}
+    {tab === "reminders" && <ElderlyReminderPanel reminders={reminders} onCreate={onCreateReminder} onEdit={onEditReminder} onDelete={onDeleteReminder}/>}
+    {tab === "spaces" && <section className="panel sensor-relation-panel elderly-detail-content"><div className="panel-title"><div><h3>房间与活动传感器</h3></div><div className="panel-title-actions"><button className="secondary-button" onClick={onManageSpaces}>管理房间</button><button className="primary-button" onClick={onAddSensor}><Plus size={15}/>添加传感器</button></div></div><div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称</th><th>安装房间</th><th>设备型号 / SN</th><th>在线状态</th><th>最近上报</th><th>操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><b>{sensor.name}</b></td><td>{sensor.room}</td><td><div className="stacked-cell"><b>{sensor.model}</b><small>{sensor.sn}</small></div></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastReport}</td><td><button className="table-action" onClick={() => onViewSensor(sensor)}>详情</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section>}
     {tab === "tablet" && <section className="panel tablet-detail-page elderly-detail-content">
       <div className="panel-title"><div><h3>平板设备</h3></div>{tablet && <button className="primary-button" onClick={onManageTablet}>管理绑定</button>}</div>
       <div className="elderly-detail-section-body">
@@ -1994,7 +1993,7 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
         </> : <div className="space-empty-state"><MonitorSmartphone size={28}/><h4>等待平板提交资料</h4><p>平板联网上报 SN 并提交老人资料后，系统将自动建立绑定关系。</p></div>}
       </div>
     </section>}
-    {tab === "statistics" && <ElderlyDataStatisticsPanel record={record} sensors={boundSensors}/>} 
+    {tab === "statistics" && <ElderlyDataStatisticsPanel record={record} sensors={boundSensors}/>}
     </div></div>
     <footer><button className="secondary-button" onClick={onClose}>关闭</button><button className="primary-button" onClick={onEdit}>编辑档案</button></footer>
   </aside></div>;
@@ -2372,8 +2371,8 @@ function ProjectPage({ projects, members, roles, onSave, onToggle, onSaveMember,
         </tbody></table></div>
         <div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div>
       </section>
-      {editing !== undefined && <ProjectDrawer project={editing} adminMember={members.find((member) => member.projectId === editing?.id && roles.find((role) => role.id === member.roleId)?.isAdmin)} allMembers={members} onClose={() => setEditing(undefined)} onSave={(project, adminMember) => { onSave(project, adminMember); setEditing(undefined); }}/>} 
-      {memberProject && <CommunityMembersPage currentProject={memberProject} projects={projects} roles={roles} users={members} onClose={() => setMemberProjectId("")} onSave={onSaveMember} onToggle={onToggleMember}/>} 
+      {editing !== undefined && <ProjectDrawer project={editing} adminMember={members.find((member) => member.projectId === editing?.id && roles.find((role) => role.id === member.roleId)?.isAdmin)} allMembers={members} onClose={() => setEditing(undefined)} onSave={(project, adminMember) => { onSave(project, adminMember); setEditing(undefined); }}/>}
+      {memberProject && <CommunityMembersPage currentProject={memberProject} projects={projects} roles={roles} users={members} onClose={() => setMemberProjectId("")} onSave={onSaveMember} onToggle={onToggleMember}/>}
       {toggleTarget && <AdminConfirm
         title={`确认${toggleTarget.status === "启用" ? "停用" : "启用"}「${toggleTarget.name}」？`}
         description={toggleTarget.status === "启用" ? "停用后该社区运营入口不可用，相关社区后台用户不能继续进入该社区。" : "启用后将恢复该社区的运营入口及相关后台账号访问。"}
@@ -2384,54 +2383,6 @@ function ProjectPage({ projects, members, roles, onSave, onToggle, onSaveMember,
         onClose={() => setToggleTarget(null)}
         onConfirm={async () => { await onToggle(toggleTarget.id); setToggleTarget(null); }}
       />}
-    </>
-  );
-}
-
-function DeviceManagementPage({ deviceType, tablets, sensors, elderlyRecords, currentProject, onAddTablet, onViewTablet, onManageTablet, onAddSensor, onViewSensor }) {
-  const [query, setQuery] = useState("");
-  const [project, setProject] = useState("全部项目");
-  const [status, setStatus] = useState("全部状态");
-  const [bindingStatus, setBindingStatus] = useState("全部绑定状态");
-  const [onlineStatus, setOnlineStatus] = useState("全部在线状态");
-  const projectOptions = ["全部项目", ...new Set([currentProject?.name, ...elderlyRecords.map((record) => record.project)].filter(Boolean))];
-  const filteredTablets = tablets.filter((device) => {
-    const elderly = elderlyRecords.find((record) => record.id === device.boundElderlyId);
-    const keywordMatched = `${device.id}${device.model}${elderly?.name || ""}`.toLowerCase().includes(query.trim().toLowerCase());
-    const projectMatched = project === "全部项目" || (device.projectId ? device.projectId === currentProject?.id && project === currentProject?.name : elderly?.project === project);
-    const deviceBindingStatus = device.boundElderlyId ? "已绑定" : "待绑定";
-    const activationMatched = bindingStatus === "全部绑定状态" || deviceBindingStatus === bindingStatus;
-    const onlineMatched = onlineStatus === "全部在线状态" || device.onlineStatus === onlineStatus;
-    return keywordMatched && projectMatched && activationMatched && onlineMatched;
-  });
-  const filteredSensors = sensors.filter((device) => {
-    const elderly = elderlyRecords.find((record) => record.id === device.elderlyId);
-    return `${device.id}${device.sn}${device.name}${elderly?.name || ""}${device.room}`.toLowerCase().includes(query.trim().toLowerCase()) && (status === "全部状态" || device.onlineStatus === status || device.installStatus === status);
-  });
-  const resetFilters = () => { setQuery(""); setProject("全部项目"); setStatus("全部状态"); setBindingStatus("全部绑定状态"); setOnlineStatus("全部在线状态"); };
-  const statuses = ["全部状态", "在线", "离线", "待安装", "待校验", "已安装", "已解绑"];
-  return (
-    <>
-      <div className="page-heading"><div><h1>{deviceType === "tablet" ? "平板设备" : "房间活动传感器"}</h1><p>{deviceType === "tablet" ? "查看当前社区已自动归属的平板、老人绑定和在线状态" : "录入传感器、绑定老人和安装房间并完成设备校验"}</p></div>{deviceType !== "tablet" && <button className="primary-button" onClick={onAddSensor}><Plus size={16}/>添加传感器</button>}</div>
-      <section className="panel management-panel device-management-panel">
-        <div className="filters device-filters">
-          <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={deviceType === "tablet" ? "设备编号、型号或老人姓名" : "设备名称、SN、老人或房间"}/></div></label>
-          {deviceType === "tablet" && <label><span>所属项目</span><select className="select-control filter-select wide" value={project} onChange={(event) => setProject(event.target.value)}>{projectOptions.map((item) => <option key={item}>{item}</option>)}</select></label>}
-          {deviceType === "tablet" ? <><label><span>绑定状态</span><select className="select-control filter-select" value={bindingStatus} onChange={(event) => setBindingStatus(event.target.value)}><option>全部绑定状态</option><option>已绑定</option><option>待绑定</option></select></label><label><span>在线状态</span><select className="select-control filter-select" value={onlineStatus} onChange={(event) => setOnlineStatus(event.target.value)}><option>全部在线状态</option><option>在线</option><option>离线</option></select></label></> : <label><span>状态</span><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>}
-          <div className="filter-actions"><button className="primary-button"><Search size={15}/>查询</button><button className="secondary-button" onClick={resetFilters}><RefreshCw size={15}/>重置</button></div>
-        </div>
-        {deviceType === "sensor" && <div className="table-toolbar"><div><span className="result-count">共 {filteredSensors.length} 台设备</span><span className="toolbar-hint">只有通过安装校验的设备才进入房间活动统计</span></div></div>}
-        <div className="table-scroll">
-          {deviceType === "tablet" ? <table className="device-table tablet-device-table"><thead><tr><th>设备编号 / 型号</th><th>绑定老人</th><th>版本信息</th><th>网络信息</th><th>版本状态</th><th>绑定状态</th><th>在线状态</th><th>绑定时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
-            {filteredTablets.map((device) => { const elderly = elderlyRecords.find((record) => record.id === device.boundElderlyId); return <tr key={device.id}><td><div className="device-name-cell"><span><MonitorSmartphone size={17}/></span><div><b>{formatDisplayId(device.id)}</b><small>{device.model}</small></div></div></td><td>{elderly ? <div className="stacked-cell"><b>{elderly.name}</b></div> : <span className="muted-value">未绑定</span>}</td><td><div className="stacked-cell mono"><b>ROM {device.romVersion}</b><small>APK {device.apkVersion}</small></div></td><td><div className="stacked-cell"><b>{device.networkType}</b><small>{device.ipAddress}</small></div></td><td><StatusTag>{device.versionStatus}</StatusTag></td><td><StatusTag>{device.boundElderlyId ? "已绑定" : "待绑定"}</StatusTag></td><td><TabletOnlineStatusTag>{device.onlineStatus}</TabletOnlineStatusTag></td><td>{device.boundAt || "—"}</td><td className="sticky-right"><button className="table-action" onClick={() => onViewTablet(device)}>详情</button>{elderly && <button className="table-action" onClick={() => onManageTablet(elderly)}>管理绑定</button>}</td></tr>; })}
-            {!filteredTablets.length && <tr><td colSpan="9"><div className="empty-table-state">没有符合条件的平板设备</div></td></tr>}
-          </tbody></table> : <table className="device-table sensor-device-table"><thead><tr><th>设备名称 / SN</th><th>所属老人</th><th>安装房间</th><th>安装状态</th><th>运行状态</th><th>最近活动</th><th>最近上报</th><th>信号</th><th className="sticky-right">操作</th></tr></thead><tbody>
-            {filteredSensors.map((device) => { const elderly = elderlyRecords.find((record) => record.id === device.elderlyId); return <tr key={device.id}><td><div className="device-name-cell sensor"><span><Activity size={17}/></span><div><b>{device.name}</b><small>{device.sn} · {device.model}</small></div></div></td><td>{elderly ? <div className="stacked-cell"><b>{elderly.name}</b><small><ElderlyAddress record={elderly}/></small></div> : <span className="muted-value">已解绑</span>}</td><td>{device.room || "—"}</td><td><StatusTag>{device.installStatus}</StatusTag></td><td><StatusTag>{device.onlineStatus}</StatusTag></td><td>{device.lastActivity || "—"}</td><td>{device.lastReport || "—"}</td><td>{device.signal || "—"}</td><td className="sticky-right"><button className="table-action" onClick={() => onViewSensor(device)}>详情</button></td></tr>; })}
-            {!filteredSensors.length && <tr><td colSpan="9"><div className="empty-table-state">没有符合条件的房间活动传感器</div></td></tr>}
-          </tbody></table>}
-        </div>
-        <div className="pagination"><span>当前展示 {deviceType === "tablet" ? filteredTablets.length : filteredSensors.length} 条数据</span></div>
-      </section>
     </>
   );
 }
@@ -2732,9 +2683,9 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
         </div>
         <div className="pagination"><span>共 {strategies.length} 条推荐内容，筛选后展示 {rows.length} 条{dateFilterEnabled ? ` · 当前仅看 ${selectedDateLabel}` : ""}</span></div>
       </section>}
-      {scheduleDrawer && <RecommendationDayScheduleDrawer key={`${scheduleDrawer.mode}-${scheduleDrawer.date}-${scheduleDrawer.itemId || "new"}`} mode={scheduleDrawer.mode} date={scheduleDrawer.date} record={scheduleDrawer.itemId ? dayItems(scheduleDrawer.date).find((item) => item.id === scheduleDrawer.itemId) : null} strategies={strategies} scheduledIds={dayItems(scheduleDrawer.date).map((item) => item.id)} onClose={() => setScheduleDrawer(null)} onSave={saveDaySchedule}/>} 
-      {deleteTarget && <AdminConfirm title={`删除${Number(deleteTarget.date.slice(5, 7))}月${Number(deleteTarget.date.slice(8, 10))}日的“${deleteTarget.name}”？`} description="仅删除某日排期：本次只删除该日期的单日排期，不会修改内容库中的全局有效期、启用状态或其他日期排期。" confirmLabel="删除当天排期" icon={<Trash2 size={20}/>} onClose={() => setDeleteTarget(null)} onConfirm={confirmDeleteSchedule}/>} 
-      {scheduleToast && <AdminToast message={scheduleToast.message} actionLabel={scheduleToast.undo ? "撤销" : undefined} onAction={scheduleToast.undo ? undoDeleteSchedule : undefined} onClose={() => setScheduleToast(null)}/>} 
+      {scheduleDrawer && <RecommendationDayScheduleDrawer key={`${scheduleDrawer.mode}-${scheduleDrawer.date}-${scheduleDrawer.itemId || "new"}`} mode={scheduleDrawer.mode} date={scheduleDrawer.date} record={scheduleDrawer.itemId ? dayItems(scheduleDrawer.date).find((item) => item.id === scheduleDrawer.itemId) : null} strategies={strategies} scheduledIds={dayItems(scheduleDrawer.date).map((item) => item.id)} onClose={() => setScheduleDrawer(null)} onSave={saveDaySchedule}/>}
+      {deleteTarget && <AdminConfirm title={`删除${Number(deleteTarget.date.slice(5, 7))}月${Number(deleteTarget.date.slice(8, 10))}日的“${deleteTarget.name}”？`} description="仅删除某日排期：本次只删除该日期的单日排期，不会修改内容库中的全局有效期、启用状态或其他日期排期。" confirmLabel="删除当天排期" icon={<Trash2 size={20}/>} onClose={() => setDeleteTarget(null)} onConfirm={confirmDeleteSchedule}/>}
+      {scheduleToast && <AdminToast message={scheduleToast.message} actionLabel={scheduleToast.undo ? "撤销" : undefined} onAction={scheduleToast.undo ? undoDeleteSchedule : undefined} onClose={() => setScheduleToast(null)}/>}
     </>
   );
 }
@@ -2792,7 +2743,7 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, entertai
         </div></div>
         <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存内容</button></footer>
       </aside>
-      {resourcePickerOpen && currentGroup && <RecommendationResourcePicker group={currentGroup} selectedId={form.sourceId} onClose={() => setResourcePickerOpen(false)} onConfirm={selectResource}/>} 
+      {resourcePickerOpen && currentGroup && <RecommendationResourcePicker group={currentGroup} selectedId={form.sourceId} onClose={() => setResourcePickerOpen(false)} onConfirm={selectResource}/>}
     </div>
   );
 }
@@ -2971,14 +2922,9 @@ function ReminderDrawer({ record, elderlyRecords, initialElderlyId = "", lockEld
         </div>
         <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>{record ? "保存修改" : "保存提醒"}</button></footer>
       </aside>
-      {pickerOpen && !lockElderly && <ElderlyPickerModal records={elderlyRecords} value={form.elderlyId} onClose={() => setPickerOpen(false)} onConfirm={selectElderly}/>} 
+      {pickerOpen && !lockElderly && <ElderlyPickerModal records={elderlyRecords} value={form.elderlyId} onClose={() => setPickerOpen(false)} onConfirm={selectElderly}/>}
     </div>
   );
-}
-
-function TabletAssetDrawer({ device, onClose }) {
-  if (device) return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer device-detail-drawer" role="dialog" aria-modal="true"><header><div><h2>平板设备详情</h2></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="device-hero"><span><MonitorSmartphone size={24}/></span><div><h3>{device.model}</h3><p>{formatDisplayId(device.id)} · {device.sn}</p></div><TabletOnlineStatusTag>{device.onlineStatus}</TabletOnlineStatusTag></div><section className="detail-section"><h3>设备状态</h3><div className="info-grid"><div><span>设备编号</span><b>{formatDisplayId(device.id)}</b></div><div><span>设备 SN</span><b>{device.sn}</b></div><div><span>ROM 固件版本</span><b>ROM {device.romVersion}</b></div><div><span>APK 应用版本</span><b>APK {device.apkVersion}</b></div><div><span>版本状态</span><StatusTag>{device.versionStatus}</StatusTag></div><div><span>绑定状态</span><StatusTag>{device.boundElderlyId ? "已绑定" : "待绑定"}</StatusTag></div><div><span>在线状态</span><TabletOnlineStatusTag>{device.onlineStatus}</TabletOnlineStatusTag></div><div><span>联网方式</span><b>{device.networkType}</b></div><div><span>IP 地址</span><b className="mono">{device.ipAddress}</b></div><div><span>最近在线</span><b>{device.lastOnline}</b></div><div><span>绑定时间</span><b>{device.boundAt || "尚未绑定"}</b></div></div></section></div><footer><button className="secondary-button" onClick={onClose}>关闭</button></footer></aside></div>;
-  return null;
 }
 
 function ElderlyPickerModal({ records, value, onClose, onConfirm }) {
@@ -3162,7 +3108,7 @@ function SensorDetailDrawer({ sensor, elderlyRecords, onClose, onMove, onUnbind 
       </div>
       <footer>{elderly && !editingRoom && <><button className="danger-outline-button" onClick={() => setConfirmUnbind(true)}>解除绑定</button><button className="secondary-button" onClick={() => setEditingRoom(true)}>更换房间</button></>}<button className="secondary-button" onClick={onClose}>关闭</button></footer>
     </aside>
-    {confirmUnbind && <AdminConfirm title={`解除“${sensor.name}”绑定？`} description="解除后该设备不再产生新的房间活动统计；历史设备、房间和活动数据继续保留。" confirmLabel="确认解绑" onClose={() => setConfirmUnbind(false)} onConfirm={() => { onUnbind(sensor.id); setConfirmUnbind(false); }}/>} 
+    {confirmUnbind && <AdminConfirm title={`解除“${sensor.name}”绑定？`} description="解除后该设备不再产生新的房间活动统计；历史设备、房间和活动数据继续保留。" confirmLabel="确认解绑" onClose={() => setConfirmUnbind(false)} onConfirm={() => { onUnbind(sensor.id); setConfirmUnbind(false); }}/>}
   </div>;
 }
 
@@ -3465,7 +3411,7 @@ function CommunityActivityPage({ records, registrations, activityCategories, com
         {!loadError && !rows.length && <tr><td colSpan="8"><div className="empty-table-state">{records.length ? "当前分类和筛选条件下暂无活动" : "当前社区暂无活动"}</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>共 {filteredRows.length} 条活动，当前展示 {rows.length} 条</span><div><select className="select-button" aria-label="每页条数" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}><option value="10">10 条/页</option><option value="20">20 条/页</option><option value="50">50 条/页</option></select><button className="page-arrow" aria-label="上一页" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={15}/></button><button className="page-number active">{currentPage}</button><button className="page-arrow" aria-label="下一页" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}><ChevronRight size={15}/></button></div></div>
     </section>
-    {unpublishTarget && <AdminConfirm title="下架活动" description={`确定下架“${unpublishTarget.title}”吗？`} impacts={["下架后老人端不再展示该活动。", "历史参加意向继续保留。"]} danger confirmLabel="确认下架" cancelLabel="取消" onClose={() => setUnpublishTarget(null)} onConfirm={() => { onUnpublish(unpublishTarget.id); setUnpublishTarget(null); }}/>} 
+    {unpublishTarget && <AdminConfirm title="下架活动" description={`确定下架“${unpublishTarget.title}”吗？`} impacts={["下架后老人端不再展示该活动。", "历史参加意向继续保留。"]} danger confirmLabel="确认下架" cancelLabel="取消" onClose={() => setUnpublishTarget(null)} onConfirm={() => { onUnpublish(unpublishTarget.id); setUnpublishTarget(null); }}/>}
   </>;
 }
 
@@ -3990,7 +3936,7 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
             <label className="safety-description-field"><span>内容摘要</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="用于列表和推荐资源选择时快速辨别" rows="3"/>{errors.description && <small className="field-error">{errors.description}</small>}</label>
             <RichTextEditor label="正文内容 *" value={form.contentHtml} readOnly={readOnly} error={errors.contentHtml} onChange={(html) => update("contentHtml", html)}/>
           </div>
-          {isCreate && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={toggleRecommendationSync} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>} 
+          {isCreate && !readOnly && <RecommendationSyncSection checked={form.syncToRecommendation} onChange={toggleRecommendationSync} startsAt={form.recommendationStartsAt} endsAt={form.recommendationEndsAt} onStartsAtChange={updateRecommendationStartsAt} onEndsAtChange={updateRecommendationEndsAt} validityError={errors.recommendationValidity}/>}
           {errors.submit && <div className="form-error-banner">{errors.submit}</div>}
         </div>
         <footer><button className="secondary-button" onClick={onClose}>{readOnly ? "关闭" : "取消"}</button>{!readOnly && <button className="primary-button" disabled={saving} onClick={submit}>{saving ? "处理中..." : record ? "保存修改" : "发布"}</button>}</footer>
@@ -4128,7 +4074,7 @@ function CareScriptManagementPage({ scripts, onEdit, onToggle }) {
       </tbody></table></div>
       <div className="pagination"><span>当前展示 {rows.length} 个话术分组</span></div>
     </section>
-    {toggleTarget && <AdminConfirm title={`停用“${toggleTarget.name}”天气关怀话术？`} description="停用后，该分组包含的天气代码将不再生成或匹配话术。" confirmLabel="确认停用" onClose={() => setToggleTarget(null)} onConfirm={() => { onToggle(toggleTarget.script.weatherCode); setToggleTarget(null); }}/>} 
+    {toggleTarget && <AdminConfirm title={`停用“${toggleTarget.name}”天气关怀话术？`} description="停用后，该分组包含的天气代码将不再生成或匹配话术。" confirmLabel="确认停用" onClose={() => setToggleTarget(null)} onConfirm={() => { onToggle(toggleTarget.script.weatherCode); setToggleTarget(null); }}/>}
   </>;
 }
 
@@ -4471,6 +4417,7 @@ export function App() {
   const [elderlyScenario, setElderlyScenario] = useState("normal");
   const [communityActivityScenario, setCommunityActivityScenario] = useState("normal");
   const [communityContentScenario, setCommunityContentScenario] = useState("normal");
+  const [tabletDetailScenario, setTabletDetailScenario] = useState("normal");
   const [communityUsageView, setCommunityUsageView] = useState({ type: "activity", period: "today", scenario: "normal" });
   const [leisureEntertainmentScenario, setLeisureEntertainmentScenario] = useState("normal");
   const [leisureEntertainmentDirty, setLeisureEntertainmentDirty] = useState(false);
@@ -4895,7 +4842,7 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
   const resetAcceptance = () => {
-    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setRecommendationScenario("normal"); setElderlyScenario("normal"); setCommunityActivityScenario("normal"); setCommunityContentScenario("normal"); setCommunityTopicScenario("normal"); setLeisureEntertainmentScenario("normal"); setLeisureEntertainmentDirty(false); setPendingNavigation(null); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
+    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setRecommendationScenario("normal"); setElderlyScenario("normal"); setCommunityActivityScenario("normal"); setCommunityContentScenario("normal"); setCommunityTopicScenario("normal"); setTabletDetailScenario("normal"); setLeisureEntertainmentScenario("normal"); setLeisureEntertainmentDirty(false); setPendingNavigation(null); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
     setElderlyDetailId(null); setRelativeDetailId(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext(""); setOverviewToast("");
     setCareScripts(initialCareScripts);
     setReminderPolicies(initialReminderPolicies);
@@ -5859,11 +5806,11 @@ export function App() {
                       ? <PlatformRoleManagementPage roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                       : <RoleManagementPage currentProject={currentProject} projects={projects} roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                 : safeActive === "platformTabletDevices"
-                  ? <PlatformTabletDevicesPage scope="platform" devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
+                  ? <PlatformTabletDevicesPage scope="platform" detailScenario={tabletDetailScenario} devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
                   : safeActive === "deviceAlertPolicies"
                     ? <DeviceAlertPoliciesPage key={currentProjectId} communityName={currentProject?.name || "当前社区"} policies={buildDeviceAlertPolicyRows({ inactivityRule: currentInactivityRule })} onEdit={() => setGlobalRuleOpen(true)}/>
                   : safeActive === "tabletDevices"
-                    ? <PlatformTabletDevicesPage key={`${safeActive}-${currentProjectId}`} scope="community" devices={scopedTabletDevices} elderlyRecords={scopedElderlyRecords} projects={currentProject ? [currentProject] : []} onManageTablet={setTabletTarget}/>
+                    ? <PlatformTabletDevicesPage key={`${safeActive}-${currentProjectId}`} scope="community" detailScenario={tabletDetailScenario} devices={scopedTabletDevices} elderlyRecords={scopedElderlyRecords} projects={currentProject ? [currentProject] : []} onManageTablet={hasCommunityPermission("devices", "bind") ? setTabletTarget : undefined}/>
                   : safeActive === "tabletOta"
                     ? <TabletOtaPage projects={projects} devices={tabletDevices.map((device) => ({ ...device, projectName: projects.find((project) => project.id === device.projectId)?.name || "未归属项目", elderlyName: elderlyRecords.find((record) => record.id === device.boundElderlyId)?.name || "" }))} resetSignal={acceptanceResetSignal} onApplyUpgrade={applyTabletOtaUpgrade}/>
                   : safeActive === "careScripts"
@@ -5874,14 +5821,14 @@ export function App() {
                       ? <LeisureEntertainmentPage entries={leisureEntertainmentEntries} onChange={setLeisureEntertainmentEntries} scenario={leisureEntertainmentScenario} resetSignal={acceptanceResetSignal} onDirtyChange={setLeisureEntertainmentDirty}/>
                     : safeActive === "logs"
                       ? <OperationLogPage records={operationLogs}/>
-                    : <ManagementPage page={safeActive} onCreate={() => setDrawer({ kind: "generic" })}/>} 
+                    : <ManagementPage page={safeActive} onCreate={() => setDrawer({ kind: "generic" })}/>}
         </main>
       </div>
-      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>} 
-      {relativeDetailRecord && <RelativeDetailDrawer account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} onClose={() => setRelativeDetailId(null)} onOpenElderly={(record) => { setActive("elderly"); setRelativeDetailId(null); setElderlyDetailId(record.id); window.scrollTo({ top: 0, behavior: "auto" }); }}/>} 
-      {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={currentProject ? [currentProject] : []} tablet={scopedTabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>} 
-      {drawer?.kind === "overviewReminderPicker" && <ElderlyPickerModal records={scopedElderlyRecords} value="" onClose={() => setDrawer(null)} onConfirm={(elderlyId) => setDrawer({ kind: "reminder", elderlyId, source: "overview" })}/>} 
-      {drawer?.kind === "reminder" && <ReminderDrawer key={drawer.record?.id || `new-reminder-${drawer.elderlyId}`} record={drawer.record} elderlyRecords={scopedElderlyRecords} initialElderlyId={drawer.elderlyId} lockElderly onClose={() => setDrawer(null)} onSave={saveReminder}/>} 
+      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
+      {relativeDetailRecord && <RelativeDetailDrawer account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} onClose={() => setRelativeDetailId(null)} onOpenElderly={(record) => { setActive("elderly"); setRelativeDetailId(null); setElderlyDetailId(record.id); window.scrollTo({ top: 0, behavior: "auto" }); }}/>}
+      {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={currentProject ? [currentProject] : []} tablet={scopedTabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>}
+      {drawer?.kind === "overviewReminderPicker" && <ElderlyPickerModal records={scopedElderlyRecords} value="" onClose={() => setDrawer(null)} onConfirm={(elderlyId) => setDrawer({ kind: "reminder", elderlyId, source: "overview" })}/>}
+      {drawer?.kind === "reminder" && <ReminderDrawer key={drawer.record?.id || `new-reminder-${drawer.elderlyId}`} record={drawer.record} elderlyRecords={scopedElderlyRecords} initialElderlyId={drawer.elderlyId} lockElderly onClose={() => setDrawer(null)} onSave={saveReminder}/>}
       {drawer?.kind === "emergencyHelp" && (() => {
         const event = emergencyHelpEvents.find((item) => item.id === drawer.eventId);
         if (!event) return null;
@@ -5892,35 +5839,34 @@ export function App() {
         if (!batch) return null;
         return <FamilyAlbumBatchDetailDrawer batch={batch} elderly={scopedElderlyRecords.find((item) => item.id === batch.elderlyId)} uploader={scopedRelativeAccounts.find((item) => item.id === batch.uploaderId)} onClose={() => setDrawer(null)}/>;
       })()}
-      {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || `new-recommendation-${drawer.presetDate || "default"}`} record={drawer.record} presetDate={drawer.presetDate} safetyNews={scopedSafetyNews} entertainmentEntries={leisureEntertainmentEntries.filter((item) => item.enabled)} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>} 
-      {drawer?.kind === "activity" && <CommunityActivityDrawer key={`${drawer.mode}-${drawer.record?.id || "new-activity"}`} mode={drawer.mode} activityCategories={scopedActivityCategories} currentProject={currentProject} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCommunityActivity} onAddActivityCategory={addCommunityActivityCategory} onSetLiveMockState={setCommunityActivityLiveMockState}/>} 
-      {drawer?.kind === "activityRegistrations" && <ActivityRegistrationsDrawer activity={drawer.record} registrations={scopedRegistrations} elderlyRecords={scopedElderlyRecords} onClose={() => setDrawer(null)}/>} 
-      {drawer?.kind === "communityStaff" && <CommunityStaffDrawer key={drawer.record?.id || `new-community-staff-${currentProjectId}`} record={drawer.record} currentProject={currentProject} nextDisplayOrder={Math.max(0, ...scopedCommunityStaff.map((item) => Number(item.displayOrder) || 0)) + 1} onClose={() => setDrawer(null)} onSave={saveCommunityStaff}/>} 
-      {drawer?.kind === "safety" && <SafetyNewsDrawer key={`${drawer.mode}-${drawer.record?.id || `new-${drawer.contentType || "community-content"}`}`} mode={drawer.mode} record={drawer.record} contentType={drawer.contentType} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>} 
-      {drawer?.kind === "communityTopicCreate" && <CommunityTopicCreateDrawer currentProject={currentProject} contentRecords={scopedSafetyNews} onClose={() => setDrawer(null)} onSave={createCommunityTopic}/>} 
+      {drawer?.kind === "recommendation" && <RecommendationStrategyDrawer key={drawer.record?.id || `new-recommendation-${drawer.presetDate || "default"}`} record={drawer.record} presetDate={drawer.presetDate} safetyNews={scopedSafetyNews} entertainmentEntries={leisureEntertainmentEntries.filter((item) => item.enabled)} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveRecommendationStrategy}/>}
+      {drawer?.kind === "activity" && <CommunityActivityDrawer key={`${drawer.mode}-${drawer.record?.id || "new-activity"}`} mode={drawer.mode} activityCategories={scopedActivityCategories} currentProject={currentProject} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCommunityActivity} onAddActivityCategory={addCommunityActivityCategory} onSetLiveMockState={setCommunityActivityLiveMockState}/>}
+      {drawer?.kind === "activityRegistrations" && <ActivityRegistrationsDrawer activity={drawer.record} registrations={scopedRegistrations} elderlyRecords={scopedElderlyRecords} onClose={() => setDrawer(null)}/>}
+      {drawer?.kind === "communityStaff" && <CommunityStaffDrawer key={drawer.record?.id || `new-community-staff-${currentProjectId}`} record={drawer.record} currentProject={currentProject} nextDisplayOrder={Math.max(0, ...scopedCommunityStaff.map((item) => Number(item.displayOrder) || 0)) + 1} onClose={() => setDrawer(null)} onSave={saveCommunityStaff}/>}
+      {drawer?.kind === "safety" && <SafetyNewsDrawer key={`${drawer.mode}-${drawer.record?.id || `new-${drawer.contentType || "community-content"}`}`} mode={drawer.mode} record={drawer.record} contentType={drawer.contentType} currentProject={currentProject} onClose={() => setDrawer(null)} onSave={saveSafetyNews}/>}
+      {drawer?.kind === "communityTopicCreate" && <CommunityTopicCreateDrawer currentProject={currentProject} contentRecords={scopedSafetyNews} onClose={() => setDrawer(null)} onSave={createCommunityTopic}/>}
       {drawer?.kind === "communityTopicDetail" && (() => {
         const topic = communityTopics.find((item) => item.id === drawer.topicId);
         if (!topic) return null;
         return <CommunityTopicDetailDrawer topic={topic} comments={scopedTopicComments.filter((comment) => comment.topicId === topic.id)} contentRecords={scopedSafetyNews} currentUser={currentCommunityMember} onClose={() => setDrawer(null)} onAddComment={addCommunityTopicComment} onCloseTopic={closeCommunityTopic} onViewReference={(record) => setDrawer({ kind: "safety", mode: "view", record, contentType: record.type })}/>;
       })()}
-      {drawer?.kind === "serviceAssistanceRecord" && <ServiceAssistanceRecordDrawer record={drawer.record} elderly={(platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>} 
-      {drawer?.kind === "serviceCategory" && <ServiceCategoryDrawer key={drawer.record?.id || `new-service-category-${currentProjectId}`} record={drawer.record} categories={scopedServiceCategories} communityName={currentProject?.name || "当前社区"} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>} 
-      {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} projects={unifiedCommunities} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>} 
-      {drawer?.kind === "serviceCatalogDetail" && <ServiceCatalogDetailDrawer record={drawer.record} projects={unifiedCommunities} reviewSummary={serviceReviewSummaries[drawer.record.id]} onClose={() => setDrawer(null)} onEdit={() => setDrawer({ kind: "serviceCatalog", record: drawer.record })}/>} 
-      {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>} 
-      {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.record?.id || drawer.condition?.code || "new-care-script"} condition={drawer.condition} availableConditions={drawer.availableConditions} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>} 
-      {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>} 
-      {deviceDrawer?.kind === "tabletView" && <TabletAssetDrawer device={deviceDrawer.device} onClose={() => setDeviceDrawer(null)}/>} 
-      {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>} 
-      {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>} 
-      {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>} 
-      {tabletTarget && <TabletBindingModal record={tabletTarget} devices={tabletDevices} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>} 
-      {globalRuleOpen && <InactivityRuleDrawer rule={currentInactivityRule} communityName={currentProject?.name || "当前社区"} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setCommunityInactivityRules((rules) => ({ ...rules, [currentProjectId]: rule })); setGlobalRuleOpen(false); }}/>} 
+      {drawer?.kind === "serviceAssistanceRecord" && <ServiceAssistanceRecordDrawer record={drawer.record} elderly={(platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>}
+      {drawer?.kind === "serviceCategory" && <ServiceCategoryDrawer key={drawer.record?.id || `new-service-category-${currentProjectId}`} record={drawer.record} categories={scopedServiceCategories} communityName={currentProject?.name || "当前社区"} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>}
+      {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} projects={unifiedCommunities} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>}
+      {drawer?.kind === "serviceCatalogDetail" && <ServiceCatalogDetailDrawer record={drawer.record} projects={unifiedCommunities} reviewSummary={serviceReviewSummaries[drawer.record.id]} onClose={() => setDrawer(null)} onEdit={() => setDrawer({ kind: "serviceCatalog", record: drawer.record })}/>}
+      {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>}
+      {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.record?.id || drawer.condition?.code || "new-care-script"} condition={drawer.condition} availableConditions={drawer.availableConditions} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>}
+      {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>}
+      {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>}
+      {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
+      {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>}
+      {tabletTarget && <TabletBindingModal record={tabletTarget} devices={tabletDevices} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
+      {globalRuleOpen && <InactivityRuleDrawer rule={currentInactivityRule} communityName={currentProject?.name || "当前社区"} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setCommunityInactivityRules((rules) => ({ ...rules, [currentProjectId]: rule })); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.name}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
       {pendingNavigation && <div className="modal-layer"><button className="modal-backdrop" aria-label="继续编辑" onClick={() => setPendingNavigation(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="离开休闲娱乐配置"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>离开当前页面？</h3><p>当前休闲娱乐配置尚未保存。离开后，本次修改将不会保留。</p><div><button className="secondary-button" onClick={() => setPendingNavigation(null)}>继续编辑</button><button className="danger-button" onClick={confirmPendingNavigation}>放弃修改并离开</button></div></section></div>}
-      {overviewToast && <AdminToast message={overviewToast} onClose={() => setOverviewToast("")}/>} 
-      {communityTopicToast && <AdminToast message={communityTopicToast} onClose={() => setCommunityTopicToast("")}/>} 
-      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} communityActivityScenario={communityActivityScenario} communityContentScenario={communityContentScenario} communityTopicScenario={communityTopicScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onCommunityActivityScenarioChange={(scenario) => { setCommunityActivityScenario(scenario); setPlatformMode("community"); setActive("activities"); closeOpenEditors(); }} onCommunityContentScenarioChange={(scenario) => { const contentType = communityContentTypeByMenu[active]; const target = scopedSafetyNews.find((item) => item.type === contentType); setCommunityContentScenario(scenario); setPlatformMode("community"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(scenario === "createRecommendation" ? { kind: "safety", mode: "edit", contentType } : scenario === "editNoRecommendation" && target ? { kind: "safety", mode: "edit", record: target, contentType } : scenario === "detailNoRecommendation" && target ? { kind: "safety", mode: "view", record: target, contentType } : null); }} onCommunityTopicScenarioChange={(scenario) => { setCommunityTopicScenario(scenario); setPlatformMode("community"); setActive("communityTopics"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(["createSuccess", "createFailure", "createValidation"].includes(scenario) ? { kind: "communityTopicCreate" } : null); }} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>} 
+      {overviewToast && <AdminToast message={overviewToast} onClose={() => setOverviewToast("")}/>}
+      {communityTopicToast && <AdminToast message={communityTopicToast} onClose={() => setCommunityTopicToast("")}/>}
+      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} communityActivityScenario={communityActivityScenario} communityContentScenario={communityContentScenario} communityTopicScenario={communityTopicScenario} tabletDetailScenario={tabletDetailScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onCommunityActivityScenarioChange={(scenario) => { setCommunityActivityScenario(scenario); setPlatformMode("community"); setActive("activities"); closeOpenEditors(); }} onCommunityContentScenarioChange={(scenario) => { const contentType = communityContentTypeByMenu[active]; const target = scopedSafetyNews.find((item) => item.type === contentType); setCommunityContentScenario(scenario); setPlatformMode("community"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(scenario === "createRecommendation" ? { kind: "safety", mode: "edit", contentType } : scenario === "editNoRecommendation" && target ? { kind: "safety", mode: "edit", record: target, contentType } : scenario === "detailNoRecommendation" && target ? { kind: "safety", mode: "view", record: target, contentType } : null); }} onCommunityTopicScenarioChange={(scenario) => { setCommunityTopicScenario(scenario); setPlatformMode("community"); setActive("communityTopics"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(["createSuccess", "createFailure", "createValidation"].includes(scenario) ? { kind: "communityTopicCreate" } : null); }} onTabletDetailScenarioChange={(scenario) => { setTabletDetailScenario(scenario); setDeviceDrawer(null); setTabletTarget(null); }} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
       {componentCenterMode && <ComponentCenter/>}
     </div>
   );

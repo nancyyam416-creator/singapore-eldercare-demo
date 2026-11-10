@@ -3798,8 +3798,12 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .platform-device-filters {
   display: grid;
-  grid-template-columns: minmax(230px, 1.4fr) repeat(5, minmax(142px, .8fr)) auto;
+  grid-template-columns: minmax(230px, 1.4fr) repeat(4, minmax(142px, .8fr)) auto;
   align-items: end;
+}
+
+.admin-style-theme .platform-device-filters.is-community {
+  grid-template-columns: minmax(230px, 1.4fr) repeat(2, minmax(170px, .8fr)) auto;
 }
 
 .admin-style-theme .platform-device-filters > label { min-width: 0; }
@@ -3807,7 +3811,7 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .platform-device-filters .select-control { width: 100%; min-width: 0; }
 .admin-style-theme .platform-device-filters .filter-actions { margin-left: 0; }
 
-.admin-style-theme .platform-device-table { min-width: 1420px; }
+.admin-style-theme .platform-device-table { min-width: 1240px; }
 .admin-style-theme .platform-device-table th:first-child,
 .admin-style-theme .platform-device-table td:first-child { min-width: 245px; }
 .admin-style-theme .platform-device-table th:nth-child(2),
@@ -3821,36 +3825,19 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .platform-device-drawer { width: min(760px, 94vw); }
 .admin-style-theme .platform-device-summary .admin-detail-summary-primary > b { font-size: 17px; }
-.admin-style-theme .platform-device-progress-card {
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-.admin-style-theme .platform-device-progress-card > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.admin-style-theme .platform-device-progress-card > div:first-child > span,
-.admin-style-theme .platform-device-progress-card small { color: #64748b; font-size: 11px; }
-.admin-style-theme .platform-device-progress-card > b { color: #1e293b; font-size: 13px; }
-.admin-style-theme .platform-device-progress-card p { margin: 0; color: #475569; font-size: 12px; }
-.admin-style-theme .platform-device-progress { height: 6px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
-.admin-style-theme .platform-device-progress i { height: 100%; display: block; border-radius: inherit; background: #2563eb; }
-.admin-style-theme .platform-device-failure { margin-top: 10px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 7px; background: #fef2f2; }
-.admin-style-theme .platform-device-failure b { color: #b91c1c; font-size: 12px; }
-.admin-style-theme .platform-device-failure p { margin: 4px 0 0; color: #7f1d1d; font-size: 12px; }
-.admin-style-theme .platform-device-empty { min-height: 88px; }
-.admin-style-theme .platform-device-history-table { min-width: 620px; }
+.admin-style-theme .platform-device-summary-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.admin-style-theme .platform-device-history-table { min-width: 520px; }
 
 @media (max-width: 1280px) {
-  .admin-style-theme .platform-device-filters { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
+  .admin-style-theme .platform-device-filters,
+  .admin-style-theme .platform-device-filters.is-community { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
   .admin-style-theme .platform-device-filters .filter-actions { grid-column: 1 / -1; }
 }
 
 @media (max-width: 900px) {
   .admin-style-theme .platform-device-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .admin-style-theme .platform-device-filters { grid-template-columns: 1fr; }
+  .admin-style-theme .platform-device-filters,
+  .admin-style-theme .platform-device-filters.is-community { grid-template-columns: 1fr; }
 }
 
 .admin-style-theme .tablet-ota-table th:first-child,

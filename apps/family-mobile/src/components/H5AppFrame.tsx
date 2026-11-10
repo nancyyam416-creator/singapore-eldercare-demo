@@ -64,7 +64,7 @@ import {
   ChildLoginScenario,
   StoreCategoryScenario
 } from '../types';
-import { initialBoundElders, initialChildResidenceAddress, initialFamilyConversations, initialFamilyMessages, initialFamilyNotifications, initialPublishedPhotoBatches } from '../data/mockData';
+import { initialBoundElders, initialFamilyConversations, initialFamilyMessages, initialFamilyNotifications, initialPublishedPhotoBatches } from '../data/mockData';
 import { H5MonitorTab } from './H5MonitorTab';
 import { FamilySection, H5FamilyTab } from './H5FamilyTab';
 import { createBindingState, familyBindingReducer, getBoundElders } from '../data/familyBinding';
@@ -194,7 +194,6 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
   const [callTarget, setCallTarget] = useState<Pick<FamilyConversation, 'id' | 'elderName' | 'avatar'> | null>(null);
   const [callConnected, setCallConnected] = useState(false);
   const [showElderProfile, setShowElderProfile] = useState(false);
-  const [residenceAddress, setResidenceAddress] = useState(initialChildResidenceAddress);
   const [familyMessages, setFamilyMessages] = useState(initialFamilyMessages);
   const [familyNotifications, setFamilyNotifications] = useState<FamilyNotification[]>(initialFamilyNotifications);
   const [assistanceViews, setAssistanceViews] = useState(() => initialAssistanceViews(assistanceScenario));
@@ -736,8 +735,6 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               isLoggedIn={isLoggedIn}
               onLogin={handleLogin}
               onLogout={handleLogout}
-              residenceAddress={residenceAddress}
-              onSaveResidenceAddress={setResidenceAddress}
               boundElders={boundElders}
               bindingState={bindingState}
               bindingDispatch={bindingDispatch}

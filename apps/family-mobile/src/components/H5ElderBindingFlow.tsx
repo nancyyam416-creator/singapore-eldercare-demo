@@ -10,13 +10,12 @@ interface H5ElderBindingFlowProps {
   initialRequestId: string | null;
   onCancel: () => void;
   onEnterHome: (elderId: string) => void;
-  onCompleteAddress: () => void;
 }
 const relations: ElderRelation[] = ['儿子', '女儿', '儿媳', '女婿', '孙辈', '其他家属', '看护人'];
 const primary = 'w-full rounded-xl bg-blue-600 py-3 text-sm font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400';
 const secondary = 'w-full rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold text-slate-600';
 
-export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({ scenario, state, dispatch, initialRequestId, onCancel, onEnterHome, onCompleteAddress }) => {
+export const H5ElderBindingFlow: React.FC<H5ElderBindingFlowProps> = ({ scenario, state, dispatch, initialRequestId, onCancel, onEnterHome }) => {
   const [step, setStep] = useState<'phone' | 'preview' | 'request' | 'existing'>('phone');
   const [countryCode, setCountryCode] = useState<'+65' | '+86'>('+65');
   const [phone, setPhone] = useState('81230001');

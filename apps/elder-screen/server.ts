@@ -8,7 +8,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const httpServer = createHttpServer(app);
+const httpServer = createHttpServer({ maxHeaderSize: 128 * 1024 }, app);
 const PORT = 53112;
 
 app.use(express.json());

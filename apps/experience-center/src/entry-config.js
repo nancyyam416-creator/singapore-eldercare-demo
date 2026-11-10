@@ -1,8 +1,8 @@
 const localEntries = import.meta.env.DEV ? {
-  admin: "http://localhost:53113/?acceptance",
-  elderScreen: "http://localhost:53112/",
-  elderMobile: "http://localhost:53114/",
-  familyMobile: "http://localhost:53111/",
+  admin: "http://127.0.0.1:53113/?acceptance",
+  elderScreen: "http://127.0.0.1:53112/",
+  elderMobile: "http://127.0.0.1:53114/",
+  familyMobile: "http://127.0.0.1:53111/",
 } : {
   admin: "./admin/?acceptance",
   elderScreen: "./elder-screen/",
