@@ -55,7 +55,10 @@ import {
   createSamePriorityTimedReminderQueue,
   type HomeNotificationQueueItem,
 } from "./home-notification-queue";
+import { ensurePreviewStateBaseline } from "./preview-state-baseline";
 import "./control-center.css";
+
+ensurePreviewStateBaseline();
 
 const createInitialFulfillmentRecords = (): FulfillmentRecord[] => {
   const now = new Date();
@@ -93,7 +96,7 @@ const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
     batchCaption: "昨天下雪，孩子们一起堆了一个大雪人。",
     initialHearts: 12,
     voiceDuration: 7,
-    viewedAt: null,
+    viewedAt: "2026-09-20T09:18:00+08:00",
   },
   {
     id: "video-1",
@@ -109,7 +112,7 @@ const INITIAL_FAMILY_PHOTOS: FamilyPhoto[] = [
     categoryNameSnapshot: "节日纪念",
     batchCaption: "幼儿园端午节活动，悦悦专门录给爷爷看。",
     initialHearts: 15,
-    viewedAt: null,
+    viewedAt: "2026-09-20T10:12:00+08:00",
   },
   {
     id: "photo-1",
@@ -272,7 +275,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     familyMediaType: "photo",
     duration: 7,
     timestamp: "刚刚",
-    played: false,
+    played: true,
   },
   {
     id: "msg-video-dragon-boat",
@@ -284,7 +287,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     familyMediaId: "video-1",
     familyMediaType: "video",
     timestamp: "今天 10:05",
-    played: false,
+    played: true,
   },
   {
     id: "msg-voice-3",
@@ -294,7 +297,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     content: "爸，我晚一点再给您打电话。",
     duration: 6,
     timestamp: "2分钟前",
-    played: false,
+    played: true,
   },
   {
     id: "msg-voice-2",
@@ -304,7 +307,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     content: "冰箱里有切好的水果，记得吃一点。",
     duration: 6,
     timestamp: "5分钟前",
-    played: false,
+    played: true,
   },
   {
     id: "msg-1",
@@ -314,7 +317,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
     content: "爸，今天下午有冷空气降温，记得多加一件外套哦。周六我煲了黑鱼汤带杰杰去看您！",
     duration: 10,
     timestamp: "10分钟前",
-    played: false,
+    played: true,
   },
   {
     id: "msg-text-1",
@@ -350,6 +353,11 @@ const createDefaultMessages = (): FamilyMessage[] => [
       };
     })),
 ];
+
+const createPreviewBaselineMessages = () => createDefaultMessages().map((message) => ({
+  ...message,
+  played: true,
+}));
 
 export default function App() {
   const [isDeviceActivated, setIsDeviceActivated] = useState(() => {
@@ -570,7 +578,7 @@ export default function App() {
   const albumUnreadCount = photos.filter((photo) => !familyMediaViewedAt[photo.id]).length;
 
   // 6. Voice / Text message inbox state
-  const [messages, setMessages] = useState<FamilyMessage[]>(createDefaultMessages);
+  const [messages, setMessages] = useState<FamilyMessage[]>(createPreviewBaselineMessages);
 
   const markFamilyMediaViewed = (mediaId: string) => {
     setFamilyMediaViewedAt((current) => current[mediaId]
@@ -1213,7 +1221,7 @@ export default function App() {
     setMissedCallCount(0);
     setPhotoHeartStates({});
     setReminders(createDefaultReminders());
-    setMessages(createDefaultMessages());
+    setMessages(createPreviewBaselineMessages());
     setFulfillmentRecords(createInitialFulfillmentRecords());
     resetHomeReminderSpeechTracking();
     familyWeatherMockApi.reset();
