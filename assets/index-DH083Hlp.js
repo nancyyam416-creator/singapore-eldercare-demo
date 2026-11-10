@@ -12,6 +12,7 @@
     <span class="entry-action">进入体验 ${d.arrow}</span>
   </a>`}document.querySelector("#app").innerHTML=`<div class="site-shell">
   <main class="content">
+    <a class="communication-entry" href="./communication.html">沟通记录日历</a>
     <button class="update-trigger" type="button" aria-haspopup="dialog" aria-controls="update-drawer">
       <span class="update-trigger-icon">${d.history}</span>
       <span>更新记录</span>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title description">
+  <title id="title">社区公共区域清洁</title>
+  <desc id="description">明亮整洁的社区走廊与清洁提示牌</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12312d"/>
+      <stop offset="1" stop-color="#07171b"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d7eee4"/>
+      <stop offset="1" stop-color="#85b7a3"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#background)"/>
+  <path d="M95 90h770v315H95z" fill="#eaf6f1" rx="28"/>
+  <path d="M95 318h770v87H95z" fill="url(#floor)"/>
+  <path d="M210 90v228M750 90v228" stroke="#9bc6b4" stroke-width="18"/>
+  <path d="M480 90v228" stroke="#b8d7ca" stroke-width="8"/>
+  <path d="M95 405h770l-118 75H213z" fill="#2b5d52"/>
+  <g transform="translate(595 245)">
+    <path d="M80 0l72 124H8z" fill="#ffd36a" stroke="#725518" stroke-width="8"/>
+    <path d="M79 38v45" stroke="#725518" stroke-linecap="round" stroke-width="12"/>
+    <circle cx="79" cy="103" r="7" fill="#725518"/>
+  </g>
+  <g transform="translate(235 215)" fill="none" stroke="#27b878" stroke-linecap="round" stroke-width="18">
+    <path d="M0 90h132"/>
+    <path d="M32 87l42-75 39 75"/>
+    <path d="M20 118c22 18 102 18 124 0"/>
+  </g>
+  <text x="480" y="505" fill="#e8fff5" font-family="Arial, sans-serif" font-size="38" font-weight="700" text-anchor="middle">公共区域清洁安排</text>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title description">
+  <title id="title">社区设施维护</title>
+  <desc id="description">社区设施与维护工具示意</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#163646"/>
+      <stop offset="1" stop-color="#07161f"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#background)"/>
+  <circle cx="480" cy="250" r="174" fill="#102a35" stroke="#3cc985" stroke-width="10"/>
+  <g transform="translate(366 138)" fill="none" stroke="#dff8ee" stroke-linecap="round" stroke-linejoin="round" stroke-width="28">
+    <path d="M20 20l75 75"/>
+    <path d="M6 6l46 12-34 34z" fill="#3cc985" stroke="#3cc985"/>
+    <path d="M210 20l-75 75"/>
+    <path d="M224 6l-46 12 34 34z" fill="#3cc985" stroke="#3cc985"/>
+    <path d="M78 108l74 74"/>
+    <path d="M152 108l-74 74"/>
+    <circle cx="115" cy="145" r="16" fill="#3cc985" stroke="#3cc985"/>
+  </g>
+  <text x="480" y="492" fill="#e8fff5" font-family="Arial, sans-serif" font-size="38" font-weight="700" text-anchor="middle">社区设施维护通知</text>
+</svg>
