@@ -216,9 +216,9 @@ const reminderScenarios: Array<{ value: ReminderScenario; label: string; descrip
 ];
 
 const storeScenarios: Array<{ value: StoreCategoryScenario; label: string; description: string; status: string }> = [
-  { value: 'default', label: '当前社区 · 服务目录', description: '按当前老人社区展示电力、水利、基础维修；红山社区基线为6项。', status: '正常' },
-  { value: 'alternate_community', label: '女皇镇社区 · 4项服务', description: '预览女皇镇覆盖的电力与基础维修，不改变实际绑定老人。', status: '社区切换' },
-  { value: 'category_disabled', label: '水利维修已停用', description: '隐藏水利维修分类及其服务，保留其他分类和服务协助记录。', status: '已隐藏' },
+  { value: 'default', label: '当前社区 · 服务目录', description: '按当前老人社区动态展示可用服务与服务明细。', status: '正常' },
+  { value: 'alternate_community', label: '女皇镇社区 · 服务目录', description: '预览女皇镇社区覆盖的服务。', status: '社区切换' },
+  { value: 'category_disabled', label: '水利服务已停用', description: '隐藏水利维修和安装服务，保留其他服务和协助记录。', status: '已隐藏' },
   { value: 'empty', label: '大巴窑社区 · 暂无服务', description: '展示该社区无可用服务的空状态。', status: '空状态' },
   { value: 'load_error', label: '服务目录加载失败', description: '点击重新加载恢复当前社区目录，服务协助记录不受影响。', status: '可重试' }
 ];
@@ -989,7 +989,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             {acceptanceModule === 'service_store' && (
               <>
                 <section aria-label="服务目录场景">
-                  <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">分类与社区场景</h3><p className="mt-0.5 text-[10px] text-slate-400">验证三类维修服务、社区覆盖、停用、空状态与重试</p></div>
+                  <div className="mb-2"><h3 className="text-[11px] font-extrabold text-slate-500">服务与社区场景</h3><p className="mt-0.5 text-[10px] text-slate-400">验证服务明细与价格、社区覆盖、停用、空状态与重试</p></div>
                   <div className="space-y-1.5">{storeScenarios.map(option => {
                     const selected = storeCategoryScenario === option.value;
                     return <button key={option.value} type="button" onClick={() => { onStoreCategoryScenarioChange(option.value); onOpenStore(); }} aria-pressed={selected} className={`w-full rounded-xl border px-3 py-2.5 text-left ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}><span className="flex items-start justify-between gap-2"><strong className="text-[11px] text-slate-800">{option.label}</strong><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-600">{option.status}</span></span><span className="mt-1 block text-[9px] text-slate-400">{option.description}</span></button>;

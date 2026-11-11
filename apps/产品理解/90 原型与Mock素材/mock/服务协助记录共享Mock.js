@@ -1,5 +1,17 @@
 export const serviceAssistanceExpiryMessage = "家人暂未处理，您可以重新请家人帮忙。";
 export const serviceAssistanceExpiryMs = 48 * 60 * 60 * 1000;
+
+// 新发起记录保存服务项的展示快照；后续目录编辑不得反写历史记录。
+export const createServiceAssistanceSnapshot = (service, serviceItem) => ({
+  id: service?.id || "",
+  name: service?.name || "",
+  categoryName: service?.categoryName || service?.category || "",
+  itemId: serviceItem?.id || "",
+  itemName: serviceItem?.name || "",
+  itemContent: serviceItem?.content || "",
+  itemPriceText: serviceItem?.priceText || "",
+});
+
 export const normalizeServiceAssistanceRecord = (record, now = Date.now()) => {
   // 旧字段是家人确认动作的历史命名，不代表服务商履约证据。
   record = { ...record, familyHandlingStatus: record.familyHandlingStatus ?? (record.serviceStatus === "completed" ? "completed" : "not_completed"), handlingCompletedAt: record.handlingCompletedAt ?? record.completedAt ?? null, handlingCompletedBy: record.handlingCompletedBy ?? record.completedBy ?? null };
@@ -180,15 +192,16 @@ export const requestSharedServiceAssistance = (candidate) => {
   return { record, reminded: false, message: "已通知家人" };
 };
 
-// 仅按服务 ID 汇总真实已提交评价，每条协助记录最多一条。
+// 按当前服务 ID 及其明确的历史别名汇总评价；不做名称或分类模糊匹配，避免评价串入其他服务。
 export const getServiceReviewSummary = (serviceId, records = readSharedServiceAssistanceRecords()) => {
+  const serviceIds = new Set(Array.isArray(serviceId) ? serviceId.filter(Boolean) : [serviceId].filter(Boolean));
   const seen = new Set();
   const reviews = records.filter(record => {
-    if (record.service?.id !== serviceId || !record.review || seen.has(record.id)) return false;
+    if (!serviceIds.has(record.service?.id) || !record.review || seen.has(record.id)) return false;
     if (!Number.isInteger(record.review.rating) || record.review.rating < 1 || record.review.rating > 5) return false;
     if (record.review.elderId && record.review.elderId !== record.elder?.id) return false;
     seen.add(record.id);
     return true;
-  }).map(record => ({ recordId: record.id, serviceId, rating: record.review.rating, text: record.review.text || '', reviewerName: record.elder?.name || '老人', submittedAt: record.review.submittedAt }));
+  }).map(record => ({ recordId: record.id, serviceId: record.service?.id || '', rating: record.review.rating, text: record.review.text || '', reviewerName: record.elder?.name || '老人', submittedAt: record.review.submittedAt }));
   return { count: reviews.length, average: reviews.length ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)) : null, reviews };
 };

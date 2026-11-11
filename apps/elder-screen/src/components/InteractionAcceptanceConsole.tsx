@@ -437,11 +437,8 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
 };
 
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
-  default: { label: "三类六项服务", description: "与老人移动端一致，展示三类六项服务及完整服务信息。" },
+  default: { label: "当前服务目录", description: "不展示分类入口，按共享目录动态展示当前四项服务及明细价格。" },
   "no-services": { label: "暂无可用服务", description: "全部服务不可用时展示统一空状态。" },
-  "filter-empty": { label: "当前筛选变为空", description: "保留当前分类并提示返回全部服务。" },
-  "category-load-failure": { label: "分类加载失败", description: "不虚构分类，展示失败提示与重新加载。" },
-  "category-disabled": { label: "分类已停用", description: "停用分类及其服务不进入老人端列表。" },
   "family-help-idle": { label: "未请求", description: "联系服务商与家人协助均展示初始状态。" },
   "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
   "family-help-pending": { label: "家人待处理", description: "已通知家人，请等待联系。" },
@@ -458,10 +455,10 @@ const communityStaffScenarioLabels: Record<CommunityStaffAcceptanceScenario, { l
 };
 
 const serviceConversationScenarioLabels: Record<Exclude<ServiceConversationAcceptanceScenario, "off">, { label: string; description: string }> = {
-  normal: { label: "正常留言", description: "查看文字和语音留言，并完整走通语音回复。" },
+  normal: { label: "正常留言", description: "查看文字和语音留言，并完整走通语音留言。" },
   empty: { label: "暂无留言", description: "服务联系人当前没有历史留言。" },
   "playback-failure": { label: "语音播放失败", description: "首次播放失败，页面内可直接重试。" },
-  "send-failure": { label: "回复发送失败", description: "直接展示发送失败结果，录音已保留并可重试。" },
+  "send-failure": { label: "留言发送失败", description: "直接展示发送失败结果，录音已保留并可重试。" },
   "incoming-voice": { label: "家人语音来电", description: "展示独立来电界面，可接听或拒绝。" },
   "incoming-video": { label: "家人视频来电", description: "接听后进入视频通话，可控制静音、扬声器和画面。" },
   "call-timeout": { label: "呼出无人接听", description: "发起语音呼叫后进入等待，无人接听时自动结束并显示结果。" },
@@ -473,7 +470,7 @@ const serviceConversationActionLabels: Record<Exclude<ServiceConversationAccepta
   normal: "打开服务留言",
   empty: "查看暂无留言",
   "playback-failure": "打开语音播放场景",
-  "send-failure": "查看回复发送失败",
+  "send-failure": "查看留言发送失败",
   "incoming-voice": "显示家人语音来电",
   "incoming-video": "显示家人视频来电",
   "call-timeout": "重新触发无人接听",
@@ -1289,12 +1286,13 @@ export default function InteractionAcceptanceConsole({
                   <div><dt>绑定查询</dt><dd>{activationContractState.device.lookupStatus === "idle" ? "待查询" : activationContractState.device.lookupStatus === "bound" ? "已绑定用户" : activationContractState.device.lookupStatus === "unbound" ? "未绑定用户" : "查询失败，可重试"}</dd></div>
                   <div><dt>平板状态</dt><dd>{activationContractState.device.status}</dd></div>
                   <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
+                  <div><dt>设备归属项目</dt><dd>{activationContractState.device.projectId ?? "待选择社区"}</dd></div>
                   <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>
                   <div><dt>老人姓名</dt><dd>{activationContractState.elderly.name || "待填写"}</dd></div>
               <div><dt>性别</dt><dd>{activationContractState.elderly.gender || "待选择"}</dd></div>
                   <div><dt>联系电话</dt><dd>{activationContractState.elderly.phone || "待填写"}</dd></div>
                   <div className="is-address"><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
-                  <div><dt>社区归属</dt><dd>{activationContractState.elderly.projectCommunity || "绑定后同步"}</dd></div>
+                  <div><dt>社区归属</dt><dd>{activationContractState.elderly.communityName ? `${activationContractState.elderly.communityName}（${activationContractState.elderly.communityId}）` : "待选择"}</dd></div>
                 </dl>
               </div>
               <div className="interaction-acceptance-field">

@@ -1089,6 +1089,11 @@ button:active { transform: scale(.98); }
 .appointment-introduction p, .appointment-introduction li { color: #526078; font-size: 14px; line-height: 1.7; }
 .appointment-introduction p { margin: 0; }
 .appointment-introduction ul { display: grid; gap: 8px; margin: 0; padding-left: 22px; }
+.appointment-service-item-list { display: grid; gap: 10px; }
+.appointment-service-item-list article { display: grid; gap: 8px; padding: 14px; border: 1px solid #dbeafe; border-radius: 14px; background: #f8fbff; }
+.appointment-service-item-list article > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.appointment-service-item-list article h4 { flex: 1; }
+.appointment-service-item-list article strong { flex: none; color: #1d4ed8; font-size: 17px; line-height: 1.35; }
 .appointment-detail-images { display: grid; gap: 14px; }
 .appointment-detail-images img { width: 100%; height: auto; display: block; border-radius: 14px; background: #f1f5f9; object-fit: contain; }
 .appointment-detail-actions { position: fixed; z-index: 24; left: 30px; right: 30px; bottom: 84px; display: grid; gap: 10px; padding: 12px; border: 1px solid #dbe4ef; border-radius: 18px; background: rgba(255,255,255,.97); box-shadow: 0 -8px 26px rgba(15,23,42,.12); backdrop-filter: blur(14px); }

@@ -474,19 +474,71 @@ const initialServiceBookings = [
     .map(normalizeServiceBooking),
 ];
 
+const normalizeServiceItem = (item, serviceId, index) => ({
+  id: item?.id || `${serviceId || "service"}-item-${index + 1}`,
+  legacyServiceId: item?.legacyServiceId || "",
+  name: item?.name || `服务内容 ${index + 1}`,
+  content: item?.content || "",
+  priceText: item?.priceText || "",
+});
+
 function normalizeServiceCatalogItem(service) {
   const { slots: _slots, ...record } = service;
+  const serviceItems = Array.isArray(service.serviceItems) && service.serviceItems.length
+    ? service.serviceItems.map((item, index) => normalizeServiceItem(item, service.id, index))
+    : [normalizeServiceItem({ name: service.name, content: service.serviceContent, priceText: service.priceRange, legacyServiceId: service.id }, service.id, 0)];
   return {
     ...record,
-    category: service.categoryName || service.category,
-    description: service.description || `${service.categoryName || service.category}电话咨询服务`,
+    legacyServiceIds: service.legacyServiceIds || [],
+    categoryId: service.categoryId || service.categoryCode || null,
+    categoryCode: service.categoryId || service.categoryCode || "",
+    category: service.categoryName || service.category || "",
+    serviceItems,
+    serviceContent: serviceItems.map((item) => item.content).filter(Boolean).join("\n"),
+    priceRange: [...new Set(serviceItems.map((item) => item.priceText).filter(Boolean))].join(" / "),
+    description: service.description || "电话咨询服务",
     providerPhone: service.providerPhone || serviceProviderPhones[service.id] || "+65 6000 0000",
     status: service.status === "enabled" ? (service.available ? "启用" : "停用") : service.status,
     updatedAt: service.updatedAt || serviceCategoryMock.mockNow.slice(0, 16).replace("T", " "),
   };
 }
 
-const initialServiceCatalog = canonicalElderServiceCatalog;
+const migrateServiceCatalogCollection = (records) => {
+  const savedRecords = Array.isArray(records) ? records : [];
+  const canonicalIds = new Set(canonicalElderServiceCatalog.flatMap((service) => [service.id, ...(service.legacyServiceIds || [])]));
+  const migratedCanonical = canonicalElderServiceCatalog.map((canonical) => {
+    const savedParent = savedRecords.find((record) => record.id === canonical.id);
+    if (Array.isArray(savedParent?.serviceItems) && savedParent.serviceItems.length) {
+      return normalizeServiceCatalogItem({ ...canonical, ...savedParent, id: canonical.id, legacyServiceIds: canonical.legacyServiceIds });
+    }
+    const serviceItems = canonical.serviceItems.map((item, index) => {
+      const legacy = savedRecords.find((record) => record.id === (item.legacyServiceId || canonical.id));
+      return normalizeServiceItem({
+        ...item,
+        name: legacy?.name || item.name,
+        content: legacy?.serviceContent || item.content,
+        priceText: legacy?.priceRange || item.priceText,
+      }, canonical.id, index);
+    });
+    const retainedFields = savedParent ? {
+      coverageMode: savedParent.coverageMode,
+      coverageCommunityIds: savedParent.coverageCommunityIds,
+      provider: savedParent.provider,
+      providerPhone: savedParent.providerPhone,
+      businessHours: savedParent.businessHours,
+      precautions: savedParent.precautions,
+      coverImage: savedParent.coverImage,
+      detailImages: savedParent.detailImages,
+      status: savedParent.status,
+      updatedAt: savedParent.updatedAt,
+    } : {};
+    return normalizeServiceCatalogItem({ ...canonical, ...retainedFields, serviceItems });
+  });
+  const customServices = savedRecords.filter((record) => !canonicalIds.has(record.id)).map(normalizeServiceCatalogItem);
+  return [...migratedCanonical, ...customServices];
+};
+
+const initialServiceCatalog = migrateServiceCatalogCollection(canonicalElderServiceCatalog);
 
 const initialTabletDevices = [
   { id: "TAB-SG-20260031", projectId: "PRJ-001", sn: "SN-TAB-260031", model: "U2G Home 14", currentVersion: "v2.5.3", romVersion: "v1.5.0", apkVersion: "v2.1.0", versionStatus: "待更新", networkType: "Wi-Fi", ipAddress: "192.168.10.31", operator: "赵亚男", bindingStatus: "已绑定", onlineStatus: "在线", boundElderlyId: "SG-E-000128", boundAt: "2026-07-02 10:18", lastOnline: "2 分钟前", usageRecords: [{ id: "USE-20261026-001", type: "完成提醒", occurredAt: "2026-10-26 08:12", valid: true }] },
@@ -3225,15 +3277,15 @@ function ServiceAssistanceRecordPage({ records, elderlyRecords, projects, commun
 }
 
 function ServiceCatalogPage({ catalog, projects, reviewSummaries, onCreate, onView, onEdit }) {
-  const initialFilters = { query: "", category: "全部分类" };
+  const initialFilters = { query: "" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const categories = [...new Set(catalog.map((service) => service.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN"));
   const visibleCatalog = catalog.filter((service) => {
     const keyword = filters.query.trim().toLowerCase();
-    const matchesKeyword = !keyword || [service.name, service.category, service.description, service.provider, service.providerPhone, service.priceRange, service.businessHours]
+    const itemKeywords = (service.serviceItems || []).flatMap((item) => [item.name, item.content, item.priceText]);
+    const matchesKeyword = !keyword || [service.name, service.description, service.provider, service.providerPhone, service.businessHours, ...itemKeywords]
       .some((value) => `${value || ""}`.toLowerCase().includes(keyword));
-    return matchesKeyword && (filters.category === "全部分类" || service.category === filters.category);
+    return matchesKeyword;
   });
   const reset = () => {
     setDraftFilters(initialFilters);
@@ -3243,13 +3295,12 @@ function ServiceCatalogPage({ catalog, projects, reviewSummaries, onCreate, onVi
     <div className="page-heading"><div><h1>服务目录</h1><p>维护老人可查看的服务内容与服务范围</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增服务</button></div>
     <section className="panel management-panel service-catalog-panel">
       <div className="filters service-catalog-filters">
-        <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="服务名称、服务商、电话或介绍"/></div></label>
-        <label><span>服务分类</span><select className="select-control filter-select" value={draftFilters.category} onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}><option>全部分类</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
+        <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="服务名称、服务内容、服务商或电话"/></div></label>
         <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
       </div>
-      <div className="table-scroll"><table className="service-catalog-table"><thead><tr><th>服务名称</th><th>分类</th><th>服务介绍</th><th>服务商</th><th>电话</th><th>参考价格</th><th>营业时间</th><th>服务范围</th><th>评价</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {visibleCatalog.map((service) => { const summary = reviewSummaries[service.id]; return <tr key={service.id}><td><button className="service-catalog-name" onClick={() => onView(service)}><img src={service.coverImage} alt=""/><b>{service.name}</b></button></td><td>{service.category}</td><td>{service.description}</td><td>{service.provider}</td><td>{service.providerPhone}</td><td>{service.priceRange}</td><td>{service.businessHours}</td><td>{getServiceCoverageLabel(service, projects)}</td><td>{summary?.count > 0 ? <div className="service-review-summary"><b>★ {summary.average.toFixed(1)}</b><small>{summary.count} 条评价</small></div> : <span className="muted-value">暂无评价</span>}</td><td className="sticky-right"><button className="table-action" onClick={() => onView(service)}>详情</button><button className="table-action" onClick={() => onEdit(service)}>编辑</button></td></tr>; })}
-        {!visibleCatalog.length && <tr><td colSpan="10"><div className="empty-table-state">暂无符合条件的服务</div></td></tr>}
+      <div className="table-scroll"><table className="service-catalog-table"><thead><tr><th>服务名称</th><th>服务内容与参考价格</th><th>服务商</th><th>电话</th><th>营业时间</th><th>服务范围</th><th>评价</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {visibleCatalog.map((service) => { const summary = reviewSummaries[service.id]; return <tr key={service.id}><td><button className="service-catalog-name" onClick={() => onView(service)}><img src={service.coverImage} alt=""/><span><b>{service.name}</b><small>{service.serviceItems?.length || 0} 条服务内容</small></span></button></td><td><div className="service-item-summary">{(service.serviceItems || []).map((item) => <div key={item.id}><span><b>{item.name}</b><small>{item.content}</small></span><strong>{item.priceText || "待确认"}</strong></div>)}</div></td><td>{service.provider}</td><td>{service.providerPhone}</td><td>{service.businessHours || "—"}</td><td>{getServiceCoverageLabel(service, projects)}</td><td>{summary?.count > 0 ? <div className="service-review-summary"><b>★ {summary.average.toFixed(1)}</b><small>{summary.count} 条评价</small></div> : <span className="muted-value">暂无评价</span>}</td><td className="sticky-right"><button className="table-action" onClick={() => onView(service)}>详情</button><button className="table-action" onClick={() => onEdit(service)}>编辑</button></td></tr>; })}
+        {!visibleCatalog.length && <tr><td colSpan="8"><div className="empty-table-state">暂无符合条件的服务</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>当前展示 {visibleCatalog.length} 条数据</span></div>
     </section>
   </>;
@@ -3334,9 +3385,25 @@ function ServiceCatalogPanel({ services, onCreate, onEdit, onToggle }) {
 }
 
 function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
-  const [form, setForm] = useState(() => record ? { ...record, detailImage: record.detailImages?.[0] || "" } : { name: "", category: "电力维修", priceRange: "", provider: "", providerPhone: "", businessHours: "", coverageMode: "specified", coverageCommunityIds: [], description: "", serviceContent: "", precautions: "", coverImage: "", detailImage: "" });
+  const [form, setForm] = useState(() => {
+    const serviceItems = record?.serviceItems?.length
+      ? record.serviceItems.map((item) => ({ ...item }))
+      : [{ id: `service-item-${Date.now()}-1`, name: "", content: "", priceText: "" }];
+    return record
+      ? { ...record, serviceItems, detailImage: record.detailImages?.[0] || "" }
+      : { name: "", categoryId: null, provider: "", providerPhone: "", businessHours: "", coverageMode: "specified", coverageCommunityIds: [], description: "", serviceItems, precautions: "", coverImage: "", detailImage: "" };
+  });
   const [errors, setErrors] = useState({});
   const update = (key, value) => { setForm((current) => ({ ...current, [key]: value })); setErrors((current) => ({ ...current, [key]: "" })); };
+  const updateServiceItem = (index, key, value) => {
+    setForm((current) => ({ ...current, serviceItems: current.serviceItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+    setErrors((current) => ({ ...current, serviceItems: (current.serviceItems || []).map((itemError, itemIndex) => itemIndex === index ? { ...itemError, [key]: "" } : itemError) }));
+  };
+  const addServiceItem = () => setForm((current) => ({ ...current, serviceItems: [...current.serviceItems, { id: `service-item-${Date.now()}-${current.serviceItems.length + 1}`, name: "", content: "", priceText: "" }] }));
+  const removeServiceItem = (index) => {
+    setForm((current) => ({ ...current, serviceItems: current.serviceItems.filter((_, itemIndex) => itemIndex !== index) }));
+    setErrors((current) => ({ ...current, serviceItems: (current.serviceItems || []).filter((_, itemIndex) => itemIndex !== index) }));
+  };
   const chooseImage = (field, file) => {
     if (!file) return;
     const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -3353,7 +3420,12 @@ function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
     if (!form.provider.trim()) nextErrors.provider = "请输入服务机构";
     if (!form.providerPhone.trim()) nextErrors.providerPhone = "请输入咨询电话";
     if (!form.description.trim()) nextErrors.description = "请输入服务介绍";
-    if (!form.serviceContent.trim()) nextErrors.serviceContent = "请输入服务内容";
+    const itemErrors = form.serviceItems.map((item) => ({
+      name: item.name.trim() ? "" : "请输入内容名称",
+      content: item.content.trim() ? "" : "请输入服务内容",
+      priceText: item.priceText.trim() ? "" : "请输入对应的参考价格",
+    }));
+    if (itemErrors.some((item) => item.name || item.content || item.priceText)) nextErrors.serviceItems = itemErrors;
     if (!form.precautions.trim()) nextErrors.precautions = "请输入注意事项";
     if (form.coverageMode === "specified" && !form.coverageCommunityIds?.length) nextErrors.coverageCommunityIds = "请至少选择一个社区";
     if (!form.coverImage) nextErrors.coverImage = "请上传封面图";
@@ -3361,13 +3433,15 @@ function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     const { detailImage, ...nextForm } = form;
-    onSave({ ...nextForm, name: form.name.trim(), provider: form.provider.trim(), providerPhone: form.providerPhone.trim(), description: form.description.trim(), serviceContent: form.serviceContent.trim(), precautions: form.precautions.trim(), detailImages: detailImage ? [detailImage] : [] });
+    const serviceItems = form.serviceItems.map((item, index) => normalizeServiceItem({ ...item, name: item.name.trim(), content: item.content.trim(), priceText: item.priceText.trim() }, form.id, index));
+    onSave({ ...nextForm, name: form.name.trim(), provider: form.provider.trim(), providerPhone: form.providerPhone.trim(), description: form.description.trim(), serviceItems, precautions: form.precautions.trim(), detailImages: detailImage ? [detailImage, ...(record?.detailImages || []).slice(1)] : [] });
   };
   const imageUpload = (assetLabel, field, value, previewRatio) => <div className="single-image-form-item"><span>{assetLabel}</span><SingleImageUpload value={value} alt={`${assetLabel}预览`} accept="image/png,image/jpeg,image/webp,image/svg+xml" hint="支持 PNG、JPG、WebP、SVG，大小不超过 3MB" error={errors[field]} assetLabel={assetLabel} previewRatio={previewRatio} onFileSelect={(file) => chooseImage(field, file)} onRemove={() => update(field, "")}/></div>;
   return <AdminDrawer title={record ? "编辑服务" : "新增服务"} ariaLabel={record ? "编辑服务" : "新增服务"} className="service-catalog-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存服务</button></>}>
-    <div className="form-section"><h3>基础信息</h3><label><span>服务名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)}/>{errors.name && <small className="field-error">{errors.name}</small>}</label><div className="form-row"><label><span>服务分类 *</span><select className="select-control form-select-native" value={form.category} onChange={(event) => update("category", event.target.value)}><option>电力维修</option><option>水利维修</option><option>基础维修</option></select></label><label><span>参考价格</span><input value={form.priceRange} onChange={(event) => update("priceRange", event.target.value)}/></label></div><div className="form-row"><label><span>服务商 *</span><input value={form.provider} onChange={(event) => update("provider", event.target.value)}/>{errors.provider && <small className="field-error">{errors.provider}</small>}</label><label><span>电话 *</span><input value={form.providerPhone} onChange={(event) => update("providerPhone", event.target.value)}/>{errors.providerPhone && <small className="field-error">{errors.providerPhone}</small>}</label></div><label><span>营业时间</span><input value={form.businessHours} onChange={(event) => update("businessHours", event.target.value)}/></label></div>
+    <div className="form-section"><h3>基础信息</h3><label><span>服务名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)}/>{errors.name && <small className="field-error">{errors.name}</small>}</label><div className="form-row"><label><span>服务商 *</span><input value={form.provider} onChange={(event) => update("provider", event.target.value)}/>{errors.provider && <small className="field-error">{errors.provider}</small>}</label><label><span>电话 *</span><input value={form.providerPhone} onChange={(event) => update("providerPhone", event.target.value)}/>{errors.providerPhone && <small className="field-error">{errors.providerPhone}</small>}</label></div><label><span>营业时间</span><input value={form.businessHours} onChange={(event) => update("businessHours", event.target.value)}/></label></div>
     <div className="form-section"><h3>服务范围</h3><CommunityScopeField mode={form.coverageMode} selectedIds={form.coverageCommunityIds} communities={projects} onModeChange={(value) => update("coverageMode", value)} onSelectedIdsChange={(ids) => update("coverageCommunityIds", ids)} error={errors.coverageCommunityIds}/></div>
-    <div className="form-section"><h3>服务介绍</h3><label><span>介绍摘要 *</span><textarea rows="3" value={form.description} onChange={(event) => update("description", event.target.value)}/>{errors.description && <small className="field-error">{errors.description}</small>}</label><label><span>服务内容 *</span><textarea rows="5" value={form.serviceContent} onChange={(event) => update("serviceContent", event.target.value)}/>{errors.serviceContent && <small className="field-error">{errors.serviceContent}</small>}</label><label><span>注意事项 *</span><textarea rows="5" value={form.precautions} onChange={(event) => update("precautions", event.target.value)}/>{errors.precautions && <small className="field-error">{errors.precautions}</small>}</label></div>
+    <div className="form-section"><h3>服务介绍</h3><label><span>介绍摘要 *</span><textarea rows="3" value={form.description} onChange={(event) => update("description", event.target.value)}/>{errors.description && <small className="field-error">{errors.description}</small>}</label><label><span>注意事项 *</span><textarea rows="5" value={form.precautions} onChange={(event) => update("precautions", event.target.value)}/>{errors.precautions && <small className="field-error">{errors.precautions}</small>}</label></div>
+    <div className="form-section service-items-form"><div className="form-section-heading"><div><h3>服务内容与价格</h3><p>每条服务内容对应一条参考价格，价格按原文展示。</p></div><button type="button" className="secondary-button" onClick={addServiceItem}><Plus size={15}/>添加内容</button></div><div className="service-items-editor">{form.serviceItems.map((item, index) => <section key={item.id} className="service-item-editor"><header><b>服务内容 {index + 1}</b><button type="button" className="table-action danger-text" disabled={form.serviceItems.length === 1} onClick={() => removeServiceItem(index)}><Trash2 size={14}/>删除</button></header><label><span>内容名称 *</span><input value={item.name} onChange={(event) => updateServiceItem(index, "name", event.target.value)} placeholder="例如：灯具与开关检查"/>{errors.serviceItems?.[index]?.name && <small className="field-error">{errors.serviceItems[index].name}</small>}</label><label><span>服务内容 *</span><textarea rows="3" value={item.content} onChange={(event) => updateServiceItem(index, "content", event.target.value)} placeholder="说明该项服务的具体内容"/>{errors.serviceItems?.[index]?.content && <small className="field-error">{errors.serviceItems[index].content}</small>}</label><label><span>参考价格 *</span><input value={item.priceText} onChange={(event) => updateServiceItem(index, "priceText", event.target.value)} placeholder="例如：S$35–90"/><small className="field-help">仅用于展示，支持固定价或价格区间，不参与交易计算。</small>{errors.serviceItems?.[index]?.priceText && <small className="field-error">{errors.serviceItems[index].priceText}</small>}</label></section>)}</div></div>
     <div className="form-section"><h3>服务图片</h3>{imageUpload("封面图（目录 / 详情头部）", "coverImage", form.coverImage, "landscape")}{imageUpload("服务详情长图", "detailImage", form.detailImage, "natural")}</div>
   </AdminDrawer>;
 }
@@ -3380,9 +3454,9 @@ function ServiceCatalogDetailDrawer({ record, projects, reviewSummary, onClose, 
     <section className="detail-section service-detail-summary"><h3>{record.name}</h3><p>{record.description}</p></section>
     <div className="service-module-tabs service-detail-tabs" role="tablist" aria-label="服务详情视图"><button type="button" role="tab" aria-selected={activeTab === "detail"} className={activeTab === "detail" ? "active" : ""} onClick={() => setActiveTab("detail")}>服务详情</button><button type="button" role="tab" aria-selected={activeTab === "reviews"} className={activeTab === "reviews" ? "active" : ""} onClick={() => setActiveTab("reviews")}>服务评价 {reviewSummary?.count > 0 && <small>{reviewSummary.count}</small>}</button></div>
     {activeTab === "detail" ? <div className="service-detail-tab-content">
-      <section className="detail-section service-introduction"><h3>服务内容</h3><p>{record.serviceContent}</p></section>
+      <section className="detail-section"><h3>服务内容与参考价格</h3><div className="service-detail-items">{(record.serviceItems || []).map((item) => <article key={item.id}><div><b>{item.name}</b><p>{item.content}</p></div><strong>{item.priceText || "待确认"}</strong></article>)}</div></section>
       <section className="detail-section service-introduction"><h3>注意事项</h3><p>{record.precautions}</p></section>
-      <section className="detail-section"><h3>服务信息</h3><div className="info-grid"><div><span>服务商</span><b>{record.provider}</b></div><div><span>营业时间</span><b>{record.businessHours}</b></div><div><span>服务范围</span><b>{getServiceCoverageLabel(record, projects)}</b></div><div><span>电话</span><b>{record.providerPhone}</b></div><div><span>参考价格</span><b>{record.priceRange}</b></div><div><span>分类</span><b>{record.category}</b></div></div></section>
+      <section className="detail-section"><h3>服务信息</h3><div className="info-grid"><div><span>服务商</span><b>{record.provider}</b></div><div><span>营业时间</span><b>{record.businessHours || "—"}</b></div><div><span>服务范围</span><b>{getServiceCoverageLabel(record, projects)}</b></div><div><span>电话</span><b>{record.providerPhone}</b></div></div></section>
       <section className="detail-section service-introduction"><h3>服务详情</h3>{record.detailImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt={`${record.name}服务详情长图 ${index + 1}`}/>)}</section>
     </div> : <section className="detail-section service-review-section"><div className="service-review-heading"><h3>服务评价</h3>{reviewSummary?.count > 0 && <span><b>★ {reviewSummary.average.toFixed(1)}</b> · {reviewSummary.count} 条评价</span>}</div>{reviewSummary?.count > 0 ? <div className="service-review-list">{reviewSummary.reviews.map((review) => <article key={review.recordId}><header><b>{formatServiceRating(review.rating)}</b><span>{review.reviewerName} · {formatServiceAssistanceTime(review.submittedAt)}</span></header><p>{review.text || "仅评分，未填写评价内容"}</p></article>)}</div> : <div className="service-review-empty">暂无评价</div>}</section>}
   </AdminDrawer>;
@@ -3688,10 +3762,12 @@ function ActivityRegistrationsDrawer({ activity, registrations, elderlyRecords, 
   </AdminDrawer>;
 }
 
-function CommunityTopicPanel({ records, contentRecords, scenario = "normal", onRetry, onCreate, onView }) {
+function CommunityTopicPanel({ records, contentRecords, scenario = "normal", onRetry, onCreate, onView, onCloseTopic }) {
   const initialFilters = { query: "", initiator: "全部来源", referenced: "全部", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
+  const [closeTarget, setCloseTarget] = useState(null);
+  const [toast, setToast] = useState("");
   const visibleRecords = scenario === "empty" ? [] : records;
   const rows = visibleRecords.filter((record) => {
     const keyword = filters.query.trim().toLowerCase();
@@ -3723,10 +3799,10 @@ function CommunityTopicPanel({ records, contentRecords, scenario = "normal", onR
     </div>
     {scenario === "loadError" ? <div className="topic-load-error"><AlertTriangle size={28}/><b>社区话题加载失败</b><span>搜索和筛选条件已保留，请重新加载。</span><button className="secondary-button" onClick={onRetry}><RefreshCw size={15}/>重新加载</button></div> : <><div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个话题</span><span className="toolbar-note">按发布时间倒序，仅展示当前社区数据</span></div></div>
       <div className="table-scroll"><table className="community-topic-table"><thead><tr><th>话题标题</th><th>发起人</th><th>引用生活资讯</th><th>评论数</th><th>发布时间</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-          {rows.map((record) => <tr key={record.id}><td><button className="topic-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.body}</small></button></td><td><b>{record.initiatorName}</b></td><td>{record.referenceSnapshot ? <div className="stacked-cell"><b>{record.referenceSnapshot.title}</b><small className={referenceStatus(record) === "已失效" ? "danger-text" : ""}>{referenceStatus(record) === "已失效" ? "原文暂不可用" : "可查看原文"}</small></div> : <span className="muted-text">未引用</span>}</td><td>{record.commentCount} 条</td><td>{record.publishedAt || record.createdAt}</td><td><StatusTag>{record.status === "open" ? "进行中" : "已关闭"}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onView(record)}>详情</button></td></tr>)}
+          {rows.map((record) => <tr key={record.id}><td><button className="topic-title-cell" onClick={() => onView(record)}><b>{record.title}</b><small>{record.body}</small></button></td><td><b>{record.initiatorName}</b></td><td>{record.referenceSnapshot ? <div className="stacked-cell"><b>{record.referenceSnapshot.title}</b><small className={referenceStatus(record) === "已失效" ? "danger-text" : ""}>{referenceStatus(record) === "已失效" ? "原文暂不可用" : "可查看原文"}</small></div> : <span className="muted-text">未引用</span>}</td><td>{record.commentCount} 条</td><td>{record.publishedAt || record.createdAt}</td><td><StatusTag>{record.status === "open" ? "进行中" : "已关闭"}</StatusTag></td><td className="sticky-right community-topic-actions"><button className="table-action" onClick={() => onView(record)}>详情</button>{record.status === "open" && <button className="table-action danger-text" onClick={() => setCloseTarget(record)}>关闭话题</button>}</td></tr>)}
           {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">{visibleRecords.length ? "暂无符合筛选条件的社区话题" : "当前社区暂无话题"}</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span></div></>}
-  </section></>;
+  </section>{closeTarget && <CommunityTopicCloseModal topic={closeTarget} onClose={() => setCloseTarget(null)} onConfirm={onCloseTopic} onSuccess={() => setToast("话题已关闭")}/>} {toast && <AdminToast message={toast} onClose={() => setToast("")}/>}</>;
 }
 
 function CommunityTopicCreateDrawer({ currentProject, contentRecords, onClose, onSave }) {
@@ -3970,14 +4046,32 @@ function SafetyNewsDrawer({ record, mode = "edit", contentType = "社区公告",
   );
 }
 
+function CommunityTopicCloseModal({ topic, onClose, onConfirm, onSuccess }) {
+  const [closeReason, setCloseReason] = useState("");
+  const [closeError, setCloseError] = useState("");
+  const [closing, setClosing] = useState(false);
+  const confirmClose = async () => {
+    const reason = closeReason.trim();
+    if (!reason) { setCloseError("请输入关闭原因"); return; }
+    if (countVisibleCharacters(reason) > 100) { setCloseError("关闭原因不能超过 100 个字符"); return; }
+    setClosing(true);
+    setCloseError("");
+    try {
+      await onConfirm(topic.id, reason);
+      onClose();
+      onSuccess?.();
+    } catch (error) {
+      setCloseError(error.message || "关闭失败，请重试");
+    } finally { setClosing(false); }
+  };
+  return <AdminModal title="关闭话题" ariaLabel="关闭社区话题" className="community-topic-close-modal" onClose={() => !closing && onClose()} footer={<><button className="secondary-button" disabled={closing} onClick={onClose}>取消</button><button className="danger-button" disabled={closing} onClick={confirmClose}>{closing ? "关闭中..." : "确认关闭"}</button></>}><div className="community-topic-close-body"><p>关闭后保留话题正文和历史评论，但所有用户均不能再提交新评论。此操作不会删除话题。</p><label><span>关闭原因 *</span><textarea autoFocus maxLength="100" rows="4" value={closeReason} onChange={(event) => { setCloseReason(event.target.value); setCloseError(""); }} placeholder="请输入关闭原因"/>{closeError && <small className="field-error">{closeError}</small>}<small>{countVisibleCharacters(closeReason)} / 100</small></label></div></AdminModal>;
+}
+
 function CommunityTopicDetailDrawer({ topic, comments, contentRecords, currentUser, onClose, onAddComment, onCloseTopic, onViewReference }) {
   const [commentText, setCommentText] = useState("");
   const [commentError, setCommentError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
-  const [closeReason, setCloseReason] = useState("");
-  const [closeError, setCloseError] = useState("");
-  const [closing, setClosing] = useState(false);
   const [toast, setToast] = useState("");
   const referenceSource = contentRecords.find((record) => record.id === topic.referenceContentId);
   const referenceExpired = topic.referenceContentId && (!referenceSource || referenceSource.type !== "生活资讯" || getCommunityContentStatus(referenceSource) !== "已发布");
@@ -3996,20 +4090,6 @@ function CommunityTopicDetailDrawer({ topic, comments, contentRecords, currentUs
       setCommentError(error.message || "评论发布失败，请重试");
     } finally { setSubmitting(false); }
   };
-  const confirmClose = async () => {
-    const reason = closeReason.trim();
-    if (!reason) { setCloseError("请输入关闭原因"); return; }
-    if (reason.length > 100) { setCloseError("关闭原因不能超过 100 个字符"); return; }
-    setClosing(true);
-    try {
-      await onCloseTopic(topic.id, reason);
-      setCloseModalOpen(false);
-      setCloseError("");
-      setToast("话题已关闭");
-    } catch (error) {
-      setCloseError(error.message || "关闭失败，请重试");
-    } finally { setClosing(false); }
-  };
   return <><AdminDrawer title="话题详情" ariaLabel="社区话题详情" className="community-topic-drawer topic-detail-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>关闭</button>{topic.status === "open" && <button className="danger-button" onClick={() => setCloseModalOpen(true)}>关闭话题</button>}</>}>
     <div className="topic-detail-heading"><div className="topic-detail-title-row"><h3>{topic.title}</h3><StatusTag>{topic.status === "open" ? "进行中" : "已关闭"}</StatusTag></div><div className="topic-detail-meta"><span>发起人：<b>{topic.initiatorName}</b></span><span>发布时间：<time>{topic.publishedAt || topic.createdAt}</time></span></div></div>
       <section className="topic-detail-section topic-body-section"><h3>话题正文</h3><div className="rich-text-preview" dangerouslySetInnerHTML={{ __html: topic.bodyHtml }}/></section>
@@ -4018,7 +4098,7 @@ function CommunityTopicDetailDrawer({ topic, comments, contentRecords, currentUs
       <section className="topic-detail-section topic-comment-section"><div className="topic-section-heading topic-comment-heading"><div><h3>一级评论</h3><p>仅支持一级评论，不提供回复或多级评论</p></div><span>{sortedComments.length} 条</span></div><div className="topic-comment-list">{sortedComments.map((comment) => <article key={comment.id}><span className="person-avatar">{comment.authorName.slice(0, 1)}</span><div><header><b>{comment.authorName}</b><time>{comment.createdAt}</time></header><p>{comment.content}</p></div></article>)}{!sortedComments.length && <div className="topic-empty-comments"><MessageSquareText size={26}/><b>暂无评论</b><span>话题已发布，尚未收到留言。</span></div>}</div>
         {topic.status === "open" ? <div className="topic-comment-composer"><div className="topic-current-user"><span className="person-avatar">{currentUser?.name?.slice(0, 1) || "运"}</span><span><b>{currentUser?.name || "当前运营人员"}</b><small>以当前账号发布评论</small></span></div><textarea maxLength="500" rows="4" value={commentText} onChange={(event) => { setCommentText(event.target.value); setCommentError(""); }} placeholder="请输入评论内容"/>{commentError && <small className="field-error">{commentError}</small>}<div><span>{commentText.length} / 500</span><button className="primary-button" disabled={submitting} onClick={submitComment}>{submitting ? "发布中..." : "发布评论"}</button></div></div> : <div className="topic-comment-closed-notice"><AlertTriangle size={18}/><span><b>话题已关闭，不能继续评论</b><small>历史评论继续保留。</small></span></div>}
       </section>
-  </AdminDrawer>{closeModalOpen && <AdminModal title="关闭话题" ariaLabel="关闭社区话题" className="community-topic-close-modal" onClose={() => !closing && setCloseModalOpen(false)} footer={<><button className="secondary-button" disabled={closing} onClick={() => setCloseModalOpen(false)}>取消</button><button className="danger-button" disabled={closing} onClick={confirmClose}>{closing ? "关闭中..." : "确认关闭"}</button></>}><div className="community-topic-close-body"><p>关闭后保留话题正文和历史评论，但所有用户均不能再提交新评论。此操作不会删除话题。</p><label><span>关闭原因 *</span><textarea autoFocus maxLength="100" rows="4" value={closeReason} onChange={(event) => { setCloseReason(event.target.value); setCloseError(""); }} placeholder="请输入关闭原因"/>{closeError && <small className="field-error">{closeError}</small>}<small>{closeReason.length} / 100</small></label></div></AdminModal>}{toast && <AdminToast message={toast} onClose={() => setToast("")}/>}</>;
+  </AdminDrawer>{closeModalOpen && <CommunityTopicCloseModal topic={topic} onClose={() => setCloseModalOpen(false)} onConfirm={onCloseTopic} onSuccess={() => setToast("话题已关闭")}/>} {toast && <AdminToast message={toast} onClose={() => setToast("")}/>}</>;
 }
 
 function AuditLogDetailDrawer({ record, onClose }) {
@@ -4630,8 +4710,9 @@ export function App() {
   });
   const [serviceCatalog, setServiceCatalog] = useState(() => {
     try {
-      const savedServices = window.localStorage.getItem("u2g-service-catalog-v7-community-ids");
-      return savedServices ? JSON.parse(savedServices) : initialServiceCatalog;
+      const savedServices = window.localStorage.getItem("u2g-service-catalog-v8-service-items")
+        || window.localStorage.getItem("u2g-service-catalog-v7-community-ids");
+      return savedServices ? migrateServiceCatalogCollection(JSON.parse(savedServices)) : initialServiceCatalog;
     } catch {
       return initialServiceCatalog;
     }
@@ -4782,7 +4863,7 @@ export function App() {
   const scopedTopicComments = useMemo(() => topicComments.filter((record) => record.projectId === currentProject?.id), [topicComments, currentProject?.id]);
   const scopedServiceCategories = useMemo(() => serviceCategories.filter((category) => category.projectId === currentProject?.id), [serviceCategories, currentProject?.id]);
   const scopedServiceBookings = useMemo(() => serviceBookings.filter((booking) => booking.projectId === currentProject?.id), [serviceBookings, currentProject?.id]);
-  const serviceReviewSummaries = useMemo(() => Object.fromEntries(serviceCatalog.map((service) => [service.id, getServiceReviewSummary(service.id)])), [serviceBookings, serviceCatalog]);
+  const serviceReviewSummaries = useMemo(() => Object.fromEntries(serviceCatalog.map((service) => [service.id, getServiceReviewSummary([service.id, ...(service.legacyServiceIds || [])])])), [serviceBookings, serviceCatalog]);
   const scopedRecommendationStrategies = useMemo(() => recommendationStrategies
     .filter((record) => record.type !== "activity" && (record.projectId || "PRJ-001") === currentProject?.id)
     .map((record) => {
@@ -5043,7 +5124,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-service-catalog-v7-community-ids", JSON.stringify(serviceCatalog));
+    window.localStorage.setItem("u2g-service-catalog-v8-service-items", JSON.stringify(serviceCatalog));
   }, [serviceCatalog]);
 
   useEffect(() => {
@@ -5535,12 +5616,18 @@ export function App() {
 
   const saveServiceCatalogItem = (service) => {
     const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
-    const categoryCode = { "电力维修": "electric", "水利维修": "water", "基础维修": "basic" }[service.category] || service.categoryCode || "basic";
+    const normalizedService = normalizeServiceCatalogItem({
+      ...service,
+      categoryId: service.categoryId || null,
+      categoryCode: service.categoryId || service.categoryCode || "",
+      updatedAt,
+    });
     if (service.id) {
-      setServiceCatalog((items) => items.map((item) => item.id === service.id ? { ...item, ...service, categoryCode, updatedAt } : item));
+      setServiceCatalog((items) => items.map((item) => item.id === service.id ? { ...item, ...normalizedService } : item));
     } else {
       const nextNumber = Math.max(0, ...serviceCatalog.map((item) => Number(item.id.match(/custom-(\d+)$/)?.[1]) || 0)) + 1;
-      setServiceCatalog((items) => [{ ...service, id: `srv-custom-${String(nextNumber).padStart(3, "0")}`, categoryCode, updatedAt }, ...items]);
+      const id = `srv-custom-${String(nextNumber).padStart(3, "0")}`;
+      setServiceCatalog((items) => [...items, normalizeServiceCatalogItem({ ...normalizedService, id, displayOrder: items.length + 1 })]);
     }
     setDrawer(null);
   };
@@ -5737,10 +5824,11 @@ export function App() {
   const savePlatformTabletDevice = async (device) => {
     await new Promise((resolve) => window.setTimeout(resolve, 350));
     if (tabletDetailScenario === "platformCreateFailure") throw new Error("新增失败，请重试。已填写内容将继续保留。");
-    if (tabletDevices.some((item) => String(item.id).toUpperCase() === device.id.toUpperCase())) throw new Error("设备编号已存在，请检查后重试。");
     if (tabletDevices.some((item) => String(item.sn).toUpperCase() === device.sn.toUpperCase())) throw new Error("设备 SN 已存在，请检查后重试。");
-    setTabletDevices((devices) => [device, ...devices]);
-    return device;
+    const nextNumber = Math.max(0, ...tabletDevices.map((item) => Number(String(item.id || "").match(/(\d+)$/)?.[1]) || 0)) + 1;
+    const createdDevice = { ...device, id: `TAB-SG-${String(nextNumber).padStart(8, "0")}` };
+    setTabletDevices((devices) => [createdDevice, ...devices]);
+    return createdDevice;
   };
 
   const saveSensorDevice = (device) => {
@@ -5827,7 +5915,7 @@ export function App() {
               : safeActive === "communityStaff"
                 ? <CommunityStaffPage records={scopedCommunityStaff} communityName={currentProject?.name} onCreate={() => setDrawer({ kind: "communityStaff" })} onEdit={(record) => setDrawer({ kind: "communityStaff", record })} onDelete={deleteCommunityStaff} onMove={moveCommunityStaff}/>
               : safeActive === "communityTopics"
-                ? <CommunityTopicPanel records={scopedCommunityTopics} contentRecords={scopedSafetyNews} scenario={communityTopicScenario} onRetry={() => setCommunityTopicScenario("normal")} onCreate={() => setDrawer({ kind: "communityTopicCreate" })} onView={(record) => setDrawer({ kind: "communityTopicDetail", topicId: record.id })}/>
+                ? <CommunityTopicPanel records={scopedCommunityTopics} contentRecords={scopedSafetyNews} scenario={communityTopicScenario} onRetry={() => setCommunityTopicScenario("normal")} onCreate={() => setDrawer({ kind: "communityTopicCreate" })} onView={(record) => setDrawer({ kind: "communityTopicDetail", topicId: record.id })} onCloseTopic={closeCommunityTopic}/>
               : communityContentTypeByMenu[safeActive]
                 ? <SafetyNewsPage records={scopedSafetyNews} contentType={communityContentTypeByMenu[safeActive]} communityName={currentProject?.name} onCreate={() => setDrawer({ kind: "safety", mode: "edit", contentType: communityContentTypeByMenu[safeActive] })} onView={(record) => setDrawer({ kind: "safety", mode: "view", record, contentType: record.type })} onEdit={(record) => setDrawer({ kind: "safety", mode: "edit", record, contentType: record.type })} onStatusChange={changeSafetyNewsStatus}/>
               : safeActive === "services"

@@ -161,7 +161,6 @@ function TabletDeviceCreateDrawer({ devices, projects, scenario, onClose, onSave
   const suggestedNumber = String(nextDeviceNumber(devices)).padStart(5, "0");
   const hasScenarioPreset = ["platformCreate", "platformCreateFailure"].includes(scenario);
   const [form, setForm] = useState({
-    id: hasScenarioPreset ? `TAB-SG-${suggestedNumber}` : "",
     sn: hasScenarioPreset ? `SN-TAB-${suggestedNumber.slice(-6)}` : "",
     model: hasScenarioPreset ? "U2G Home 14" : "",
     projectId: hasScenarioPreset ? projects[0]?.id || "" : "",
@@ -177,11 +176,8 @@ function TabletDeviceCreateDrawer({ devices, projects, scenario, onClose, onSave
   };
   const submit = async () => {
     if (submittingRef.current) return;
-    const normalizedId = form.id.trim().toUpperCase();
     const normalizedSn = form.sn.trim().toUpperCase();
     const nextErrors = {};
-    if (!normalizedId) nextErrors.id = "请输入设备编号";
-    else if (devices.some((device) => String(device.id).toUpperCase() === normalizedId)) nextErrors.id = "设备编号已存在";
     if (!normalizedSn) nextErrors.sn = "请输入设备 SN";
     else if (devices.some((device) => String(device.sn).toUpperCase() === normalizedSn)) nextErrors.sn = "设备 SN 已存在";
     if (!form.model.trim()) nextErrors.model = "请输入设备型号";
@@ -194,7 +190,6 @@ function TabletDeviceCreateDrawer({ devices, projects, scenario, onClose, onSave
     setSubmitError("");
     try {
       await onSave({
-        id: normalizedId,
         sn: normalizedSn,
         model: form.model.trim(),
         projectId: form.projectId,
@@ -214,7 +209,7 @@ function TabletDeviceCreateDrawer({ devices, projects, scenario, onClose, onSave
     }
   };
   return <AdminDrawer title="新增平板" ariaLabel="新增平板" className="platform-device-create-drawer" onClose={() => !submitting && onClose()} footer={<><button className="secondary-button" disabled={submitting} onClick={onClose}>取消</button><button className="primary-button" disabled={submitting} onClick={submit}>{submitting ? "保存中..." : "保存平板"}</button></>}>
-    <div className="form-section"><h3>设备信息</h3><div className="form-row"><label><span>设备编号 *</span><input value={form.id} onChange={(event) => update("id", event.target.value)} placeholder="例如 TAB-SG-20260034"/>{errors.id && <small className="field-error">{errors.id}</small>}</label><label><span>设备 SN *</span><input value={form.sn} onChange={(event) => update("sn", event.target.value)} placeholder="例如 SN-TAB-260034"/>{errors.sn && <small className="field-error">{errors.sn}</small>}</label></div><div className="form-row"><label><span>设备型号 *</span><input value={form.model} onChange={(event) => update("model", event.target.value)} placeholder="例如 U2G Home 14"/>{errors.model && <small className="field-error">{errors.model}</small>}</label><label><span>所属项目 / 社区（选填）</span><select className="select-control form-select-native" value={form.projectId} onChange={(event) => update("projectId", event.target.value)}><option value="">暂不归属项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></div>{submitError && <div className="form-error-banner" role="alert">{submitError}</div>}</div>
+    <div className="form-section"><h3>设备信息</h3><div className="form-row"><label><span>设备 SN *</span><input value={form.sn} onChange={(event) => update("sn", event.target.value)} placeholder="例如 SN-TAB-260034"/>{errors.sn && <small className="field-error">{errors.sn}</small>}</label><label><span>设备型号 *</span><input value={form.model} onChange={(event) => update("model", event.target.value)} placeholder="例如 U2G Home 14"/>{errors.model && <small className="field-error">{errors.model}</small>}</label></div><label><span>所属项目 / 社区（选填）</span><select className="select-control form-select-native" value={form.projectId} onChange={(event) => update("projectId", event.target.value)}><option value="">暂不归属项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>{submitError && <div className="form-error-banner" role="alert">{submitError}</div>}</div>
   </AdminDrawer>;
 }
 
@@ -253,7 +248,7 @@ export function PlatformTabletDevicesPage({ devices, elderlyRecords, projects, s
   }), [rows]);
   const filtered = rows.filter((device) => {
     const keyword = query.trim().toLowerCase();
-    return (!keyword || `${device.id}${device.sn}${device.model}${device.elderlyName}${device.boundElderlyId || ""}`.toLowerCase().includes(keyword))
+    return (!keyword || `${device.sn}${device.model}`.toLowerCase().includes(keyword))
       && (!isPlatform || projectId === "全部项目" || (projectId === "未归属项目" ? !device.projectId : device.projectId === projectId))
       && (bindingStatus === "全部绑定状态" || (device.boundElderlyId ? "已绑定" : "待绑定") === bindingStatus)
       && (onlineStatus === "全部在线状态" || device.onlineStatus === onlineStatus)
@@ -310,7 +305,7 @@ export function PlatformTabletDevicesPage({ devices, elderlyRecords, projects, s
     </div>}
     <section className="panel management-panel platform-device-panel">
       <div className={`filters platform-device-filters ${isPlatform ? "is-platform" : "is-community"}`}>
-        <label><span>设备编号</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="设备编号、SN 或型号"/></div></label>
+        <label><span>设备检索</span><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="设备 SN 或型号"/></div></label>
         {isPlatform && <label><span>项目 / 社区</span><select className="select-control filter-select" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option>全部项目</option><option>未归属项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>}
         <label><span>绑定状态</span><select className="select-control filter-select" value={bindingStatus} onChange={(event) => setBindingStatus(event.target.value)}><option>全部绑定状态</option><option>已绑定</option><option>待绑定</option></select></label>
         <label><span>在线状态</span><select className="select-control filter-select" value={onlineStatus} onChange={(event) => setOnlineStatus(event.target.value)}><option>全部在线状态</option><option>在线</option><option>离线</option></select></label>
@@ -318,7 +313,7 @@ export function PlatformTabletDevicesPage({ devices, elderlyRecords, projects, s
         <div className="filter-actions"><button className="primary-button"><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
       </div>
       <div className="table-scroll"><table className={`platform-device-table ${isPlatform ? "" : "community-tablet-device-table"}`.trim()}><thead><tr><th>设备编号 / 型号</th><th>绑定老人</th><th>绑定状态</th><th>当前 ROM / APK</th><th>在线状态 / 最近上报</th>{isPlatform && <><th>所属项目 / 社区</th><th>目标版本</th><th>更新状态</th></>}<th className="sticky-right">操作</th></tr></thead><tbody>
-        {filtered.map((device) => <tr key={device.id}><td><div className="device-name-cell"><span><MonitorSmartphone size={17}/></span><div><b>{device.id}</b><small>{device.model} · {device.sn}</small></div></div></td><td><div className="stacked-cell"><b>{device.elderlyName || "待绑定"}</b><small>{device.boundElderlyId || "尚未建立老人关系"}</small></div></td><td><BindingStatusTag device={device}/></td><td><div className="stacked-cell mono"><b>ROM {device.romVersion || "待上报"}</b><small>APK {device.apkVersion || "待上报"}</small></div></td><td><div className="stacked-cell"><OnlineStatusTag status={device.onlineStatus}/><small>{device.lastOnline}</small></div></td>{isPlatform && <><td><div className="stacked-cell"><b>{device.projectName}</b><small>{device.projectRegion}</small></div></td><td className="platform-device-target">{device.targetVersion}</td><td><DeviceStatusTag status={device.upgradeStatus}/></td></>}<td className="sticky-right"><button className="table-action" onClick={() => setSelectedId(device.id)}>查看详情</button>{!isPlatform && device.elderlyRecord && onManageTablet && <button className="table-action" onClick={() => onManageTablet(device.elderlyRecord)}>管理绑定</button>}</td></tr>)}
+        {filtered.map((device) => <tr key={device.id}><td><div className="device-name-cell"><span><MonitorSmartphone size={17}/></span><div><b>{device.id}</b><small>{device.model} · {device.sn}</small></div></div></td><td><div className="stacked-cell"><b>{device.elderlyName || "待绑定"}</b>{!device.boundElderlyId && <small>尚未建立老人关系</small>}</div></td><td><BindingStatusTag device={device}/></td><td><div className="stacked-cell mono"><b>ROM {device.romVersion || "待上报"}</b><small>APK {device.apkVersion || "待上报"}</small></div></td><td><div className="stacked-cell"><OnlineStatusTag status={device.onlineStatus}/><small>{device.lastOnline}</small></div></td>{isPlatform && <><td><div className="stacked-cell"><b>{device.projectName}</b><small>{device.projectRegion}</small></div></td><td className="platform-device-target">{device.targetVersion}</td><td><DeviceStatusTag status={device.upgradeStatus}/></td></>}<td className="sticky-right"><button className="table-action" onClick={() => setSelectedId(device.id)}>查看详情</button>{!isPlatform && device.elderlyRecord && onManageTablet && <button className="table-action" onClick={() => onManageTablet(device.elderlyRecord)}>管理绑定</button>}</td></tr>)}
         {!filtered.length && <tr><td colSpan={isPlatform ? 9 : 6}><div className="empty-table-state">没有符合筛选条件的平板设备</div></td></tr>}
       </tbody></table></div>
       <div className="pagination"><span>当前展示 {filtered.length} 条数据</span></div>

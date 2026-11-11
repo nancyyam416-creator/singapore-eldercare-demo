@@ -10187,6 +10187,16 @@ th.sticky-right { background: #f7f8fa; }
   object-fit: cover;
 }
 
+.admin-style-theme .service-catalog-name > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-style-theme .service-catalog-name > span b { color: #1e293b; font-size: 13px; }
+.admin-style-theme .service-catalog-name > span small { color: #94a3b8; font-size: 10px; }
+
 .admin-style-theme .service-image-preview {
   width: 100%;
   max-height: 150px;
@@ -10224,6 +10234,28 @@ th.sticky-right { background: #f7f8fa; }
 }
 .admin-style-theme .service-detail-tabs button.active small { color: #2563eb; background: #dbeafe; }
 .admin-style-theme .service-detail-tab-content { display: grid; gap: var(--admin-group-gap); }
+
+.admin-style-theme .service-detail-items {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-style-theme .service-detail-items article {
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
+  gap: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.admin-style-theme .service-detail-items article > div { min-width: 0; }
+.admin-style-theme .service-detail-items article b { color: #334155; font-size: 12px; }
+.admin-style-theme .service-detail-items article p { margin: 5px 0 0; color: #64748b; font-size: 11px; line-height: 1.65; }
+.admin-style-theme .service-detail-items article strong { color: #1d4ed8; font-size: 12px; white-space: nowrap; }
 
 .admin-style-theme .service-review-summary { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
 .admin-style-theme .service-review-summary b { color: #b7791f; font-size: 12px; }
@@ -10525,23 +10557,25 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .service-catalog-table {
-  min-width: 1080px;
+  min-width: 1180px;
 }
 
 .admin-style-theme .service-catalog-table th:first-child,
 .admin-style-theme .service-catalog-table td:first-child {
-  min-width: 180px;
+  min-width: 220px;
 }
 
-.admin-style-theme .service-catalog-table th:nth-child(3),
-.admin-style-theme .service-catalog-table td:nth-child(3) {
-  min-width: 210px;
+.admin-style-theme .service-catalog-table th:nth-child(2),
+.admin-style-theme .service-catalog-table td:nth-child(2) {
+  min-width: 430px;
 }
 
-.admin-style-theme .service-catalog-table th:nth-child(4),
-.admin-style-theme .service-catalog-table td:nth-child(4) {
-  min-width: 250px;
-}
+.admin-style-theme .service-item-summary { display: grid; gap: 7px; }
+.admin-style-theme .service-item-summary > div { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: start; gap: 12px; }
+.admin-style-theme .service-item-summary span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.admin-style-theme .service-item-summary b { color: #334155; font-size: 12px; }
+.admin-style-theme .service-item-summary small { overflow: hidden; color: #94a3b8; font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.admin-style-theme .service-item-summary strong { color: #1d4ed8; font-size: 11px; white-space: nowrap; }
 
 .admin-style-theme .slot-summary {
   display: flex;
@@ -10568,7 +10602,7 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .service-catalog-drawer {
-  width: min(620px, 100vw);
+  width: min(720px, 100vw);
 }
 
 .admin-style-theme .service-catalog-drawer .form-section + .form-section {
@@ -10576,6 +10610,20 @@ th.sticky-right { background: #f7f8fa; }
   padding-top: var(--overlay-section-gap);
   border-top: 1px solid #e8edf4;
 }
+
+.admin-style-theme .service-items-form .form-section-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.admin-style-theme .service-items-editor { display: grid; gap: 12px; }
+.admin-style-theme .service-item-editor { padding: 14px; display: grid; gap: 12px; border: 1px solid #dbe3ee; border-radius: 9px; background: #f8fafc; }
+.admin-style-theme .service-item-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-style-theme .service-item-editor > header b { color: #334155; font-size: 12px; }
+.admin-style-theme .service-item-editor > header .table-action { display: inline-flex; align-items: center; gap: 4px; }
+.admin-style-theme .service-item-editor > header .table-action:disabled { color: #cbd5e1; cursor: not-allowed; }
+.admin-style-theme .service-item-editor label { gap: 6px; }
 
 .admin-style-theme .form-section-heading {
   margin-bottom: 14px;
@@ -11592,6 +11640,19 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .community-topic-table th:nth-child(2) { min-width: 135px; }
 .admin-style-theme .community-topic-table th:nth-child(3) { min-width: 210px; }
 .admin-style-theme .community-topic-table th:nth-child(5) { min-width: 140px; }
+.admin-style-theme .community-topic-table th.sticky-right,
+.admin-style-theme .community-topic-table td.sticky-right {
+  width: 148px;
+  min-width: 148px;
+}
+
+.admin-style-theme .community-topic-actions {
+  white-space: nowrap;
+}
+
+.admin-style-theme .community-topic-actions .table-action + .table-action {
+  margin-left: 12px;
+}
 
 .admin-style-theme .topic-title-cell {
   display: flex;
@@ -12448,6 +12509,7 @@ th.sticky-right { background: #f7f8fa; }
   padding: 13px 8px 13px 2px;
   display: grid;
   grid-template-columns: 22px 24px minmax(0, 1fr) max-content;
+  grid-template-rows: 28px;
   align-items: center;
   gap: 9px;
   border: 1px solid transparent;
@@ -12490,8 +12552,11 @@ th.sticky-right { background: #f7f8fa; }
 }
 .admin-style-theme .recommendation-day-list > div > span:not(.recommendation-sort-handle) {
   min-width: 0;
+  height: 28px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-self: center;
   gap: 3px;
 }
 .admin-style-theme .recommendation-day-list > div > span:not(.recommendation-sort-handle) b,
@@ -12506,15 +12571,18 @@ th.sticky-right { background: #f7f8fa; }
   position: relative;
   z-index: 2;
   width: auto;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  align-self: center;
   justify-self: end;
   gap: 8px;
 }
 .admin-style-theme .recommendation-day-list .recommendation-day-actions > .table-action {
   position: relative;
   z-index: 1;
+  height: 28px;
   min-height: 28px;
   display: inline-flex;
   align-items: center;

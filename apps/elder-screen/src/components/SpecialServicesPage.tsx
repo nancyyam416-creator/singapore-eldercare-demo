@@ -4,31 +4,27 @@ import {
   ChevronRight,
   ClipboardList,
   Clock3,
-  Droplets,
   HandHeart,
   MapPinOff,
   Phone,
   ShieldCheck,
-  Sparkles,
   Star,
   UserRound,
   WifiOff,
-  Wrench,
   X,
-  Zap,
-  type LucideIcon,
 } from "lucide-react";
 import SecondaryPageHeader from "./SecondaryPageHeader";
 import { elderProfileMock, getActiveFamilyRelationships } from "../elder-profile";
 import {
+  resolveUnifiedServiceId,
   unifiedServiceCatalog,
-  unifiedServiceCategories,
 } from "../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js";
 import {
   canReviewServiceAssistance,
   getLatestServiceAssistanceRecord,
   getServiceReviewSummary,
   getServiceAssistanceConfirmationCopy,
+  isActiveServiceAssistance,
   readSharedServiceAssistanceRecords,
   requestSharedServiceAssistance,
   serviceAssistanceExpiryMessage,
@@ -39,9 +35,6 @@ import "./special-services-page.css";
 export type SpecialServicesAcceptanceScenario =
   | "default"
   | "no-services"
-  | "filter-empty"
-  | "category-load-failure"
-  | "category-disabled"
   | "family-help-idle"
   | "family-help-confirm"
   | "family-help-pending"
@@ -49,20 +42,13 @@ export type SpecialServicesAcceptanceScenario =
   | "service-completed"
   | "service-reviewed";
 
-type ServiceCategoryCode = "electric" | "water" | "basic";
 type AssistanceStage = "idle" | "pending" | "expired" | "handled" | "completed" | "reviewed";
-
-interface ServiceCategoryItem {
-  code: ServiceCategoryCode;
-  name: string;
-  description: string;
-  Icon: LucideIcon;
-}
 
 interface SpecialServiceItem {
   id: string;
   name: string;
-  categoryCode: ServiceCategoryCode;
+  legacyServiceIds: string[];
+  categoryCode: string;
   categoryName: string;
   provider: string;
   providerPhone: string;
@@ -70,12 +56,18 @@ interface SpecialServiceItem {
   priceRange: string;
   description: string;
   serviceContent: string;
+  serviceItems: Array<{
+    id: string;
+    legacyServiceId: string;
+    name: string;
+    content: string;
+    priceText: string;
+  }>;
   precautions: string[];
   coverImage: string;
   detailImages: string[];
   coverageMode?: "all" | "specified";
   coverageCommunityIds?: string[];
-  Icon: LucideIcon;
 }
 
 interface AssistanceRecord {
@@ -128,24 +120,13 @@ interface SpecialServicesPageProps {
   acceptanceActionSignal?: number;
 }
 
-const categoryPresentation: Record<ServiceCategoryCode, { description: string; Icon: LucideIcon }> = {
-  electric: { description: "灯具、开关及家庭电路检查", Icon: Zap },
-  water: { description: "水龙头及常见漏水问题检查", Icon: Droplets },
-  basic: { description: "门锁、把手与家具小修", Icon: Wrench },
-};
-
-const serviceCategories: ServiceCategoryItem[] = unifiedServiceCategories.map((category) => ({
-  code: category.code as ServiceCategoryCode,
-  name: category.name,
-  ...categoryPresentation[category.code as ServiceCategoryCode],
-}));
-
 const services: SpecialServiceItem[] = unifiedServiceCatalog.map((service) => ({
   ...service,
-  categoryCode: service.categoryCode as ServiceCategoryCode,
+  legacyServiceIds: service.legacyServiceIds ?? [],
+  categoryCode: service.categoryCode ?? "",
   categoryName: service.category,
+  serviceItems: service.serviceItems,
   precautions: service.precautions.split("\n"),
-  Icon: categoryPresentation[service.categoryCode as ServiceCategoryCode].Icon,
 }));
 
 const servicesForCurrentCommunity = services.filter((service) => (
@@ -234,6 +215,7 @@ const formatAssistanceTime = (value?: string | null) => {
 
 const isFamilyHandlingCompleted = (record: Pick<SharedAssistanceRecord, "familyHandlingStatus" | "serviceStatus">) => (record.familyHandlingStatus ?? record.serviceStatus) === "completed";
 const getFamilyHandlingCompletedAt = (record: Pick<SharedAssistanceRecord, "handlingCompletedAt" | "completedAt">) => record.handlingCompletedAt ?? record.completedAt;
+const serviceIdsMatch = (firstId: string, secondId: string) => resolveUnifiedServiceId(firstId) === resolveUnifiedServiceId(secondId);
 
 const toAssistanceRecord = (record: SharedAssistanceRecord): AssistanceRecord => {
   const stage: AssistanceStage = record.review
@@ -264,7 +246,7 @@ const toAssistanceRecord = (record: SharedAssistanceRecord): AssistanceRecord =>
 const findSharedRecord = (serviceId: string) => readSharedServiceAssistanceRecords()
   .find((record: SharedAssistanceRecord) => (
     record.elder?.id === (elderProfileMock.id ?? "elder-wang-jianguo")
-    && record.service?.id === serviceId
+    && serviceIdsMatch(record.service?.id, serviceId)
   )) as SharedAssistanceRecord | undefined;
 
 const readCurrentElderRecords = () => (readSharedServiceAssistanceRecords() as SharedAssistanceRecord[])
@@ -294,8 +276,6 @@ export default function SpecialServicesPage({
   const [view, setView] = useState<"list" | "detail" | "records">("list");
   const [detailTab, setDetailTab] = useState<"details" | "reviews">("details");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [selectedCategoryCode, setSelectedCategoryCode] = useState<"all" | ServiceCategoryCode>("all");
-  const [categoryRetrySucceeded, setCategoryRetrySucceeded] = useState(false);
   const [assistance, setAssistance] = useState<AssistanceRecord>({ stage: "idle" });
   const [familyHelpConfirmOpen, setFamilyHelpConfirmOpen] = useState(false);
   const [familyHelpConfirmation, setFamilyHelpConfirmation] = useState(() => getServiceAssistanceConfirmationCopy(null));
@@ -311,17 +291,12 @@ export default function SpecialServicesPage({
   const [reviewSubmitError, setReviewSubmitError] = useState("");
   const submissionGuardRef = useRef(false);
 
-  const effectiveScenario = categoryRetrySucceeded && acceptanceScenario === "category-load-failure" ? "default" : acceptanceScenario;
+  const effectiveScenario = acceptanceScenario;
   const selectedService = services.find((service) => service.id === selectedServiceId) ?? null;
   const visibleServices = useMemo(() => {
     if (effectiveScenario === "no-services") return [];
-    if (selectedCategoryCode === "all") return servicesForCurrentCommunity;
-    if (effectiveScenario === "filter-empty" && selectedCategoryCode === "water") return [];
-    return servicesForCurrentCommunity.filter((service) => service.categoryCode === selectedCategoryCode);
-  }, [effectiveScenario, selectedCategoryCode]);
-  const availableCategories = effectiveScenario === "category-disabled"
-    ? serviceCategories.filter((category) => category.code !== "basic")
-    : serviceCategories;
+    return servicesForCurrentCommunity;
+  }, [effectiveScenario]);
   const acceptanceRecord = useMemo(() => createAcceptanceSharedRecord(effectiveScenario), [effectiveScenario]);
   const visibleRecords = acceptanceRecord
     ? [{ ...acceptanceRecord, review: acceptanceReview ?? acceptanceRecord.review }]
@@ -330,7 +305,11 @@ export default function SpecialServicesPage({
     ? [{ ...acceptanceRecord, review: acceptanceReview ?? acceptanceRecord.review }]
     : allSharedRecords;
   const serviceReviewSummary = useMemo(() => {
-    return new Map(services.map((service) => [service.id, getServiceReviewSummary(service.id, reviewSourceRecords)]));
+    const compatibleRecords = reviewSourceRecords.map((record) => ({
+      ...record,
+      service: { ...record.service, id: resolveUnifiedServiceId(record.service.id) },
+    }));
+    return new Map(services.map((service) => [service.id, getServiceReviewSummary(service.id, compatibleRecords)]));
   }, [reviewSourceRecords]);
   const selectedServiceReviewSummary = selectedService
     ? serviceReviewSummary.get(selectedService.id)
@@ -350,17 +329,17 @@ export default function SpecialServicesPage({
       setAcceptanceReview(null);
       return;
     }
-    if (initialServiceId && services.some((service) => service.id === initialServiceId)) {
-      setSelectedServiceId(initialServiceId);
+    const resolvedInitialServiceId = initialServiceId ? resolveUnifiedServiceId(initialServiceId) : null;
+    if (resolvedInitialServiceId && services.some((service) => service.id === resolvedInitialServiceId)) {
+      setSelectedServiceId(resolvedInitialServiceId);
       setDetailTab("details");
-      const storedRecord = findSharedRecord(initialServiceId);
+      const storedRecord = findSharedRecord(resolvedInitialServiceId);
       setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
       setView("detail");
     }
   }, [initialServiceId, isOpen]);
 
   useEffect(() => {
-    setCategoryRetrySucceeded(false);
     setFamilyHelpConfirmOpen(false);
     setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
     setFamilyHelpFeedback(null);
@@ -368,22 +347,13 @@ export default function SpecialServicesPage({
     setReviewingRecord(null);
     setAcceptanceReview(null);
     setReviewSubmitError("");
-    if (acceptanceScenario === "filter-empty") {
-      setSelectedCategoryCode("water");
-      setView("list");
-      setSelectedServiceId(null);
-      setAssistance({ stage: "idle" });
-      return;
-    }
     if (["family-help-pending", "family-help-handled", "service-completed", "service-reviewed"].includes(acceptanceScenario)) {
-      setSelectedCategoryCode("all");
       setSelectedServiceId(services[0].id);
       setAssistance(scenarioRecord(acceptanceScenario));
       setView("records");
       return;
     }
     if (["family-help-idle", "family-help-confirm"].includes(acceptanceScenario)) {
-      setSelectedCategoryCode("all");
       setSelectedServiceId(services[0].id);
       setAssistance(scenarioRecord(acceptanceScenario));
       setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
@@ -391,7 +361,6 @@ export default function SpecialServicesPage({
       setView("detail");
       return;
     }
-    setSelectedCategoryCode("all");
     setSelectedServiceId(null);
     setAssistance({ stage: "idle" });
     setView("list");
@@ -413,9 +382,10 @@ export default function SpecialServicesPage({
   }, [acceptanceScenario, isOpen, selectedServiceId]);
 
   const openService = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
+    const resolvedServiceId = resolveUnifiedServiceId(serviceId);
+    setSelectedServiceId(resolvedServiceId);
     setDetailTab("details");
-    const storedRecord = findSharedRecord(serviceId);
+    const storedRecord = findSharedRecord(resolvedServiceId);
     setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
     setFamilyHelpConfirmOpen(false);
     setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
@@ -426,7 +396,10 @@ export default function SpecialServicesPage({
 
   const requestFamilyHelp = () => {
     const latestRecord = effectiveScenario === "default" && selectedService
-      ? getLatestServiceAssistanceRecord(sharedRecords, elderProfileMock.id, selectedService.id)
+      ? getLatestServiceAssistanceRecord(sharedRecords.map((record) => ({
+        ...record,
+        service: { ...record.service, id: resolveUnifiedServiceId(record.service.id) },
+      })), elderProfileMock.id, selectedService.id)
       : assistance.stage === "idle"
         ? null
         : { status: assistance.stage === "completed" || assistance.stage === "reviewed" ? "handled" : assistance.stage };
@@ -475,6 +448,11 @@ export default function SpecialServicesPage({
       return;
     }
     const now = new Date().toISOString();
+    const activeCompatibleRecord = sharedRecords.find((item) => (
+      item.elder?.id === (elderProfileMock.id ?? "elder-wang-jianguo")
+      && serviceIdsMatch(item.service?.id, selectedService.id)
+      && isActiveServiceAssistance(item)
+    ));
     const record: SharedAssistanceRecord = {
       id: `HELP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
       projectId: "PRJ-001",
@@ -485,7 +463,7 @@ export default function SpecialServicesPage({
         phone: elderProfileMock.phone ?? "+65 8603 2918",
       },
       service: {
-        id: selectedService.id,
+        id: activeCompatibleRecord?.service.id ?? selectedService.id,
         name: selectedService.name,
         categoryName: selectedService.categoryName,
       },
@@ -535,22 +513,14 @@ export default function SpecialServicesPage({
 
       {view === "list" && (
         <div className="special-services-list-view">
-          <div className="special-services-catalog-layout">
-            <aside className="special-services-sidebar" aria-label="服务分类">
-              {effectiveScenario !== "category-load-failure" && <nav className="special-services-categories" aria-label="服务分类">
-                <button type="button" className={selectedCategoryCode === "all" ? "is-active" : ""} onClick={() => setSelectedCategoryCode("all")}><span className="special-service-category__icon"><Sparkles aria-hidden="true" /></span><strong>全部</strong></button>
-                {availableCategories.map((category) => <button key={category.code} type="button" className={selectedCategoryCode === category.code ? "is-active" : ""} onClick={() => setSelectedCategoryCode(category.code)} title={category.description}><span className="special-service-category__icon"><category.Icon aria-hidden="true" /></span><strong>{category.name}</strong></button>)}
-              </nav>}
-            </aside>
-
+          <div className="special-services-catalog-layout is-flat">
             <section className="special-services-content" aria-live="polite">
               {!elderProfileMock.communityId ? <section className="special-services-state" role="status"><MapPinOff aria-hidden="true" /><h2>社区未设置</h2><p>请先完成社区资料设置。</p></section>
-                : effectiveScenario === "category-load-failure" ? <section className="special-services-state" role="status"><WifiOff aria-hidden="true" /><h2>服务分类暂时加载失败</h2><p>请检查网络后重新加载，其他功能不受影响。</p><button type="button" onClick={() => setCategoryRetrySucceeded(true)}>重新加载</button></section>
-                : visibleServices.length === 0 ? <section className="special-services-state" role="status"><HandHeart aria-hidden="true" /><h2>{selectedCategoryCode === "all" ? "当前暂无可用服务" : "该分类暂时没有可用服务"}</h2><p>可以稍后再来看看。</p>{selectedCategoryCode !== "all" && <button type="button" onClick={() => setSelectedCategoryCode("all")}>返回全部服务</button>}</section>
+                : visibleServices.length === 0 ? <section className="special-services-state" role="status"><HandHeart aria-hidden="true" /><h2>当前暂无可用服务</h2><p>可以稍后再来看看。</p></section>
                   : <div className="special-services-grid">{visibleServices.map((service) => {
                     const reviewSummary = serviceReviewSummary.get(service.id);
                     const hasReviews = Boolean(reviewSummary && reviewSummary.count > 0 && reviewSummary.average !== null);
-                    return <article key={service.id} className="special-service-card"><img className="special-service-card__image" src={service.coverImage} alt={`${service.name}服务场景`} /><div className="special-service-card__copy"><span>{service.categoryName}</span><h3>{service.name}</h3><p>{service.description}</p><div className="special-service-card__provider"><span><UserRound aria-hidden="true" />服务商</span><strong>{service.provider}</strong></div></div><div className="special-service-card__aside"><strong>{service.priceRange}</strong><small>{service.businessHours}</small><div className={`special-service-card__rating${hasReviews ? " has-reviews" : ""}`}><Star aria-hidden="true" /><span>{hasReviews ? `${reviewSummary!.average!.toFixed(1)} · ${reviewSummary!.count}条评价` : "暂无评价"}</span></div><button type="button" onClick={() => openService(service.id)}>查看服务<ChevronRight aria-hidden="true" /></button></div></article>;
+                    return <article key={service.id} className="special-service-card"><img className="special-service-card__image" src={service.coverImage} alt={`${service.name}服务场景`} /><div className="special-service-card__copy">{service.categoryName && <span>{service.categoryName}</span>}<h3>{service.name}</h3><p>{service.description}</p><div className="special-service-card__provider"><span><UserRound aria-hidden="true" />服务商</span><strong>{service.provider}</strong></div></div><div className="special-service-card__aside"><strong>{service.priceRange}</strong><small>{service.businessHours}</small><div className={`special-service-card__rating${hasReviews ? " has-reviews" : ""}`}><Star aria-hidden="true" /><span>{hasReviews ? `${reviewSummary!.average!.toFixed(1)} · ${reviewSummary!.count}条评价` : "暂无评价"}</span></div><button type="button" onClick={() => openService(service.id)}>查看服务<ChevronRight aria-hidden="true" /></button></div></article>;
                   })}</div>}
             </section>
           </div>
@@ -568,7 +538,7 @@ export default function SpecialServicesPage({
             : <div className="special-services-records-list">{visibleRecords.map((record) => <article key={record.id}>
               <span><HandHeart aria-hidden="true" /></span>
               <div>
-                <div><small>{record.service.categoryName}</small><strong>{getSharedRecordStatus(record)}</strong></div>
+                <div>{record.service.categoryName && <small>{record.service.categoryName}</small>}<strong>{getSharedRecordStatus(record)}</strong></div>
                 <h3>{record.service.name}</h3>
                 <p>{record.provider.name} · {record.provider.phone}</p>
                 <time>请求于 {formatAssistanceTime(record.requestedAt)}</time>
@@ -588,14 +558,14 @@ export default function SpecialServicesPage({
         <header className="special-services-flow-header"><button type="button" className="special-services-flow-nav" onClick={() => initialServiceId ? onClose() : setView("list")}><X aria-hidden="true" /><strong>收起</strong></button><strong>特约服务</strong></header>
         <div className="special-services-detail-layout">
           <article className="special-services-detail">
-            <header><img className="special-services-detail__header-image" src={selectedService.coverImage} alt={`${selectedService.name}服务场景`} /><div><span>{selectedService.categoryName}</span><h2>{selectedService.name}</h2><p>{selectedService.description}</p><div className="special-services-detail__price"><small>参考价格</small><strong>{selectedService.priceRange}</strong></div></div></header>
+            <header><img className="special-services-detail__header-image" src={selectedService.coverImage} alt={`${selectedService.name}服务场景`} /><div>{selectedService.categoryName && <span>{selectedService.categoryName}</span>}<h2>{selectedService.name}</h2><p>{selectedService.description}</p></div></header>
             <nav className="special-services-detail__tabs" aria-label="服务详情内容" role="tablist">
               <button type="button" role="tab" aria-selected={detailTab === "details"} className={detailTab === "details" ? "is-active" : ""} onClick={() => setDetailTab("details")}>服务详情</button>
               <button type="button" role="tab" aria-selected={detailTab === "reviews"} className={detailTab === "reviews" ? "is-active" : ""} onClick={() => setDetailTab("reviews")}>服务评价{selectedServiceReviewSummary?.count ? ` (${selectedServiceReviewSummary.count})` : ""}</button>
             </nav>
             {detailTab === "details" ? <div className="special-services-detail__tab-panel" role="tabpanel">
               <section className="special-services-detail__description">
-                <div className="special-services-intro-section"><h4>服务内容</h4><p>{selectedService.serviceContent}</p></div>
+                <div className="special-services-intro-section"><h4>服务内容与价格</h4><div className="special-services-detail__items">{selectedService.serviceItems.map((item) => <article key={item.id}><div><strong>{item.name}</strong><span>{item.priceText}</span></div><p>{item.content}</p></article>)}</div></div>
                 <div className="special-services-intro-section is-notice"><h4>注意事项</h4><ul>{selectedService.precautions.map((precaution) => <li key={precaution}>{precaution}</li>)}</ul></div>
               </section>
               <div className="special-services-detail__facts">

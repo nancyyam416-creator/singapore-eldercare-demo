@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BellRing, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, HandHeart, MapPin, PhoneCall, Star, UserRound, Wrench, XCircle } from 'lucide-react';
 import ElderPageHeader from './ElderPageHeader';
-import { appointmentCategories, appointmentCategoryName, appointmentServices, currentElderProfile, initialServiceAssistanceRecords, type AppointmentCategoryCode, type AppointmentService, type ServiceAssistanceRecord } from './appointmentData';
+import { appointmentCategoryName, appointmentServices, currentElderProfile, getAppointmentServiceById, initialServiceAssistanceRecords, resolveAppointmentServiceId, type AppointmentService, type ServiceAssistanceRecord } from './appointmentData';
 import { canReviewServiceAssistance, getLatestServiceAssistanceRecord, getServiceAssistanceConfirmationCopy, getServiceReviewSummary, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, requestSharedServiceAssistance, serviceAssistanceExpiryMessage, submitSharedServiceReview, subscribeSharedServiceAssistanceRecords, type ServiceReviewSummary } from '../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js';
 
 export type AppointmentScenario = 'default' | 'detail' | 'requested' | 'handling' | 'expired' | 'cancelled' | 'handled' | 'completed' | 'reviewed' | 'records';
-type Filter = 'all' | AppointmentCategoryCode;
 type View = 'list' | 'detail' | 'result' | 'records';
 type DetailTab = 'detail' | 'reviews';
 
@@ -22,7 +21,7 @@ const readRecords = () => {
 const createScenarioRecord = (scenario: 'requested' | 'handling' | 'expired' | 'cancelled' | 'handled' | 'completed' | 'reviewed', service = appointmentServices[0]): ServiceAssistanceRecord => ({
   id: `HELP-MOCK-${scenario.toUpperCase()}`,
   elder: { id: 'elder-wang-jianguo', name: '王建国', phone: '+65 8603 2918' },
-  service: { id: service.id, name: service.name, categoryName: appointmentCategoryName(service.category) },
+  service: { id: service.id, name: service.name, categoryName: appointmentCategoryName(service.category) || service.name },
   provider: { name: service.provider, phone: service.providerPhone },
   requestReason: '请家人协助联系服务商',
   requestedAt: '2026-10-30T09:20:00+08:00',
@@ -48,13 +47,13 @@ const formatTime = (value: string) => new Intl.DateTimeFormat('zh-CN', {
 // 兼容共享契约旧字段名：completed 表示家人协助工单处理完成，不代表服务商履约完成。
 const isFamilyHandlingCompleted = (record: Pick<ServiceAssistanceRecord, 'familyHandlingStatus' | 'serviceStatus'>) => (record.familyHandlingStatus ?? record.serviceStatus) === 'completed';
 const getFamilyHandlingCompletedAt = (record: Pick<ServiceAssistanceRecord, 'handlingCompletedAt' | 'completedAt'>) => record.handlingCompletedAt ?? record.completedAt;
+const serviceSnapshotLabel = (service: ServiceAssistanceRecord['service']) => service.categoryName === service.name ? service.name : `${service.categoryName} · ${service.name}`;
 
 type Props = { scenario: AppointmentScenario; onViewChange?: (scenario: AppointmentScenario) => void };
 
 export default function AppointmentServicesPage({ scenario, onViewChange }: Props) {
   const [view, setViewState] = useState<View>('list');
   const [detailTab, setDetailTab] = useState<DetailTab>('detail');
-  const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<AppointmentService>(appointmentServices[0]);
   const [records, setRecords] = useState<ServiceAssistanceRecord[]>(readRecords);
   const [latest, setLatest] = useState<ServiceAssistanceRecord | null>(null);
@@ -108,12 +107,14 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
   }, []);
 
   const communityServices = useMemo(() => appointmentServices.filter(service => service.coverageMode === 'all' || service.coverageCommunityIds.includes(currentElderProfile.communityId)), []);
-  const visible = useMemo(() => filter === 'all' ? communityServices : communityServices.filter(item => item.category === filter), [communityServices, filter]);
-  const counts = useMemo(() => Object.fromEntries(appointmentCategories.map(item => [item.code, communityServices.filter(service => service.category === item.code).length])), [communityServices]);
-  const serviceReviewSummaries = useMemo(() => new Map(communityServices.map(service => [
-    service.id,
-    getServiceReviewSummary(service.id, records) as ServiceReviewSummary,
-  ])), [communityServices, records]);
+  const serviceReviewSummaries = useMemo(() => new Map(communityServices.map(service => {
+    const relatedIds = [service.id, ...service.legacyServiceIds];
+    const relatedRecords = records.filter(record => relatedIds.includes(record.service.id));
+    return [service.id, getServiceReviewSummary(service.id, relatedRecords.map(record => ({
+      ...record,
+      service: { ...record.service, id: service.id },
+    }))) as ServiceReviewSummary];
+  })), [communityServices, records]);
   const selectedReviewSummary = serviceReviewSummaries.get(selected.id) ?? { count: 0, average: null, reviews: [] };
   const selectedReviews = selectedReviewSummary.reviews;
   const selectedAverageRating = selectedReviewSummary.average;
@@ -123,7 +124,10 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
     const isResultScenario = scenario === 'requested' || scenario === 'handling' || scenario === 'expired' || scenario === 'cancelled' || scenario === 'handled' || scenario === 'completed' || scenario === 'reviewed';
     const latestRequest = isResultScenario && scenarioRecord
       ? scenarioRecord
-      : getLatestServiceAssistanceRecord(records, 'elder-wang-jianguo', service.id) as ServiceAssistanceRecord | null;
+      : getLatestServiceAssistanceRecord(records.map(record => ({
+        ...record,
+        service: { ...record.service, id: resolveAppointmentServiceId(record.service.id) },
+      })), 'elder-wang-jianguo', service.id) as ServiceAssistanceRecord | null;
     setSelected(service);
     setConfirmationCopy(getServiceAssistanceConfirmationCopy(latestRequest));
     setSubmitError('');
@@ -141,7 +145,7 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
       const record: ServiceAssistanceRecord = {
         id: `HELP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
         elder: { id: 'elder-wang-jianguo', name: '王建国', phone: '+65 8603 2918' },
-        service: { id: selected.id, name: selected.name, categoryName: appointmentCategoryName(selected.category) },
+        service: { id: selected.id, name: selected.name, categoryName: appointmentCategoryName(selected.category) || selected.name },
         provider: { name: selected.provider, phone: selected.providerPhone },
         requestReason: '请家人协助联系服务商',
         requestedAt: now,
@@ -209,13 +213,13 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
 
   return <>
     {(view === 'list' || view === 'records') && <>{header}{switcher}</>}
-    {view === 'list' && <><div className="appointment-categories"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>全部 {communityServices.length}</button>{appointmentCategories.map(item => <button key={item.code} className={filter === item.code ? 'active' : ''} onClick={() => setFilter(item.code)}>{item.name} {counts[item.code]}</button>)}</div><section className="appointment-service-list">{visible.map(service => {
+    {view === 'list' && <section className="appointment-service-list">{communityServices.map(service => {
       const reviewSummary = serviceReviewSummaries.get(service.id) ?? { count: 0, average: null, reviews: [] };
-      return <button key={service.id} className="appointment-service-card" onClick={() => { setSelected(service); setDetailTab('detail'); setView('detail', 'detail'); }}><img src={service.coverImage} alt="" /><div><small>{appointmentCategoryName(service.category)}</small><h3>{service.name}</h3><p>{service.provider}</p><b>{service.priceRange}<em> 参考价格区间</em></b><span className={`appointment-service-rating${reviewSummary.count ? '' : ' is-empty'}`}>{reviewSummary.count ? <><Star />{reviewSummary.average!.toFixed(1)}<em>{reviewSummary.count} 条评价</em></> : '暂无评价'}</span></div><ChevronRight /></button>;
-    })}</section></>}
+      return <button key={service.id} className="appointment-service-card" onClick={() => { setSelected(service); setDetailTab('detail'); setView('detail', 'detail'); }}><img src={service.coverImage} alt="" /><div><small>{service.serviceItems.length} 项服务内容</small><h3>{service.name}</h3><p>{service.description}</p><b>{service.priceRange}<em> 参考价格区间</em></b><span className={`appointment-service-rating${reviewSummary.count ? '' : ' is-empty'}`}>{reviewSummary.count ? <><Star />{reviewSummary.average!.toFixed(1)}<em>{reviewSummary.count} 条评价</em></> : '暂无评价'}</span></div><ChevronRight /></button>;
+    })}</section>}
 
     {view === 'detail' && <section className="appointment-detail">
-      <div className="appointment-detail-hero-image"><img src={selected.coverImage} alt={selected.name} /><span>{appointmentCategoryName(selected.category)}</span></div>
+      <div className="appointment-detail-hero-image"><img src={selected.coverImage} alt={selected.name} /><span>{selected.name}</span></div>
       <div className="appointment-detail-basics"><h2>{selected.name}</h2><p>{selected.description}</p></div>
       <div className="appointment-price-highlight"><div><small>参考价格区间</small><strong>{selected.priceRange}</strong></div><span>具体费用以服务人员上门确认为准</span></div>
       <div className="appointment-detail-tabs" role="tablist" aria-label="服务详情内容">
@@ -223,7 +227,7 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
         <button type="button" role="tab" aria-selected={detailTab === 'reviews'} className={detailTab === 'reviews' ? 'active' : ''} onClick={() => setDetailTab('reviews')}>服务评价{selectedReviewSummary.count ? ` ${selectedReviewSummary.count}` : ''}</button>
       </div>
       {detailTab === 'detail' ? <>
-        <section className="appointment-introduction"><h3>服务介绍</h3><div><h4>服务内容</h4><p>{selected.serviceContent}</p></div><div><h4>注意事项</h4><ul>{selected.precautions.map(item => <li key={item}>{item}</li>)}</ul></div></section>
+        <section className="appointment-introduction"><h3>服务内容与参考价格</h3><div className="appointment-service-item-list">{selected.serviceItems.map(item => <article key={item.id}><div><h4>{item.name}</h4><strong>{item.priceText}</strong></div><p>{item.content}</p></article>)}</div><div><h4>注意事项</h4><ul>{selected.precautions.map(item => <li key={item}>{item}</li>)}</ul></div></section>
         <section className="appointment-service-info"><h3>服务信息</h3><div className="appointment-provider"><UserRound /><div className="appointment-provider-content"><div className="appointment-provider-heading"><small>服务商</small><strong>{selected.provider}</strong></div><dl className="appointment-provider-facts"><div><dt><Clock3 />营业时间</dt><dd>{selected.businessHours}</dd></div><div><dt><MapPin />支持区域</dt><dd>{selected.serviceArea}</dd></div><div><dt><PhoneCall />服务电话</dt><dd><a href={`tel:${selected.providerPhone.replace(/\s/g, '')}`}>{selected.providerPhone}</a></dd></div></dl></div></div></section>
         <section className="appointment-detail-gallery"><h3>服务详情</h3><div className="appointment-detail-images">{selected.detailImages.map(image => <img key={image} src={image} alt={`${selected.name}服务详情`} />)}</div></section>
       </> : <section className="appointment-service-reviews">
@@ -238,7 +242,7 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
       <span>{latest.status === 'expired' || latest.status === 'cancelled' ? <XCircle /> : isFamilyHandlingCompleted(latest) || latest.status === 'handled' ? <CheckCircle2 /> : <BellRing />}</span>
       <h2>{latest.status === 'expired' ? '协助已失效' : latest.status === 'cancelled' ? '协助已取消' : isFamilyHandlingCompleted(latest) ? '家人处理完成' : latest.status === 'handled' ? `${latest.handledBy} 已处理` : latest.status === 'handling' ? '家人正在联系' : '已通知家人'}</h2>
       <p>{latest.status === 'expired' ? serviceAssistanceExpiryMessage : latest.status === 'cancelled' ? '上次协助请求已取消，您可以重新请家人帮忙。' : isFamilyHandlingCompleted(latest) ? '家人已完成本次协助工单处理。' : latest.status === 'handled' ? latest.resultSummary : latest.status === 'handling' ? '家人已开始帮您联系服务商。' : '请等待家人与您联系。'}</p>
-      <dl><div><dt>需要协助</dt><dd>{latest.service.categoryName} · {latest.service.name}</dd></div><div><dt>服务商</dt><dd>{latest.provider.name} · {latest.provider.phone}</dd></div><div><dt>请求时间</dt><dd>{formatTime(latest.requestedAt)}</dd></div>{latest.lastRemindedAt && <div><dt>最近提醒</dt><dd>{formatTime(latest.lastRemindedAt)}</dd></div>}{latest.handledAt && <div><dt>处理时间</dt><dd>{formatTime(latest.handledAt)}</dd></div>}{getFamilyHandlingCompletedAt(latest) && <div><dt>家人处理完成时间</dt><dd>{formatTime(getFamilyHandlingCompletedAt(latest)!)}</dd></div>}</dl>
+      <dl><div><dt>需要协助</dt><dd>{serviceSnapshotLabel(latest.service)}</dd></div><div><dt>服务商</dt><dd>{latest.provider.name} · {latest.provider.phone}</dd></div><div><dt>请求时间</dt><dd>{formatTime(latest.requestedAt)}</dd></div>{latest.lastRemindedAt && <div><dt>最近提醒</dt><dd>{formatTime(latest.lastRemindedAt)}</dd></div>}{latest.handledAt && <div><dt>处理时间</dt><dd>{formatTime(latest.handledAt)}</dd></div>}{getFamilyHandlingCompletedAt(latest) && <div><dt>家人处理完成时间</dt><dd>{formatTime(getFamilyHandlingCompletedAt(latest)!)}</dd></div>}</dl>
       {canReviewServiceAssistance(latest, currentElderProfile.id) && <div className="service-review-form">
         <strong>评价本次服务</strong>
         <div className="service-review-stars" aria-label="服务评分">{[1, 2, 3, 4, 5].map(value => <button key={value} className={value <= rating ? 'active' : ''} onClick={() => setRating(value)} aria-label={`${value} 星`}><Star /></button>)}</div>
@@ -247,7 +251,7 @@ export default function AppointmentServicesPage({ scenario, onViewChange }: Prop
         <button className="primary-button" onClick={saveReview} disabled={reviewSubmitting}>{reviewSubmitting ? '提交中…' : '提交评价'}</button>
       </div>}
       {latest.review && <div className="service-review-result"><strong>我的评价</strong><div>{[1, 2, 3, 4, 5].map(value => <Star key={value} className={value <= latest.review!.rating ? 'active' : ''} />)}</div><p>{latest.review.text || '未填写文字评价'}</p><small>评价人：{latest.elder.name} · {formatTime(latest.review.submittedAt)}</small></div>}
-      {(latest.status === 'pending' || latest.status === 'handling' || latest.status === 'expired' || latest.status === 'cancelled') && <button className="primary-button" onClick={() => { const service = appointmentServices.find(item => item.id === latest.service.id); if (service) requestFamilyHelp(service); }}><HandHeart />{latest.status === 'expired' || latest.status === 'cancelled' ? '重新请家人帮忙' : '再次提醒家人'}</button>}
+      {(latest.status === 'pending' || latest.status === 'handling' || latest.status === 'expired' || latest.status === 'cancelled') && <button className="primary-button" onClick={() => { const service = getAppointmentServiceById(latest.service.id); if (service) requestFamilyHelp(service); }}><HandHeart />{latest.status === 'expired' || latest.status === 'cancelled' ? '重新请家人帮忙' : '再次提醒家人'}</button>}
       <button className="secondary-button" onClick={() => setView('list', 'default')}>继续查看服务</button>
     </section>}
 

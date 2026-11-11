@@ -1,14 +1,17 @@
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { elderProfileMock, type ElderGender } from "./elder-profile";
 import { formatSingaporeAddress, normalizeSingaporeUnit } from "./singapore-address";
+import { getActivationCommunityById } from "./activation-communities";
 
 export type ActivationAcceptanceScenario =
   | "normal"
   | "boundProfile"
   | "lookupFailure"
   | "requiredMissing"
+  | "communitySelected"
   | "phoneInvalid"
   | "postalInvalid"
+  | "bindingFailure"
   | "completedBinding";
 
 export interface ActivationProfileDraft {
@@ -20,6 +23,12 @@ export interface ActivationProfileDraft {
   streetAddress: string;
   unit: string;
   buildingName?: string;
+  communityId: string;
+}
+
+export interface ActivationBindingPayload extends ActivationProfileDraft {
+  communityName: string;
+  projectId: string;
 }
 
 export type ActivationScenarioEntry = "wifi" | "profile" | "success";
@@ -35,6 +44,7 @@ export interface ActivationContractState {
     lookupStatus: ActivationLookupStatus;
     status: string;
     boundElderlyId: string | null;
+    projectId: string | null;
   };
   elderly: {
     id: string;
@@ -48,6 +58,8 @@ export interface ActivationContractState {
     buildingName?: string;
     addressSummary: string;
     communityId: string | null;
+    communityName: string | null;
+    projectId: string | null;
     projectCommunity: string | null;
     currentTabletId: string | null;
   };
@@ -63,6 +75,7 @@ const defaultProfile: ActivationProfileDraft = {
   streetAddress: "",
   unit: "",
   buildingName: "",
+  communityId: "",
 };
 
 const boundProfile: ActivationProfileDraft = {
@@ -74,6 +87,7 @@ const boundProfile: ActivationProfileDraft = {
   streetAddress: "12 Ang Mo Kio Avenue 3",
   unit: "#08-21",
   buildingName: "Grandeur 8",
+  communityId: elderProfileMock.communityId ?? "COM-001",
 };
 
 export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario, {
@@ -102,9 +116,15 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
   },
   requiredMissing: {
     label: "必填项缺失",
-    description: "姓名、性别、联系电话、邮政编码和街道地址为空，就地显示必填提示。",
+    description: "姓名、性别、联系电话、所属社区、邮政编码和街道地址为空，就地显示必填提示。",
     entry: "profile",
-    profile: { name: "", phone: "", gender: "", country: "Singapore", postalCode: "", streetAddress: "", unit: "", buildingName: "" },
+    profile: { name: "", phone: "", gender: "", country: "Singapore", postalCode: "", streetAddress: "", unit: "", buildingName: "", communityId: "" },
+  },
+  communitySelected: {
+    label: "已选择社区待提交",
+    description: "资料已填写并选择红山社区，提交后同步保存社区 ID、社区名称和设备项目归属。",
+    entry: "profile",
+    profile: boundProfile,
   },
   phoneInvalid: {
     label: "电话格式错误",
@@ -117,6 +137,12 @@ export const activationScenarioDefinitions: Record<ActivationAcceptanceScenario,
     description: "邮政编码不是 6 位数字，表单保留输入并禁止提交。",
     entry: "profile",
     profile: { ...boundProfile, postalCode: "56012" },
+  },
+  bindingFailure: {
+    label: "绑定保存失败",
+    description: "提交失败时停留在个人信息页，保留已填写资料和社区选择，可直接重试。",
+    entry: "profile",
+    profile: boundProfile,
   },
   completedBinding: {
     label: "绑定完成",
@@ -140,10 +166,23 @@ export const normalizeActivationProfile = (profile: ActivationProfileDraft): Act
   streetAddress: profile.streetAddress.trim(),
   unit: normalizeSingaporeUnit(profile.unit),
   buildingName: profile.buildingName?.trim() ?? "",
+  communityId: profile.communityId.trim(),
 });
+
+export const createActivationBindingPayload = (profileDraft: ActivationProfileDraft): ActivationBindingPayload | null => {
+  const profile = normalizeActivationProfile(profileDraft);
+  const community = getActivationCommunityById(profile.communityId);
+  if (!community) return null;
+  return {
+    ...profile,
+    communityName: community.name,
+    projectId: community.projectId,
+  };
+};
 
 const createElderlyContractProfile = (profileDraft: ActivationProfileDraft) => {
   const profile = normalizeActivationProfile(profileDraft);
+  const bindingPayload = createActivationBindingPayload(profile);
   return ({
     id: elderProfileMock.id ?? tabletActivationMock.elderlyId,
     name: profile.name,
@@ -155,8 +194,10 @@ const createElderlyContractProfile = (profileDraft: ActivationProfileDraft) => {
     unit: profile.unit,
     buildingName: profile.buildingName,
     addressSummary: formatActivationAddress(profile),
-    communityId: elderProfileMock.communityId ?? null,
-    projectCommunity: elderProfileMock.projectCommunity ?? null,
+    communityId: bindingPayload?.communityId ?? null,
+    communityName: bindingPayload?.communityName ?? null,
+    projectId: bindingPayload?.projectId ?? null,
+    projectCommunity: bindingPayload?.communityName ?? null,
     currentTabletId: null as string | null,
   });
 };
@@ -171,10 +212,13 @@ export const createInitialActivationContractState = (): ActivationContractState 
     lookupStatus: "idle",
     status: "待联网后上报",
     boundElderlyId: null,
+    projectId: null,
   },
   elderly: {
-    ...createElderlyContractProfile({ name: "", phone: "", gender: "", country: "Singapore", postalCode: "", streetAddress: "", unit: "", buildingName: "" }),
+    ...createElderlyContractProfile({ name: "", phone: "", gender: "", country: "Singapore", postalCode: "", streetAddress: "", unit: "", buildingName: "", communityId: "" }),
     communityId: null,
+    communityName: null,
+    projectId: null,
     projectCommunity: null,
   },
   completedAt: null,
@@ -195,6 +239,7 @@ export const applyActivationLookupResult = (
       lookupStatus,
       status: lookupStatus === "failed" ? "SN 已上报，绑定查询失败" : lookupStatus === "bound" ? "SN 已上报，已绑定用户" : "SN 已上报，未绑定用户",
       boundElderlyId: isBound ? elderly.id : null,
+      projectId: isBound ? elderly.projectId : current.device.projectId,
     },
     elderly: isBound ? { ...elderly, currentTabletId: current.device.id } : current.elderly,
   };
@@ -214,6 +259,7 @@ export const completeActivationContractState = (
       lookupStatus: "bound",
       status: "SN 已上报，已绑定用户",
       boundElderlyId: elderly.id,
+      projectId: elderly.projectId,
     },
     elderly: {
       ...elderly,

@@ -342,7 +342,7 @@ const createDefaultMessages = (): FamilyMessage[] => [
             ? "https://picsum.photos/seed/nurse/240/240"
             : "https://picsum.photos/seed/community-center/240/240",
         type: message.type === "audio" ? "voice" : "text",
-        content: message.content ?? (isElderlyReply ? `给${contactDisplayName}的语音回复` : `来自${contactDisplayName}的语音留言`),
+        content: message.content ?? (isElderlyReply ? `给${contactDisplayName}的语音留言` : `来自${contactDisplayName}的语音留言`),
         duration: secondsFromDuration(message.duration),
         timestamp: message.sentAt,
         played: isElderlyReply || Boolean(message.elderViewedAt),

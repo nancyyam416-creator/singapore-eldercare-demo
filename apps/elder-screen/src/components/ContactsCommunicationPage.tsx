@@ -93,7 +93,6 @@ interface CommunicationContact {
   avatar: string;
   group: "family" | "service";
   detail?: string;
-  serviceHours?: string;
   phone?: string;
   weatherUserId?: string;
   isHistorical?: boolean;
@@ -122,7 +121,6 @@ const CONTACTS: CommunicationContact[] = [
     avatar: "https://picsum.photos/seed/nurse/240/240",
     group: "service",
     detail: CARE_SERVICE_FIXTURE.contactType,
-    serviceHours: "服务时间 09:00–18:00",
     phone: CARE_SERVICE_FIXTURE.contactPhone,
   },
   {
@@ -132,7 +130,6 @@ const CONTACTS: CommunicationContact[] = [
     avatar: "https://picsum.photos/seed/community-center/240/240",
     group: "service",
     detail: "机构联系人",
-    serviceHours: "服务时间 08:00–18:00",
     phone: STATION_SERVICE_FIXTURE.contactPhone,
   },
 ];
@@ -598,7 +595,7 @@ export default function ContactsCommunicationPage({
         recipient: selectedContact.name,
         avatar: "https://picsum.photos/seed/grandfather/120/120",
         type: "voice",
-        content: `给${selectedContact.name}的语音回复`,
+        content: `给${selectedContact.name}的语音留言`,
         duration,
         timestamp: "刚刚",
         played: true,
@@ -623,7 +620,7 @@ export default function ContactsCommunicationPage({
       : contact.missedCalls > 0
       ? `${contact.missedCalls}次未接来电${contact.unread > 0 ? ` · ${contact.unread}条未读留言` : ""}`
       : contact.unread > 0 ? `${contact.unread}条新留言` : contact.group === "service"
-        ? `${contact.relation} · ${contact.serviceHours?.replace("服务时间 ", "")}`
+        ? contact.id === "nurse" ? undefined : contact.relation
         : contact.detail;
     const weatherLabel = weather ? [weather.primary, weather.secondary].filter(Boolean).join("，") : "";
 
@@ -696,7 +693,7 @@ export default function ContactsCommunicationPage({
             </section>
           )}
           <section className="communication-contact-group--service">
-            <h3>服务保障</h3>
+            <h3>社区人员</h3>
             <div>{serviceContacts.map(renderContact)}</div>
           </section>
         </aside>
@@ -718,9 +715,7 @@ export default function ContactsCommunicationPage({
                 )}
                 {selectedContact.group === "service" && (
                   <span className="communication-main__service-meta">
-                    <b>{selectedContact.relation}</b>
-                    <em>{selectedContact.detail}</em>
-                    <small><Clock3 aria-hidden="true" />{selectedContact.serviceHours}</small>
+                    {selectedContact.id !== "nurse" && <b>{selectedContact.relation}</b>}
                     <small><Phone aria-hidden="true" />联系电话 {selectedContact.phone}</small>
                   </span>
                 )}
@@ -773,11 +768,11 @@ export default function ContactsCommunicationPage({
                 >
                   {!isMine && <img className="communication-message__avatar" src={selectedContact.group === "service" ? selectedContact.avatar : message.avatar || selectedContact.avatar} alt="" referrerPolicy="no-referrer" />}
                   <div className="communication-message__body">
-                    <div className="communication-message__meta">
-                      <strong>{isMine ? "您发送的留言" : selectedContact.name}</strong>
+                    <div className={`communication-message__meta${isMine ? " is-mine" : ""}`}>
+                      {!isMine && <strong>{selectedContact.name}</strong>}
                       <span>{message.timestamp}</span>
                       {!isViewed && !isMine && <i>{message.type === "voice" ? "未听" : "未查看"}</i>}
-                      {isMine && <i className="is-sent">已发送</i>}
+                      {isMine && message.deliveryStatus === "sending" && <i className="is-sending">发送中</i>}
                     </div>
 
                     {message.type === "call_log" ? (

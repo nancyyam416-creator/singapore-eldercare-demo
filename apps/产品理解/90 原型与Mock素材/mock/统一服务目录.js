@@ -13,9 +13,9 @@ import serviceFurnitureDetailImage from "./assets/services/service-furniture-det
 import catalog from "./统一服务目录.json";
 
 const serviceImages = {
-  "srv-electric-1": { coverImage: serviceLightingImage, detailImages: [serviceLightingDetailImage] },
+  "srv-electric-1": { coverImage: serviceLightingImage, detailImages: [serviceLightingDetailImage, serviceCircuitDetailImage] },
   "srv-electric-2": { coverImage: serviceCircuitImage, detailImages: [serviceCircuitDetailImage] },
-  "srv-water-1": { coverImage: serviceFaucetImage, detailImages: [serviceFaucetDetailImage] },
+  "srv-water-1": { coverImage: serviceFaucetImage, detailImages: [serviceFaucetDetailImage, servicePipeDetailImage] },
   "srv-water-2": { coverImage: servicePipeImage, detailImages: [servicePipeDetailImage] },
   "srv-basic-1": { coverImage: serviceLockImage, detailImages: [serviceLockDetailImage] },
   "srv-basic-2": { coverImage: serviceFurnitureImage, detailImages: [serviceFurnitureDetailImage] },
@@ -23,13 +23,47 @@ const serviceImages = {
 
 const categoryName = new Map(catalog.categories.map((item) => [item.code, item.name]));
 
-export const unifiedServiceCatalog = catalog.services.map((service) => ({
-  ...service,
-  categoryCode: service.category,
-  category: categoryName.get(service.category),
-  precautions: service.precautions.join("\n"),
-  ...serviceImages[service.id],
-}));
+const normalizeServiceItems = (service) => {
+  if (Array.isArray(service.serviceItems) && service.serviceItems.length) {
+    return service.serviceItems.map((item, index) => ({
+      id: item.id || `${service.id}-item-${index + 1}`,
+      legacyServiceId: item.legacyServiceId || "",
+      name: item.name || `服务内容 ${index + 1}`,
+      content: item.content || "",
+      priceText: item.priceText || "",
+    }));
+  }
+  return [{
+    id: `${service.id}-item-1`,
+    legacyServiceId: service.id,
+    name: service.name,
+    content: service.serviceContent || "",
+    priceText: service.priceRange || "",
+  }];
+};
+
+export const unifiedServiceCatalog = catalog.services.map((service) => {
+  const serviceItems = normalizeServiceItems(service);
+  const categoryCode = service.categoryId || service.category || "";
+  return {
+    ...service,
+    legacyServiceIds: service.legacyServiceIds || [],
+    categoryId: categoryCode || null,
+    categoryCode,
+    category: categoryCode ? categoryName.get(categoryCode) || "" : "",
+    serviceItems,
+    serviceContent: serviceItems.map((item) => item.content).filter(Boolean).join("\n"),
+    priceRange: [...new Set(serviceItems.map((item) => item.priceText).filter(Boolean))].join(" / "),
+    precautions: Array.isArray(service.precautions) ? service.precautions.join("\n") : service.precautions || "",
+    ...serviceImages[service.id],
+  };
+}).sort((a, b) => (a.displayOrder || 999) - (b.displayOrder || 999));
+
+export const unifiedServiceIdAliases = Object.fromEntries(unifiedServiceCatalog.flatMap((service) => (
+  (service.legacyServiceIds || []).map((legacyId) => [legacyId, service.id])
+)));
+export const resolveUnifiedServiceId = (serviceId) => unifiedServiceIdAliases[serviceId] || serviceId;
+export const getUnifiedServiceById = (serviceId) => unifiedServiceCatalog.find((service) => service.id === resolveUnifiedServiceId(serviceId));
 
 export const unifiedServiceCategories = catalog.categories;
 export const unifiedCommunities = catalog.communities;

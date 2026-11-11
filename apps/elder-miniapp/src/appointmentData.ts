@@ -1,9 +1,21 @@
+import serviceCatalog from '../../产品理解/90 原型与Mock素材/mock/统一服务目录.json';
+
 export type AppointmentCategoryCode = 'electric' | 'water' | 'basic';
+
+export type AppointmentServiceItem = {
+  id: string;
+  legacyServiceId?: string;
+  name: string;
+  content: string;
+  priceText: string;
+};
 
 export type AppointmentService = {
   id: string;
   name: string;
-  category: AppointmentCategoryCode;
+  category?: AppointmentCategoryCode | '';
+  categoryId?: AppointmentCategoryCode | null;
+  legacyServiceIds: string[];
   coverageMode: 'all' | 'specified';
   coverageCommunityIds: string[];
   provider: string;
@@ -13,6 +25,7 @@ export type AppointmentService = {
   priceRange: string;
   description: string;
   serviceContent: string;
+  serviceItems: AppointmentServiceItem[];
   precautions: string[];
   coverImage: string;
   detailImages: string[];
@@ -51,6 +64,14 @@ export const currentElderProfile = { id: 'elder-wang-jianguo', communityId: 'COM
 const communityNameById = new Map(appointmentCommunities.map(item => [item.id, item.name]));
 export const appointmentServices = serviceCatalog.services.map(service => ({
   ...service,
+  legacyServiceIds: service.legacyServiceIds ?? [],
+  serviceItems: service.serviceItems?.length ? service.serviceItems : [{
+    id: `${service.id}-item-1`,
+    legacyServiceId: service.id,
+    name: service.name,
+    content: service.serviceContent,
+    priceText: service.priceRange,
+  }],
   serviceArea: service.coverageMode === 'all'
     ? '全部社区'
     : service.coverageCommunityIds.map(id => communityNameById.get(id) ?? '社区未设置').join('、'),
@@ -61,6 +82,12 @@ export const initialServiceAssistanceRecords: ServiceAssistanceRecord[] = [
   { id: 'HELP-20261027-01', elder: { id: 'elder-wang-jianguo', name: '王建国', phone: '+65 8603 2918' }, service: { id: 'srv-basic-2', name: '家具小修', categoryName: '基础维修' }, provider: { name: '乐居综合维修服务站', phone: '+65 6123 8803' }, requestReason: '请家人协助联系服务商', requestedAt: '2026-10-27T10:10:00+08:00', status: 'handled', recipientIds: ['child-zhang-xiaoyan', 'child-zhang-jianping'], handledBy: '张晓燕', handledAt: '2026-10-27T10:35:00+08:00', resultSummary: '已电话咨询服务商，约定 10 月 31 日上午再上门查看。', serviceStatus: 'not_completed', completedAt: null, review: null },
 ];
 
-export const appointmentCategoryName = (code: AppointmentCategoryCode) => appointmentCategories.find(item => item.code === code)?.name ?? code;
-import serviceCatalog from '../../产品理解/90 原型与Mock素材/mock/统一服务目录.json';
+export const appointmentCategoryName = (code?: AppointmentCategoryCode | '') => code ? appointmentCategories.find(item => item.code === code)?.name ?? code : '';
+
+const appointmentServiceAliases = new Map(appointmentServices.flatMap(service => (
+  service.legacyServiceIds.map(legacyId => [legacyId, service.id] as const)
+)));
+
+export const resolveAppointmentServiceId = (serviceId: string) => appointmentServiceAliases.get(serviceId) ?? serviceId;
+export const getAppointmentServiceById = (serviceId: string) => appointmentServices.find(service => service.id === resolveAppointmentServiceId(serviceId));
 

@@ -69,7 +69,7 @@ const pages: AcceptancePage[] = [
   ] },
   { id: 'services', label: '服务协助', modules: [
     { id: 'service-booking', label: '电话与家人协助', scenarios: [
-      { value: 'default', label: '默认', description: '展示三类服务、服务商与参考价格区间。', status: '正常' },
+      { value: 'default', label: '默认', description: '展示当前社区可用服务、明细数量与参考价格区间。', status: '正常' },
       { value: 'detail', label: '图文服务详情', description: '展示头图、服务内容、注意事项、详情图和完整服务信息。', status: '正常' },
       { value: 'requested', label: '已请求家人', description: '已通知所有绑定家人，等待家人处理。', status: '待处理' },
       { value: 'handling', label: '家人处理中', description: '家人已开始联系服务商，可再次提醒家人处理当前事项。', status: '处理中' },
