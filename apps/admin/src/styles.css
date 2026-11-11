@@ -25,7 +25,7 @@
 .admin-style-theme .reminder-policy-overview {
   margin-bottom: 12px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -124,33 +124,6 @@
   background: #eff6ff;
   font-size: 11px;
   white-space: nowrap;
-}
-
-.admin-style-theme .recommendation-calendar-chips > button.automatic {
-  gap: 4px;
-  border-style: dashed;
-  cursor: pointer;
-}
-.admin-style-theme .recommendation-calendar-chips > button.automatic small {
-  padding: 1px 3px;
-  border-radius: 3px;
-  color: #1d4ed8;
-  background: #dbeafe;
-  font-size: 8px;
-}
-.admin-style-theme .recommendation-day-list > div.automatic-reminder-row {
-  min-height: 62px;
-  grid-template-columns: 24px 42px minmax(0, 1fr);
-  border-left: 3px solid #60a5fa;
-  background: #f8fbff;
-}
-.admin-style-theme .recommendation-auto-handle {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #2563eb;
 }
 
 @media (max-width: 760px) {
@@ -274,6 +247,7 @@ th.sticky-right { background: #f7f8fa; }
 .more { width: 26px; height: 26px; border: 0; color: #77808d; background: transparent; vertical-align: middle; }
 .status-tag { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border-radius: 2px; font-size: 10px; }
 .status-tag.success { color: #2b7a42; background: #e9f7ee; }
+.status-tag.info { color: #1d4ed8; background: #eff6ff; }
 .status-tag.danger { color: #c3403a; background: #fff0ed; }
 .status-tag.warning { color: #b56a11; background: #fff4df; }
 .status-tag.neutral { color: #66717f; background: #f0f2f4; }
@@ -2850,11 +2824,6 @@ th.sticky-right { background: #f7f8fa; }
   white-space: nowrap;
 }
 
-.admin-style-theme .recommendation-order-control button:disabled {
-  opacity: .35;
-  cursor: not-allowed;
-}
-
 .admin-style-theme .entertainment-entry-drawer {
   width: 640px;
 }
@@ -3824,6 +3793,8 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .community-tablet-device-table .sticky-right { min-width: 150px; width: 150px; }
 
 .admin-style-theme .platform-device-drawer { width: min(760px, 94vw); }
+.admin-style-theme .platform-device-create-drawer { width: min(720px, 94vw); }
+.admin-style-theme .platform-device-create-drawer .form-section + .form-section { margin-top: 26px; }
 .admin-style-theme .platform-device-summary .admin-detail-summary-primary > b { font-size: 17px; }
 .admin-style-theme .platform-device-summary-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .admin-style-theme .platform-device-history-table { min-width: 520px; }
@@ -8028,17 +7999,28 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .recommendation-calendar-layout {
   padding: 16px 18px 18px;
+  height: clamp(520px, calc(100dvh - 390px), 940px);
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(510px, 1.2fr) minmax(350px, .8fr);
+  align-items: stretch;
   gap: 16px;
 }
 
 .admin-style-theme .recommendation-calendar-box,
 .admin-style-theme .recommendation-day-preview {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   border: 1px solid #dbe3ee;
   border-radius: 7px;
   background: #fff;
+}
+
+.admin-style-theme .recommendation-calendar-box {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-style-theme .recommendation-calendar-toolbar {
@@ -8089,6 +8071,19 @@ th.sticky-right { background: #f7f8fa; }
   gap: 5px;
 }
 
+.admin-style-theme .recommendation-calendar-grid.month,
+.admin-style-theme .recommendation-calendar-grid.week {
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-auto-rows: minmax(72px, 1fr);
+}
+.admin-style-theme .recommendation-calendar-grid.month {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
 .admin-style-theme .recommendation-calendar-grid button,
 .admin-style-theme .recommendation-calendar-grid .calendar-blank {
   min-height: 60px;
@@ -8124,6 +8119,7 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .recommendation-calendar-legend {
   padding: 9px 12px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -8159,6 +8155,7 @@ th.sticky-right { background: #f7f8fa; }
   padding: 14px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-style-theme .recommendation-day-preview-heading {
@@ -8201,8 +8198,12 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .recommendation-day-list {
   flex: 1 1 auto;
-  padding: 8px 0;
-  overflow: visible;
+  min-height: 0;
+  padding: 8px 4px 8px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .admin-style-theme .recommendation-day-list > div {
@@ -8592,8 +8593,10 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 .admin-style-theme .recommendation-table {
-  min-width: 1180px;
+  min-width: 1080px;
 }
+
+.admin-style-theme .recommendation-table.right-content-table { min-width: 1320px; }
 
 .admin-style-theme .right-content-table {
   min-width: 1660px;
@@ -8605,42 +8608,14 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .recommendation-source-cell b {
   color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
-.admin-style-theme .recommendation-order-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.admin-style-theme .recommendation-order-control button {
-  width: 25px;
-  height: 25px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #dbe3ee;
-  border-radius: 5px;
-  color: #64748b;
-  background: #fff;
-  cursor: pointer;
-}
-
-.admin-style-theme .recommendation-order-control button:hover {
-  border-color: #93b4ee;
-  color: #2563eb;
-  background: #f5f9ff;
-}
-
-.admin-style-theme .recommendation-order-control b {
-  min-width: 18px;
-  color: #1e293b;
+.admin-style-theme .recommendation-source-cell small {
   font-size: 12px;
-  text-align: center;
-}
-
-.admin-style-theme .right-content-table td > .stacked-cell:has(.strategy-status-switch) {
-  align-items: flex-start;
-  gap: 8px;
+  line-height: 1.45;
 }
 
 .admin-style-theme .recommendation-table .strategy-check-column {
@@ -8663,62 +8638,18 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .strategy-title-cell b {
   color: #1e293b;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.45;
 }
 
 .admin-style-theme .strategy-title-cell small {
   color: #94a3b8;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.admin-style-theme .strategy-status-switch {
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 0;
-  color: #64748b;
-  font: inherit;
-  font-size: 10px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.admin-style-theme .strategy-status-switch i {
-  position: relative;
-  width: 30px;
-  height: 17px;
-  display: inline-block;
-  border-radius: 9px;
-  background: #cbd5e1;
-  transition: background .18s ease;
-}
-
-.admin-style-theme .strategy-status-switch i::after {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  content: "";
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, .18);
-  transition: transform .18s ease;
-}
-
-.admin-style-theme .strategy-status-switch.active {
-  color: #15803d;
-}
-
-.admin-style-theme .strategy-status-switch.active i {
-  background: #22c55e;
-}
-
-.admin-style-theme .strategy-status-switch.active i::after {
-  transform: translateX(13px);
-}
+.admin-style-theme .recommendation-actions { min-width: 164px; white-space: nowrap; }
 
 .admin-style-theme .recommendation-drawer {
   width: min(620px, 100vw);
@@ -12121,7 +12052,7 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .admin-page-metrics,
 .admin-style-theme .recommendation-calendar-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 .admin-style-theme .admin-page-metrics,
@@ -12423,8 +12354,12 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .recommendation-calendar-grid.month {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
+.admin-style-theme .recommendation-calendar-grid.month .recommendation-calendar-day,
+.admin-style-theme .recommendation-calendar-grid.month .calendar-blank {
+  min-height: 0;
+}
 .admin-style-theme .recommendation-calendar-layout.week-view {
-  min-height: clamp(430px, calc(100dvh - 330px), 780px);
+  min-height: 0;
   align-items: stretch;
 }
 .admin-style-theme .recommendation-calendar-layout.week-view .recommendation-calendar-box {
@@ -12448,7 +12383,7 @@ th.sticky-right { background: #f7f8fa; }
 }
 
 @media (max-height: 760px) {
-  .admin-style-theme .recommendation-calendar-layout.week-view { min-height: 400px; }
+  .admin-style-theme .recommendation-calendar-layout.week-view { min-height: 0; }
   .admin-style-theme .recommendation-calendar-grid.week .recommendation-calendar-day { min-height: 190px; }
 }
 
@@ -12509,10 +12444,10 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .recommendation-calendar-chips > small { color: #64748b; font-size: 9px; font-weight: 600; }
 .admin-style-theme .recommendation-calendar-empty { margin: auto 0 1px; color: #94a3b8; font-size: 9px; font-weight: 500; }
 .admin-style-theme .recommendation-day-list > div {
-  min-height: 66px;
-  padding: 9px 2px;
+  min-height: 56px;
+  padding: 13px 8px 13px 2px;
   display: grid;
-  grid-template-columns: 22px 24px minmax(0, 1fr) 184px;
+  grid-template-columns: 22px 24px minmax(0, 1fr) max-content;
   align-items: center;
   gap: 9px;
   border: 1px solid transparent;
@@ -12530,16 +12465,22 @@ th.sticky-right { background: #f7f8fa; }
   background: #eff6ff;
   box-shadow: inset 0 0 0 1px #93c5fd;
 }
-.admin-style-theme .recommendation-sort-handle {
+.admin-style-theme .recommendation-day-list > div > .recommendation-sort-handle {
   width: 22px;
   height: 28px;
   flex: 0 0 22px;
   display: grid;
   place-items: center;
+  align-self: center;
   color: #94a3b8;
   cursor: grab;
 }
+.admin-style-theme .recommendation-day-list > div > .recommendation-sort-handle > svg {
+  display: block;
+  grid-area: 1 / 1;
+}
 .admin-style-theme .recommendation-sort-handle:active { cursor: grabbing; }
+.admin-style-theme .recommendation-sort-handle.is-static { color: #2563eb; cursor: default; }
 .admin-style-theme .recommendation-sort-handle:hover,
 .admin-style-theme .recommendation-sort-handle:focus-visible {
   border-radius: 4px;
@@ -12564,37 +12505,29 @@ th.sticky-right { background: #f7f8fa; }
 .admin-style-theme .recommendation-day-actions {
   position: relative;
   z-index: 2;
-  width: 184px;
-  display: grid;
-  grid-template-columns: 28px 28px 56px 56px;
+  width: auto;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 8px;
 }
-.admin-style-theme .recommendation-day-actions > button {
+.admin-style-theme .recommendation-day-list .recommendation-day-actions > .table-action {
   position: relative;
   z-index: 1;
   min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  line-height: 1;
   pointer-events: auto;
 }
-.admin-style-theme .recommendation-day-actions .icon-button {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid #dbe3ee;
-  border-radius: 5px;
-  color: #64748b;
-  background: #fff;
-  cursor: pointer;
-  transform: rotate(90deg);
-}
-.admin-style-theme .recommendation-day-actions .icon-button:disabled { opacity: .35; cursor: not-allowed; }
 .admin-style-theme .recommendation-day-actions .table-action {
-  width: 56px;
-  min-width: 56px;
+  width: auto;
+  min-width: 0;
   margin: 0;
-  padding: 0;
+  padding: 0 4px;
   text-align: center;
 }
 .admin-style-theme .recommendation-day-actions .danger-text { color: #dc2626; }
@@ -12617,9 +12550,15 @@ th.sticky-right { background: #f7f8fa; }
 @media (max-width: 1180px) {
   .admin-style-theme .recommendation-calendar-grid .recommendation-calendar-day,
   .admin-style-theme .recommendation-calendar-grid .calendar-blank { min-height: 82px; }
-  .admin-style-theme .recommendation-day-list > div { grid-template-columns: 22px 24px minmax(0, 1fr) 148px; }
-  .admin-style-theme .recommendation-day-actions { width: 148px; grid-template-columns: 28px 28px 42px 42px; }
-  .admin-style-theme .recommendation-day-actions .table-action { width: 42px; min-width: 42px; }
+  .admin-style-theme .recommendation-calendar-layout {
+    height: auto;
+    min-height: 0;
+  }
+  .admin-style-theme .recommendation-calendar-box { min-height: 520px; }
+  .admin-style-theme .recommendation-day-preview { height: clamp(400px, 58dvh, 620px); }
+  .admin-style-theme .recommendation-calendar-grid.month .recommendation-calendar-day,
+  .admin-style-theme .recommendation-calendar-grid.month .calendar-blank { min-height: 0; }
+  .admin-style-theme .recommendation-day-list > div { grid-template-columns: 22px 24px minmax(0, 1fr) max-content; }
 }
 
 @media (max-width: 720px) {

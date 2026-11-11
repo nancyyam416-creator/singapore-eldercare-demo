@@ -492,7 +492,7 @@ const initialTabletDevices = [
   { id: "TAB-SG-20260031", projectId: "PRJ-001", sn: "SN-TAB-260031", model: "U2G Home 14", currentVersion: "v2.5.3", romVersion: "v1.5.0", apkVersion: "v2.1.0", versionStatus: "待更新", networkType: "Wi-Fi", ipAddress: "192.168.10.31", operator: "赵亚男", bindingStatus: "已绑定", onlineStatus: "在线", boundElderlyId: "SG-E-000128", boundAt: "2026-07-02 10:18", lastOnline: "2 分钟前", usageRecords: [{ id: "USE-20261026-001", type: "完成提醒", occurredAt: "2026-10-26 08:12", valid: true }] },
   { id: "TAB-SG-20260030", projectId: "PRJ-002", sn: "SN-TAB-260030", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "Wi-Fi", ipAddress: "192.168.10.30", operator: "张文杰", bindingStatus: "已绑定", onlineStatus: "在线", boundElderlyId: "SG-E-000126", boundAt: "2026-06-28 15:40", lastOnline: "5 分钟前", usageRecords: [{ id: "USE-20261026-002", type: "拨打服务咨询电话", occurredAt: "2026-10-26 09:20", valid: true }] },
   { id: "TAB-SG-20260029", projectId: "PRJ-003", sn: "SN-TAB-260029", model: "U2G Home 14", currentVersion: "v2.4.8", romVersion: "v1.4.8", apkVersion: "v2.0.8", versionStatus: "待更新", networkType: "有线", ipAddress: "192.168.10.29", operator: "赵亚男", bindingStatus: "已绑定", onlineStatus: "离线", boundElderlyId: "SG-E-000127", boundAt: "2026-06-25 09:32", lastOnline: "4 小时前", usageRecords: [{ id: "USE-20261026-003", type: "使用休闲娱乐", occurredAt: "2026-10-26 07:45", valid: true }] },
-  { id: "TAB-SG-20260032", projectId: "", sn: "SN-TAB-260032", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "Wi-Fi", ipAddress: "未分配", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
+  { id: "TAB-SG-20260032", projectId: "", sn: "SN-TAB-260032", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.6.0", apkVersion: "v2.2.0", versionStatus: "已最新", networkType: "", ipAddress: "", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
   { id: "TAB-SG-20260033", projectId: "", sn: "SN-TAB-260033", model: "U2G Home 14", currentVersion: "v2.6.0", romVersion: "v1.5.0", apkVersion: "v2.1.0", versionStatus: "待更新", networkType: "有线", ipAddress: "192.168.10.33", operator: "", bindingStatus: "待绑定", onlineStatus: "离线", boundElderlyId: null, boundAt: "", lastOnline: "尚未上线" },
 ];
 
@@ -1008,10 +1008,10 @@ const initialRecommendationStrategies = [
 ];
 
 function getRecommendationAvailability(item, now = recommendationMockNow) {
-  if (item.sourceUnavailable) return "来源不可用";
   if (!item.enabled) return "已停用";
+  if (item.sourceUnavailable) return "来源不可用";
   if (item.startsAt > now) return "未生效";
-  if (item.endsAt < now) return "已过期";
+  if (item.endsAt < now) return "已失效";
   return "可展示";
 }
 
@@ -1096,15 +1096,15 @@ function maskPhone(phone) {
   return `${countryCode} **** ${digits.slice(-4)}`.trim();
 }
 
-function StatusTag({ children }) {
+function StatusTag({ children, tone: toneOverride }) {
   const text = String(children);
-  const tone = /暂未预约成功|未成功|离线|未完成|未接通|未签到|需关注|待回访|停用|已取消|失败|已失效|已作废|已过期|已解除|不可查询|未入队/.test(text)
+  const tone = toneOverride || (/暂未预约成功|未成功|离线|未完成|未接通|未签到|需关注|待回访|停用|已取消|失败|已失效|已作废|已过期|已解除|不可查询|未入队/.test(text)
     ? "danger"
     : /正常|在线|服务中|已发布|已完成|服务完成|已评价|已处理|已确认|已接通|已记录|已校验|已激活|已使用|已最新|已报名|已签到|报名中|启用|有效|同步成功|查询成功|成功|已送达|已查看|通知已全部送达/.test(text)
       ? "success"
       : /待|已发起|草稿|暂停|检查|缓存|尚未查询|同步中|进行中|处理中|等待处理/.test(text)
         ? "warning"
-        : "neutral";
+        : "neutral");
   return <span className={`status-tag ${tone}`}>{children}</span>;
 }
 
@@ -2388,6 +2388,19 @@ function ProjectPage({ projects, members, roles, onSave, onToggle, onSaveMember,
 }
 
 const recommendationScheduleOverrideStorageKey = "u2g-right-recommendation-schedule-overrides-v1";
+const recommendationCalendarReminderSources = new Set(["社区公告", "生活资讯", "警惕事项"]);
+const excludedRecommendationScheduleIds = new Set([
+  "AUTO-RP-EVENT-CALL",
+  "AUTO-RP-EVENT-ACTIVITY-START",
+  "AUTO-RP-EVENT-MESSAGE",
+  "AUTO-RP-EVENT-SCHEDULE",
+  "AUTO-RP-EVENT-ALBUM",
+]);
+
+function sanitizeRecommendationScheduleOverrides(overrides) {
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) return {};
+  return Object.fromEntries(Object.entries(overrides).map(([key, configs]) => [key, Array.isArray(configs) ? configs.filter((config) => !excludedRecommendationScheduleIds.has(config?.itemId)) : configs]));
+}
 const reminderPolicyStatusStorageKey = "u2g-reminder-policy-status-v1";
 
 const initialReminderPolicies = [
@@ -2454,33 +2467,7 @@ function ReminderPoliciesPage({ policies, onToggle }) {
   </>;
 }
 
-function RecommendationDayScheduleDrawer({ mode, date, record, strategies, scheduledIds, onClose, onSave }) {
-  const candidates = sortRecommendations(strategies.filter((item) => item.enabled && !item.sourceUnavailable && (!scheduledIds.includes(item.id) || item.id === record?.id)));
-  const [itemId, setItemId] = useState(record?.id || candidates[0]?.id || "");
-  const selectedItem = strategies.find((item) => item.id === itemId);
-  const [durationSeconds, setDurationSeconds] = useState(record?.dayDurationSeconds || record?.durationSeconds || candidates[0]?.durationSeconds || 20);
-  const [afterView, setAfterView] = useState(record?.dayAfterView || record?.afterView || candidates[0]?.afterView || "continue");
-  const [saveError, setSaveError] = useState("");
-  const save = () => {
-    const duration = Number(durationSeconds);
-    if (!selectedItem) { setSaveError("请选择推荐内容"); return; }
-    if (!Number.isFinite(duration) || duration < 5 || duration > 300) { setSaveError("当天展示时长需为 5–300 秒"); return; }
-    setSaveError("");
-    const saved = onSave({ itemId: selectedItem.id, durationSeconds: duration, afterView });
-    if (saved === false) setSaveError("保存失败，请保留当前内容后重试");
-  };
-  return <AdminDrawer title={`${mode === "edit" ? "编辑" : "新增"}${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日排期`} className="recommendation-schedule-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={!selectedItem} onClick={save}>保存当天排期</button></>}>
-    <div className="form-section"><h3>当天展示参数</h3><div className="form-row"><label><span>推荐内容 *</span><select className="select-control form-select-native" value={itemId} disabled={mode === "edit"} onChange={(event) => { const nextId = event.target.value; const nextItem = strategies.find((item) => item.id === nextId); setItemId(nextId); setDurationSeconds(nextItem?.durationSeconds || 20); setAfterView(nextItem?.afterView || "continue"); }}>{candidates.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
-      {!candidates.length && <div className="form-tip">当前没有可加入的启用内容，请先在“内容管理”中启用内容。</div>}
-      {selectedItem && <div className="recommendation-schedule-source"><span>内容来源</span><b>{selectedItem.sourceName || "未关联内容"}</b><small>{recommendationTypes.find((option) => option.key === selectedItem.type)?.label} · 全局有效期 {selectedItem.startsAt.slice(0, 10)} 至 {selectedItem.endsAt.slice(0, 10)}</small></div>}
-      <div className="form-row"><label><span>当天单次展示时长 *</span><div className="input-suffix"><input type="number" min="5" max="300" value={durationSeconds} onChange={(event) => setDurationSeconds(event.target.value)}/><em>秒</em></div></label><label><span>当天轮换参数 *</span><select className="select-control form-select-native" value={afterView} onChange={(event) => setAfterView(event.target.value)}><option value="continue">查看后继续轮换</option><option value="exit">查看后退出推荐</option></select></label></div>
-      {saveError && <small className="field-error" role="alert">{saveError}</small>}
-      <div className="form-tip"><b>仅修改当天排期</b><span>本次保存不会改动内容管理中的全局有效期、启用状态或默认展示参数。</span></div>
-    </div>
-  </AdminDrawer>;
-}
-
-function RecommendationStrategyPage({ strategies, reminderPolicies, communityName, acceptanceScenario = "normal", calendarInsert, onCreate, onEdit, onToggle, onMove }) {
+function RecommendationStrategyPage({ strategies, reminderPolicies, communityName, acceptanceScenario = "normal", calendarInsert, onCreate, onEdit, onToggle, onDelete }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("全部类型");
   const [status, setStatus] = useState("全部状态");
@@ -2492,21 +2479,28 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
   const [scheduleOverrides, setScheduleOverrides] = useState(() => {
     try {
       const saved = window.localStorage.getItem(recommendationScheduleOverrideStorageKey);
-      return saved ? JSON.parse(saved) : {};
+      return saved ? sanitizeRecommendationScheduleOverrides(JSON.parse(saved)) : {};
     } catch {
       return {};
     }
   });
-  const [scheduleDrawer, setScheduleDrawer] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [planDeleteTarget, setPlanDeleteTarget] = useState(null);
   const [scheduleToast, setScheduleToast] = useState(null);
   const [daySortDrag, setDaySortDrag] = useState(null);
+  const [scheduleEditing, setScheduleEditing] = useState(null);
   const handledCalendarInsertRef = useRef("");
   const sortedStrategies = sortRecommendations(strategies);
   const todayKey = recommendationMockNow.slice(0, 10);
   const weekDays = buildRecommendationWeek(selectedDate);
   const calendarDays = calendarMode === "month" ? buildRecommendationCalendar(calendarMonth.year, calendarMonth.month) : weekDays;
   const calendarTitle = calendarMode === "month" ? `${calendarMonth.year} 年 ${calendarMonth.month + 1} 月` : formatRecommendationWeekRange(weekDays);
+  useEffect(() => {
+    setScheduleOverrides((current) => {
+      const sanitized = sanitizeRecommendationScheduleOverrides(current);
+      return JSON.stringify(sanitized) === JSON.stringify(current) ? current : sanitized;
+    });
+  }, []);
   useEffect(() => {
     try {
       window.localStorage.setItem(recommendationScheduleOverrideStorageKey, JSON.stringify(scheduleOverrides));
@@ -2519,27 +2513,55 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
     const timer = window.setTimeout(() => setScheduleToast(null), 5000);
     return () => window.clearTimeout(timer);
   }, [scheduleToast]);
-  const defaultDayConfigs = (date) => (acceptanceScenario === "empty" ? [] : getRecommendationDayItems(sortedStrategies, date).map((item) => ({ itemId: item.id, durationSeconds: item.durationSeconds, afterView: item.afterView })));
+  const automaticDayItems = (date) => date === todayKey ? reminderPolicies.filter((policy) => recommendationCalendarReminderSources.has(policy.source)).map((policy, index) => ({
+    id: `AUTO-${policy.id}`,
+    automatic: true,
+    policy,
+    projectId: strategies[0]?.projectId || "",
+    name: policy.source.endsWith("提醒") ? policy.source : `${policy.source}提醒`,
+    sourceId: policy.id,
+    sourceName: policy.trigger,
+    sourceUpdatedAt: policy.lastTriggeredAt || `${date} 00:00`,
+    type: ["社区公告", "新来电", "未读留言", "到期日程", "新相册内容"].includes(policy.source) ? "announcement" : policy.source === "生活资讯" ? "life_info" : policy.source === "警惕事项" ? "alert" : "activity",
+    startsAt: `${date}T00:00`,
+    endsAt: `${date}T23:59`,
+    enabled: true,
+    displayOrder: 90 + index,
+    durationSeconds: 20,
+    afterView: "continue",
+    createdAt: `${date}T00:00`,
+  })) : [];
+  const toDayConfig = (item) => ({
+    itemId: item.id,
+    durationSeconds: item.dayDurationSeconds ?? item.durationSeconds,
+    afterView: item.dayAfterView ?? item.afterView,
+    ...(item.automatic ? {
+      automatic: true,
+      name: item.name,
+      startsAt: item.startsAt,
+      endsAt: item.endsAt,
+      enabled: item.enabled,
+    } : {}),
+  });
+  const defaultDayConfigs = (date) => (acceptanceScenario === "empty" ? [] : [...getRecommendationDayItems(sortedStrategies, date), ...automaticDayItems(date)].map(toDayConfig));
   const dayConfigs = (date, overrides = scheduleOverrides) => acceptanceScenario === "empty"
     ? []
-    : (Object.prototype.hasOwnProperty.call(overrides, date) ? overrides[date] : defaultDayConfigs(date));
+    : (Object.prototype.hasOwnProperty.call(overrides, date)
+      ? (overrides.__version === 2 ? overrides[date] : [...overrides[date], ...automaticDayItems(date).filter((item) => !overrides[date].some((config) => config.itemId === item.id)).map(toDayConfig)])
+      : defaultDayConfigs(date));
   const dayItems = (date, overrides = scheduleOverrides) => dayConfigs(date, overrides).map((config) => {
-    const item = strategies.find((candidate) => candidate.id === config.itemId);
-    return item ? { ...item, dayDurationSeconds: config.durationSeconds, dayAfterView: config.afterView } : null;
+    const item = strategies.find((candidate) => candidate.id === config.itemId) || automaticDayItems(date).find((candidate) => candidate.id === config.itemId);
+    return item ? { ...item, ...config, dayDurationSeconds: config.durationSeconds, dayAfterView: config.afterView } : null;
   }).filter(Boolean);
-  const automaticDayItems = (date) => date === todayKey ? reminderPolicies.map((policy, index) => ({ id: `AUTO-${policy.id}`, automatic: true, policy, name: `${policy.source}自动提醒`, sourceName: policy.trigger, type: ["社区公告", "新来电", "未读留言", "到期日程", "新相册内容"].includes(policy.source) ? "announcement" : policy.source === "生活资讯" ? "life_info" : policy.source === "警惕事项" ? "alert" : "activity", displayOrder: 90 + index })) : [];
-  const selectedScheduledItems = dayItems(selectedDate);
-  const selectedDayItems = [...selectedScheduledItems, ...automaticDayItems(selectedDate)];
-  const toDayConfig = (item) => ({ itemId: item.id, durationSeconds: item.dayDurationSeconds ?? item.durationSeconds, afterView: item.dayAfterView ?? item.afterView });
-  const setDayItems = (date, items) => setScheduleOverrides((current) => ({ ...current, [date]: items.map(toDayConfig) }));
+  const selectedDayItems = dayItems(selectedDate);
+  const setDayItems = (date, items) => setScheduleOverrides((current) => ({ ...current, __version: 2, [date]: items.map(toDayConfig) }));
   const selectedDateLabel = `${Number(selectedDate.slice(5, 7))}月${Number(selectedDate.slice(8, 10))}日`;
-  const sevenDayCoverage = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(2026, 7, 21 + index);
-    const key = formatRecommendationDate(date.getFullYear(), date.getMonth(), date.getDate());
-    return dayItems(key).length;
-  });
-  const displayedSevenDayCoverage = sevenDayCoverage;
-  const todayAvailableCount = dayItems(todayKey).filter((item) => getRecommendationAvailability(item) === "可展示").length;
+  const recommendationStatusCounts = strategies.reduce((counts, item) => {
+    const availability = getRecommendationAvailability(item);
+    if (Object.prototype.hasOwnProperty.call(counts, availability)) counts[availability] += 1;
+    return counts;
+  }, { "可展示": 0, "未生效": 0, "已失效": 0, "已停用": 0 });
+  const unavailableSourceCount = strategies.filter((item) => getRecommendationAvailability(item) === "来源不可用").length;
   const moveCalendarPeriod = (offset) => {
     const next = calendarMode === "month"
       ? new Date(calendarMonth.year, calendarMonth.month + offset, 1)
@@ -2564,24 +2586,6 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
   const manageDate = (date) => {
     setSelectedDate(date);
   };
-  const openEditSchedule = (date, item) => {
-    setSelectedDate(date);
-    setScheduleDrawer({ mode: "edit", date, itemId: item.id });
-  };
-  const saveDaySchedule = (input) => {
-    const date = scheduleDrawer.date;
-    const currentItems = dayItems(date);
-    const source = strategies.find((item) => item.id === input.itemId);
-    if (!source) return false;
-    const nextItem = { ...source, dayDurationSeconds: input.durationSeconds, dayAfterView: input.afterView };
-    const nextItems = scheduleDrawer.mode === "edit"
-      ? currentItems.map((item) => item.id === input.itemId ? nextItem : item)
-      : [...currentItems, nextItem];
-    setDayItems(date, nextItems);
-    setScheduleDrawer(null);
-    setScheduleToast({ message: `${source.name}的当天排期已${scheduleDrawer.mode === "edit" ? "更新" : "新增"}` });
-    return true;
-  };
   useEffect(() => {
     if (!calendarInsert || handledCalendarInsertRef.current === calendarInsert.token) return;
     const source = strategies.find((item) => item.id === calendarInsert.itemId);
@@ -2592,17 +2596,6 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
     setSelectedDate(calendarInsert.date);
     setScheduleToast({ message: `${source.name}已新增并加入${Number(calendarInsert.date.slice(5, 7))}月${Number(calendarInsert.date.slice(8, 10))}日排期` });
   }, [calendarInsert, strategies]);
-  const reorderDayItem = (date, itemId, offset) => {
-    const items = dayItems(date);
-    const index = items.findIndex((item) => item.id === itemId);
-    const nextIndex = Math.max(0, Math.min(items.length - 1, index + offset));
-    if (index < 0 || index === nextIndex) return;
-    const next = [...items];
-    const [moved] = next.splice(index, 1);
-    next.splice(nextIndex, 0, moved);
-    setDayItems(date, next);
-    setScheduleToast({ message: `已调整${selectedDateLabel}的展示顺序` });
-  };
   const confirmDeleteSchedule = () => {
     const items = dayItems(deleteTarget.date);
     const index = items.findIndex((item) => item.id === deleteTarget.itemId);
@@ -2612,11 +2605,18 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
     setScheduleToast({ message: `已删除${Number(deleteTarget.date.slice(5, 7))}月${Number(deleteTarget.date.slice(8, 10))}日的“${deleted.name}”`, undo: { date: deleteTarget.date, index, config: toDayConfig(deleted) } });
     setDeleteTarget(null);
   };
+  const confirmDeletePlan = async () => {
+    const result = await onDelete(planDeleteTarget.id);
+    if (result?.ok === false) throw new Error(result.message || "删除失败，请重试。");
+    setScheduleOverrides((current) => Object.fromEntries(Object.entries(current).map(([date, configs]) => [date, Array.isArray(configs) ? configs.filter((config) => config.itemId !== planDeleteTarget.id) : configs])));
+    setPlanDeleteTarget(null);
+    setScheduleToast({ message: `已删除推荐计划“${planDeleteTarget.name}”及其日历排期` });
+  };
   const undoDeleteSchedule = () => {
     const undo = scheduleToast?.undo;
     if (!undo) return;
     const items = dayItems(undo.date);
-    const source = strategies.find((item) => item.id === undo.config.itemId);
+    const source = strategies.find((item) => item.id === undo.config.itemId) || automaticDayItems(undo.date).find((item) => item.id === undo.config.itemId);
     if (!source) return;
     const next = [...items];
     next.splice(Math.min(undo.index, next.length), 0, { ...source, dayDurationSeconds: undo.config.durationSeconds, dayAfterView: undo.config.afterView });
@@ -2624,10 +2624,15 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
     setSelectedDate(undo.date);
     setScheduleToast({ message: "已撤销删除，当天排期已恢复" });
   };
+  const editScheduledItem = (date, item) => {
+    setSelectedDate(date);
+    if (item.automatic) setScheduleEditing({ date, item });
+    else onEdit(item);
+  };
   const handleChipKeyDown = (event, date, item) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      openEditSchedule(date, item);
+      editScheduledItem(date, item);
     } else if (event.key === "Delete") {
       event.preventDefault();
       setDeleteTarget({ date, itemId: item.id, name: item.name });
@@ -2645,21 +2650,20 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
   return (
     <>
       <div className="page-heading"><div><h1>推荐策略</h1><p>配置老人端推荐内容的展示顺序、有效时间与轮换参数</p></div><button className="primary-button" onClick={() => onCreate(activeView === "calendar" ? selectedDate : undefined)}><Plus size={16}/>新增推荐内容</button></div>
-      <div className="recommendation-calendar-summary"><div><div className="admin-metric-heading"><span>当前可展示</span><MetricHelp label="当前可展示指标说明" content="当前启用且处于生效时间的内容"/></div><b>{todayAvailableCount}<small>条</small></b></div><div><div className="admin-metric-heading"><span>未来 7 天有排期</span><MetricHelp label="未来 7 天有排期指标说明" content="未来7天至少有1条有效内容的天数"/></div><b>{displayedSevenDayCoverage.filter(Boolean).length}<small>天</small></b></div><div className={displayedSevenDayCoverage.some((count) => !count) ? "warning" : ""}><div className="admin-metric-heading"><span>未来 7 天无排期</span><MetricHelp label="未来 7 天无排期指标说明" content="未来7天没有有效内容的天数"/></div><b>{displayedSevenDayCoverage.filter((count) => !count).length}<small>天</small></b></div></div>
-      <div className="service-module-tabs recommendation-view-tabs" role="tablist" aria-label="推荐策略视图"><button type="button" role="tab" aria-selected={activeView === "calendar"} className={activeView === "calendar" ? "active" : ""} onClick={() => setActiveView("calendar")}>排期日历</button><button type="button" role="tab" aria-selected={activeView === "content"} className={activeView === "content" ? "active" : ""} onClick={() => { setActiveView("content"); setDateFilterEnabled(false); }}>内容管理</button></div>
+      <div className="recommendation-calendar-summary"><div><div className="admin-metric-heading"><span>当前可展示</span><MetricHelp label="当前可展示指标说明" content="当前已启用、来源可用且处于生效时间的推荐内容"/></div><b>{recommendationStatusCounts["可展示"]}<small>条</small></b></div><div><div className="admin-metric-heading"><span>未生效</span><MetricHelp label="未生效指标说明" content="已启用、来源可用，但生效时间尚未到达的推荐内容"/></div><b>{recommendationStatusCounts["未生效"]}<small>条</small></b></div><div><div className="admin-metric-heading"><span>已失效</span><MetricHelp label="已失效指标说明" content="已启用、来源可用，但失效时间已过的推荐内容"/></div><b>{recommendationStatusCounts["已失效"]}<small>条</small></b></div><div><div className="admin-metric-heading"><span>已停用</span><MetricHelp label="已停用指标说明" content={`当前已停用的推荐内容${unavailableSourceCount ? `；另有 ${unavailableSourceCount} 条来源不可用内容未计入四项状态` : ""}`}/></div><b>{recommendationStatusCounts["已停用"]}<small>条</small></b></div></div>
+      <div className="service-module-tabs recommendation-view-tabs" role="tablist" aria-label="推荐策略视图"><button type="button" role="tab" aria-selected={activeView === "calendar"} className={activeView === "calendar" ? "active" : ""} onClick={() => setActiveView("calendar")}>推荐日历</button><button type="button" role="tab" aria-selected={activeView === "content"} className={activeView === "content" ? "active" : ""} onClick={() => { setActiveView("content"); setDateFilterEnabled(false); }}>推荐计划</button></div>
       {activeView === "calendar" && <section className="panel recommendation-calendar-panel"><div className={`recommendation-calendar-layout ${calendarMode === "week" ? "week-view" : "month-view"}`}>
           <div className="recommendation-calendar-box">
             <div className="recommendation-calendar-toolbar"><div className="recommendation-calendar-navigation"><button type="button" aria-label={calendarMode === "month" ? "上个月" : "上一周"} onClick={() => moveCalendarPeriod(-1)}><ChevronLeft size={16}/></button><b>{calendarTitle}</b><button type="button" aria-label={calendarMode === "month" ? "下个月" : "下一周"} onClick={() => moveCalendarPeriod(1)}><ChevronRight size={16}/></button></div><div className="recommendation-calendar-toolbar-actions"><button type="button" className="recommendation-calendar-today" aria-label="回到今天" onClick={goToRecommendationToday}>今天</button><div className="recommendation-calendar-mode" role="group" aria-label="日历显示方式"><button type="button" aria-pressed={calendarMode === "week"} className={calendarMode === "week" ? "active" : ""} onClick={() => changeCalendarMode("week")}>周</button><button type="button" aria-pressed={calendarMode === "month"} className={calendarMode === "month" ? "active" : ""} onClick={() => changeCalendarMode("month")}>月</button></div></div></div>
             <div className="recommendation-calendar-weekdays">{["周一", "周二", "周三", "周四", "周五", "周六", "周日"].map((item) => <span key={item}>{item}</span>)}</div>
             <div className={`recommendation-calendar-grid ${calendarMode === "week" ? "week" : "month"}`}>{calendarDays.map((date, index) => {
               if (!date) return <span className="calendar-blank" key={`blank-${index}`}/>;
-              const scheduledItems = dayItems(date);
-              const items = [...scheduledItems, ...automaticDayItems(date)];
+              const items = dayItems(date);
               const count = items.length;
-              const hasNoSchedule = scheduledItems.length === 0;
+              const hasNoSchedule = items.length === 0;
               return <div key={date} role="button" tabIndex="0" aria-label={`查看 ${date} 推荐内容，共${count}条`} className={`recommendation-calendar-day ${date === selectedDate ? "selected" : ""} ${date === todayKey ? "today" : ""}`} onClick={() => manageDate(date)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); manageDate(date); } }}>
                 <div className="recommendation-calendar-day-head"><span>{Number(date.slice(8, 10))}</span></div>
-                <div className="recommendation-calendar-chips">{items.slice(0, calendarMode === "week" ? items.length : 2).map((item) => <button type="button" key={item.id} aria-label={item.automatic ? `${item.name}，系统自动来源：${item.sourceName}` : `${item.name}，回车编辑，Delete删除`} className={`type-${item.type} ${item.automatic ? "automatic" : ""}`} onClick={(event) => event.stopPropagation()} onDoubleClick={() => { if (!item.automatic) openEditSchedule(date, item); }} onKeyDown={(event) => { if (!item.automatic) handleChipKeyDown(event, date, item); }}>{item.automatic && <small>自动</small>}{item.name}</button>)}{calendarMode === "month" && count > 2 && <small>+{count - 2}</small>}</div>
+                <div className="recommendation-calendar-chips">{items.slice(0, calendarMode === "week" ? items.length : 2).map((item) => <button type="button" key={item.id} aria-label={`${item.name}，回车编辑，Delete删除`} className={`type-${item.type}`} onClick={(event) => event.stopPropagation()} onDoubleClick={() => editScheduledItem(date, item)} onKeyDown={(event) => handleChipKeyDown(event, date, item)}>{item.name}</button>)}{calendarMode === "month" && count > 2 && <small>+{count - 2}</small>}</div>
                 {hasNoSchedule && <small className="recommendation-calendar-empty">无排期</small>}
               </div>;
             })}</div>
@@ -2667,27 +2671,34 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
           </div>
           <div className="recommendation-day-preview">
             <div className="recommendation-day-preview-heading"><div><h4>当天排期</h4><span>{selectedDateLabel}</span></div></div>
-            {selectedScheduledItems.length === 0 && <div className="recommendation-preview-empty"><CalendarDays size={22}/><div><b>当天暂无推荐内容</b><span>可通过页面右上角新增推荐内容。</span></div></div>}
-            {selectedDayItems.length > 0 && <div className="recommendation-day-list">{selectedDayItems.map((item, index) => item.automatic ? <div key={item.id} className="automatic-reminder-row"><span className="recommendation-auto-handle"><Bell size={14}/></span><em>自动</em><span><b>{item.name}</b><small>触发来源：{item.sourceName} · 终端：{item.policy.terminals.join("、")}</small></span></div> : <div key={item.id} className={daySortDrag === item.id ? "sorting" : ""} onDragOver={(event) => { if (daySortDrag) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (!daySortDrag || daySortDrag === item.id) return; const items = dayItems(selectedDate); const sourceIndex = items.findIndex((candidate) => candidate.id === daySortDrag); const targetIndex = items.findIndex((candidate) => candidate.id === item.id); const next = [...items]; const [moved] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, moved); setDayItems(selectedDate, next); setDaySortDrag(null); setScheduleToast({ message: `已调整${selectedDateLabel}的展示顺序` }); }}><span className="recommendation-sort-handle" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDaySortDrag(item.id); }} onDragEnd={() => setDaySortDrag(null)} aria-label={`拖拽调整${item.name}顺序`}><GripVertical size={15}/></span><em>{index + 1}</em><span><b>{item.name}</b><small>{item.sourceName || "未关联来源"} · 展示 {item.dayDurationSeconds ?? item.durationSeconds} 秒 · {(item.dayAfterView ?? item.afterView) === "exit" ? "查看后退出" : "继续轮换"}</small></span><div className="recommendation-day-actions"><button type="button" className="icon-button" disabled={index === 0} aria-label={`${item.name}上移`} onClick={() => reorderDayItem(selectedDate, item.id, -1)}><ChevronLeft size={14}/></button><button type="button" className="icon-button" disabled={index === selectedDayItems.length - 1} aria-label={`${item.name}下移`} onClick={() => reorderDayItem(selectedDate, item.id, 1)}><ChevronRight size={14}/></button><button type="button" className="table-action" onClick={() => openEditSchedule(selectedDate, item)}>编辑</button><button type="button" className="table-action danger-text" onClick={() => setDeleteTarget({ date: selectedDate, itemId: item.id, name: item.name })}>删除</button></div></div>)}</div>}
+            {selectedDayItems.length === 0 && <div className="recommendation-preview-empty"><CalendarDays size={22}/><div><b>当天暂无推荐内容</b><span>可通过页面右上角新增推荐内容。</span></div></div>}
+            {selectedDayItems.length > 0 && <div className="recommendation-day-list">{selectedDayItems.map((item, index) => <div key={item.id} className={daySortDrag === item.id ? "sorting" : ""} onDragOver={(event) => { if (daySortDrag) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (!daySortDrag || daySortDrag === item.id) return; const items = dayItems(selectedDate); const sourceIndex = items.findIndex((candidate) => candidate.id === daySortDrag); const targetIndex = items.findIndex((candidate) => candidate.id === item.id); const next = [...items]; const [moved] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, moved); setDayItems(selectedDate, next); setDaySortDrag(null); setScheduleToast({ message: `已调整${selectedDateLabel}的展示顺序` }); }}><span className="recommendation-sort-handle" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDaySortDrag(item.id); }} onDragEnd={() => setDaySortDrag(null)} aria-label={`拖拽调整${item.name}顺序`}><GripVertical size={15}/></span><em>{index + 1}</em><span><b>{item.name}</b></span><div className="recommendation-day-actions"><button type="button" className="table-action" onClick={() => editScheduledItem(selectedDate, item)}>编辑</button><button type="button" className="table-action danger-text" onClick={() => setDeleteTarget({ date: selectedDate, itemId: item.id, name: item.name })}>删除</button></div></div>)}</div>}
           </div>
         </div></section>}
       {activeView === "content" && <section className="panel recommendation-pool-panel">
         <div className="recommendation-list-toolbar">
-          <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索内容名称、编号或来源"/></div><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>可展示</option><option>未生效</option><option>已过期</option><option>已停用</option><option>来源不可用</option></select>{dateFilterEnabled && <button type="button" className="recommendation-date-chip" onClick={() => setDateFilterEnabled(false)}>{selectedDateLabel}排期 <X size={13}/></button>}</div>
+          <div className="recommendation-list-filters"><div className="input-wrap"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索内容名称或来源"/></div><select className="select-control filter-select" value={type} onChange={(event) => setType(event.target.value)}><option>全部类型</option>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>可展示</option><option>未生效</option><option>已失效</option><option>已停用</option><option>来源不可用</option></select>{dateFilterEnabled && <button type="button" className="recommendation-date-chip" onClick={() => setDateFilterEnabled(false)}>{selectedDateLabel}排期 <X size={13}/></button>}</div>
         </div>
         <div className="table-scroll">
-          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>内容来源</th><th>内容类型</th><th>生效时间 / 失效时间</th><th>顺序</th><th>同步状态</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
-            {rows.map((item) => { const availability = getRecommendationAvailability(item); const isThirdParty = item.type === "third_party_entertainment"; const linkedSource = Boolean(item.sourceId) && !isThirdParty; return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>{item.id} · 创建 {item.createdAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{isThirdParty ? item.thirdPartyUrl || "来源链接不可用" : `${item.sourceId || "—"} · ${item.sourceStatus || "来源状态未知"}`}</small></div></td><td><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><div className="recommendation-order-control"><button aria-label="上移" onClick={() => onMove(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label="下移" onClick={() => onMove(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><StatusTag>{linkedSource ? item.sourceSyncEnabled ? "已同步" : "未同步" : "独立维护"}</StatusTag></td><td><div className="stacked-cell"><StatusTag>{availability}</StatusTag><button type="button" role="switch" aria-checked={item.sourceSyncEnabled ?? item.enabled} aria-label={`${item.name}同步到推荐状态`} className={`strategy-status-switch ${(item.sourceSyncEnabled ?? item.enabled) ? "active" : ""}`} onClick={() => onToggle(item.id)}><i/><span>{(item.sourceSyncEnabled ?? item.enabled) ? "启用" : "停用"}</span></button></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(item)}>编辑</button></td></tr>; })}
-            {!rows.length && <tr><td colSpan="8"><div className="empty-table-state">暂无符合条件的推荐内容</div></td></tr>}
+          <table className="recommendation-table right-content-table"><thead><tr><th>推荐文案</th><th>内容来源</th><th>内容类型</th><th>生效时间 / 失效时间</th><th>当前状态</th><th className="sticky-right">操作</th></tr></thead><tbody>
+            {rows.map((item) => { const availability = getRecommendationAvailability(item); const isThirdParty = item.type === "third_party_entertainment"; const enabled = item.sourceSyncEnabled ?? item.enabled; const availabilityTone = availability === "可展示" ? "success" : availability === "未生效" ? "info" : availability === "来源不可用" ? "warning" : "neutral"; return <tr key={item.id}><td><div className="strategy-title-cell"><b>{item.name}</b><small>创建 {item.createdAt.replace("T", " ")}</small></div></td><td><div className="stacked-cell recommendation-source-cell"><b>{item.sourceName || "未关联内容"}</b><small>{isThirdParty ? item.thirdPartyUrl || "来源链接不可用" : item.sourceStatus || "来源状态未知"}</small></div></td><td><b>{recommendationTypes.find((option) => option.key === item.type)?.label}</b></td><td><div className="stacked-cell"><b>{item.startsAt.replace("T", " ")}</b><small>至 {item.endsAt.replace("T", " ")}</small></div></td><td><StatusTag tone={availabilityTone}>{availability}</StatusTag></td><td className="sticky-right recommendation-actions"><button className="table-action" onClick={() => onEdit(item)}>编辑</button><button className={`table-action ${enabled ? "danger-text" : ""}`} onClick={() => onToggle(item.id)}>{enabled ? "停用" : "启用"}</button><button className="table-action danger-text" onClick={() => setPlanDeleteTarget(item)}>删除</button></td></tr>; })}
+            {!rows.length && <tr><td colSpan="6"><div className="empty-table-state">暂无符合条件的推荐内容</div></td></tr>}
           </tbody></table>
         </div>
         <div className="pagination"><span>共 {strategies.length} 条推荐内容，筛选后展示 {rows.length} 条{dateFilterEnabled ? ` · 当前仅看 ${selectedDateLabel}` : ""}</span></div>
       </section>}
-      {scheduleDrawer && <RecommendationDayScheduleDrawer key={`${scheduleDrawer.mode}-${scheduleDrawer.date}-${scheduleDrawer.itemId || "new"}`} mode={scheduleDrawer.mode} date={scheduleDrawer.date} record={scheduleDrawer.itemId ? dayItems(scheduleDrawer.date).find((item) => item.id === scheduleDrawer.itemId) : null} strategies={strategies} scheduledIds={dayItems(scheduleDrawer.date).map((item) => item.id)} onClose={() => setScheduleDrawer(null)} onSave={saveDaySchedule}/>}
       {deleteTarget && <AdminConfirm title={`删除${Number(deleteTarget.date.slice(5, 7))}月${Number(deleteTarget.date.slice(8, 10))}日的“${deleteTarget.name}”？`} description="仅删除某日排期：本次只删除该日期的单日排期，不会修改内容库中的全局有效期、启用状态或其他日期排期。" confirmLabel="删除当天排期" icon={<Trash2 size={20}/>} onClose={() => setDeleteTarget(null)} onConfirm={confirmDeleteSchedule}/>}
+      {planDeleteTarget && <AdminConfirm title={`删除推荐计划“${planDeleteTarget.name}”？`} description="删除后，该推荐计划将从推荐计划列表和所有推荐日历排期中移除。" confirmLabel="确认删除" icon={<Trash2 size={20}/>} onClose={() => setPlanDeleteTarget(null)} onConfirm={confirmDeletePlan}/>}
       {scheduleToast && <AdminToast message={scheduleToast.message} actionLabel={scheduleToast.undo ? "撤销" : undefined} onAction={scheduleToast.undo ? undoDeleteSchedule : undefined} onClose={() => setScheduleToast(null)}/>}
+      {scheduleEditing && <RecommendationStrategyDrawer record={scheduleEditing.item} presetDate={scheduleEditing.date} safetyNews={[]} entertainmentEntries={[]} currentProject={{ id: scheduleEditing.item.projectId, name: communityName }} onClose={() => setScheduleEditing(null)} onSave={(saved) => { const items = dayItems(scheduleEditing.date).map((item) => item.id === saved.id ? { ...item, ...saved, automatic: true, policy: item.policy } : item); setDayItems(scheduleEditing.date, items); setScheduleEditing(null); setScheduleToast({ message: `已更新${selectedDateLabel}的“${saved.name}”` }); }}/>}
     </>
   );
+}
+
+function formatLocalDateTimeInput(date = new Date(), dateOverride = "") {
+  const pad = (value) => String(value).padStart(2, "0");
+  const localDate = dateOverride || `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${localDate}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function RecommendationStrategyDrawer({ record, presetDate, safetyNews, entertainmentEntries, currentProject, onClose, onSave }) {
@@ -2700,10 +2711,14 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, entertai
     alert: { label: "警惕事项", items: contentResources("警惕事项") },
     third_party_entertainment: { label: "平台娱乐入口", items: entertainmentEntries.map((item) => ({ id: item.id, name: item.name, category: item.category, summary: item.description, date: item.updatedAt, status: "已启用", url: item.entryUrl })) },
   };
-  const [form, setForm] = useState(() => ({ projectId: currentProject?.id, name: "", type: "announcement", sourceId: "", sourceName: "", sourceUpdatedAt: "", thirdPartyUrl: "", startsAt: presetDate ? `${presetDate}T08:00` : "2026-08-21T08:00", endsAt: presetDate ? `${presetDate}T23:59` : "2026-08-31T23:59", enabled: true, displayOrder: 1, durationSeconds: 20, afterView: "continue", createdAt: recommendationMockNow, ...record }));
+  const [form, setForm] = useState(() => {
+    const openedAt = new Date();
+    return { projectId: currentProject?.id, name: "", type: "announcement", sourceId: "", sourceName: "", sourceUpdatedAt: "", thirdPartyUrl: "", startsAt: formatLocalDateTimeInput(openedAt, presetDate), endsAt: "", enabled: true, durationSeconds: 20, afterView: "continue", createdAt: recommendationMockNow, ...record };
+  });
   const [errors, setErrors] = useState({});
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const isEditing = Boolean(record);
   const isThirdParty = form.type === "third_party_entertainment";
   const currentGroup = resourceGroups[form.type];
   const selectedResource = currentGroup?.items.find((item) => item.id === form.sourceId) || (currentGroup && form.sourceId ? { id: form.sourceId, name: form.sourceName, date: form.sourceUpdatedAt, category: recommendationTypes.find((item) => item.key === form.type)?.label, summary: "当前推荐已关联的来源内容", status: isThirdParty ? "已停用" : "已发布", url: form.thirdPartyUrl } : null);
@@ -2715,15 +2730,28 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, entertai
   };
   const save = () => {
     const nextErrors = {};
-    if (!form.sourceId) nextErrors.sourceId = isThirdParty ? "请选择平台已启用的娱乐入口" : "请选择需要推荐的来源内容";
-    else if (isThirdParty && !currentGroup.items.some((item) => item.id === form.sourceId)) nextErrors.sourceId = "当前娱乐入口已停用，请重新选择平台已启用的入口";
+    if (!isEditing && !form.sourceId) nextErrors.sourceId = isThirdParty ? "请选择平台已启用的娱乐入口" : "请选择需要推荐的来源内容";
+    else if (!isEditing && isThirdParty && !currentGroup.items.some((item) => item.id === form.sourceId)) nextErrors.sourceId = "当前娱乐入口已停用，请重新选择平台已启用的入口";
     if (!isThirdParty && !form.name.trim()) nextErrors.name = "请输入内容名称";
     if (!form.startsAt || !form.endsAt) nextErrors.validity = "请选择生效和失效时间";
     if (form.startsAt && form.endsAt && form.startsAt >= form.endsAt) nextErrors.validity = "失效时间必须晚于生效时间";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    const { sourceUnavailable: _sourceUnavailable, audience: _audience, ...cleanForm } = form;
-    onSave({ ...cleanForm, scheduleDate: presetDate || "", name: isThirdParty ? selectedResource.name : form.name.trim(), sourceId: selectedResource.id, sourceName: selectedResource.name, sourceUpdatedAt: selectedResource.date, thirdPartyUrl: isThirdParty ? selectedResource.url : "", enabled: isThirdParty ? true : form.enabled, displayOrder: Number(form.displayOrder), durationSeconds: Number(form.durationSeconds) });
+    const { sourceUnavailable: _sourceUnavailable, audience: _audience, displayOrder: _displayOrder, ...cleanForm } = form;
+    const source = isEditing ? {
+      type: record.type,
+      sourceId: record.sourceId,
+      sourceName: record.sourceName,
+      sourceUpdatedAt: record.sourceUpdatedAt,
+      thirdPartyUrl: record.thirdPartyUrl || "",
+    } : {
+      type: form.type,
+      sourceId: selectedResource.id,
+      sourceName: selectedResource.name,
+      sourceUpdatedAt: selectedResource.date,
+      thirdPartyUrl: isThirdParty ? selectedResource.url : "",
+    };
+    onSave({ ...cleanForm, ...source, scheduleDate: presetDate || "", name: isThirdParty ? source.sourceName : form.name.trim(), enabled: form.enabled, ...(isEditing ? { displayOrder: record.displayOrder } : {}), durationSeconds: Number(form.durationSeconds) });
   };
   return (
     <div className="drawer-layer">
@@ -2732,14 +2760,11 @@ function RecommendationStrategyDrawer({ record, presetDate, safetyNews, entertai
         <header><div><h2>{record ? "编辑推荐内容" : "新增推荐内容"}</h2></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
         <div className="drawer-body"><div className="form-section">
           <h3>内容信息</h3>
-          <label><span>内容类型 *</span><select className="select-control form-select-native" value={form.type} onChange={(event) => changeType(event.target.value)}>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
-          <div className="recommendation-resource-field"><span>{isThirdParty ? "娱乐入口" : "关联内容"} *</span><button type="button" className={`strategy-resource-picker-trigger ${selectedResource ? "selected" : ""}`} onClick={() => setResourcePickerOpen(true)}>{selectedResource ? <><span><b>{selectedResource.name}</b><small>{selectedResource.id} · {isThirdParty ? selectedResource.url : `更新 ${selectedResource.date}`}</small></span><em>更换</em></> : <><span><b>请选择{currentGroup.label}</b><small>{isThirdParty ? "只能引用平台已启用的娱乐入口" : "推荐必须关联一条当前社区已发布的来源内容"}</small></span><em>选择</em></>}</button>{errors.sourceId && <small className="field-error">{errors.sourceId}</small>}</div>
-          {!isThirdParty && <label><span>内容名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：明早一起练太极"/>{errors.name && <small className="field-error">{errors.name}</small>}</label>}
-          {isThirdParty && <div className="form-tip"><ShieldCheck size={18}/><div><b>平台统一维护</b><p>社区只能选择娱乐入口并配置推荐参数，不能修改名称、URL 或白名单。</p></div></div>}
+          {!isEditing && <><label><span>内容类型 *</span><select className="select-control form-select-native" value={form.type} onChange={(event) => changeType(event.target.value)}>{recommendationTypes.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
+          <div className="recommendation-resource-field"><span>{isThirdParty ? "娱乐入口" : "关联内容"} *</span><button type="button" className={`strategy-resource-picker-trigger ${selectedResource ? "selected" : ""}`} onClick={() => setResourcePickerOpen(true)}>{selectedResource ? <><span><b>{selectedResource.name}</b><small>{selectedResource.id} · {isThirdParty ? selectedResource.url : `更新 ${selectedResource.date}`}</small></span><em>更换</em></> : <><span><b>请选择{currentGroup.label}</b><small>{isThirdParty ? "只能引用平台已启用的娱乐入口" : "推荐必须关联一条当前社区已发布的来源内容"}</small></span><em>选择</em></>}</button>{errors.sourceId && <small className="field-error">{errors.sourceId}</small>}</div></>}
+          <label><span>内容名称 *</span><input value={form.name} disabled={isThirdParty} onChange={(event) => update("name", event.target.value)} placeholder="例如：明早一起练太极"/>{errors.name && <small className="field-error">{errors.name}</small>}</label>
           <div className="form-row"><label><span>生效时间 *</span><input type="datetime-local" value={form.startsAt} onChange={(event) => update("startsAt", event.target.value)}/></label><label><span>失效时间 *</span><input type="datetime-local" value={form.endsAt} onChange={(event) => update("endsAt", event.target.value)}/></label></div>{errors.validity && <small className="field-error">{errors.validity}</small>}
-          <h3>展示设置</h3>
-          <label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/></label>
-          {!isThirdParty && <label><span>启用状态 *</span><div className="strategy-enable-options compact-options"><button type="button" className={form.enabled ? "active" : ""} onClick={() => update("enabled", true)}><b>启用</b></button><button type="button" className={!form.enabled ? "active" : ""} onClick={() => update("enabled", false)}><b>停用</b></button></div></label>}
+          <label><span>启用状态 *</span><div className="strategy-enable-options compact-options"><button type="button" className={form.enabled ? "active" : ""} onClick={() => update("enabled", true)}><b>启用</b></button><button type="button" className={!form.enabled ? "active" : ""} onClick={() => update("enabled", false)}><b>停用</b></button></div></label>
         </div></div>
         <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存内容</button></footer>
       </aside>
@@ -4484,16 +4509,16 @@ export function App() {
             ? legacyStatus
             : preset?.onlineStatus || (/刚刚|分钟/.test(device.lastOnline || "") ? "在线" : "离线");
         return {
-          currentVersion: device.currentVersion || preset?.currentVersion || "v2.6.0",
-          romVersion: device.romVersion || preset?.romVersion || "v1.5.0",
-          apkVersion: device.apkVersion || preset?.apkVersion || "v2.1.0",
-          networkType: device.networkType || preset?.networkType || "Wi-Fi",
-          ipAddress: device.ipAddress || preset?.ipAddress || "未分配",
+          currentVersion: device.currentVersion ?? preset?.currentVersion ?? "",
+          romVersion: device.romVersion ?? preset?.romVersion ?? "",
+          apkVersion: device.apkVersion ?? preset?.apkVersion ?? "",
+          networkType: device.networkType ?? preset?.networkType ?? "",
+          ipAddress: device.ipAddress ?? preset?.ipAddress ?? "",
           sn: device.sn || preset?.sn || "SN 待补充",
           ...savedDevice,
           projectId: device.boundElderlyId ? (device.projectId || preset?.projectId || "") : "",
           usageRecords: Array.isArray(device.usageRecords) ? device.usageRecords : preset?.usageRecords || [],
-          versionStatus: device.versionStatus || preset?.versionStatus || "已最新",
+          versionStatus: device.versionStatus ?? preset?.versionStatus ?? "待上报",
           bindingStatus: device.bindingStatus || (device.boundElderlyId ? "已绑定" : "待绑定"),
           onlineStatus,
           lastOnline: !device.boundElderlyId && device.lastOnline === "尚未激活" ? "尚未上线" : device.lastOnline || preset?.lastOnline || "尚未上线",
@@ -5257,7 +5282,10 @@ export function App() {
       } else {
         const nextNumber = Math.max(0, ...recommendationStrategies.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
         savedItemId = `REC-${String(nextNumber).padStart(3, "0")}`;
-        setRecommendationStrategies((items) => [{ ...savedStrategy, id: savedItemId, createdAt: savedStrategy.createdAt || recommendationMockNow }, ...items]);
+        setRecommendationStrategies((items) => {
+          const nextOrder = Math.max(0, ...items.filter((item) => (item.projectId || "PRJ-001") === savedStrategy.projectId).map((item) => Number(item.displayOrder) || 0)) + 1;
+          return [{ ...savedStrategy, id: savedItemId, displayOrder: nextOrder, createdAt: savedStrategy.createdAt || recommendationMockNow }, ...items];
+        });
       }
       if (scheduleDate) setRecommendationCalendarInsert({ itemId: savedItemId, date: scheduleDate, token: `${savedItemId}-${scheduleDate}-${Date.now()}` });
     }
@@ -5274,10 +5302,12 @@ export function App() {
     if (["announcement", "life_info", "alert"].includes(target.type)) setSafetyNews((items) => items.map((item) => item.id === target.sourceId ? { ...item, syncToRecommendation: nextSyncEnabled } : item));
   };
 
-  const moveRecommendationStrategy = (id, offset) => {
-    setRecommendationStrategies((items) => items.map((item) => item.id === id
-      ? { ...item, displayOrder: Math.max(1, Number(item.displayOrder) + offset) }
-      : item));
+  const deleteRecommendationStrategy = async (id) => {
+    const target = recommendationStrategies.find((item) => item.id === id);
+    if (!target) return { ok: false, message: "推荐计划不存在或已被删除，请刷新后重试。" };
+    setRecommendationStrategies((items) => items.filter((item) => item.id !== id));
+    if (["announcement", "life_info", "alert"].includes(target.type)) setSafetyNews((items) => items.map((item) => item.id === target.sourceId ? { ...item, syncToRecommendation: false } : item));
+    return { ok: true };
   };
 
   const saveCommunityStaff = (record) => {
@@ -5704,6 +5734,15 @@ export function App() {
     }));
   };
 
+  const savePlatformTabletDevice = async (device) => {
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    if (tabletDetailScenario === "platformCreateFailure") throw new Error("新增失败，请重试。已填写内容将继续保留。");
+    if (tabletDevices.some((item) => String(item.id).toUpperCase() === device.id.toUpperCase())) throw new Error("设备编号已存在，请检查后重试。");
+    if (tabletDevices.some((item) => String(item.sn).toUpperCase() === device.sn.toUpperCase())) throw new Error("设备 SN 已存在，请检查后重试。");
+    setTabletDevices((devices) => [device, ...devices]);
+    return device;
+  };
+
   const saveSensorDevice = (device) => {
     const nextNumber = Math.max(0, ...sensorDevices.map((item) => Number(item.id.split("-").pop()) || 0)) + 1;
     setSensorDevices((devices) => [...devices, { ...device, id: `SEN-SG-${String(nextNumber).padStart(6, "0")}` }]);
@@ -5782,7 +5821,7 @@ export function App() {
               : safeActive === "familyAlbums"
                 ? <FamilyAlbumBatchManagementPage batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
               : safeActive === "recommendations"
-                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} reminderPolicies={reminderPolicies.filter((item) => item.enabled && !item.queueExcluded)} communityName={currentProject?.name} acceptanceScenario={recommendationScenario} calendarInsert={recommendationCalendarInsert} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onMove={moveRecommendationStrategy}/>
+                ? <RecommendationStrategyPage strategies={scopedRecommendationStrategies} reminderPolicies={reminderPolicies.filter((item) => item.enabled && !item.queueExcluded)} communityName={currentProject?.name} acceptanceScenario={recommendationScenario} calendarInsert={recommendationCalendarInsert} onCreate={(presetDate) => setDrawer({ kind: "recommendation", presetDate })} onEdit={(record) => setDrawer({ kind: "recommendation", record })} onToggle={toggleRecommendationStrategy} onDelete={deleteRecommendationStrategy}/>
               : safeActive === "activities"
                 ? <CommunityActivityPage records={communityActivityRecords} registrations={scopedRegistrations} activityCategories={scopedActivityCategories} communityName={currentProject?.name} loadError={communityActivityScenario === "loadError" ? "活动数据加载失败" : ""} onRetry={() => setCommunityActivityScenario("normal")} onCreate={() => setDrawer({ kind: "activity", mode: "edit" })} onView={(record) => setDrawer({ kind: "activity", mode: "view", record })} onEdit={(record) => setDrawer({ kind: "activity", mode: "edit", record })} onUnpublish={unpublishCommunityActivity} onRestore={restoreCommunityActivity} onViewRegistrations={(record) => setDrawer({ kind: "activityRegistrations", record })}/>
               : safeActive === "communityStaff"
@@ -5806,7 +5845,7 @@ export function App() {
                       ? <PlatformRoleManagementPage roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                       : <RoleManagementPage currentProject={currentProject} projects={projects} roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                 : safeActive === "platformTabletDevices"
-                  ? <PlatformTabletDevicesPage scope="platform" detailScenario={tabletDetailScenario} devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")}/>
+                  ? <PlatformTabletDevicesPage scope="platform" detailScenario={tabletDetailScenario} devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")} onCreate={savePlatformTabletDevice}/>
                   : safeActive === "deviceAlertPolicies"
                     ? <DeviceAlertPoliciesPage key={currentProjectId} communityName={currentProject?.name || "当前社区"} policies={buildDeviceAlertPolicyRows({ inactivityRule: currentInactivityRule })} onEdit={() => setGlobalRuleOpen(true)}/>
                   : safeActive === "tabletDevices"

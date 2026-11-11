@@ -82,6 +82,9 @@ const communityTopicScenarios = [
 const platformTabletDetailScenarios = [
   { value: "normal", label: "正常列表", description: "展示全部项目平板及平台专属升级字段。", status: "默认" },
   { value: "platformDetail", label: "平台端设备详情", description: "打开含项目归属、更新状态和升级任务执行记录的平台详情。", status: "平台角色" },
+  { value: "platformCreate", label: "新增平板成功", description: "打开已预填设备编号、SN、型号和项目的新增抽屉，版本与网络信息由设备上报，保存后进入列表并打开统一详情。", status: "成功" },
+  { value: "platformCreateFailure", label: "新增失败可重试", description: "模拟保存失败，保留全部已填写内容供直接重试。", status: "失败可重试" },
+  { value: "platformCreateValidation", label: "新增字段校验", description: "打开空表单，验证设备编号、SN 和型号必填。", status: "校验" },
 ];
 
 const communityTabletDetailScenarios = [
