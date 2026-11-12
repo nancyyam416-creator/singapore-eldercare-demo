@@ -70,13 +70,22 @@ export type AcceptanceReminderScenario =
   | "not-yet"
   | "empty"
   | "all-completed"
-  | "unconfirmed-today"
-  | "expired-history"
+  | "overdue-today"
+  | "cross-day-overdue"
   | "elder-created"
   | "other-created"
+  | "admin-created"
   | "medication-validation"
   | "external-repeat"
-  | "action-failure";
+  | "action-failure"
+  | "medication-pending"
+  | "medication-early-completed"
+  | "medication-completed"
+  | "medication-overdue"
+  | "life-pending"
+  | "life-early-completed"
+  | "life-completed"
+  | "life-overdue";
 export type AcceptanceRightContentScenario =
   | "default"
   | "recommendations-only"
@@ -87,15 +96,13 @@ export type AcceptanceRightContentScenario =
   | "p1-due"
   | "medication-upcoming"
   | "medication-grace-period"
-  | "medication-unconfirmed"
+  | "medication-overdue"
   | "medication-grouped"
-  | "medication-expired"
   | "schedule-due"
   | "schedule-upcoming"
   | "schedule-grace-period"
-  | "schedule-unconfirmed"
+  | "schedule-overdue"
   | "schedule-grouped"
-  | "schedule-expired"
   | "activity-started"
   | "activity-upcoming"
   | "activity-updated"
@@ -260,15 +267,13 @@ const rightContentScenarioLabels: Record<AcceptanceRightContentScenario, { label
   "p1-due": { label: "该用药了", description: "到达执行时间后显示到点弹窗；关闭弹窗后提醒仍保留在右侧，点击单条提醒直达确认界面。" },
   "medication-upcoming": { label: "用药时间快到了", description: "进入到点前30分钟后显示临近提醒，不弹出到点弹窗；点击单条提醒直达确认界面。" },
   "medication-grace-period": { label: "该用药了（29分59秒）", description: "仍处于到点强提醒；不重复弹窗或播报，右侧继续保留。" },
-  "medication-unconfirmed": { label: "用药尚未确认（30分钟）", description: "到点满30分钟转为未确认并退出右侧，在今日全览中仍可处理。" },
+  "medication-overdue": { label: "用药已超时（30分钟）", description: "到点满30分钟后仍保持待完成，仅退出首页右侧；在提醒事项中显示超时提示并可继续确认。" },
   "medication-grouped": { label: "同一时间多项用药", description: "同时间、同阶段的多项用药合并展示；点击右侧进入今日全览。" },
-  "medication-expired": { label: "用药次日已过期", description: "切换至次日00:00；记录转为已过期，退出首页右侧和今日全览，历史记录保留。" },
   "schedule-due": { label: "该做事项了", description: "到达执行时间后显示到点弹窗；关闭弹窗后事项仍保留在右侧，点击单条事项直达确认界面。" },
   "schedule-upcoming": { label: "事项时间快到了", description: "进入到点前30分钟后显示临近提醒；点击单条事项直达确认界面。" },
   "schedule-grace-period": { label: "该做事项了（29分59秒）", description: "仍处于到点强提醒；不重复弹窗或播报，右侧继续保留。" },
-  "schedule-unconfirmed": { label: "事项尚未完成（30分钟）", description: "到点满30分钟转为未确认并退出右侧，在今日全览中仍可处理。" },
+  "schedule-overdue": { label: "事项已超时（30分钟）", description: "到点满30分钟后仍保持待完成，仅退出首页右侧；在提醒事项中显示超时提示并可继续确认。" },
   "schedule-grouped": { label: "同一时间多项事项", description: "同时间、同阶段的多项事项合并展示；点击右侧进入今日全览。" },
-  "schedule-expired": { label: "事项次日已过期", description: "切换至次日00:00；记录转为已过期，退出首页右侧和今日全览，历史记录保留。" },
   "activity-started": { label: "活动开始了", description: "到达活动开始时间后仅在首页右侧显示活动入口，不弹窗、不语音；点击后进入社区活动。" },
   "activity-upcoming": { label: "活动快开始了", description: "活动开始前30分钟显示开始时间和活动名称；点击右侧进入社区活动。" },
   "activity-updated": { label: "活动信息已更新", description: "不弹窗、不语音，右侧直接读取更新后的活动时间和地点。" },
@@ -392,15 +397,24 @@ const reminderLabels: Record<AcceptanceReminderScenario, string> = {
   default: "正常提醒",
   "due-popup": "到点弹窗提醒",
   due: "待完成",
-  "not-yet": "未到时间",
+  "not-yet": "未来日期计划",
   "all-completed": "已完成",
-  "unconfirmed-today": "当日未确认",
-  "expired-history": "次日已过期只读",
+  "overdue-today": "当日待完成 · 已超时",
+  "cross-day-overdue": "跨日待完成 · 已超时",
   "elder-created": "本人创建可编辑删除",
-  "other-created": "他端创建只读",
+  "other-created": "子女创建可编辑删除",
+  "admin-created": "后台创建可编辑删除",
   "medication-validation": "用药剂量/用法校验",
   "external-repeat": "外部日期与重复规则",
   "action-failure": "确认失败",
+  "medication-pending": "用药 · 待完成",
+  "medication-early-completed": "用药 · 提前已完成",
+  "medication-completed": "用药 · 正常已完成",
+  "medication-overdue": "用药 · 待完成已超时",
+  "life-pending": "日常 · 待完成",
+  "life-early-completed": "日常 · 提前已完成",
+  "life-completed": "日常 · 正常已完成",
+  "life-overdue": "日常 · 待完成已超时",
   empty: "空列表",
 };
 
@@ -439,11 +453,16 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
   default: { label: "当前服务目录", description: "不展示分类入口，按共享目录动态展示当前四项服务及明细价格。" },
   "no-services": { label: "暂无可用服务", description: "全部服务不可用时展示统一空状态。" },
-  "family-help-idle": { label: "未请求", description: "联系服务商与家人协助均展示初始状态。" },
+  "contact-pending": { label: "联系后待确认", description: "老人移动端真实发起联系后，中控屏可回答约好了或请家人帮忙。" },
+  "contact-family-inquiry": { label: "家人发起询问", description: "家人询问联系结果后，老人端展示同一待确认卡。" },
+  "contact-confirmed": { label: "已约好", description: "老人确认约好后结束本次联系，结果同步给家人。" },
+  "family-help-idle": { label: "未请求", description: "查看联系电话与家人协助均展示初始状态。" },
   "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
   "family-help-pending": { label: "家人待处理", description: "已通知家人，请等待联系。" },
-  "family-help-handled": { label: "家人已处理", description: "展示处理人、处理时间和结果摘要。" },
-  "service-completed": { label: "家人处理完成", description: "展示家人协助工单处理完成状态，并保留当前已授权的评价入口。" },
+  "family-help-handling": { label: "家人正在联系", description: "显示具体家人正在联系服务商，尚未产生联系结果。" },
+  "family-help-not-appointed": { label: "暂未约好", description: "家人已返回还没约好的结果，同一记录继续等待后续联系。" },
+  "family-help-handled": { label: "已约好", description: "展示家人返回的联系结果、预约时间和参考费用，不等同于服务完成。" },
+  "service-completed": { label: "家人协助完成", description: "仅表示家人协助记录完成，并保留当前已授权的评价入口。" },
   "service-reviewed": { label: "老人已评价", description: "展示星级、可选文字和评价提交结果。" },
 };
 
@@ -648,6 +667,7 @@ export default function InteractionAcceptanceConsole({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [opensToRight, setOpensToRight] = useState(false);
   const [opensUpward, setOpensUpward] = useState(false);
+  const [activationDebugOpen, setActivationDebugOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dragStateRef = useRef<AcceptanceConsoleDragState | null>(null);
   const dragMovedRef = useRef(false);
@@ -696,11 +716,13 @@ export default function InteractionAcceptanceConsole({
     setActivePage(nextPage.id);
     setActiveSection(nextPage.sections[0]);
     setWeatherAcceptanceTarget("home");
+    setActivationDebugOpen(false);
   };
   const changeSection = (sectionId: AcceptanceConsoleSection) => {
     onReset();
     setActiveSection(sectionId);
     setWeatherAcceptanceTarget("home");
+    setActivationDebugOpen(false);
   };
   const changeRightContentObject = (objectId: RightContentAcceptanceObject) => {
     const nextObject = rightContentAcceptanceObjects.find((item) => item.id === objectId);
@@ -904,7 +926,7 @@ export default function InteractionAcceptanceConsole({
                   </button>
                 ))}
               </div>
-              <p className="interaction-acceptance-note">未确认仅可在当天补打卡；已过期只在历史日期保留并只读。创建来源仅用于权限判断，不显示在提醒卡片上。</p>
+              <p className="interaction-acceptance-note">业务状态仅有“待完成”和“已完成”。到点满 30 分钟仍未完成时，仅增加超时提示；跨日后仍为待完成，并可继续“超时后确认”。</p>
             </section>}
 
             {activeSection === "weather" && <section>
@@ -1135,7 +1157,7 @@ export default function InteractionAcceptanceConsole({
                   <ChevronRight aria-hidden="true" />打开当前特约服务场景
                 </button>
               </div>
-              <p className="interaction-acceptance-note">详情操作区始终只有“联系服务商”和“请家人帮忙”；协助进度、处理结果和评价统一在服务记录中验收。</p>
+              <p className="interaction-acceptance-note">中控屏只查看服务商号码，不创建拨号记录；来自老人移动端的联系动态与家人协助分开展示，“没约好”沿用原记录。</p>
             </section>}
 
             {activeSection === "community-staff" && <section>
@@ -1262,7 +1284,10 @@ export default function InteractionAcceptanceConsole({
                   <span className="interaction-acceptance-module-picker__select">
                     <select
                       value={activationScenario}
-                      onChange={(event) => onSetActivationScenario(event.target.value as ActivationAcceptanceScenario)}
+                      onChange={(event) => {
+                        setActivationDebugOpen(false);
+                        onSetActivationScenario(event.target.value as ActivationAcceptanceScenario);
+                      }}
                       aria-label="选择设备激活场景"
                     >
                       {(Object.keys(activationScenarioDefinitions) as ActivationAcceptanceScenario[]).map((scenario) => (
@@ -1279,23 +1304,6 @@ export default function InteractionAcceptanceConsole({
                 </div>
               </div>
               <div className="interaction-acceptance-field">
-                <h2><DatabaseBackup aria-hidden="true" />跨端契约状态</h2>
-                <dl className="activation-contract-status">
-                  <div><dt>平板 SN</dt><dd>{activationContractState.device.sn}</dd></div>
-                  <div><dt>SN 上报</dt><dd>{activationContractState.device.reported ? "已上报" : "待联网后上报"}</dd></div>
-                  <div><dt>绑定查询</dt><dd>{activationContractState.device.lookupStatus === "idle" ? "待查询" : activationContractState.device.lookupStatus === "bound" ? "已绑定用户" : activationContractState.device.lookupStatus === "unbound" ? "未绑定用户" : "查询失败，可重试"}</dd></div>
-                  <div><dt>平板状态</dt><dd>{activationContractState.device.status}</dd></div>
-                  <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
-                  <div><dt>设备归属项目</dt><dd>{activationContractState.device.projectId ?? "待选择社区"}</dd></div>
-                  <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>
-                  <div><dt>老人姓名</dt><dd>{activationContractState.elderly.name || "待填写"}</dd></div>
-              <div><dt>性别</dt><dd>{activationContractState.elderly.gender || "待选择"}</dd></div>
-                  <div><dt>联系电话</dt><dd>{activationContractState.elderly.phone || "待填写"}</dd></div>
-                  <div className="is-address"><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
-                  <div><dt>社区归属</dt><dd>{activationContractState.elderly.communityName ? `${activationContractState.elderly.communityName}（${activationContractState.elderly.communityId}）` : "待选择"}</dd></div>
-                </dl>
-              </div>
-              <div className="interaction-acceptance-field">
                 <h2><BellRing aria-hidden="true" />可执行动作</h2>
                 <button type="button" className="interaction-acceptance-primary-action" onClick={onOpenActivation}>
                   <TabletSmartphone aria-hidden="true" />打开当前激活场景
@@ -1303,6 +1311,28 @@ export default function InteractionAcceptanceConsole({
                 <button type="button" className="interaction-acceptance-secondary-action" onClick={onResetActivation}>
                   <RefreshCcw aria-hidden="true" />重置当前激活场景
                 </button>
+              </div>
+              <div className="interaction-acceptance-debug">
+                <button type="button" aria-expanded={activationDebugOpen} aria-controls="activation-contract-debug-panel" onClick={() => setActivationDebugOpen((current) => !current)}>
+                  <span><DatabaseBackup aria-hidden="true" />调试信息</span><ChevronDown aria-hidden="true" />
+                </button>
+                {activationDebugOpen && <div id="activation-contract-debug-panel" className="interaction-acceptance-debug__panel">
+                  <h3>跨端契约状态</h3>
+                  <dl className="activation-contract-status">
+                    <div><dt>平板 SN</dt><dd>{activationContractState.device.sn}</dd></div>
+                    <div><dt>SN 上报</dt><dd>{activationContractState.device.reported ? "已上报" : "待联网后上报"}</dd></div>
+                    <div><dt>绑定查询</dt><dd>{activationContractState.device.lookupStatus === "idle" ? "待查询" : activationContractState.device.lookupStatus === "bound" ? "已绑定用户" : activationContractState.device.lookupStatus === "unbound" ? "未绑定用户" : "查询失败，可重试"}</dd></div>
+                    <div><dt>平板状态</dt><dd>{activationContractState.device.status}</dd></div>
+                    <div><dt>设备绑定老人</dt><dd>{activationContractState.device.boundElderlyId ?? "未绑定"}</dd></div>
+                    <div><dt>设备归属项目</dt><dd>{activationContractState.device.projectId ?? "待选择社区"}</dd></div>
+                    <div><dt>老人当前平板</dt><dd>{activationContractState.elderly.currentTabletId ?? "未设置"}</dd></div>
+                    <div><dt>老人姓名</dt><dd>{activationContractState.elderly.name || "待填写"}</dd></div>
+                    <div><dt>性别</dt><dd>{activationContractState.elderly.gender || "待选择"}</dd></div>
+                    <div><dt>联系电话</dt><dd>{activationContractState.elderly.phone || "待填写"}</dd></div>
+                    <div className="is-address"><dt>居住地址</dt><dd>{activationContractState.elderly.addressSummary || "待填写"}</dd></div>
+                    <div><dt>社区归属</dt><dd>{activationContractState.elderly.communityName ? `${activationContractState.elderly.communityName}（${activationContractState.elderly.communityId}）` : "待选择"}</dd></div>
+                  </dl>
+                </div>}
               </div>
             </section>}
           </div>

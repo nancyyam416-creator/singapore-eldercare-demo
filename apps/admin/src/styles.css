@@ -12534,6 +12534,7 @@ th.sticky-right { background: #f7f8fa; }
   display: grid;
   place-items: center;
   align-self: center;
+  line-height: 0;
   color: #94a3b8;
   cursor: grab;
 }
@@ -12549,6 +12550,11 @@ th.sticky-right { background: #f7f8fa; }
   color: #2563eb;
   background: #eff6ff;
   outline: 0;
+}
+.admin-style-theme .recommendation-day-list > div > em {
+  align-self: center;
+  justify-self: center;
+  line-height: 1;
 }
 .admin-style-theme .recommendation-day-list > div > span:not(.recommendation-sort-handle) {
   min-width: 0;
@@ -12588,7 +12594,8 @@ th.sticky-right { background: #f7f8fa; }
   align-items: center;
   justify-content: center;
   align-self: center;
-  line-height: 1;
+  padding-block: 0;
+  line-height: 28px;
   pointer-events: auto;
 }
 .admin-style-theme .recommendation-day-actions .table-action {

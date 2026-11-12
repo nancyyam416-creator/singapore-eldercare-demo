@@ -1,4 +1,4 @@
-import { addPendingServiceAssistanceExample } from './H5BookingConfirmation';
+import { addServiceContactScenario, addPendingServiceAssistanceExample } from './H5BookingConfirmation';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -981,8 +981,10 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
 
             {acceptanceModule === 'service_records' && <section className="space-y-3" aria-label="服务协助记录交互">
               <h3 className="text-xs font-bold text-slate-700">服务协助记录</h3>
-              <p className="text-[11px] leading-5 text-slate-500">在手机内选择待处理记录，接手事项、填写处理结果，再确认处理完成。取消和返回均可直接验收。</p>
+              <button onClick={() => window.dispatchEvent(new Event('service-contact-simulate-return'))} className="w-full rounded-lg border p-3 text-xs">模拟拨号返回</button>
+              <p className="text-[11px] leading-5 text-slate-500">选择待处理记录并点击打电话帮忙约。桌面不拨号，点击模拟返回后填写约好或未约好结果。</p>
               <button type="button" onClick={() => { onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg bg-blue-600 p-3 text-xs font-bold text-white">打开服务协助记录</button>
+              {([['pending', '老人拨号待确认'], ['help', '老人没约好请家人帮忙'], ['other', '其他家人正在联系'], ['confirmed', '老人已约好']] as const).map(([scenario, label]) => <button key={scenario} onClick={() => { addServiceContactScenario(scenario); onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg border p-3 text-xs">{label}</button>)}
               <button type="button" onClick={() => { addPendingServiceAssistanceExample(); onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-bold text-blue-600">新增一条待处理协助</button>
               <p className="text-[10px] text-slate-400">新增记录保留原有记录，48小时未处理后失效。</p>
             </section>}

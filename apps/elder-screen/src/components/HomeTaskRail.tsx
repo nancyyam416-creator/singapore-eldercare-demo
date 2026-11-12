@@ -31,7 +31,7 @@ interface RailReminder {
   time: string;
   scheduledAt?: string;
   name: string;
-  status: "pending" | "completed" | "unconfirmed" | "expired";
+  status: "pending" | "completed";
   priority?: "P0" | "P1" | "P2";
   category?: "medication" | "schedule";
   ctaTitle?: string;

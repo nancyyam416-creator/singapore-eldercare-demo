@@ -1,0 +1,54 @@
+.admin-style-theme .admin-tooltip-trigger {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: #94a3b8;
+  background: transparent;
+  cursor: help;
+}
+
+.admin-style-theme .admin-tooltip-trigger:hover,
+.admin-style-theme .admin-tooltip-trigger:focus-visible,
+.admin-style-theme .admin-tooltip-trigger[aria-expanded="true"] {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.admin-style-theme .admin-tooltip-trigger:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, .25);
+  outline-offset: 1px;
+}
+
+.admin-style-theme .admin-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-style-theme .admin-field-label .admin-tooltip-trigger,
+.admin-style-theme .admin-metric-heading .admin-tooltip-trigger {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+}
+
+.admin-tooltip {
+  position: fixed;
+  z-index: 120;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  color: #f8fafc;
+  background: #1e293b;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .18);
+  font-size: 11px;
+  line-height: 1.55;
+  pointer-events: none;
+}

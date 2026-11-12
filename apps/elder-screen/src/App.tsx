@@ -491,42 +491,6 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const resolveNow = () => {
-      if (!acceptanceTimeOverride) return new Date();
-      if (acceptanceTimeOverride.includes("T")) return new Date(acceptanceTimeOverride);
-      const resolved = new Date("2026-09-18T00:00:00+08:00");
-      const [hours, minutes] = acceptanceTimeOverride.split(":").map(Number);
-      resolved.setHours(hours, minutes, 0, 0);
-      return resolved;
-    };
-
-    const syncReminderExecutionStatuses = () => {
-      const effectiveNow = resolveNow();
-      setReminders((current) => {
-        let changed = false;
-        const next = current.map((reminder) => {
-          if (!reminder.scheduledAt || reminder.status === "completed" || reminder.status === "expired") return reminder;
-          const scheduledAt = new Date(reminder.scheduledAt);
-          const nextDay = new Date(scheduledAt);
-          nextDay.setDate(nextDay.getDate() + 1);
-          nextDay.setHours(0, 0, 0, 0);
-          let nextStatus = reminder.status;
-          if (effectiveNow.getTime() >= nextDay.getTime()) nextStatus = "expired";
-          else if (reminder.status === "pending" && effectiveNow.getTime() - scheduledAt.getTime() >= 30 * 60 * 1000) nextStatus = "unconfirmed";
-          if (nextStatus === reminder.status) return reminder;
-          changed = true;
-          return { ...reminder, status: nextStatus };
-        });
-        return changed ? next : current;
-      });
-    };
-
-    syncReminderExecutionStatuses();
-    const timer = window.setInterval(syncReminderExecutionStatuses, 15_000);
-    return () => window.clearInterval(timer);
-  }, [acceptanceTimeOverride]);
-
   // 3. Live vitals index state
   const [telemetry, setTelemetry] = useState<HealthTelemetry>({
     heartRate: 68,
@@ -1028,16 +992,9 @@ export default function App() {
     } else if (scenario === "medication-grace-period") {
       setAcceptanceTimeOverride("2026-09-18T13:29:59+08:00");
       setReminders(defaults);
-    } else if (scenario === "medication-unconfirmed") {
+    } else if (scenario === "medication-overdue") {
       setAcceptanceTimeOverride("2026-09-18T13:30:00+08:00");
-      setReminders(defaults.map((reminder) => reminder.id === "med-2"
-        ? { ...reminder, status: "unconfirmed" as const }
-        : reminder));
-    } else if (scenario === "medication-expired") {
-      setAcceptanceTimeOverride("2026-09-19T00:00:00+08:00");
-      setReminders(defaults.map((reminder) => reminder.id === "med-2"
-        ? { ...reminder, status: "expired" as const }
-        : reminder));
+      setReminders(defaults);
     } else if (scenario === "schedule-due") {
       setAcceptanceTimeOverride("2026-09-18T17:00:00+08:00");
       setReminders(defaults);
@@ -1060,16 +1017,9 @@ export default function App() {
     } else if (scenario === "schedule-grace-period") {
       setAcceptanceTimeOverride("2026-09-18T17:29:59+08:00");
       setReminders(defaults);
-    } else if (scenario === "schedule-unconfirmed") {
+    } else if (scenario === "schedule-overdue") {
       setAcceptanceTimeOverride("2026-09-18T17:30:00+08:00");
-      setReminders(defaults.map((reminder) => reminder.id === "schedule-self-walk"
-        ? { ...reminder, status: "unconfirmed" as const }
-        : reminder));
-    } else if (scenario === "schedule-expired") {
-      setAcceptanceTimeOverride("2026-09-19T00:00:00+08:00");
-      setReminders(defaults.map((reminder) => reminder.id === "schedule-self-walk"
-        ? { ...reminder, status: "expired" as const }
-        : reminder));
+      setReminders(defaults);
     } else if (scenario === "activity-started") {
       setAcceptanceTimeOverride("2026-09-18T13:10:00+08:00");
       setReminders(defaults);
@@ -1615,6 +1565,36 @@ export default function App() {
           onClose={() => setIsSchedulePageOpen(false)}
           reminders={reminders}
           acceptanceScenario={acceptanceReminderScenario}
+          onPlanUpsert={(plan) => {
+            setReminders((current) => {
+              const existing = current.find((reminder) => reminder.id === plan.id);
+              const nextReminder: MedicationReminder = {
+                id: plan.id,
+                time: plan.time,
+                scheduledAt: `${plan.date}T${plan.time}:00+08:00`,
+                name: plan.title,
+                dosage: plan.detail,
+                status: existing?.status ?? "pending",
+                takenAt: existing?.takenAt,
+                priority: existing?.priority,
+                category: plan.kind === "life" ? "schedule" : "medication",
+                ctaTitle: existing?.ctaTitle,
+                repeat: plan.repeat,
+                creationSource: plan.creationSource,
+                creatorName: plan.creatorName,
+                lastModifiedBy: plan.lastModifiedBy,
+                lastModifiedAt: plan.lastModifiedAt,
+              };
+              return existing
+                ? current.map((reminder) => reminder.id === plan.id ? nextReminder : reminder)
+                : [...current, nextReminder];
+            });
+          }}
+          onPlanDelete={(planId) => {
+            setReminders((current) => current.filter((reminder) => reminder.id !== planId));
+            setHomeNotificationQueue((current) => current.filter((item) => item.reminderId !== planId));
+            setHomeReminderAlert((current) => current?.reminder.id === planId ? null : current);
+          }}
           onCompleteExternal={(name) => {
             // Check if there is a medication with this name and trigger completed
             const matched = reminders.find(r => r.name.includes(name) || name.includes(r.name));

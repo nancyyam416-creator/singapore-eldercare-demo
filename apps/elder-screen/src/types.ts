@@ -4,7 +4,7 @@ export interface MedicationReminder {
   scheduledAt?: string;
   name: string;
   dosage: string;
-  status: 'completed' | 'pending' | 'unconfirmed' | 'expired';
+  status: 'completed' | 'pending';
   takenAt?: string;
   priority?: 'P0' | 'P1' | 'P2';
   category?: 'medication' | 'schedule';
@@ -12,6 +12,8 @@ export interface MedicationReminder {
   repeat?: 'once' | 'daily' | 'weekly';
   creationSource?: 'elder' | 'child' | 'admin';
   creatorName?: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
 }
 
 export type FulfillmentKind = 'medication' | 'schedule' | 'message' | 'activity' | 'service' | 'content';

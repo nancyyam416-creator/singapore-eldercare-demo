@@ -39,7 +39,7 @@ import AcceptanceWorkbench, { type AcceptanceModuleId, type AcceptancePageId } f
 import { ACCEPTANCE_WORKBENCH_ENABLED, U2G_PORTAL_URL } from './config';
 import MobileAppShell from './MobileAppShell';
 import ElderPageHeader from './ElderPageHeader';
-import AppointmentServicesPage, { type AppointmentScenario } from './AppointmentServicesPage';
+import AppointmentServicesPage, { type AppointmentReturnTarget, type AppointmentScenario } from './AppointmentServicesPage';
 
 type MainTab = 'home' | 'family' | 'reminders' | 'activities' | 'services' | 'profile';
 type Overlay = 'photo' | 'reminder' | null;
@@ -170,6 +170,8 @@ export default function App() {
   const [alertSpeechState, setAlertSpeechState] = useState<'playing' | 'paused' | null>(null);
   const [isOnline] = useState(() => navigator.onLine);
   const [appointmentScenario, setAppointmentScenario] = useState<AppointmentScenario>('default');
+  const [appointmentReturnTarget, setAppointmentReturnTarget] = useState<AppointmentReturnTarget>('detail');
+  const [pendingServiceContactCount, setPendingServiceContactCount] = useState(0);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [serviceCategory, setServiceCategory] = useState<ServiceCategory>('water');
   const [selectedService, setSelectedService] = useState<(typeof serviceData)[ServiceCategory]['items'][number] | null>(null);
@@ -336,7 +338,7 @@ export default function App() {
       setAlertReadIds(scenario === 'detail' ? [communityAlerts[0].id] : []);
       setSelectedAlert(scenario === 'detail' ? communityAlerts[0] : null);
     }
-    if (moduleId === 'service-booking') setAppointmentScenario(scenario as AppointmentScenario);
+    if (moduleId === 'service-booking') { setAppointmentReturnTarget('detail'); setAppointmentScenario(scenario as AppointmentScenario); }
     if (moduleId === 'profile-guardians') setGuardianScenario(scenario);
     if (moduleId === 'profile-binding') {
       setBindingStatus(scenario as BindingStatus);
@@ -591,17 +593,17 @@ export default function App() {
     : selectedActivity ? { label: '返回活动列表', action: () => { setSelectedActivity(null); setActivityIntentFailure(null); } }
         : selectedAlert ? { label: '返回警惕事项', action: () => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); } }
           : showingService ? { label: selectedService ? '返回服务列表' : '返回首页', action: () => { if (selectedService) { setSelectedService(null); setServiceStep('detail'); } else { setServicesOpen(false); } } }
-            : tab === 'services' && (appointmentScenario === 'requested' || appointmentScenario === 'handling' || appointmentScenario === 'expired' || appointmentScenario === 'cancelled' || appointmentScenario === 'handled' || appointmentScenario === 'completed' || appointmentScenario === 'reviewed') ? { label: '返回服务详情', action: () => setAppointmentScenario('detail') }
+            : tab === 'services' && (appointmentScenario === 'contact_pending' || appointmentScenario === 'requested' || appointmentScenario === 'handling' || appointmentScenario === 'not_appointed' || appointmentScenario === 'expired' || appointmentScenario === 'cancelled' || appointmentScenario === 'handled' || appointmentScenario === 'completed' || appointmentScenario === 'reviewed') ? { label: appointmentReturnTarget === 'records' ? '返回协助记录' : '返回服务详情', action: () => setAppointmentScenario(appointmentReturnTarget) }
               : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('default') }
                 : undefined;
 
   return <MobileAppShell title={selectedFamilyPhoto ? '影像预览' : showingService ? '特约服务' : pageTitle} onBack={shellBack?.action} backLabel={shellBack?.label}>
-    <main className="app-content">{bindingOpen ? bindingPage : showingService ? servicePage : tab === 'home' ? homePage : tab === 'family' ? familyPage : tab === 'reminders' ? remindersPage : tab === 'activities' ? activitiesPage : tab === 'services' ? <AppointmentServicesPage scenario={appointmentScenario} onViewChange={view => { setAcceptancePageId('services'); setAcceptanceModuleId('service-booking'); setAppointmentScenario(view); }} /> : profilePage}</main>
+    <main className="app-content">{bindingOpen ? bindingPage : showingService ? servicePage : tab === 'home' ? homePage : tab === 'family' ? familyPage : tab === 'reminders' ? remindersPage : tab === 'activities' ? activitiesPage : tab === 'services' ? <AppointmentServicesPage scenario={appointmentScenario} onPendingCountChange={setPendingServiceContactCount} onViewChange={(view, returnTarget) => { setAcceptancePageId('services'); setAcceptanceModuleId('service-booking'); if (returnTarget) setAppointmentReturnTarget(returnTarget); setAppointmentScenario(view); }} /> : profilePage}</main>
 
     {!bindingOpen && !showingService && !selectedFamilyPhoto && <nav className="bottom-nav" aria-label="主导航">
       {([
         ['home', Home, '首页'], ['family', Images, '家庭'], ['activities', CalendarDays, '社区'], ['services', CalendarCheck2, '服务'], ['profile', CircleUserRound, '我的'],
-      ] as const).map(([key, Icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => goTo(key)}><Icon /><span>{label}</span></button>)}
+      ] as const).map(([key, Icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => goTo(key)}><Icon /><span>{label}</span>{key === 'services' && pendingServiceContactCount > 0 && <i className="bottom-nav-notification" aria-label={`${pendingServiceContactCount} 项拨号结果待确认`} />}</button>)}
     </nav>}
 
     {toast && <div className="toast" role="status"><CheckCircle2 />{toast}</div>}

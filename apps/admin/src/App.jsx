@@ -9,7 +9,7 @@ import { readSharedCommunityAnnouncements, setSharedCommunityAnnouncementStatus,
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { unifiedCommunities, unifiedServiceCatalog } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
-import { getServiceReviewSummary, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
+import { getServiceReviewSummary, isFamilyAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import {
   careScriptMockApi,
   formatWeatherLocation,
@@ -444,7 +444,7 @@ const mapSharedServiceAssistanceRecord = (record) => {
   provider: record.provider?.name || "",
   providerPhone: record.provider?.phone || "",
   requestReason: record.requestReason || "请家人协助联系服务商",
-  initiatedAt: record.requestedAt || "",
+  initiatedAt: record.familyHelpRequestedAt || record.requestedAt || "",
   assistanceStatus: record.status,
   handledBy: record.handledBy || "",
   handledAt: record.handledAt || "",
@@ -460,7 +460,7 @@ const mapSharedServiceAssistanceRecord = (record) => {
 };
 
 const mergeSharedServiceAssistanceRecords = (records) => {
-  const shared = readSharedServiceAssistanceRecords().map(mapSharedServiceAssistanceRecord);
+  const shared = readSharedServiceAssistanceRecords().filter(isFamilyAssistanceRecord).map(mapSharedServiceAssistanceRecord);
   if (!shared.length) return records;
   const sharedIds = new Set(shared.map((record) => record.id));
   return [...shared, ...records.filter((record) => !sharedIds.has(record.id))];

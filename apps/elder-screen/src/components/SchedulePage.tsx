@@ -7,14 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Eye,
   Mic,
   PenLine,
   Pill,
   Plus,
   RotateCcw,
   Trash2,
-  Volume2,
   X,
 } from "lucide-react";
 import { speakText } from "../audio/speech";
@@ -24,7 +22,7 @@ import SecondaryPageHeader from "./SecondaryPageHeader";
 import "./schedule-page.css";
 
 type ScheduleKind = "medication" | "life";
-type ReminderStatus = "pending" | "completed" | "unconfirmed" | "expired";
+type ReminderStatus = "pending" | "completed";
 type RepeatRule = "once" | "daily" | "weekly";
 type CreationSource = "elder" | "child" | "admin";
 const SHOW_QUICK_ADD = true;
@@ -35,19 +33,26 @@ interface ScheduleItem {
   title: string;
   detail: string;
   date: string;
+  endDate?: string;
   time: string;
   status: ReminderStatus;
   repeat: RepeatRule;
   creationSource: CreationSource;
   creatorName: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
   completedAt?: string;
 }
+
+type ScheduleLayer = "daily" | "plans";
 
 interface SchedulePageProps {
   isOpen: boolean;
   onClose: () => void;
   reminders: MedicationReminder[];
   onCompleteExternal?: (name: string) => void;
+  onPlanUpsert?: (item: ScheduleItem) => void;
+  onPlanDelete?: (id: string) => void;
   acceptanceScenario?: AcceptanceReminderScenario;
 }
 
@@ -81,6 +86,7 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 type VoiceStage = "guide" | "listening" | "error" | "unsupported";
+type VoiceTarget = "title" | "detail";
 
 declare global {
   interface Window {
@@ -148,17 +154,13 @@ const createDefaultItems = (reminders: MedicationReminder[], today: Date): Sched
       detail: reminder.dosage,
       date: reminder.scheduledAt?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? todayKey,
       time: reminder.time,
-      status: reminder.status === "completed"
-        ? "completed"
-        : reminder.status === "unconfirmed"
-          ? "unconfirmed"
-          : reminder.status === "expired"
-            ? "expired"
-            : "pending",
+      status: reminder.status === "completed" ? "completed" : "pending",
       completedAt: reminder.takenAt,
       repeat: reminder.repeat ?? "once",
       creationSource: reminder.creationSource ?? "child",
       creatorName: reminder.creatorName ?? "家庭成员",
+      lastModifiedBy: reminder.lastModifiedBy,
+      lastModifiedAt: reminder.lastModifiedAt,
     })),
     {
       id: "family-call-today",
@@ -177,6 +179,7 @@ const createDefaultItems = (reminders: MedicationReminder[], today: Date): Sched
 
 const normalizeStoredItems = (items: ScheduleItem[]): ScheduleItem[] => items.map((item) => ({
   ...item,
+  status: ["expired", "unconfirmed"].includes(item.status as string) ? "pending" : item.status,
   repeat: item.repeat ?? "once",
   creationSource: item.creationSource ?? (item.id.startsWith("self-") || item.id.startsWith("voice-") ? "elder" : "child"),
   creatorName: item.creatorName ?? (item.id.startsWith("self-") || item.id.startsWith("voice-") ? "本人" : "家庭成员"),
@@ -187,11 +190,14 @@ export default function SchedulePage({
   onClose,
   reminders,
   onCompleteExternal,
+  onPlanUpsert,
+  onPlanDelete,
   acceptanceScenario = "default",
 }: SchedulePageProps) {
   const todayKey = dateKey(new Date());
   const today = useMemo(() => new Date(`${todayKey}T00:00:00`), [todayKey]);
   const storageKey = `u2g-reminders-v2-${todayKey}`;
+  const occurrenceStorageKey = `u2g-reminder-occurrences-v1-${todayKey}`;
 
   const [items, setItems] = useState<ScheduleItem[]>(() => {
     const cached = window.localStorage.getItem(storageKey);
@@ -204,32 +210,42 @@ export default function SchedulePage({
     }
     return createDefaultItems(reminders, today);
   });
+  const [occurrenceHistory, setOccurrenceHistory] = useState<Record<string, ScheduleItem>>(() => {
+    const cached = window.localStorage.getItem(occurrenceStorageKey);
+    if (!cached) return {};
+    try {
+      return JSON.parse(cached) as Record<string, ScheduleItem>;
+    } catch {
+      window.localStorage.removeItem(occurrenceStorageKey);
+      return {};
+    }
+  });
+  const [activeLayer, setActiveLayer] = useState<ScheduleLayer>("daily");
   const [showEditor, setShowEditor] = useState(false);
   const [toast, setToast] = useState("");
-  const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
   const [voiceStage, setVoiceStage] = useState<VoiceStage>("guide");
   const [voiceTranscript, setVoiceTranscript] = useState("");
-  const [voiceDate, setVoiceDate] = useState(todayKey);
-  const [voiceTime, setVoiceTime] = useState("09:00");
+  const [voiceTarget, setVoiceTarget] = useState<VoiceTarget | null>(null);
+  const [voiceNeedsReplacement, setVoiceNeedsReplacement] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const completionLocksRef = useRef<Set<string>>(new Set());
   const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
 
   const [formKind, setFormKind] = useState<ScheduleKind>("life");
   const [formTitle, setFormTitle] = useState("");
   const [formDate, setFormDate] = useState(todayKey);
+  const [formEndDate, setFormEndDate] = useState("");
   const [formTime, setFormTime] = useState("09:00");
   const [formDetail, setFormDetail] = useState("");
   const [formRepeat, setFormRepeat] = useState<RepeatRule>("once");
   const [backfillItem, setBackfillItem] = useState<ScheduleItem | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [deleteItem, setDeleteItem] = useState<ScheduleItem | null>(null);
-  const [detailItem, setDetailItem] = useState<ScheduleItem | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const defaults = createDefaultItems(reminders, today);
-    const yesterdayKey = dateKey(addDays(today, -1));
     const editableItem: ScheduleItem = {
       ...defaults[defaults.length - 1],
       id: "acceptance-elder-created",
@@ -241,15 +257,34 @@ export default function SchedulePage({
       creationSource: "elder",
       creatorName: "本人",
     };
-    const readOnlyItem: ScheduleItem = {
+    const childCreatedItem: ScheduleItem = {
       ...editableItem,
       id: "acceptance-child-created",
       title: "女儿设置的量血压提醒",
       creationSource: "child",
       creatorName: "女儿小敏",
     };
+    const adminCreatedItem: ScheduleItem = {
+      ...editableItem,
+      id: "acceptance-admin-created",
+      kind: "medication",
+      title: "社区医生设置的维生素D提醒",
+      detail: "1片，早餐后服用",
+      creationSource: "admin",
+      creatorName: "社区健康管家",
+    };
+    const withBothKinds = (sourceItem: ScheduleItem) => [
+      sourceItem,
+      {
+        ...sourceItem,
+        id: `${sourceItem.id}-second-kind`,
+        kind: sourceItem.kind === "medication" ? "life" as const : "medication" as const,
+        title: sourceItem.kind === "medication" ? "每周测量血压" : "早餐后服用维生素D",
+        detail: sourceItem.kind === "medication" ? "每周测量并记录一次血压。" : "1片，早餐后服用。",
+      },
+    ];
     const externalWeeklyItem: ScheduleItem = {
-      ...readOnlyItem,
+      ...childCreatedItem,
       id: "acceptance-external-weekly",
       title: "每周测量血压",
       detail: "女儿小敏设置的每周测量提醒。",
@@ -257,22 +292,49 @@ export default function SchedulePage({
       time: "09:30",
       repeat: "weekly",
     };
+    const acceptanceExecutionItem = (
+      kind: ScheduleKind,
+      status: ReminderStatus,
+      time: string,
+      completedAt?: string,
+    ): ScheduleItem => ({
+      ...editableItem,
+      id: `acceptance-${kind}-${status}`,
+      kind,
+      title: kind === "medication" ? "阿司匹林肠溶片" : "傍晚散步",
+      detail: kind === "medication" ? "1片，饭后半小时服用" : "天气合适时在楼下慢走20分钟",
+      time,
+      status,
+      completedAt,
+    });
     let nextSelectedDateKey = todayKey;
     if (acceptanceScenario === "empty") setItems([]);
     else if (acceptanceScenario === "all-completed") setItems(defaults.map((item) => ({ ...item, status: "completed", completedAt: "08:14" })));
     else if (acceptanceScenario === "due") setItems([{ ...editableItem, kind: "medication", title: "阿司匹林肠溶片", detail: "1片，饭后半小时服用" }]);
     else if (acceptanceScenario === "not-yet") setItems([{ ...editableItem, date: dateKey(addDays(today, 1)), time: "09:00", status: "pending" }]);
-    else if (acceptanceScenario === "unconfirmed-today") setItems([{ ...editableItem, status: "unconfirmed" }]);
-    else if (acceptanceScenario === "expired-history") {
-      setItems([{ ...editableItem, date: yesterdayKey, status: "expired" }]);
-      nextSelectedDateKey = yesterdayKey;
-    } else if (acceptanceScenario === "elder-created") setItems([editableItem]);
-    else if (acceptanceScenario === "other-created") setItems([readOnlyItem]);
+    else if (acceptanceScenario === "overdue-today") setItems([{ ...editableItem, time: "00:01", status: "pending" }]);
+    else if (acceptanceScenario === "cross-day-overdue") {
+      const previousDateKey = dateKey(addDays(today, -1));
+      setItems([{ ...editableItem, id: "acceptance-cross-day", date: previousDateKey, time: "09:00", status: "pending" }]);
+      nextSelectedDateKey = previousDateKey;
+    }
+    else if (acceptanceScenario === "elder-created") setItems(withBothKinds(editableItem));
+    else if (acceptanceScenario === "other-created") setItems(withBothKinds(childCreatedItem));
+    else if (acceptanceScenario === "admin-created") setItems(withBothKinds(adminCreatedItem));
     else if (acceptanceScenario === "external-repeat") {
       setItems([externalWeeklyItem]);
       nextSelectedDateKey = externalWeeklyItem.date;
-    } else setItems(defaults);
+    } else if (acceptanceScenario === "medication-pending") setItems([acceptanceExecutionItem("medication", "pending", "23:30")]);
+    else if (acceptanceScenario === "medication-early-completed") setItems([acceptanceExecutionItem("medication", "completed", "23:30", "08:10")]);
+    else if (acceptanceScenario === "medication-completed") setItems([acceptanceExecutionItem("medication", "completed", "08:00", "08:06")]);
+    else if (acceptanceScenario === "medication-overdue") setItems([acceptanceExecutionItem("medication", "pending", "00:01")]);
+    else if (acceptanceScenario === "life-pending") setItems([acceptanceExecutionItem("life", "pending", "23:30")]);
+    else if (acceptanceScenario === "life-early-completed") setItems([acceptanceExecutionItem("life", "completed", "23:30", "08:10")]);
+    else if (acceptanceScenario === "life-completed") setItems([acceptanceExecutionItem("life", "completed", "08:00", "08:06")]);
+    else if (acceptanceScenario === "life-overdue") setItems([acceptanceExecutionItem("life", "pending", "00:01")]);
+    else setItems(defaults);
     setSelectedDateKey(nextSelectedDateKey);
+    setActiveLayer(acceptanceScenario === "medication-validation" ? "plans" : "daily");
     setCalendarMonth(new Date(`${nextSelectedDateKey}T00:00:00`));
     setEditingItemId(null);
     setShowEditor(acceptanceScenario === "medication-validation");
@@ -286,13 +348,16 @@ export default function SchedulePage({
     }
     setBackfillItem(null);
     setDeleteItem(null);
-    setDetailItem(null);
     setToast(acceptanceScenario === "action-failure" ? "确认失败，提醒状态未改变，请稍后重试" : "");
   }, [acceptanceScenario, isOpen, reminders, today, todayKey]);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(items));
   }, [items, storageKey]);
+
+  useEffect(() => {
+    window.localStorage.setItem(occurrenceStorageKey, JSON.stringify(occurrenceHistory));
+  }, [occurrenceHistory, occurrenceStorageKey]);
 
   useEffect(() => {
     setItems((current) =>
@@ -318,30 +383,31 @@ export default function SchedulePage({
     recognitionRef.current?.abort();
   }, []);
 
+  const isItemOverdue = (item: ScheduleItem) => {
+    if (item.status !== "pending") return false;
+    const scheduledAt = new Date(`${item.date}T${item.time}:00`);
+    return Date.now() - scheduledAt.getTime() >= 30 * 60 * 1000;
+  };
+
   const getDisplayStatus = (item: ScheduleItem) => {
     if (item.status === "completed") return { label: "已完成", className: "bg-[#EAF6EF] text-[#256F4F]" };
-    if (item.status === "unconfirmed") return { label: "未确认", className: "bg-[#FFF0EA] text-[#A04C2D]" };
-    if (item.status === "expired") return { label: "已过期", className: "bg-gray-100 text-gray-600" };
-    if (item.date > todayKey || (item.date === todayKey && item.time > nowTime())) {
-      return { label: "未到时间", className: "bg-[#F1F3F5] text-[#59636D]" };
-    }
+    if (isItemOverdue(item)) return { label: "待完成 · 已超时", className: "bg-[#FFF0D9] text-[#A04C2D]" };
     return { label: "待完成", className: "bg-[#EAF2FB] text-[#376A94]" };
   };
 
   const canCompleteItem = (item: ScheduleItem) => {
-    if (item.status === "unconfirmed") return item.date === todayKey;
-    if (item.status !== "pending" || item.date !== todayKey) return false;
-    return item.time <= nowTime();
+    return item.status === "pending" && item.date <= todayKey;
   };
   const getCompletionLabel = (item: ScheduleItem) => {
-    if (item.status === "unconfirmed") return "补打卡";
+    if (isItemOverdue(item)) return "超时后确认";
     return item.kind === "medication" ? "我已服药" : "我已完成";
   };
-  const canManageDefinition = (item: ScheduleItem) => item.creationSource === "elder" && item.status !== "expired";
+  const occurrenceKey = (planId: string, targetKey: string) => `${planId}:${targetKey}`;
 
   const isScheduledOnDate = (item: ScheduleItem, targetKey: string) => {
     if (item.date === targetKey) return true;
     if (targetKey < item.date) return false;
+    if (item.endDate && targetKey > item.endDate) return false;
     if (item.repeat === "daily") return true;
     if (item.repeat === "weekly") {
       const start = new Date(`${item.date}T00:00:00`);
@@ -351,13 +417,13 @@ export default function SchedulePage({
     return false;
   };
 
-  const getItemsForDate = (targetKey: string) => items
-    .filter((item) => isScheduledOnDate(item, targetKey))
-    .map((item) => {
+  const getItemsForDate = (targetKey: string) => {
+    const generated = items
+      .filter((item) => isScheduledOnDate(item, targetKey))
+      .map((item) => {
+        const historical = occurrenceHistory[occurrenceKey(item.id, targetKey)];
+        if (historical) return ["expired", "unconfirmed"].includes(historical.status as string) ? { ...historical, status: "pending" as ReminderStatus } : historical;
       if (item.date === targetKey) {
-        if (targetKey < todayKey && (item.status === "pending" || item.status === "unconfirmed")) {
-          return { ...item, status: "expired" as ReminderStatus, completedAt: undefined };
-        }
         return item;
       }
       return {
@@ -366,13 +432,44 @@ export default function SchedulePage({
         status: "pending" as ReminderStatus,
         completedAt: undefined,
       };
-    })
-    .sort((a, b) => a.time.localeCompare(b.time));
+      });
+    const generatedIds = new Set(generated.map((item) => item.id));
+    const preserved = (Object.values(occurrenceHistory) as ScheduleItem[])
+      .filter((item) => item.date === targetKey && !generatedIds.has(item.id));
+    return [...generated, ...preserved].sort((a, b) => a.time.localeCompare(b.time));
+  };
+
+  const preserveOccurredInstances = (plan: ScheduleItem) => {
+    setOccurrenceHistory((current) => {
+      const next = { ...current };
+      const cursor = new Date(`${plan.date}T00:00:00`);
+      const lastDate = new Date(`${todayKey}T00:00:00`);
+      let inspected = 0;
+      while (cursor <= lastDate && inspected < 370) {
+        const targetKey = dateKey(cursor);
+        if (isScheduledOnDate(plan, targetKey)) {
+          const hasOccurredToday = targetKey === todayKey && (plan.status !== "pending" || plan.time <= nowTime());
+          if ((targetKey < todayKey || hasOccurredToday) && !next[occurrenceKey(plan.id, targetKey)]) {
+            const isOriginalDate = targetKey === plan.date;
+            next[occurrenceKey(plan.id, targetKey)] = {
+              ...plan,
+              date: targetKey,
+              status: isOriginalDate && plan.status !== "pending" ? plan.status : "pending",
+              completedAt: isOriginalDate ? plan.completedAt : undefined,
+            };
+          }
+        }
+        cursor.setDate(cursor.getDate() + 1);
+        inspected += 1;
+      }
+      return next;
+    });
+  };
 
   const selectedItems = getItemsForDate(selectedDateKey);
   const selectedMedicationItems = selectedItems.filter((item) => item.kind === "medication");
   const selectedDailyItems = selectedItems.filter((item) => item.kind !== "medication");
-  const selectedActionableItems = selectedItems.filter((item) => item.status === "pending" || item.status === "unconfirmed");
+  const selectedActionableItems = selectedItems.filter((item) => item.status === "pending");
   const selectedCompletedItems = selectedItems.filter((item) => item.status === "completed");
   const priorityItem = selectedActionableItems.find((item) => item.kind === "medication") ?? selectedActionableItems[0];
   const selectedDate = new Date(`${selectedDateKey}T00:00:00`);
@@ -390,10 +487,16 @@ export default function SchedulePage({
   ];
 
   const openCreate = () => {
+    cancelVoiceRecognition();
+    setVoiceStage("guide");
+    setVoiceTranscript("");
+    setVoiceTarget(null);
+    setVoiceNeedsReplacement(false);
     setEditingItemId(null);
     setFormKind("life");
     setFormTitle("");
     setFormDate(todayKey);
+    setFormEndDate("");
     setFormTime("09:00");
     setFormDetail("");
     setFormRepeat("once");
@@ -401,11 +504,17 @@ export default function SchedulePage({
   };
 
   const openEdit = (item: ScheduleItem) => {
-    if (item.creationSource !== "elder") return;
+    cancelVoiceRecognition();
+    setVoiceStage("guide");
+    setVoiceTranscript("");
+    setVoiceTarget(null);
+    setVoiceNeedsReplacement(false);
+    const editableStartDate = item.date < todayKey ? todayKey : item.date;
     setEditingItemId(item.id);
     setFormKind(item.kind);
     setFormTitle(item.title);
-    setFormDate(item.date);
+    setFormDate(editableStartDate);
+    setFormEndDate(item.endDate && item.endDate >= editableStartDate ? item.endDate : "");
     setFormTime(item.time);
     setFormDetail(item.detail);
     setFormRepeat(item.repeat);
@@ -422,32 +531,55 @@ export default function SchedulePage({
       setToast("请填写用药剂量或服用说明");
       return;
     }
+    if (formEndDate && formEndDate < formDate) {
+      setToast("结束日期不能早于开始日期");
+      return;
+    }
+    if (acceptanceScenario === "action-failure") {
+      setToast("保存失败，计划内容已保留，请稍后重试");
+      return;
+    }
 
+    const currentPlan = editingItemId ? items.find((item) => item.id === editingItemId) : undefined;
     const nextItem: ScheduleItem = {
       id: editingItemId ?? `self-${Date.now()}`,
       kind: formKind,
       title: formTitle.trim(),
       detail: formDetail.trim() || "到时间会提醒您。",
       date: formDate,
+      endDate: formRepeat === "once" ? formDate : formEndDate || undefined,
       time: formTime,
       status: "pending",
       repeat: formRepeat,
-      creationSource: "elder",
-      creatorName: "本人",
+      creationSource: currentPlan?.creationSource ?? "elder",
+      creatorName: currentPlan?.creatorName ?? "本人",
+      lastModifiedBy: editingItemId ? "本人" : undefined,
+      lastModifiedAt: editingItemId ? nowTime() : undefined,
     };
+    if (currentPlan) preserveOccurredInstances(currentPlan);
     setItems((current) => editingItemId
-      ? current.map((item) => item.id === editingItemId && item.creationSource === "elder"
-        ? { ...nextItem, status: item.status, completedAt: item.completedAt }
-        : item)
+      ? current.map((item) => item.id === editingItemId ? nextItem : item)
       : [...current, nextItem]);
+    onPlanUpsert?.(nextItem);
     setToast(editingItemId ? "提醒已更新" : "提醒已添加");
+    cancelVoiceRecognition();
+    setVoiceStage("guide");
+    setVoiceTranscript("");
+    setVoiceTarget(null);
+    setVoiceNeedsReplacement(false);
     setEditingItemId(null);
     setShowEditor(false);
   };
 
   const confirmDelete = () => {
-    if (!deleteItem || deleteItem.creationSource !== "elder") return;
+    if (!deleteItem) return;
+    if (acceptanceScenario === "action-failure") {
+      setToast("删除失败，原计划仍然保留，请稍后重试");
+      return;
+    }
+    preserveOccurredInstances(deleteItem);
     setItems((current) => current.filter((item) => item.id !== deleteItem.id));
+    onPlanDelete?.(deleteItem.id);
     setDeleteItem(null);
     setToast("提醒已删除，已发生的执行记录保持不变");
   };
@@ -457,24 +589,28 @@ export default function SchedulePage({
       setToast("确认失败，提醒状态未改变，请稍后重试");
       return;
     }
+    const instanceKey = occurrenceKey(item.id, item.date);
+    if (item.status === "completed" || occurrenceHistory[instanceKey]?.status === "completed" || completionLocksRef.current.has(instanceKey)) return;
+    completionLocksRef.current.add(instanceKey);
     const completedAt = nowTime();
-    setItems((current) =>
-      current.map((currentItem) =>
-        currentItem.id === item.id
-          ? { ...currentItem, status: "completed", completedAt }
-          : currentItem,
-      ),
-    );
+    setOccurrenceHistory((current) => ({
+      ...current,
+      [instanceKey]: { ...item, status: "completed", completedAt },
+    }));
+    setItems((current) => current.map((currentItem) => currentItem.id === item.id && currentItem.date === item.date
+      ? { ...currentItem, status: "completed", completedAt }
+      : currentItem));
     if (item.kind === "medication") onCompleteExternal?.(item.title);
-    const feedback = item.status === "unconfirmed"
-      ? "补打卡成功，已记录实际完成时间"
+    const feedback = isItemOverdue(item)
+      ? "超时事项已确认，已记录实际完成时间"
       : item.kind === "medication" ? "服药已记录" : "事项已确认，已记录";
     speak(feedback);
     setToast(feedback);
   };
 
   const requestCompleteItem = (item: ScheduleItem) => {
-    if (item.status === "unconfirmed") {
+    if (!canCompleteItem(item)) return;
+    if (isItemOverdue(item)) {
       setBackfillItem(item);
       return;
     }
@@ -494,25 +630,6 @@ export default function SchedulePage({
     });
   };
 
-  const speakItem = (item: ScheduleItem) => {
-    const action = item.kind === "medication" ? "用药提醒" : "日常提醒";
-    speak(`${action}，${item.time}，${item.title}。${item.detail}`);
-    setToast("正在大声念给您听");
-  };
-
-  const speakRemaining = () => {
-    if (selectedActionableItems.length === 0) {
-      speak("今天的任务已全部完成，真棒！");
-      setToast("今天的任务已全部完成");
-      return;
-    }
-    const summary = selectedActionableItems
-      .map((item) => `${item.time}，${item.title}，${item.detail}`)
-      .join("。");
-    speak(`${selectedDateTitle}还有${selectedActionableItems.length}件事。${summary}`);
-    setToast("正在播报剩余事项");
-  };
-
   const cancelVoiceRecognition = () => {
     const recognition = recognitionRef.current;
     if (!recognition) return;
@@ -524,25 +641,21 @@ export default function SchedulePage({
     recognitionRef.current = null;
   };
 
-  const closeVoiceAssistant = () => {
-    cancelVoiceRecognition();
-    setShowVoiceAssistant(false);
-    setVoiceStage("guide");
-    setVoiceTranscript("");
-  };
-
-  const startVoiceCreate = () => {
+  const closeEditor = () => {
     cancelVoiceRecognition();
     setVoiceStage("guide");
     setVoiceTranscript("");
-    setVoiceDate(selectedDateKey < todayKey ? todayKey : selectedDateKey);
-    setVoiceTime("09:00");
-    setShowVoiceAssistant(true);
-    speak("请先设置提醒日期和时间，再录音或填写提醒内容。");
+    setVoiceTarget(null);
+    setVoiceNeedsReplacement(false);
+    setEditingItemId(null);
+    setShowEditor(false);
   };
 
-  const beginVoiceRecognition = () => {
+  const beginVoiceRecognition = (target: VoiceTarget) => {
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    setVoiceTarget(target);
+    setVoiceTranscript("");
+    setVoiceNeedsReplacement(false);
     if (!Recognition) {
       setVoiceStage("unsupported");
       speak("当前设备暂时不能听写，您可以改用手动填写。");
@@ -565,8 +678,17 @@ export default function SchedulePage({
       const result = event.results[event.results.length - 1]?.[0]?.transcript?.trim() ?? "";
       setVoiceTranscript(result);
       if (result) {
+        const currentValue = target === "title" ? formTitle : formDetail;
+        const requiresReplacement = Boolean(currentValue.trim());
+        setVoiceNeedsReplacement(requiresReplacement);
+        if (!requiresReplacement) {
+          if (target === "title") setFormTitle(result);
+          else setFormDetail(result);
+        }
         setVoiceStage("guide");
-        speak(`我听到的提醒内容是，${result}。请检查时间和内容后确认添加。`);
+        speak(requiresReplacement
+          ? `我听到的是，${result}。请确认是否替换当前${target === "title" ? "名称" : "说明"}。`
+          : `我听到的是，${result}。已经填入${target === "title" ? "名称" : "说明"}，您可以继续修改。`);
       } else {
         setVoiceStage("error");
         speak("我没有听清提醒内容，请再说一次。");
@@ -593,37 +715,61 @@ export default function SchedulePage({
     }
   };
 
-  const confirmVoiceReminder = () => {
-    const title = voiceTranscript.trim();
-    if (!title) {
-      setToast("请先录音或填写提醒内容");
-      return;
-    }
-    setItems((current) => [
-      ...current,
-      {
-        id: `voice-${Date.now()}`,
-        kind: "life",
-        title,
-        detail: "到时间会大声提醒您。",
-        date: voiceDate,
-        time: voiceTime,
-        status: "pending",
-        repeat: "once",
-        creationSource: "elder",
-        creatorName: "本人",
-      },
-    ]);
-    setSelectedDateKey(voiceDate);
-    setCalendarMonth(new Date(`${voiceDate}T00:00:00`));
-    closeVoiceAssistant();
-    setToast("提醒已添加");
-    speak("提醒已经添加，到时间我会大声提醒您。");
+  const cancelCurrentRecording = () => {
+    cancelVoiceRecognition();
+    setVoiceStage("guide");
+    setVoiceTranscript("");
+    setVoiceTarget(null);
+    setVoiceNeedsReplacement(false);
   };
 
-  const switchVoiceToManual = () => {
-    closeVoiceAssistant();
-    openCreate();
+  const confirmVoiceReplacement = () => {
+    if (!voiceTarget || !voiceTranscript.trim()) return;
+    if (voiceTarget === "title") setFormTitle(voiceTranscript.trim());
+    else setFormDetail(voiceTranscript.trim());
+    setVoiceNeedsReplacement(false);
+    speak(`已经替换${voiceTarget === "title" ? "名称" : "说明"}，您可以继续修改。`);
+  };
+
+  const renderVoiceFieldFeedback = (target: VoiceTarget) => {
+    if (voiceTarget !== target) return null;
+    const fieldLabel = target === "title" ? "名称" : "说明";
+
+    if (voiceStage === "listening") {
+      return (
+        <div className="schedule-field-voice-status is-listening" role="status" aria-live="polite">
+          <AudioLines aria-hidden="true" />
+          <div><strong>正在听{fieldLabel}</strong><span>说完后点击“我说完了”</span></div>
+          <button type="button" onClick={() => recognitionRef.current?.stop()}>我说完了</button>
+          <button type="button" className="is-secondary" onClick={cancelCurrentRecording}>取消录音</button>
+        </div>
+      );
+    }
+
+    if (voiceStage === "error" || voiceStage === "unsupported") {
+      return (
+        <div className="schedule-field-voice-status is-error" role="alert">
+          <div>
+            <strong>{voiceStage === "unsupported" ? "当前设备暂时不能录音" : `刚才没有听清${fieldLabel}`}</strong>
+            <span>{voiceStage === "unsupported" ? "请继续手动填写，当前内容会保留。" : "可以重新录音，当前内容不会丢失。"}</span>
+          </div>
+          {voiceStage === "error" && <button type="button" onClick={() => beginVoiceRecognition(target)}><RotateCcw aria-hidden="true" />重新录音</button>}
+          <button type="button" className="is-secondary" onClick={cancelCurrentRecording}>继续手动填写</button>
+        </div>
+      );
+    }
+
+    if (!voiceTranscript.trim()) return null;
+    return (
+      <div className="schedule-field-voice-status is-result" role="status" aria-live="polite">
+        <div><strong>识别结果</strong><span>{voiceTranscript}</span></div>
+        {voiceNeedsReplacement
+          ? <button type="button" onClick={confirmVoiceReplacement}>替换当前{fieldLabel}</button>
+          : <span className="schedule-field-voice-status__saved">已填入，可继续编辑</span>}
+        <button type="button" className="is-secondary" onClick={() => beginVoiceRecognition(target)}>重新录音</button>
+        <button type="button" className="is-secondary" onClick={cancelCurrentRecording}>{voiceNeedsReplacement ? "保留原内容" : "收起"}</button>
+      </div>
+    );
   };
 
   if (!isOpen) return null;
@@ -636,7 +782,16 @@ export default function SchedulePage({
         onBack={onClose}
       />
 
-      <main className="schedule-page__main flex-1 min-h-0 p-6 flex gap-6">
+      <nav className="schedule-layer-tabs" aria-label="提醒事项查看方式">
+        <button type="button" className={activeLayer === "daily" ? "is-active" : ""} aria-pressed={activeLayer === "daily"} onClick={() => setActiveLayer("daily")}>
+          <CheckCircle2 aria-hidden="true" /><span><strong>每日待办</strong><small>按日期查看和完成当天事项</small></span>
+        </button>
+        <button type="button" className={activeLayer === "plans" ? "is-active" : ""} aria-pressed={activeLayer === "plans"} onClick={() => setActiveLayer("plans")}>
+          <CalendarDays aria-hidden="true" /><span><strong>提醒计划</strong><small>新增或管理后续提醒安排</small></span>
+        </button>
+      </nav>
+
+      {activeLayer === "daily" && <main className="schedule-page__main flex-1 min-h-0 p-6 flex gap-6">
         <section className="schedule-page__focus-column w-[35%] min-w-[500px] shrink-0 flex flex-col gap-4" aria-label="当前最优先和月历">
           <div className="schedule-priority rounded-[28px] border-2 border-[#A9D3BA] bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
@@ -693,54 +848,26 @@ export default function SchedulePage({
             </div>
           </div>
 
-          {SHOW_QUICK_ADD && (
-            <>
-              <div className="schedule-quick-add">
-                <button
-                  type="button"
-                  onClick={startVoiceCreate}
-                  className="schedule-voice-entry min-h-[112px] w-full rounded-[24px] border-2 border-[#16824F] bg-[#14533C] px-5 text-left text-white shadow-md flex items-center gap-4 hover:bg-[#0F6B40]"
-                >
-                  <span className="w-16 h-16 shrink-0 rounded-full bg-white text-[#16824F] flex items-center justify-center shadow-sm">
-                    <Plus className="w-9 h-9" />
-                  </span>
-                  <span className="min-w-0">
-                    <strong className="block text-[22px] leading-tight font-black">添加提醒</strong>
-                    <span className="mt-2 block text-[15px] leading-snug font-bold text-white/85">先设置时间，再录音或填写事项</span>
-                  </span>
-                </button>
-              </div>
-            </>
-          )}
         </section>
 
         <section className="schedule-agenda flex-1 min-w-0 rounded-[28px] border-2 border-[#E2DDD4] bg-white flex flex-col overflow-hidden" aria-label={`${selectedDateTitle}的日程`}>
           <div className="schedule-agenda__header shrink-0 px-7 py-5 border-b border-[#E8E2D9] flex items-center justify-between gap-5">
-            <h2 className="text-[28px] font-black">{selectedDateTitle}</h2>
-            <button type="button" onClick={speakRemaining} className="min-w-[190px] h-[66px] rounded-[20px] bg-[#14533C] text-white text-[19px] font-black flex items-center justify-center gap-3"><Volume2 className="w-7 h-7" />语音播报</button>
+            <div><small className="text-[15px] font-black text-[#3B8C68]">每日执行记录</small><h2 className="mt-1 text-[28px] font-black">{selectedDateTitle}</h2></div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 custom-scroll">
             <section aria-labelledby="medicine-plan-title">
-              <div className="flex items-center justify-between"><h3 id="medicine-plan-title" className="text-[23px] font-black flex items-center gap-3"><Pill className="w-7 h-7 text-[#B76500]" />用药提醒</h3><span className="text-[15px] font-black text-[#8A651C]">{selectedMedicationItems.filter((item) => item.status !== "completed" && item.status !== "expired").length} 次待服用</span></div>
+              <div className="flex items-center justify-between"><h3 id="medicine-plan-title" className="text-[23px] font-black flex items-center gap-3"><Pill className="w-7 h-7 text-[#B76500]" />用药提醒</h3><span className="text-[15px] font-black text-[#8A651C]">{selectedMedicationItems.filter((item) => item.status !== "completed").length} 次待服用</span></div>
               <div className="mt-4 space-y-4">
                 {selectedMedicationItems.filter((item) => item.status !== "completed").map((item) => (
                     <article key={`med-${item.id}`} className="schedule-item schedule-item--medication min-h-[180px] rounded-[24px] border-2 border-[#E9C98D] bg-[#FFFAEE] p-5 flex items-center gap-5">
                     <div className="w-20 h-20 rounded-[22px] bg-[#FFE6B8] text-[#B76500] flex items-center justify-center shrink-0"><Pill className="w-11 h-11" /></div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3"><strong className="text-[27px]">{item.time}</strong><span className={`px-3 py-1 rounded-full text-[14px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span><span className="rounded-full bg-white/75 px-3 py-1 text-[13px] font-black text-[#8A651C]">{repeatLabels[item.repeat]}</span></div>
+                      <div className="flex items-center gap-3"><strong className="text-[27px]">{item.time}</strong><span className={`px-3 py-1 rounded-full text-[14px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span></div>
                       <h4 className="mt-2 text-[25px] leading-tight font-black">{item.title}</h4><p className="mt-2 text-[18px] font-bold text-gray-600">{item.detail}</p>
                     </div>
-                    <div className="w-[220px] shrink-0 flex flex-col gap-2">
+                    <div className="w-[220px] shrink-0">
                       {canCompleteItem(item) ? <button type="button" onClick={() => requestCompleteItem(item)} className="w-full h-[64px] rounded-[18px] bg-[#16824F] text-white text-[20px] font-black flex items-center justify-center gap-2"><Check className="w-7 h-7" />{getCompletionLabel(item)}</button> : <span className="flex h-[58px] items-center justify-center rounded-[18px] bg-[#EEEAE3] text-[17px] font-black text-gray-600">{getDisplayStatus(item).label}</span>}
-                      {canManageDefinition(item) ? (
-                        <div className="grid grid-cols-2 gap-2">
-                          <button type="button" onClick={() => openEdit(item)} className="h-11 rounded-xl border-2 border-[#76BA95] bg-white text-[15px] font-black text-[#256F4F] flex items-center justify-center gap-1"><PenLine className="w-5 h-5" />编辑</button>
-                          <button type="button" onClick={() => setDeleteItem(item)} className="h-11 rounded-xl border-2 border-[#DCA7A3] bg-white text-[15px] font-black text-[#A23B34] flex items-center justify-center gap-1"><Trash2 className="w-5 h-5" />删除</button>
-                        </div>
-                      ) : (
-                        <button type="button" onClick={() => setDetailItem(item)} className="h-11 rounded-xl border-2 border-[#D6D2CB] bg-white text-[15px] font-black text-gray-600 flex items-center justify-center gap-2"><Eye className="w-5 h-5" />查看详情</button>
-                      )}
                     </div>
                   </article>
                 ))}
@@ -749,7 +876,7 @@ export default function SchedulePage({
             </section>
 
             <section className="mt-7 pt-6 border-t border-[#E8E2D9]" aria-labelledby="daily-plan-title">
-              <div className="flex items-center justify-between"><h3 id="daily-plan-title" className="text-[23px] font-black flex items-center gap-3"><CalendarDays className="w-7 h-7 text-[#376A94]" />日常提醒</h3><span className="text-[15px] font-black text-[#376A94]">{selectedDailyItems.filter((item) => item.status !== "completed" && item.status !== "expired").length} 件待处理</span></div>
+              <div className="flex items-center justify-between"><h3 id="daily-plan-title" className="text-[23px] font-black flex items-center gap-3"><CalendarDays className="w-7 h-7 text-[#376A94]" />日常提醒</h3><span className="text-[15px] font-black text-[#376A94]">{selectedDailyItems.filter((item) => item.status !== "completed").length} 件待处理</span></div>
               <div className="mt-4 space-y-4">
                 {selectedDailyItems.filter((item) => item.status !== "completed").map((item) => {
                   const Icon = kindConfig[item.kind].icon;
@@ -757,19 +884,11 @@ export default function SchedulePage({
                     <article key={`daily-${item.id}`} className="schedule-item schedule-item--daily min-h-[132px] rounded-[24px] border-2 border-[#C9DCEB] bg-[#F5FAFE] p-5 flex items-center gap-5">
                       <div className="w-[72px] h-[72px] rounded-[22px] bg-[#E5F0FA] text-[#376A94] flex items-center justify-center shrink-0"><Icon className="w-9 h-9" /></div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3"><strong className="text-[25px]">{item.time}</strong><span className={`rounded-full px-3 py-1 text-[13px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span><span className="rounded-full bg-white/75 px-3 py-1 text-[13px] font-black text-[#376A94]">{repeatLabels[item.repeat]}</span></div>
+                        <div className="flex items-center gap-3"><strong className="text-[25px]">{item.time}</strong><span className={`rounded-full px-3 py-1 text-[13px] font-black ${getDisplayStatus(item).className}`}>{getDisplayStatus(item).label}</span></div>
                         <h4 className="mt-2 text-[23px] leading-tight font-black">{item.title}</h4><p className="mt-2 text-[17px] font-bold text-gray-600 line-clamp-2">{item.detail}</p>
                       </div>
-                      <div className="w-[220px] shrink-0 flex flex-col gap-2">
+                      <div className="w-[220px] shrink-0">
                         {canCompleteItem(item) ? <button type="button" onClick={() => requestCompleteItem(item)} className="w-full h-[64px] rounded-[18px] bg-[#315F87] text-white text-[20px] font-black flex items-center justify-center gap-2"><Check className="w-7 h-7" />{getCompletionLabel(item)}</button> : <span className="flex h-[58px] items-center justify-center rounded-[18px] bg-[#EEEAE3] text-[17px] font-black text-gray-600">{getDisplayStatus(item).label}</span>}
-                        {canManageDefinition(item) ? (
-                          <div className="grid grid-cols-2 gap-2">
-                            <button type="button" onClick={() => openEdit(item)} className="h-11 rounded-xl border-2 border-[#8BB7D7] bg-white text-[15px] font-black text-[#315F87] flex items-center justify-center gap-1"><PenLine className="w-5 h-5" />编辑</button>
-                            <button type="button" onClick={() => setDeleteItem(item)} className="h-11 rounded-xl border-2 border-[#DCA7A3] bg-white text-[15px] font-black text-[#A23B34] flex items-center justify-center gap-1"><Trash2 className="w-5 h-5" />删除</button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => setDetailItem(item)} className="h-11 rounded-xl border-2 border-[#D6D2CB] bg-white text-[15px] font-black text-gray-600 flex items-center justify-center gap-2"><Eye className="w-5 h-5" />查看详情</button>
-                        )}
                       </div>
                     </article>
                   );
@@ -786,7 +905,49 @@ export default function SchedulePage({
             )}
           </div>
         </section>
-      </main>
+      </main>}
+
+      {activeLayer === "plans" && <main className="schedule-plans flex-1 min-h-0 p-6">
+        <section className="schedule-plans__panel">
+          <header className="schedule-plans__header">
+            <div>
+              <small>提醒定义</small>
+              <h2>提醒计划</h2>
+              <p>在这里设置名称、重复时间和起止范围。完成记录请到“每日待办”查看。</p>
+            </div>
+            {SHOW_QUICK_ADD && <div className="schedule-plans__actions">
+              <button type="button" className="is-primary" onClick={openCreate}><Plus aria-hidden="true" />新增提醒计划</button>
+            </div>}
+          </header>
+
+          <div className="schedule-plan-list custom-scroll">
+            {items.length === 0 ? <div className="schedule-plan-empty"><CalendarDays aria-hidden="true" /><strong>还没有提醒计划</strong><p>新增计划后，每天需要执行的事项会出现在“每日待办”。</p></div>
+              : items.map((item) => {
+                const Icon = kindConfig[item.kind].icon;
+                const planRange = item.repeat === "once"
+                  ? formatShortDate(item.date)
+                  : `${formatShortDate(item.date)}起${item.endDate ? `，至${formatShortDate(item.endDate)}` : "，长期"}`;
+                return <article key={`plan-${item.id}`} className={`schedule-plan-card schedule-plan-card--${item.kind}`}>
+                  <span className="schedule-plan-card__icon"><Icon aria-hidden="true" /></span>
+                  <div className="schedule-plan-card__body">
+                    <div><span>{item.kind === "medication" ? "用药计划" : "日常计划"}</span><span>{creationSourceLabels[item.creationSource]}</span>{item.lastModifiedBy && <span>最近由{item.lastModifiedBy}{item.lastModifiedAt ? ` ${item.lastModifiedAt}` : ""}修改</span>}</div>
+                    <h3>{item.title}</h3>
+                    <p>{item.detail}</p>
+                    <dl>
+                      <div><dt>提醒时间</dt><dd>{item.time}</dd></div>
+                      <div><dt>重复方式</dt><dd>{repeatLabels[item.repeat]}</dd></div>
+                      <div><dt>起止范围</dt><dd>{planRange}</dd></div>
+                    </dl>
+                  </div>
+                  <div className="schedule-plan-card__actions">
+                    <button type="button" onClick={() => openEdit(item)}><PenLine aria-hidden="true" />编辑计划</button>
+                    <button type="button" className="is-danger" onClick={() => setDeleteItem(item)}><Trash2 aria-hidden="true" />删除计划</button>
+                  </div>
+                </article>;
+              })}
+          </div>
+        </section>
+      </main>}
 
       {toast && (
         <div className="schedule-toast absolute top-[122px] left-1/2 -translate-x-1/2 z-[80] rounded-2xl bg-[#1C2C24] px-6 py-3 text-[16px] font-black text-white shadow-xl">
@@ -798,7 +959,7 @@ export default function SchedulePage({
         <div className="absolute inset-0 z-[90] bg-black/60 flex items-center justify-center p-8">
           <section role="dialog" aria-modal="true" aria-labelledby="backfill-dialog-title" className="w-[700px] overflow-hidden rounded-[32px] border-2 border-[#76BA95] bg-white shadow-2xl">
             <header className="px-8 py-6 border-b border-[#E2E8E4] bg-[#F2FAF5]">
-              <h2 id="backfill-dialog-title" className="text-[31px] font-black text-[#1C2C24]">确认补打卡</h2>
+              <h2 id="backfill-dialog-title" className="text-[31px] font-black text-[#1C2C24]">超时后确认</h2>
               <p className="mt-2 text-[18px] font-bold text-[#476557]">请确认这项提醒已经完成</p>
             </header>
             <div className="p-8">
@@ -810,39 +971,8 @@ export default function SchedulePage({
               <p className="mt-5 text-[17px] leading-relaxed font-bold text-gray-500">确认后将记录本次实际完成时间。</p>
             </div>
             <footer className="grid grid-cols-2 gap-4 px-8 py-6 border-t border-[#E2E8E4] bg-[#FAF8F5]">
-              <button type="button" onClick={() => setBackfillItem(null)} className="h-[68px] rounded-[18px] border-2 border-[#CFC8BD] bg-white text-[20px] font-black text-gray-600">暂不补打</button>
+              <button type="button" onClick={() => setBackfillItem(null)} className="h-[68px] rounded-[18px] border-2 border-[#CFC8BD] bg-white text-[20px] font-black text-gray-600">暂不确认</button>
               <button type="button" onClick={confirmBackfill} className="h-[68px] rounded-[18px] bg-[#16824F] text-white text-[20px] font-black flex items-center justify-center gap-3"><Check className="w-7 h-7" />{backfillItem.kind === "medication" ? "确认已服药" : "确认已完成"}</button>
-            </footer>
-          </section>
-        </div>
-      )}
-
-      {detailItem && (
-        <div className="absolute inset-0 z-[90] bg-black/60 flex items-center justify-center p-8">
-          <section role="dialog" aria-modal="true" aria-labelledby="schedule-detail-title" className="w-[700px] overflow-hidden rounded-[32px] border-2 border-[#8BB7D7] bg-white shadow-2xl">
-            <header className="px-8 py-6 border-b border-[#E2E8E4] bg-[#F4F8FB] flex items-center justify-between gap-5">
-              <div><h2 id="schedule-detail-title" className="text-[30px] font-black text-[#1C2C24]">提醒详情</h2><p className="mt-2 text-[17px] font-bold text-gray-500">创建来源仅在详情中展示</p></div>
-              <button type="button" onClick={() => setDetailItem(null)} aria-label="关闭提醒详情" className="w-12 h-12 rounded-full bg-white border-2 border-[#D9E3DD] text-gray-600 flex items-center justify-center"><X className="w-7 h-7" /></button>
-            </header>
-            <div className="px-8 pt-7 pb-6 space-y-4">
-              <div className="rounded-[24px] border-2 border-[#D7E2EA] bg-[#F7FAFC] px-6 py-5">
-                <p className="text-[18px] font-black text-[#315F87]">{detailItem.kind === "medication" ? "用药提醒" : "日常提醒"} · {repeatLabels[detailItem.repeat]}</p>
-                <h3 className="mt-3 text-[28px] leading-tight font-black text-[#1C2C24]">{detailItem.title}</h3>
-                <p className="mt-3 text-[19px] font-bold text-gray-600">{formatShortDate(detailItem.date)} {detailItem.time}</p>
-                <p className="mt-2 text-[18px] font-bold text-gray-600">{detailItem.detail}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4 rounded-[20px] bg-[#F3F0EA] px-5 py-4 text-[17px] font-bold text-gray-600">
-                <span>创建来源：{creationSourceLabels[detailItem.creationSource]}</span>
-                <span>创建人：{detailItem.creatorName}</span>
-              </div>
-              {detailItem.status === "expired" && (
-                <p className="rounded-[20px] bg-[#FFF3E8] px-5 py-4 text-[17px] leading-relaxed font-black text-[#8A4B20]">
-                  这条执行记录已过期，仅可查看，不能补打卡或修改历史结果。
-                </p>
-              )}
-            </div>
-            <footer className="px-8 py-5 border-t border-[#E2E8E4] bg-[#FAF8F5] flex justify-end">
-              <button type="button" onClick={() => setDetailItem(null)} className="h-[62px] min-w-[180px] rounded-[18px] bg-[#315F87] px-6 text-[19px] font-black text-white">知道了</button>
             </footer>
           </section>
         </div>
@@ -854,145 +984,11 @@ export default function SchedulePage({
             <header className="px-8 py-6 border-b border-[#F0D9D6] bg-[#FFF6F5]">
               <h2 id="delete-reminder-title" className="text-[30px] font-black text-[#7F2E29]">删除“{deleteItem.title}”？</h2>
             </header>
-            <div className="p-8"><p className="text-[19px] leading-relaxed font-bold text-gray-600">删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。</p></div>
+            <div className="p-8"><p className="text-[19px] leading-relaxed font-bold text-gray-600">删除后不再生成新的每日待办。已经产生的执行记录仍会保留，不会被改写。</p></div>
             <footer className="grid grid-cols-2 gap-4 px-8 py-6 border-t border-[#F0D9D6] bg-[#FAF8F5]">
               <button type="button" onClick={() => setDeleteItem(null)} className="h-[66px] rounded-[18px] border-2 border-[#CFC8BD] bg-white text-[19px] font-black text-gray-600">取消</button>
               <button type="button" onClick={confirmDelete} className="h-[66px] rounded-[18px] bg-[#A23B34] text-white text-[19px] font-black flex items-center justify-center gap-2"><Trash2 className="w-6 h-6" />删除提醒</button>
             </footer>
-          </section>
-        </div>
-      )}
-
-      {showVoiceAssistant && (
-        <div className="absolute inset-0 z-[75] bg-black/55 flex items-center justify-center p-6">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="voice-reminder-title"
-            className="schedule-voice-dialog w-[820px] overflow-hidden rounded-[32px] border-2 border-[#76BA95] bg-white shadow-2xl"
-          >
-            <header className="px-8 py-6 border-b border-[#E2E8E4] bg-[#F2FAF5] flex items-center justify-between gap-5">
-              <div className="flex items-center gap-4">
-                <span className="w-14 h-14 rounded-full bg-[#16824F] text-white flex items-center justify-center">
-                  <Mic className="w-8 h-8" />
-                </span>
-                <div>
-                  <h2 id="voice-reminder-title" className="text-[29px] leading-none font-black text-[#1C2C24]">添加提醒</h2>
-                  <p className="mt-2 text-[17px] font-bold text-[#476557]">先设置时间，再填写或录音输入提醒内容</p>
-                </div>
-              </div>
-              <button type="button" onClick={closeVoiceAssistant} aria-label="关闭添加提醒" className="w-12 h-12 rounded-full bg-white border-2 border-[#D9E3DD] text-gray-600 flex items-center justify-center">
-                <X className="w-7 h-7" />
-              </button>
-            </header>
-
-            <div className="p-8">
-              {voiceStage === "guide" && (
-                <>
-                  <div className="grid grid-cols-2 gap-5">
-                    <section className="schedule-reminder-step rounded-[24px] border-2 p-5" aria-labelledby="quick-reminder-time-title">
-                      <div className="flex items-center gap-3">
-                        <span className="w-10 h-10 rounded-full bg-[#14533C] text-white text-[19px] font-black flex items-center justify-center">1</span>
-                        <div>
-                          <h3 id="quick-reminder-time-title" className="text-[21px] font-black text-[#1C2C24]">设置提醒时间</h3>
-                          <p className="mt-1 text-[14px] font-bold text-[#567064]">日期和时间由您选择</p>
-                        </div>
-                      </div>
-                      <label htmlFor="quick-reminder-date" className="mt-5 block text-[15px] font-black text-[#315B49]">提醒日期</label>
-                      <input
-                        id="quick-reminder-date"
-                        type="date"
-                        min={todayKey}
-                        value={voiceDate}
-                        onChange={(event) => setVoiceDate(event.target.value)}
-                        className="schedule-reminder-input mt-2 h-14 w-full rounded-2xl border-2 px-4 text-[18px] font-black outline-none focus:border-[#16824F]"
-                      />
-                      <label htmlFor="quick-reminder-time" className="mt-4 block text-[15px] font-black text-[#315B49]">提醒时间</label>
-                      <input
-                        id="quick-reminder-time"
-                        type="time"
-                        value={voiceTime}
-                        onChange={(event) => setVoiceTime(event.target.value)}
-                        className="schedule-reminder-input mt-2 h-14 w-full rounded-2xl border-2 px-4 text-[21px] font-black outline-none focus:border-[#16824F]"
-                      />
-                    </section>
-
-                    <section className="schedule-reminder-step rounded-[24px] border-2 p-5" aria-labelledby="quick-reminder-content-title">
-                      <div className="flex items-center gap-3">
-                        <span className="w-10 h-10 rounded-full bg-[#14533C] text-white text-[19px] font-black flex items-center justify-center">2</span>
-                        <div>
-                          <h3 id="quick-reminder-content-title" className="text-[21px] font-black text-[#1C2C24]">填写提醒事项</h3>
-                          <p className="mt-1 text-[14px] font-bold text-[#6E675E]">可以自己填写，也可以录音</p>
-                        </div>
-                      </div>
-                      <label htmlFor="quick-reminder-content" className="mt-5 block text-[15px] font-black text-[#4D4943]">提醒内容</label>
-                      <textarea
-                        id="quick-reminder-content"
-                        value={voiceTranscript}
-                        onChange={(event) => setVoiceTranscript(event.target.value)}
-                        placeholder="例如：去社区医院复诊"
-                        rows={3}
-                        className="schedule-reminder-input mt-2 w-full resize-none rounded-2xl border-2 px-4 py-3 text-[18px] font-bold leading-relaxed outline-none focus:border-[#16824F]"
-                      />
-                      <button type="button" onClick={beginVoiceRecognition} className="mt-4 h-14 w-full rounded-2xl border-2 border-[#16824F] bg-white text-[17px] font-black text-[#14533C] flex items-center justify-center gap-3 hover:bg-[#F2FAF5]">
-                        <Mic className="w-7 h-7" />{voiceTranscript.trim() ? "重新录音" : "录音填写提醒内容"}
-                      </button>
-                    </section>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-[190px_1fr] gap-4">
-                    <button type="button" onClick={closeVoiceAssistant} className="h-[70px] rounded-[20px] border-2 border-[#CFC8BD] bg-white text-[19px] font-black text-gray-600">取消</button>
-                    <button
-                      type="button"
-                      onClick={confirmVoiceReminder}
-                      disabled={!voiceTranscript.trim() || !voiceDate || !voiceTime}
-                      className="h-[70px] rounded-[20px] bg-[#16824F] text-white text-[21px] font-black flex items-center justify-center gap-3 disabled:cursor-not-allowed disabled:bg-[#B8C4BD]"
-                    >
-                      <Check className="w-7 h-7" />确认添加
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {voiceStage === "listening" && (
-                <div className="py-5 text-center">
-                  <div className="voice-listening-orb mx-auto w-[150px] h-[150px] rounded-full bg-[#EAF6EF] border-4 border-[#63B687] text-[#16824F] flex flex-col items-center justify-center">
-                    <AudioLines className="w-16 h-16" />
-                    <span className="mt-1 flex h-8 items-center justify-center gap-1">
-                      <i className="w-1.5 rounded-full bg-[#16824F] animate-wave-short" />
-                      <i className="w-1.5 rounded-full bg-[#16824F] animate-wave-tall" />
-                      <i className="w-1.5 rounded-full bg-[#16824F] animate-wave-medium" />
-                      <i className="w-1.5 rounded-full bg-[#16824F] animate-wave-tall" />
-                      <i className="w-1.5 rounded-full bg-[#16824F] animate-wave-short" />
-                    </span>
-                  </div>
-                  <h3 className="mt-6 text-[31px] font-black text-[#1C2C24]">正在听提醒内容</h3>
-                  <p className="mt-3 text-[20px] font-bold text-gray-600">只需要说要做的事情，不用再说时间</p>
-                  <p className="voice-listening-example mt-5 rounded-2xl bg-[#F4F7F5] px-5 py-4 text-[19px] font-black text-[#476557]">例如：去社区医院复诊</p>
-                  <button type="button" onClick={() => recognitionRef.current?.stop()} className="mt-6 h-14 min-w-[190px] rounded-2xl border-2 border-[#D6DDD8] bg-white px-6 text-[18px] font-black text-gray-600">我说完了</button>
-                </div>
-              )}
-
-              {(voiceStage === "error" || voiceStage === "unsupported") && (
-                <div className="py-3 text-center">
-                  <span className="voice-error-icon mx-auto w-20 h-20 rounded-full bg-[#FFF2E7] text-[#B76500] flex items-center justify-center">
-                    <Mic className="w-10 h-10" />
-                  </span>
-                  <h3 className="mt-5 text-[28px] font-black text-[#1C2C24]">{voiceStage === "unsupported" ? "暂时不能录音" : "刚才没有听清提醒内容"}</h3>
-                  <p className="mt-3 text-[19px] leading-relaxed font-bold text-gray-600">
-                    {voiceStage === "unsupported" ? "可以返回直接填写提醒内容。" : "只需要重新说要做的事情。"}
-                  </p>
-                  {voiceStage === "error" && (
-                    <button type="button" onClick={beginVoiceRecognition} className="mt-6 w-full h-[82px] rounded-[24px] bg-[#16824F] text-white text-[24px] font-black flex items-center justify-center gap-3">
-                      <RotateCcw className="w-8 h-8" />重新录音
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setVoiceStage("guide")} className="mt-4 h-14 min-w-[240px] rounded-2xl border-2 border-[#D6DDD8] bg-white px-6 text-[18px] font-black text-[#476557]">
-                    返回填写提醒内容
-                  </button>
-                </div>
-              )}
-            </div>
           </section>
         </div>
       )}
@@ -1002,10 +998,10 @@ export default function SchedulePage({
           <form onSubmit={saveItem} className="schedule-editor w-[760px] max-h-[92%] overflow-hidden rounded-[28px] bg-white shadow-2xl flex flex-col">
             <div className="shrink-0 px-7 py-5 border-b border-[#E8E2D9] flex items-center justify-between">
               <div>
-                <h2 className="text-[25px] font-black">{editingItemId ? "编辑提醒" : "新增提醒"}</h2>
-                <p className="mt-1 text-[14px] font-bold text-gray-500">{editingItemId ? "修改仅影响后续尚未发生的提醒" : "选择用药提醒或日常提醒，到时会大声提醒您"}</p>
+                <h2 className="text-[25px] font-black">{editingItemId ? "编辑提醒计划" : "新增提醒计划"}</h2>
+                <p className="mt-1 text-[14px] font-bold text-gray-500">{editingItemId ? "修改仅影响未执行的后续提醒，已有执行记录保持不变" : "设置计划后，每日执行事项会显示在“每日待办”"}</p>
               </div>
-              <button type="button" onClick={() => { setShowEditor(false); setEditingItemId(null); }} aria-label="关闭提醒编辑" className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
+              <button type="button" onClick={closeEditor} aria-label="关闭提醒编辑" className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -1036,7 +1032,10 @@ export default function SchedulePage({
               </div>
 
               <div>
-                <label htmlFor="schedule-title" className="text-[16px] font-black">{formKind === "medication" ? "药品名称" : "事项名称"}</label>
+                <div className="schedule-field-heading">
+                  <label htmlFor="schedule-title" className="text-[16px] font-black">{formKind === "medication" ? "药品名称" : "事项名称"}</label>
+                  {!editingItemId && <button type="button" onClick={() => beginVoiceRecognition("title")} aria-label={`语音填写${formKind === "medication" ? "药品名称" : "事项名称"}`}><Mic aria-hidden="true" />语音输入</button>}
+                </div>
                 <input
                   id="schedule-title"
                   value={formTitle}
@@ -1044,16 +1043,21 @@ export default function SchedulePage({
                   placeholder={formKind === "medication" ? "例如：阿司匹林肠溶片" : "例如：下午去复诊"}
                   className="mt-2 w-full h-14 rounded-2xl border-2 border-[#DDD7CE] px-4 text-[17px] font-bold outline-none focus:border-[#3B8C68]"
                 />
+                {!editingItemId && renderVoiceFieldFeedback("title")}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="schedule-date" className="text-[16px] font-black">提醒日期</label>
+                  <label htmlFor="schedule-date" className="text-[16px] font-black">开始日期</label>
                   <input id="schedule-date" type="date" min={todayKey} value={formDate} onChange={(event) => setFormDate(event.target.value)} className="mt-2 w-full h-14 rounded-2xl border-2 border-[#DDD7CE] px-4 text-[17px] font-bold" />
                 </div>
                 <div>
                   <label htmlFor="schedule-time" className="text-[16px] font-black">提醒时间</label>
                   <input id="schedule-time" type="time" value={formTime} onChange={(event) => setFormTime(event.target.value)} className="mt-2 w-full h-14 rounded-2xl border-2 border-[#DDD7CE] px-4 text-[17px] font-bold" />
+                </div>
+                <div>
+                  <label htmlFor="schedule-end-date" className="text-[16px] font-black">结束日期</label>
+                  <input id="schedule-end-date" type="date" min={formDate} value={formRepeat === "once" ? formDate : formEndDate} disabled={formRepeat === "once"} onChange={(event) => setFormEndDate(event.target.value)} className="mt-2 w-full h-14 rounded-2xl border-2 border-[#DDD7CE] px-4 text-[17px] font-bold disabled:opacity-60" />
                 </div>
               </div>
 
@@ -1077,7 +1081,10 @@ export default function SchedulePage({
               </div>
 
               <div>
-                <label htmlFor="schedule-detail" className="text-[16px] font-black">{formKind === "medication" ? "剂量与服用说明" : "事项说明（选填）"}</label>
+                <div className="schedule-field-heading">
+                  <label htmlFor="schedule-detail" className="text-[16px] font-black">{formKind === "medication" ? "剂量与服用说明" : "事项说明（选填）"}</label>
+                  {!editingItemId && <button type="button" onClick={() => beginVoiceRecognition("detail")} aria-label={`语音填写${formKind === "medication" ? "剂量与服用说明" : "事项说明"}`}><Mic aria-hidden="true" />语音输入</button>}
+                </div>
                 <textarea
                   id="schedule-detail"
                   value={formDetail}
@@ -1085,13 +1092,14 @@ export default function SchedulePage({
                   placeholder={formKind === "medication" ? "例如：1片，饭后半小时温水送服" : "例如：复诊要带上病历卡"}
                   className="mt-2 w-full h-24 resize-none rounded-2xl border-2 border-[#DDD7CE] px-4 py-3 text-[16px] font-bold outline-none focus:border-[#3B8C68]"
                 />
+                {!editingItemId && renderVoiceFieldFeedback("detail")}
               </div>
 
             </div>
 
             <div className="shrink-0 px-7 py-5 border-t border-[#E8E2D9] flex justify-end gap-3 bg-[#FAF8F5]">
-              <button type="button" onClick={() => { setShowEditor(false); setEditingItemId(null); }} className="h-12 px-6 rounded-xl border-2 border-[#DDD7CE] bg-white text-[16px] font-black text-gray-600">取消</button>
-              <button type="submit" className="h-12 px-8 rounded-xl bg-[#14533C] text-white text-[16px] font-black">{editingItemId ? "保存修改" : "添加提醒"}</button>
+              <button type="button" onClick={closeEditor} className="h-12 px-6 rounded-xl border-2 border-[#DDD7CE] bg-white text-[16px] font-black text-gray-600">取消</button>
+              <button type="submit" className="h-12 px-8 rounded-xl bg-[#14533C] text-white text-[16px] font-black">{editingItemId ? "保存计划" : "添加计划"}</button>
             </div>
           </form>
         </div>

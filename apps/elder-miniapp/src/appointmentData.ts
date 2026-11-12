@@ -46,6 +46,14 @@ export type ServiceAssistanceRecord = {
   handledBy: string | null;
   handledAt: string | null;
   resultSummary: string | null;
+  familyContactStatus?: 'contacting' | 'appointment_confirmed' | 'not_appointed' | null;
+  familyContactBy?: { type: string; id?: string | null; name?: string | null } | null;
+  familyContactResult?: 'appointment_confirmed' | 'not_appointed' | null;
+  familyContactResultAt?: string | null;
+  appointmentAt?: string;
+  feeText?: string;
+  lastFamilyContactBy?: { type: string; id?: string | null; name?: string | null } | null;
+  lastFamilyContactAt?: string | null;
   familyHandlingStatus?: 'not_completed' | 'completed';
   handlingCompletedAt?: string | null;
   handlingCompletedBy?: string | null;
@@ -56,6 +64,13 @@ export type ServiceAssistanceRecord = {
   reminderTimes?: string[];
   lastRemindedAt?: string;
   review: { rating: number; text: string; elderId?: string; submittedAt: string; edited: boolean } | null;
+  workflowStage?: 'contact_pending_confirmation' | 'appointment_confirmed' | 'family_help_pending' | 'family_help_handling' | 'family_help_handled' | 'family_help_completed' | 'cancelled' | 'expired';
+  contactStartedAt?: string;
+  appointmentOutcome?: 'appointment_confirmed' | 'family_help_requested' | null;
+  appointmentOutcomeAt?: string | null;
+  familyHelpRequestedAt?: string | null;
+  familyHelpInquiry?: { askedAt: string; askedBy: { type: string; id?: string | null; name?: string | null } };
+  workflowEvents?: Array<{ id: string; type: string; createdAt: string; actorType: string; actorId?: string | null; actorName?: string | null; payload?: Record<string, unknown> }>;
 };
 
 export const appointmentCategories = serviceCatalog.categories as { code: AppointmentCategoryCode; name: string; order: number }[];

@@ -1,6 +1,7 @@
 declare module '*服务协助记录共享Mock.js' {
   export const serviceAssistanceExpiryMessage: string;
   export const serviceAssistanceExpiryMs: number;
+  export const serviceContactAnswers: { appointmentConfirmed: 'appointment_confirmed'; familyHelpRequested: 'family_help_requested' };
   export type ServiceAssistanceConfirmationCopy = { title: string; description: string; hint: string; confirmLabel: string; successMessage: string };
   export type ServiceReviewSummary = {
     count: number;
@@ -14,6 +15,12 @@ declare module '*服务协助记录共享Mock.js' {
   export function readSharedServiceAssistanceRecords(): Record<string, unknown>[];
   export function upsertSharedServiceAssistanceRecord<T extends Record<string, unknown>>(record: T): T;
   export function requestSharedServiceAssistance<T extends Record<string, unknown>>(record: T): { record: T; reminded: boolean; message: string };
+  export function startSharedServiceContact<T extends Record<string, unknown>>(record: T): { record: T; created: boolean };
+  export function answerSharedServiceContact<T extends Record<string, unknown>>(recordId: string, answer: string, actor?: Record<string, unknown>): { record: T | null; updated: boolean; familyHelpRequested?: boolean; reason?: string };
+  export function askSharedElderIfFamilyHelpNeeded<T extends Record<string, unknown>>(recordId: string, actor?: Record<string, unknown>): { record: T | null; asked: boolean; reason?: string };
+  export function claimSharedServiceAssistance<T extends Record<string, unknown>>(recordId: string, actor?: Record<string, unknown>): { record: T | null; claimed: boolean; reason?: string };
+  export function isFamilyAssistanceRecord(record?: Record<string, unknown> | null): boolean;
+  export function isPendingServiceContact(record?: Record<string, unknown> | null): boolean;
   export function updateSharedServiceAssistanceRecord(recordId: string, updates: Record<string, unknown>): Record<string, unknown> | null;
   export function canReviewServiceAssistance(record: Record<string, unknown> | null | undefined, elderId: string): boolean;
   export function submitSharedServiceReview<T extends Record<string, unknown>>(recordId: string, elderId: string, review: { rating: number; text: string }): T | null;

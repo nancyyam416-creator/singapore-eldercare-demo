@@ -280,6 +280,15 @@
 .interaction-acceptance-primary-action svg { width: 16px; height: 16px; }
 .interaction-acceptance-secondary-action { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 7px; border: 1px solid rgba(126, 151, 177, 0.34); border-radius: 10px; color: #c7d5e5; background: #13253b; font-size: 11px; font-weight: 850; cursor: pointer; }
 .interaction-acceptance-secondary-action svg { width: 15px; height: 15px; }
+.interaction-acceptance-debug { margin-top: 14px; border-top: 1px solid rgba(126, 151, 177, 0.18); padding-top: 10px; }
+.interaction-acceptance-debug > button { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; border: 1px solid rgba(126, 151, 177, 0.28); border-radius: 10px; color: #9eb0c5; background: rgba(19, 37, 59, 0.72); font-size: 11px; font-weight: 850; cursor: pointer; }
+.interaction-acceptance-debug > button > span { display: flex; align-items: center; gap: 7px; }
+.interaction-acceptance-debug > button svg { width: 15px; height: 15px; }
+.interaction-acceptance-debug > button > svg { transition: transform 160ms ease; }
+.interaction-acceptance-debug > button[aria-expanded="true"] { color: #efffec; border-color: rgba(105, 223, 88, 0.44); }
+.interaction-acceptance-debug > button[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.interaction-acceptance-debug__panel { margin-top: 8px; padding: 9px; border: 1px solid rgba(126, 151, 177, 0.22); border-radius: 10px; background: rgba(8, 22, 37, 0.76); }
+.interaction-acceptance-debug__panel h3 { margin: 0 0 8px; color: #b9c8d8; font-size: 10px; font-weight: 900; }
 .activation-contract-status { display: grid; gap: 6px; margin: 0; }
 .activation-contract-status > div { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 9px; border: 1px solid rgba(126, 151, 177, 0.22); border-radius: 9px; background: #13253b; }
 .activation-contract-status dt { color: #8fa2b8; font-size: 10px; font-weight: 800; }

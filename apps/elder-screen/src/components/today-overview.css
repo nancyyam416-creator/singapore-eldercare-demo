@@ -102,14 +102,10 @@
 .today-schedule-row.is-completed time { color: var(--color-green); }
 .today-schedule-row.is-completed .today-timeline-dot { background: var(--color-green); }
 .today-schedule-row.is-completed .today-schedule-card { border-color: color-mix(in oklch, var(--color-green), transparent 68%); background: color-mix(in oklch, var(--color-green-dark), transparent 62%); }
-.today-schedule-row.is-unconfirmed time,
-.today-schedule-state.is-unconfirmed { color: var(--color-amber); }
-.today-schedule-row.is-unconfirmed .today-timeline-dot { background: var(--color-amber); }
-.today-schedule-row.is-unconfirmed .today-schedule-card { border-color: color-mix(in oklch, var(--color-amber), transparent 58%); }
-.today-schedule-row.is-expired time,
-.today-schedule-state.is-expired { color: var(--color-red); }
-.today-schedule-row.is-expired .today-timeline-dot { background: var(--color-red); }
-.today-schedule-row.is-expired .today-schedule-card { border-color: color-mix(in oklch, var(--color-red), transparent 66%); background: color-mix(in oklch, var(--color-red-deep), transparent 72%); }
+.today-schedule-row.is-overdue time,
+.today-schedule-state.is-overdue { color: var(--color-amber); }
+.today-schedule-row.is-overdue .today-timeline-dot { background: var(--color-amber); }
+.today-schedule-row.is-overdue .today-schedule-card { border-color: color-mix(in oklch, var(--color-amber), transparent 58%); }
 .today-schedule-state.is-not-yet { color: var(--color-text-muted); }
 .today-schedule-state.is-pending { color: var(--color-blue); }
 .today-offline-note { min-height: 46px; display: flex; align-items: center; gap: 10px; margin: 20px 0 0 104px; color: var(--color-text-muted); font-size: 16px; font-weight: 750; }

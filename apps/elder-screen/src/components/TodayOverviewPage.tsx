@@ -20,7 +20,7 @@ import {
 import "./today-overview.css";
 import { getEntertainmentContentById } from "../entertainment-content";
 
-type ScheduleStatus = "not-yet" | "pending" | "completed" | "unconfirmed" | "expired";
+type ScheduleStatus = "not-yet" | "pending" | "completed";
 export type RecommendationKind = "security" | "community" | "service" | "entertainment";
 
 interface TodayOverviewPageProps {
@@ -47,6 +47,7 @@ interface OverviewSchedule {
   time: string;
   title: string;
   status: ScheduleStatus;
+  isOverdue?: boolean;
   Icon: LucideIcon;
 }
 
@@ -70,8 +71,8 @@ const entertainmentRecommendationContent = getEntertainmentContentById("ENT-002"
 
 const defaultSchedules: OverviewSchedule[] = [
   { id: "morning-med", time: "08:00", title: "早上药", status: "completed", Icon: Pill },
-  { id: "glucose", time: "10:30", title: "测血糖", status: "unconfirmed", Icon: HeartPulse },
-  { id: "noon-med", time: "12:00", title: "中午药", status: "expired", Icon: Pill },
+  { id: "glucose", time: "10:30", title: "测血糖", status: "pending", isOverdue: true, Icon: HeartPulse },
+  { id: "noon-med", time: "12:00", title: "中午药", status: "pending", isOverdue: true, Icon: Pill },
   { id: "walk", time: "14:00", title: "下午散步", status: "pending", Icon: Footprints },
   { id: "news", time: "19:30", title: "收看新闻联播", status: "not-yet", Icon: Tv2 },
 ];
@@ -130,7 +131,12 @@ export const TODAY_OVERVIEW_RECOMMENDATIONS = recommendations;
 function readStoredStatuses() {
   try {
     const stored = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
-    return stored ? JSON.parse(stored) as Record<string, ScheduleStatus> : {};
+    if (!stored) return {};
+    const parsed = JSON.parse(stored) as Record<string, string>;
+    return Object.fromEntries(Object.entries(parsed).map(([id, status]) => [
+      id,
+      ["expired", "unconfirmed"].includes(status) ? "pending" : status,
+    ])) as Record<string, ScheduleStatus>;
   } catch {
     return {};
   }
@@ -183,7 +189,7 @@ export default function TodayOverviewPage({
 
   const sortedSchedules = useMemo(() => defaultSchedules
     .map((item) => ({ ...item, status: scheduleStatuses[item.id] ?? item.status }))
-    .filter((item) => item.status !== "expired" && item.status !== "completed")
+    .filter((item) => item.status !== "completed")
     .sort((first, second) => first.time.localeCompare(second.time)), [scheduleStatuses]);
 
   const sortedRecommendations = useMemo(() => [...recommendations].sort((first, second) => first.priority - second.priority), []);
@@ -240,13 +246,13 @@ export default function TodayOverviewPage({
     const timer = window.setTimeout(() => {
       setPendingSyncIds([]);
       window.localStorage.setItem(SYNC_QUEUE_STORAGE_KEY, "[]");
-      setSyncNotice("离线补打记录已同步");
+      setSyncNotice("离线确认记录已同步");
       window.setTimeout(() => setSyncNotice(""), 3000);
     }, 900);
     return () => window.clearTimeout(timer);
   }, [isOnline, pendingSyncIds]);
 
-  const handleBackfill = (scheduleId: string) => {
+  const handleOverdueConfirm = (scheduleId: string) => {
     const nextStatuses = { ...scheduleStatuses, [scheduleId]: "completed" as const };
     setScheduleStatuses(nextStatuses);
     window.localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(nextStatuses));
@@ -327,17 +333,15 @@ export default function TodayOverviewPage({
           <div className="today-timeline">
             {sortedSchedules.map((item) => {
               const isDone = item.status === "completed";
-              const canBackfill = item.status === "unconfirmed";
+              const canConfirmAfterTimeout = item.status === "pending" && item.isOverdue;
               const isPendingSync = pendingSyncIds.includes(item.id);
               const statusLabel: Record<ScheduleStatus, string> = {
                 "not-yet": "未到时间",
                 pending: "待完成",
                 completed: "已完成",
-                unconfirmed: "未确认",
-                expired: "已过期",
               };
               return (
-                <article key={item.id} className={`today-schedule-row is-${item.status}`}>
+                <article key={item.id} className={`today-schedule-row is-${item.status}${canConfirmAfterTimeout ? " is-overdue" : ""}`}>
                   <time>{item.time}</time>
                   <span className="today-timeline-dot" aria-hidden="true" />
                   <div className="today-schedule-card">
@@ -345,10 +349,10 @@ export default function TodayOverviewPage({
                       <item.Icon aria-hidden="true" />
                       <strong>{item.title}</strong>
                     </div>
-                    {canBackfill && (
+                    {canConfirmAfterTimeout && (
                       <div className="today-schedule-action">
-                        <span className="today-schedule-state is-unconfirmed">{statusLabel[item.status]}</span>
-                        <button type="button" onClick={() => handleBackfill(item.id)}>补打卡</button>
+                        <span className="today-schedule-state is-overdue">待完成 · 已超时</span>
+                        <button type="button" onClick={() => handleOverdueConfirm(item.id)}>超时后确认</button>
                       </div>
                     )}
                     {isDone && (
@@ -358,7 +362,7 @@ export default function TodayOverviewPage({
                         {isPendingSync && <small>待联网同步</small>}
                       </span>
                     )}
-                    {!isDone && !canBackfill && (
+                    {!isDone && !canConfirmAfterTimeout && (
                       <span className={`today-schedule-state is-${item.status}`}>{statusLabel[item.status]}</span>
                     )}
                   </div>

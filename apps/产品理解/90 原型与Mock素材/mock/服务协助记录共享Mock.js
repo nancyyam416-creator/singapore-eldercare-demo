@@ -1,6 +1,85 @@
 export const serviceAssistanceExpiryMessage = "家人暂未处理，您可以重新请家人帮忙。";
 export const serviceAssistanceExpiryMs = 48 * 60 * 60 * 1000;
 
+export const serviceContactAnswers = {
+  appointmentConfirmed: "appointment_confirmed",
+  familyHelpRequested: "family_help_requested",
+};
+
+export const servicePhoneActionTypes = {
+  phoneViewed: "phone_viewed",
+  callStarted: "call_started",
+};
+
+export const serviceContactActorTypes = {
+  elder: "elder",
+  child: "child",
+};
+
+export const familyServiceContactResults = {
+  appointmentConfirmed: "appointment_confirmed",
+  notAppointed: "not_appointed",
+};
+
+export const serviceContactEventTypes = {
+  serviceCallStarted: "service_call_started",
+  familyHelpInquirySent: "family_help_inquiry_sent",
+  elderAppointmentConfirmed: "elder_appointment_confirmed",
+  elderFamilyHelpRequested: "elder_family_help_requested",
+  familyHelpRequested: "family_help_requested",
+  familyHelpReminded: "family_help_reminded",
+  familyHelpClaimed: "family_help_claimed",
+  familyServiceContactStarted: "family_service_contact_started",
+  familyServiceContactResultSubmitted: "family_service_contact_result_submitted",
+};
+
+export const shouldCreateServiceContactRecord = (phoneActionType) => phoneActionType === servicePhoneActionTypes.callStarted;
+
+const familyWorkflowStages = new Set([
+  "family_help_pending",
+  "family_help_handling",
+  "family_help_handled",
+  "family_help_completed",
+  "cancelled",
+  "expired",
+]);
+
+const createWorkflowEvent = (type, actor = {}, createdAt = new Date().toISOString(), payload = {}) => ({
+  id: `SERVICE-EVENT-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+  type,
+  actorType: actor.type || "system",
+  actorId: actor.id || null,
+  actorName: actor.name || null,
+  createdAt,
+  payload,
+});
+
+const appendWorkflowEvent = (record, event) => ({
+  ...record,
+  workflowEvents: [...(Array.isArray(record.workflowEvents) ? record.workflowEvents : []), event],
+});
+
+const familyStageFromRecord = (record) => {
+  if ((record.familyHandlingStatus ?? (record.serviceStatus === "completed" ? "completed" : "not_completed")) === "completed") return "family_help_completed";
+  if (record.status === "expired") return "expired";
+  if (record.status === "cancelled") return "cancelled";
+  if (record.status === "handled") return "family_help_handled";
+  if (record.status === "handling") return "family_help_handling";
+  return "family_help_pending";
+};
+
+export const isFamilyAssistanceRecord = (record) => Boolean(record && (
+  record.familyHelpRequestedAt
+  || familyWorkflowStages.has(record.workflowStage)
+  // 没有新流程字段的是历史家人协助记录，继续按旧契约读取。
+  || (!record.workflowStage && !record.contactStartedAt)
+));
+
+export const isPendingServiceContact = (record) => Boolean(record
+  && !isFamilyAssistanceRecord(record)
+  && record.workflowStage === "contact_pending_confirmation"
+  && !record.appointmentOutcome);
+
 // 新发起记录保存服务项的展示快照；后续目录编辑不得反写历史记录。
 export const createServiceAssistanceSnapshot = (service, serviceItem) => ({
   id: service?.id || "",
@@ -15,8 +94,15 @@ export const createServiceAssistanceSnapshot = (service, serviceItem) => ({
 export const normalizeServiceAssistanceRecord = (record, now = Date.now()) => {
   // 旧字段是家人确认动作的历史命名，不代表服务商履约证据。
   record = { ...record, familyHandlingStatus: record.familyHandlingStatus ?? (record.serviceStatus === "completed" ? "completed" : "not_completed"), handlingCompletedAt: record.handlingCompletedAt ?? record.completedAt ?? null, handlingCompletedBy: record.handlingCompletedBy ?? record.completedBy ?? null };
-  const sentAt = Date.parse(record.requestedAt);
-  if (["pending", "handling"].includes(record.status) && !record.resultSummary?.trim() && Number.isFinite(sentAt) && now - sentAt >= serviceAssistanceExpiryMs) {
+  const isFamilyAssistance = isFamilyAssistanceRecord(record);
+  const workflowStage = isFamilyAssistance
+    ? familyStageFromRecord(record)
+    : record.appointmentOutcome === serviceContactAnswers.appointmentConfirmed
+      ? "appointment_confirmed"
+      : "contact_pending_confirmation";
+  record = { ...record, workflowStage };
+  const sentAt = Date.parse(record.familyHelpRequestedAt || record.requestedAt);
+  if (isFamilyAssistance && ["pending", "handling"].includes(record.status) && !record.resultSummary?.trim() && Number.isFinite(sentAt) && now - sentAt >= serviceAssistanceExpiryMs) {
     return { ...record, status: "expired", expiredAt: new Date(sentAt + serviceAssistanceExpiryMs).toISOString() };
   }
   return record;
@@ -24,7 +110,7 @@ export const normalizeServiceAssistanceRecord = (record, now = Date.now()) => {
 
 export const getLatestServiceAssistanceRecord = (records, elderId, serviceId) => records
   .map((record) => normalizeServiceAssistanceRecord(record))
-  .filter((record) => (!elderId || record.elder?.id === elderId) && record.service?.id === serviceId)
+  .filter((record) => isFamilyAssistanceRecord(record) && (!elderId || record.elder?.id === elderId) && record.service?.id === serviceId)
   .sort((first, second) => Number(isActiveServiceAssistance(second)) - Number(isActiveServiceAssistance(first)) || second.requestedAt.localeCompare(first.requestedAt))[0] ?? null;
 
 export const getServiceAssistanceConfirmationCopy = (record) => {
@@ -35,7 +121,7 @@ export const getServiceAssistanceConfirmationCopy = (record) => {
     description: "确认发送后开始计时。家人将协助联系服务商，并提交处理结果。",
     hint: "48 小时内未处理将自动失效，您可以重新发起。",
   };
-  if (!record || record.status === "cancelled") return defaultCopy;
+  if (!record || record.status === "cancelled" || !isFamilyAssistanceRecord(record)) return defaultCopy;
   if (record.status === "expired") return { ...defaultCopy, hint: serviceAssistanceExpiryMessage };
   if (isActiveServiceAssistance(record)) return {
     title: "已通知过家人，要再提醒一次吗？",
@@ -133,6 +219,8 @@ export const updateSharedServiceAssistanceRecord = (recordId, updates) => {
   let updated = null;
   const records = readSharedServiceAssistanceRecords().map((record) => {
     if (record.id !== recordId || record.status === "expired") return record;
+    // 旧消费者即使误读到拨号待确认记录，也不能把它直接接手或提交为家人协助结果。
+    if (!isFamilyAssistanceRecord(record) && (["handling", "handled"].includes(updates.status) || updates.familyHandlingStatus === "completed" || updates.review)) return record;
     if (updates.familyHandlingStatus === "completed" && (record.status !== "handled" || !updates.handlingCompletedBy || !updates.handlingCompletedAt || record.familyHandlingStatus === "completed")) return record;
     if (updates.review && (record.status !== "handled" || record.familyHandlingStatus !== "completed" || !record.handlingCompletedBy || !record.handlingCompletedAt || record.review || updates.review.elderId !== record.elder.id)) return record;
     updated = { ...record, ...updates };
@@ -175,20 +263,290 @@ export const submitSharedServiceReview = (recordId, elderId, review) => {
   return updateSharedServiceAssistanceRecord(recordId, { review: { rating: review.rating, text: String(review.text || "").trim().slice(0, 100), elderId, submittedAt: new Date().toISOString(), edited: false } });
 };
 
-export const isActiveServiceAssistance = (record) => Boolean(record && ["pending", "handling", "handled"].includes(record.status) && (record.familyHandlingStatus ?? (record.serviceStatus === "completed" ? "completed" : "not_completed")) !== "completed");
+export const isActiveServiceAssistance = (record) => Boolean(record
+  && isFamilyAssistanceRecord(record)
+  && ["pending", "handling", "handled"].includes(record.status)
+  && (record.familyHandlingStatus ?? (record.serviceStatus === "completed" ? "completed" : "not_completed")) !== "completed");
+
+// 点击拨号只记录“已发起联系”，不代表接通、已预约或已进入家人协助。
+export const startSharedServiceContact = (candidate) => {
+  const phoneActionType = candidate.phoneActionType || servicePhoneActionTypes.callStarted;
+  if (!shouldCreateServiceContactRecord(phoneActionType)) return { record: null, created: false, reason: "phone_view_only" };
+  const records = readSharedServiceAssistanceRecords();
+  const duplicate = records.find((record) => record.id === candidate.id);
+  if (duplicate) return { record: duplicate, created: false };
+  const contactStartedAt = candidate.contactStartedAt || candidate.requestedAt || new Date().toISOString();
+  const actor = candidate.contactStartedBy || { type: "elder", id: candidate.elder?.id, name: candidate.elder?.name };
+  const record = appendWorkflowEvent({
+    ...candidate,
+    requestedAt: candidate.requestedAt || contactStartedAt,
+    contactStartedAt,
+    contactStartedBy: actor,
+    phoneActionType,
+    contactSource: candidate.contactSource || actor.type || serviceContactActorTypes.elder,
+    workflowStage: "contact_pending_confirmation",
+    appointmentOutcome: null,
+    appointmentOutcomeAt: null,
+    familyHelpRequestedAt: null,
+    familyHelpRequestedBy: null,
+    status: "pending",
+    familyHandlingStatus: "not_completed",
+    serviceStatus: "not_completed",
+  }, createWorkflowEvent("service_call_started", actor, contactStartedAt, { phone: candidate.provider?.phone || "", phoneActionType }));
+  writeRecords([record, ...records]);
+  return { record, created: true };
+};
+
+// 老人答复只有两种；不调用本接口即继续保持待确认，待确认阶段不启动 48 小时计时。
+export const answerSharedServiceContact = (recordId, answer, actor = {}) => {
+  if (![serviceContactAnswers.appointmentConfirmed, serviceContactAnswers.familyHelpRequested].includes(answer)) return { record: null, updated: false, reason: "invalid_answer" };
+  const records = readSharedServiceAssistanceRecords();
+  const current = records.find((record) => record.id === recordId);
+  if (!current) return { record: null, updated: false, reason: "not_found" };
+  const normalized = normalizeServiceAssistanceRecord(current);
+  if (!isPendingServiceContact(normalized)) return { record: normalized, updated: false, reason: "already_resolved" };
+  const answeredAt = new Date().toISOString();
+  const responder = { type: actor.type || "elder", id: actor.id || current.elder?.id, name: actor.name || current.elder?.name };
+  const eventType = answer === serviceContactAnswers.appointmentConfirmed ? "elder_appointment_confirmed" : "elder_family_help_requested";
+  const next = appendWorkflowEvent(answer === serviceContactAnswers.appointmentConfirmed ? {
+    ...current,
+    workflowStage: "appointment_confirmed",
+    appointmentOutcome: answer,
+    appointmentOutcomeAt: answeredAt,
+    appointmentOutcomeBy: responder,
+    status: "handled",
+    handledAt: answeredAt,
+    resultSummary: "老人确认已约好",
+  } : {
+    ...current,
+    workflowStage: "family_help_pending",
+    appointmentOutcome: answer,
+    appointmentOutcomeAt: answeredAt,
+    appointmentOutcomeBy: responder,
+    familyHelpRequestedAt: answeredAt,
+    familyHelpRequestedBy: responder,
+    requestReason: current.requestReason || "没约好，请家人帮忙",
+    status: "pending",
+    handledBy: null,
+    handledAt: null,
+    resultSummary: null,
+    familyHandlingStatus: "not_completed",
+    serviceStatus: "not_completed",
+  }, createWorkflowEvent(eventType, responder, answeredAt));
+  writeRecords(records.map((record) => record.id === recordId ? next : record));
+  return { record: next, updated: true, familyHelpRequested: answer === serviceContactAnswers.familyHelpRequested };
+};
+
+// 多位家人共享同一询问结果；待老人答复期间只保留一条未决询问，避免重复打扰。
+export const askSharedElderIfFamilyHelpNeeded = (recordId, actor = {}) => {
+  const records = readSharedServiceAssistanceRecords();
+  const current = records.find((record) => record.id === recordId);
+  if (!current) return { record: null, asked: false, reason: "not_found" };
+  const normalized = normalizeServiceAssistanceRecord(current);
+  if (!isPendingServiceContact(normalized)) return { record: normalized, asked: false, reason: "already_resolved" };
+  const existingInquiry = [...(current.workflowEvents || [])].reverse().find((event) => event.type === "family_help_inquiry_sent");
+  if (existingInquiry) return { record: normalized, asked: false, reason: "inquiry_already_sent", inquiry: existingInquiry };
+  const askedAt = new Date().toISOString();
+  const asker = { type: "child", id: actor.id || null, name: actor.name || null };
+  const inquiry = createWorkflowEvent("family_help_inquiry_sent", asker, askedAt);
+  const next = appendWorkflowEvent({ ...current, familyHelpInquiry: { askedAt, askedBy: asker } }, inquiry);
+  writeRecords(records.map((record) => record.id === recordId ? next : record));
+  return { record: next, asked: true, inquiry };
+};
+
+const normalizeFamilyContactActor = (actor = {}) => ({
+  type: serviceContactActorTypes.child,
+  id: actor.id || null,
+  name: actor.name || "",
+});
+
+const isSameFamilyContactActor = (first, second) => Boolean(first && second && (
+  (first.id && second.id && first.id === second.id)
+  || ((!first.id || !second.id) && first.name && first.name === second.name)
+));
+
+const acquireServiceRecordLock = (recordId) => {
+  if (!isBrowser()) return () => {};
+  const key = `u2g-service-record-lock:${recordId}`;
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const now = Date.now();
+  try {
+    const current = JSON.parse(window.localStorage.getItem(key) || "null");
+    if (current?.expiresAt > now) return null;
+    window.localStorage.setItem(key, JSON.stringify({ token, expiresAt: now + 5000 }));
+    const acquired = JSON.parse(window.localStorage.getItem(key) || "null");
+    if (acquired?.token !== token) return null;
+    return () => {
+      try {
+        const latest = JSON.parse(window.localStorage.getItem(key) || "null");
+        if (latest?.token === token) window.localStorage.removeItem(key);
+      } catch {
+        // 锁会在 5 秒后自动过期，不影响记录继续使用。
+      }
+    };
+  } catch {
+    return null;
+  }
+};
+
+// 子女点击“打电话帮忙约”时原子进入联系状态；不再要求先执行独立接手动作。
+const startSharedFamilyServiceContactUnlocked = (recordId, actor = {}) => {
+  const records = readSharedServiceAssistanceRecords();
+  const current = records.find((record) => record.id === recordId);
+  if (!current) return { record: null, started: false, reason: "not_found" };
+  const normalized = normalizeServiceAssistanceRecord(current);
+  const contactActor = normalizeFamilyContactActor(actor);
+  if (!contactActor.id && !contactActor.name) return { record: normalized, started: false, reason: "invalid_actor" };
+  if (!isActiveServiceAssistance(normalized)) return { record: normalized, started: false, reason: "not_contactable" };
+  if (normalized.status === "handling" || normalized.familyContactStatus === "contacting") {
+    const currentActor = normalized.familyContactBy || { id: normalized.claimedById || null, name: normalized.handledBy || "" };
+    if (isSameFamilyContactActor(currentActor, contactActor)) return { record: normalized, started: true, reused: true, reason: "already_contacting_by_self", currentContact: { actor: currentActor, startedAt: normalized.familyContactStartedAt || normalized.claimedAt || null } };
+    return { record: normalized, started: false, reason: "contacting_by_other", currentContact: { actor: currentActor, startedAt: normalized.familyContactStartedAt || normalized.claimedAt || null } };
+  }
+  if (normalized.status !== "pending") return { record: normalized, started: false, reason: "not_contactable" };
+  const startedAt = new Date().toISOString();
+  const next = appendWorkflowEvent({
+    ...current,
+    workflowStage: "family_help_handling",
+    status: "handling",
+    familyContactStatus: "contacting",
+    familyContactBy: contactActor,
+    familyContactStartedAt: startedAt,
+    familyContactResult: null,
+    familyContactResultAt: null,
+    appointmentAt: "",
+    feeText: "",
+    // 兼容历史接手字段；新流程不再单独展示接手动作。
+    handledBy: contactActor.name || "家人",
+    claimedById: contactActor.id,
+    claimedAt: startedAt,
+    handledAt: null,
+    resultSummary: null,
+  }, createWorkflowEvent(serviceContactEventTypes.familyServiceContactStarted, contactActor, startedAt));
+  writeRecords(records.map((record) => record.id === recordId ? next : record));
+  return { record: next, started: true, reused: false, currentContact: { actor: contactActor, startedAt } };
+};
+
+export const startSharedFamilyServiceContact = (recordId, actor = {}) => {
+  const release = acquireServiceRecordLock(recordId);
+  if (!release) return { record: readSharedServiceAssistanceRecords().find((record) => record.id === recordId) || null, started: false, reason: "record_busy" };
+  try {
+    return startSharedFamilyServiceContactUnlocked(recordId, actor);
+  } finally {
+    release();
+  }
+};
+
+// 家人拨号后手动回填联系结果；拨号本身不会自动提交结果或完成工单。
+const submitSharedFamilyServiceContactResultUnlocked = (recordId, result, actor = {}, details = {}) => {
+  if (![familyServiceContactResults.appointmentConfirmed, familyServiceContactResults.notAppointed].includes(result)) return { record: null, submitted: false, reason: "invalid_result" };
+  const records = readSharedServiceAssistanceRecords();
+  const current = records.find((record) => record.id === recordId);
+  if (!current) return { record: null, submitted: false, reason: "not_found" };
+  const normalized = normalizeServiceAssistanceRecord(current);
+  const contactActor = normalizeFamilyContactActor(actor);
+  if (!contactActor.id && !contactActor.name) return { record: normalized, submitted: false, reason: "invalid_actor" };
+  const currentActor = normalized.familyContactBy || { id: normalized.claimedById || null, name: normalized.handledBy || "" };
+  if (normalized.status !== "handling" && normalized.familyContactStatus !== "contacting") return { record: normalized, submitted: false, reason: "not_contacting" };
+  if (!isSameFamilyContactActor(currentActor, contactActor)) return { record: normalized, submitted: false, reason: "not_current_contact_actor", currentContact: { actor: currentActor, startedAt: normalized.familyContactStartedAt || normalized.claimedAt || null } };
+  const submittedAt = new Date().toISOString();
+  const appointmentAt = String(details.appointmentAt || "").trim().slice(0, 80);
+  const feeText = String(details.feeText || "").trim().slice(0, 80);
+  const note = String(details.note || "").trim().slice(0, 300);
+  const attempt = {
+    id: `FAMILY-CONTACT-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+    actor: contactActor,
+    startedAt: normalized.familyContactStartedAt || normalized.claimedAt || submittedAt,
+    result,
+    submittedAt,
+    appointmentAt,
+    feeText,
+    note,
+  };
+  const appointmentConfirmed = result === familyServiceContactResults.appointmentConfirmed;
+  const resultSummary = note || ["已联系服务商并约好", appointmentAt && `时间：${appointmentAt}`, feeText && `费用：${feeText}`].filter(Boolean).join("；");
+  const next = appendWorkflowEvent(appointmentConfirmed ? {
+    ...current,
+    workflowStage: "family_help_handled",
+    status: "handled",
+    familyContactStatus: result,
+    familyContactBy: contactActor,
+    familyContactResult: result,
+    familyContactResultAt: submittedAt,
+    appointmentAt,
+    feeText,
+    familyContactAttempts: [...(current.familyContactAttempts || []), attempt],
+    handledBy: contactActor.name || "家人",
+    handledAt: submittedAt,
+    resultSummary,
+  } : {
+    ...current,
+    workflowStage: "family_help_pending",
+    status: "pending",
+    familyContactStatus: result,
+    familyContactBy: contactActor,
+    familyContactResult: result,
+    familyContactResultAt: submittedAt,
+    appointmentAt,
+    feeText,
+    familyContactAttempts: [...(current.familyContactAttempts || []), attempt],
+    lastFamilyContactBy: contactActor,
+    lastFamilyContactAt: submittedAt,
+    handledBy: null,
+    claimedById: null,
+    claimedAt: null,
+    handledAt: null,
+    resultSummary: null,
+  }, createWorkflowEvent(serviceContactEventTypes.familyServiceContactResultSubmitted, contactActor, submittedAt, { result, appointmentAt, feeText, note }));
+  writeRecords(records.map((record) => record.id === recordId ? next : record));
+  return { record: next, submitted: true, appointmentConfirmed };
+};
+
+export const submitSharedFamilyServiceContactResult = (recordId, result, actor = {}, details = {}) => {
+  const release = acquireServiceRecordLock(recordId);
+  if (!release) return { record: readSharedServiceAssistanceRecords().find((record) => record.id === recordId) || null, submitted: false, reason: "record_busy" };
+  try {
+    return submitSharedFamilyServiceContactResultUnlocked(recordId, result, actor, details);
+  } finally {
+    release();
+  }
+};
+
+// 旧版独立接手接口保留历史兼容；新流程使用 startSharedFamilyServiceContact。
+export const claimSharedServiceAssistance = (recordId, actor = {}) => {
+  const records = readSharedServiceAssistanceRecords();
+  const current = records.find((record) => record.id === recordId);
+  if (!current) return { record: null, claimed: false, reason: "not_found" };
+  const normalized = normalizeServiceAssistanceRecord(current);
+  if (!isActiveServiceAssistance(normalized) || normalized.status !== "pending") return { record: normalized, claimed: false, reason: normalized.status === "handling" ? "claimed_by_other" : "not_claimable" };
+  const claimedAt = new Date().toISOString();
+  const handler = { type: "child", id: actor.id || null, name: actor.name || "家人" };
+  const next = appendWorkflowEvent({ ...current, workflowStage: "family_help_handling", status: "handling", handledBy: handler.name, claimedById: handler.id, claimedAt }, createWorkflowEvent("family_help_claimed", handler, claimedAt));
+  writeRecords(records.map((record) => record.id === recordId ? next : record));
+  return { record: next, claimed: true };
+};
 
 // 发起入口统一使用此方法；持久化原记录的 upsert 不触发提醒。
 export const requestSharedServiceAssistance = (candidate) => {
   const records = readSharedServiceAssistanceRecords();
+  const contactRecordId = candidate.contactRecordId || candidate.id;
+  const contactRecord = records.find((record) => record.id === contactRecordId && isPendingServiceContact(normalizeServiceAssistanceRecord(record)));
+  if (contactRecord) {
+    const result = answerSharedServiceContact(contactRecord.id, serviceContactAnswers.familyHelpRequested, candidate.familyHelpRequestedBy || { type: "elder", id: contactRecord.elder?.id, name: contactRecord.elder?.name });
+    return { record: result.record, reminded: false, message: "已通知家人", transitionedFromContact: true };
+  }
   const existing = records.filter(record => record.elder?.id === candidate.elder?.id && record.service?.id === candidate.service?.id && isActiveServiceAssistance(record))
     .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))[0];
   if (existing) {
     const remindedAt = new Date().toISOString();
-    const updated = { ...existing, reminderTimes: [...(existing.reminderTimes || []), remindedAt], lastRemindedAt: remindedAt };
+    const actor = candidate.familyHelpRequestedBy || { type: "elder", id: candidate.elder?.id, name: candidate.elder?.name };
+    const updated = appendWorkflowEvent({ ...existing, reminderTimes: [...(existing.reminderTimes || []), remindedAt], lastRemindedAt: remindedAt }, createWorkflowEvent("family_help_reminded", actor, remindedAt));
     writeRecords(records.map(record => record.id === existing.id ? updated : record));
     return { record: updated, reminded: true, message: "已提醒家人" };
   }
-  const record = upsertSharedServiceAssistanceRecord(candidate);
+  const familyHelpRequestedAt = candidate.familyHelpRequestedAt || candidate.requestedAt || new Date().toISOString();
+  const actor = candidate.familyHelpRequestedBy || { type: "elder", id: candidate.elder?.id, name: candidate.elder?.name };
+  const record = upsertSharedServiceAssistanceRecord(appendWorkflowEvent({ ...candidate, requestedAt: candidate.requestedAt || familyHelpRequestedAt, familyHelpRequestedAt, familyHelpRequestedBy: actor, workflowStage: "family_help_pending" }, createWorkflowEvent("family_help_requested", actor, familyHelpRequestedAt)));
   return { record, reminded: false, message: "已通知家人" };
 };
 

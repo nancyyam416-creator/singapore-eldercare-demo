@@ -533,8 +533,6 @@
 .home-today-schedule-summary > strong { overflow: hidden; font-size: 20px; text-overflow: ellipsis; white-space: nowrap; }
 .home-today-schedule-summary > small { color: var(--color-text-soft); font-size: 16px; font-weight: 800; }
 .home-today-list.is-schedule > article.is-completed .home-today-schedule-summary > small { color: var(--color-green); }
-.home-today-list.is-schedule > article.is-expired .home-today-schedule-summary > small { color: var(--color-red); }
-.home-today-list.is-schedule > article.is-unconfirmed .home-today-schedule-summary > small { color: var(--color-amber); }
 .home-today-schedule-action { width: 72px; min-height: 46px; padding: 0 8px; border: 1px solid color-mix(in oklch, var(--color-green), transparent 30%); border-radius: 12px; color: #fff; background: var(--color-green-dark); font-size: 17px; font-weight: 900; cursor: pointer; }
 .home-today-schedule-action:hover { background: var(--color-green-deep); }
 .home-today-list.is-recommendation > button { display: grid; grid-template-columns: 52px minmax(0, 1fr) 24px; }

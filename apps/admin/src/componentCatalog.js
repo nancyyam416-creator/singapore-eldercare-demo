@@ -46,8 +46,15 @@ export const componentCatalog = [
   },
   {
     id: "form-layout", name: "表单字段 / 分组布局", category: "表单", status: "stable", assetType: "public-style",
-    maturity: "已稳定", scenarios: "抽屉与页面内的结构化表单", rules: ["form-section 分组", "form-row 仅用于相关短字段", "间距使用 --admin-* tokens"],
-    support: ["单列", "双列", "必填", "错误", "帮助文本"], source: "src/styles.css (.form-section / .form-row)", spec: "《后台通用组件规范.md》#表单", migrated: ["后台通用表单"], pending: ["个别业务自定义字段间距"],
+    maturity: "已稳定", scenarios: "抽屉与页面内的结构化表单", rules: ["form-section 分组", "form-row 仅用于相关短字段", "间距使用 --admin-* tokens", "补充说明默认使用字段 label 旁 Tooltip"],
+    support: ["单列", "双列", "必填", "错误", "字段帮助 Tooltip"], source: "src/styles.css (.form-section / .form-row)", spec: "《后台通用组件规范.md》#表单", migrated: ["后台通用表单"], pending: ["个别业务自定义字段间距"],
+  },
+  {
+    id: "admin-tooltip", name: "AdminTooltip", category: "基础控件", status: "stable", assetType: "public-component",
+    maturity: "已稳定", scenarios: "字段规则、指标口径和禁用原因等补充说明",
+    rules: ["说明图标紧邻字段 label", "支持 hover、键盘 focus 与点击触屏", "Esc 与外点关闭", "Portal 挂载并限制在视口安全边距", "真实错误、失败反馈和高影响确认不得隐藏其中"],
+    support: ["Hover", "Focus", "点击固定", "aria-describedby", "Portal", "边界防裁切"], source: "src/AdminTooltip.jsx", spec: "《后台通用组件规范.md》#Tooltip-与字段帮助",
+    migrated: ["MetricHelp 指标说明"], pending: ["按业务修改逐步迁移存量 field-help"],
   },
   {
     id: "community-scope-field", name: "CommunityScopeField", category: "表单", status: "stable", assetType: "public-component",

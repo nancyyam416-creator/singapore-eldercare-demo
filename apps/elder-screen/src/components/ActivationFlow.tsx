@@ -27,6 +27,7 @@ import {
   type ActivationProfileDraft,
 } from "../activation-contract";
 import { activationCommunityOptions, getActivationCommunityById } from "../activation-communities";
+import AccessibleTooltip from "./AccessibleTooltip";
 import "./activation-flow.css";
 
 type ActivationStep = "wifi" | "profile" | "success";
@@ -157,6 +158,11 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
   };
 
   const showProfileError = (field: ActivationProfileField) => touchedProfileFields.has(field) ? profileErrors[field] : undefined;
+  const wifiHelpText = !selectedWifiId
+    ? "请先选择上方的无线网络。选择后即可输入密码并连接。"
+    : !wifiPassword.trim()
+      ? "请输入所选无线网络的密码，填写后才能连接。"
+      : "密码已填写。点击“连接无线网络”后，设备会查询绑定状态。";
 
   const submitProfile = () => {
     setTouchedProfileFields(new Set(profileFieldNames));
@@ -255,10 +261,14 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                   </div>
                 </div>
 
-                <label className={`activation-password-field ${selectedWifiId ? "is-ready" : ""}`}>
-                  <span>{selectedWifiId ? `输入 ${availableWifiNetworks.find((network) => network.id === selectedWifiId)?.name} 的密码` : "请先选择无线网络"}</span>
+                <div className={`activation-password-field ${selectedWifiId ? "is-ready" : ""}`}>
+                  <span className="activation-password-field__label">
+                    <label htmlFor="activation-wifi-password">{selectedWifiId ? `输入 ${availableWifiNetworks.find((network) => network.id === selectedWifiId)?.name} 的密码` : "无线网络密码"}</label>
+                    <AccessibleTooltip id="activation-wifi-help" label="查看无线网络连接帮助">{wifiHelpText}</AccessibleTooltip>
+                  </span>
                   <span className="activation-password-input">
                     <input
+                      id="activation-wifi-password"
                       type={showWifiPassword ? "text" : "password"}
                       autoComplete="current-password"
                       disabled={!selectedWifiId || isConnectingWifi}
@@ -283,14 +293,12 @@ export default function ActivationFlow({ scenario, contractState, resetSignal, o
                       {showWifiPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
                     </button>
                   </span>
-                </label>
+                </div>
 
-                <div className="activation-error-slot">
+                {(wifiError || lookupError) && <div className="activation-inline-error">
                   {wifiError && <p id="activation-wifi-error" role="alert"><b>!</b>暂时无法连接无线网络，请检查密码后重试。</p>}
                   {lookupError && <p id="activation-lookup-error" role="alert"><b>!</b>网络已连接，但暂时无法查询 SN 绑定关系，请重试。</p>}
-                  {!selectedWifiId && !wifiError && !lookupError && <p className="is-hint"><Wifi aria-hidden="true" />请先从上方选择一个无线网络</p>}
-                  {selectedWifiId && !wifiPassword.trim() && !wifiError && !lookupError && <p className="is-hint"><LockKeyhole aria-hidden="true" />请输入密码后连接</p>}
-                </div>
+                </div>}
 
                 <button
                   type="button"

@@ -70,7 +70,7 @@
 .activation-wifi-list__check { width: 30px; height: 30px; display: grid; place-items: center; border: var(--rule-thin) solid var(--color-line); border-radius: 50%; }
 .activation-wifi-list__check svg { width: 19px; height: 19px; color: var(--color-canvas-deep); border-radius: 50%; background: var(--color-green); }
 .activation-password-field { display: block; margin-top: 16px; text-align: left; }
-.activation-password-field > span:first-child { display: block; font-size: 19px; font-weight: 900; }
+.activation-password-field__label { display: flex; align-items: center; justify-content: space-between; gap: 14px; font-size: 19px; font-weight: 900; }
 .activation-password-input { position: relative; display: block; margin-top: 12px; }
 .activation-password-input > input { width: 100%; height: 82px; box-sizing: border-box; padding: 0 76px 0 22px; color: var(--color-text); border: 3px solid var(--color-line); border-radius: var(--radius-md); outline: none; background: var(--color-panel-raised); font-size: 24px; font-weight: 850; transition: border-color var(--dur-normal) var(--ease-out); }
 .activation-password-input > input::placeholder { color: var(--color-text-muted); }
@@ -95,12 +95,16 @@
 .activation-code-input > span { position: absolute; inset: 0; display: grid; place-items: center; padding-bottom: 2px; color: var(--color-text-muted); font-size: 22px; font-weight: 900; pointer-events: none; }
 .activation-code-field input:focus { border-color: var(--color-green); }
 .activation-code-field input[aria-invalid="true"] { border-color: var(--color-red); }
-.activation-error-slot { min-height: 58px; padding-top: 12px; }
-.activation-error-slot p { display: flex; align-items: center; gap: 10px; margin: 0; color: #ff9b97; font-size: 17px; font-weight: 900; text-align: left; }
-.activation-error-slot b { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: var(--color-red-deep); }
-.activation-error-slot p.is-hint { color: var(--color-text-soft); }
-.activation-error-slot p.is-hint svg { width: 24px; height: 24px; color: var(--color-green); }
+.activation-inline-error { padding-top: 12px; }
+.activation-inline-error p { display: flex; align-items: center; gap: 10px; margin: 0; color: #ff9b97; font-size: 17px; font-weight: 900; text-align: left; }
+.activation-inline-error b { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: var(--color-red-deep); }
+.accessible-tooltip { position: relative; display: inline-flex; flex: 0 0 auto; }
+.accessible-tooltip__trigger { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; color: var(--color-green); border: var(--rule-thin) solid color-mix(in oklch, var(--color-green), transparent 48%); border-radius: 50%; background: color-mix(in oklch, var(--color-green), transparent 88%); cursor: help; }
+.accessible-tooltip__trigger svg { width: 25px; height: 25px; }
+.accessible-tooltip__trigger:focus-visible { outline: var(--rule-strong) solid var(--color-green); outline-offset: 3px; }
+.accessible-tooltip__content { position: absolute; z-index: 12; right: 0; bottom: calc(100% + 10px); width: 330px; box-sizing: border-box; padding: 15px 17px; color: var(--color-text); border: var(--rule-strong) solid color-mix(in oklch, var(--color-green), transparent 38%); border-radius: var(--radius-sm); background: var(--color-panel-raised); box-shadow: 0 16px 38px color-mix(in oklch, var(--color-canvas-deep), transparent 24%); font-size: 17px; line-height: 1.5; font-weight: 800; }
 .activation-primary-action { width: 100%; min-height: 66px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 0 24px; color: var(--color-canvas-deep); border: var(--rule-strong) solid var(--color-green); border-radius: var(--radius-md); background: var(--color-green); font-size: 22px; font-weight: 900; cursor: pointer; }
+.activation-step--wifi > .activation-primary-action { margin-top: 22px; }
 .activation-primary-action:disabled { color: var(--color-text-muted); border-color: var(--color-line); background: var(--color-panel-soft); cursor: not-allowed; }
 .activation-primary-action svg { width: 25px; height: 25px; }
 

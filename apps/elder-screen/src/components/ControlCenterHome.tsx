@@ -44,7 +44,7 @@ interface ReminderItem {
   id: string;
   time: string;
   name: string;
-  status: "pending" | "completed" | "unconfirmed" | "expired";
+  status: "pending" | "completed";
   takenAt?: string;
   priority?: "P0" | "P1" | "P2";
   category?: "medication" | "schedule";
