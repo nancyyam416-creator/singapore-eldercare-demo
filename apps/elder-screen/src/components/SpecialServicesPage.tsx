@@ -32,6 +32,8 @@ import {
   requestSharedServiceAssistance,
   serviceAssistanceExpiryMessage,
   serviceContactAnswers,
+  servicePhoneActionTypes,
+  startSharedServiceContact,
   submitSharedServiceReview,
 } from "../../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import "./special-services-page.css";
@@ -122,6 +124,8 @@ interface SharedAssistanceRecord {
   workflowStage?: "contact_pending_confirmation" | "appointment_confirmed" | "family_help_pending" | "family_help_handling" | "family_help_handled" | "family_help_completed" | "cancelled" | "expired";
   contactStartedAt?: string;
   contactStartedBy?: { type: string; id?: string | null; name?: string | null };
+  phoneActionType?: "phone_viewed" | "call_started";
+  contactSource?: string;
   appointmentOutcome?: "appointment_confirmed" | "family_help_requested" | null;
   appointmentOutcomeAt?: string | null;
   familyHelpRequestedAt?: string | null;
@@ -320,6 +324,7 @@ const readAllSharedRecords = () => (readSharedServiceAssistanceRecords() as Shar
   .sort((first, second) => second.requestedAt.localeCompare(first.requestedAt));
 
 const getSharedRecordStatus = (record: SharedAssistanceRecord) => {
+  if (record.phoneActionType === servicePhoneActionTypes.phoneViewed && isPendingServiceContact(record)) return "已查看联系电话";
   if (isPendingServiceContact(record)) return "等待您确认";
   if (record.workflowStage === "appointment_confirmed") return "已约好";
   if (record.review) return "已评价";
@@ -334,7 +339,7 @@ const getSharedRecordStatus = (record: SharedAssistanceRecord) => {
 };
 
 const getLatestPendingContact = (records: SharedAssistanceRecord[]) => records
-  .filter((record) => isPendingServiceContact(record))
+  .filter((record) => isPendingServiceContact(record) && record.phoneActionType !== servicePhoneActionTypes.phoneViewed)
   .sort((first, second) => Number(Boolean(second.familyHelpInquiry)) - Number(Boolean(first.familyHelpInquiry)) || second.requestedAt.localeCompare(first.requestedAt))[0] ?? null;
 
 export default function SpecialServicesPage({
@@ -352,6 +357,7 @@ export default function SpecialServicesPage({
   const [familyHelpConfirmation, setFamilyHelpConfirmation] = useState(() => getServiceAssistanceConfirmationCopy(null));
   const [familyHelpFeedback, setFamilyHelpFeedback] = useState<"notified" | "reminded" | "notify-error" | "remind-error" | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactIntentFeedback, setContactIntentFeedback] = useState<"notified" | "existing" | "error" | null>(null);
   const [activeContactRecord, setActiveContactRecord] = useState<SharedAssistanceRecord | null>(() => getLatestPendingContact(readCurrentElderRecords()));
   const [contactOutcomeFeedback, setContactOutcomeFeedback] = useState<"confirmed" | "error" | null>(null);
   const [sharedRecords, setSharedRecords] = useState<SharedAssistanceRecord[]>(readCurrentElderRecords);
@@ -398,6 +404,7 @@ export default function SpecialServicesPage({
       setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
       setFamilyHelpFeedback(null);
       setContactModalOpen(false);
+      setContactIntentFeedback(null);
       setActiveContactRecord(null);
       setContactOutcomeFeedback(null);
       setReviewingRecord(null);
@@ -419,6 +426,7 @@ export default function SpecialServicesPage({
     setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
     setFamilyHelpFeedback(null);
     setContactModalOpen(false);
+    setContactIntentFeedback(null);
     setActiveContactRecord(null);
     setContactOutcomeFeedback(null);
     setReviewingRecord(null);
@@ -493,6 +501,56 @@ export default function SpecialServicesPage({
         : { status: assistance.stage === "completed" || assistance.stage === "reviewed" ? "handled" : assistance.stage };
     setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(latestRecord));
     setFamilyHelpConfirmOpen(true);
+  };
+  const viewProviderPhone = () => {
+    if (!selectedService) return;
+    const now = new Date().toISOString();
+    const candidate: SharedAssistanceRecord = {
+      id: `CALL-VIEW-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      projectId: "PRJ-001",
+      communityId: elderProfileMock.communityId ?? "COM-001",
+      elder: {
+        id: elderProfileMock.id ?? "elder-wang-jianguo",
+        name: elderProfileMock.name,
+        phone: elderProfileMock.phone ?? "+65 8603 2918",
+      },
+      service: {
+        id: selectedService.id,
+        name: selectedService.name,
+        categoryName: selectedService.categoryName,
+      },
+      provider: { name: selectedService.provider, phone: selectedService.providerPhone },
+      requestReason: "查看服务商号码，记录联系意向",
+      requestedAt: now,
+      status: "pending",
+      recipientIds: getActiveFamilyRelationships().map((relationship) => relationship.id),
+      handledBy: null,
+      handledAt: null,
+      resultSummary: null,
+      familyHandlingStatus: "not_completed",
+      serviceStatus: "not_completed",
+      completedAt: null,
+      review: null,
+      contactStartedAt: now,
+      contactStartedBy: {
+        type: "elder",
+        id: elderProfileMock.id ?? "elder-wang-jianguo",
+        name: elderProfileMock.name,
+      },
+      phoneActionType: "phone_viewed",
+      contactSource: "elder",
+    };
+    try {
+      const result = startSharedServiceContact(candidate) as { record: SharedAssistanceRecord | null; created: boolean; reason?: string };
+      if (!result.record) throw new Error("contact intent failed");
+      setSharedRecords(readCurrentElderRecords());
+      setAllSharedRecords(readAllSharedRecords());
+      setContactIntentFeedback(result.created ? "notified" : "existing");
+    } catch {
+      setContactIntentFeedback("error");
+    } finally {
+      setContactModalOpen(true);
+    }
   };
   const answerServiceContact = (answer: "appointment_confirmed" | "family_help_requested") => {
     if (!activeContactRecord) return;
@@ -660,7 +718,7 @@ export default function SpecialServicesPage({
                 <div>{record.service.categoryName && <small>{record.service.categoryName}</small>}<strong>{getSharedRecordStatus(record)}</strong></div>
                 <h3>{record.service.name}</h3>
                 <p>{record.provider.name} · {record.provider.phone}</p>
-                <time>{isContactRecord(record) ? "拨号于" : "请求于"} {formatAssistanceTime(record.contactStartedAt ?? record.requestedAt)}</time>
+                <time>{record.phoneActionType === servicePhoneActionTypes.phoneViewed ? "查看号码于" : isContactRecord(record) ? "拨号于" : "请求于"} {formatAssistanceTime(record.contactStartedAt ?? record.requestedAt)}</time>
                 {record.familyHelpInquiry && isPendingServiceContact(record) && <em>{record.familyHelpInquiry.askedBy.name || "家人"}正在等待您确认是否需要帮忙</em>}
                 {record.workflowStage === "appointment_confirmed" && <em>您已确认约好，本次联系结果已同步给家人。</em>}
                 {record.lastRemindedAt && <em>最近提醒于 {formatAssistanceTime(record.lastRemindedAt)}</em>}
@@ -720,9 +778,9 @@ export default function SpecialServicesPage({
                 <h3>需要帮助时，可以选择以下方式</h3>
               </header>
 
-              <button type="button" className="special-services-contact-action" onClick={() => setContactModalOpen(true)}>
+              <button type="button" className="special-services-contact-action" onClick={viewProviderPhone}>
                 <span><Phone aria-hidden="true" /></span>
-                <span><strong>查看联系电话</strong><small>使用手机联系服务商</small></span>
+                <span><strong>查看联系电话</strong><small>查看号码并通知家人</small></span>
                 <ChevronRight aria-hidden="true" />
               </button>
 
@@ -766,7 +824,7 @@ export default function SpecialServicesPage({
           <h2 id="special-services-contact-title">服务商联系电话</h2>
           <small>{selectedService.provider}</small>
           <strong>{selectedService.providerPhone}</strong>
-          <p>请使用手机拨打此号码联系服务商</p>
+          <p>{contactIntentFeedback === "error" ? "联系意向暂未同步，请稍后重试。中控屏不会发起拨号。" : contactIntentFeedback === "existing" ? "家人已收到这条联系意向。中控屏不会发起拨号，请使用手机联系服务商。" : "已记录您的联系意向并通知家人。中控屏不会发起拨号，请使用手机联系服务商。"}</p>
           <button type="button" onClick={() => setContactModalOpen(false)}>返回服务详情</button>
         </section>
       </div>}
@@ -778,8 +836,8 @@ export default function SpecialServicesPage({
           <h2 id="special-services-contact-inquiry-title">刚才联系服务商后，结果怎么样？</h2>
           <p>{activeContactRecord.service.name} · {activeContactRecord.provider.name}</p>
           <div>
-            <button type="button" className="is-primary" onClick={() => answerServiceContact(serviceContactAnswers.appointmentConfirmed)}><CheckCircle2 aria-hidden="true" />约好了</button>
-            <button type="button" onClick={() => answerServiceContact(serviceContactAnswers.familyHelpRequested)}><HandHeart aria-hidden="true" />没约好，请家人帮忙</button>
+            <button type="button" className="is-primary" onClick={() => answerServiceContact("appointment_confirmed")}><CheckCircle2 aria-hidden="true" />约好了</button>
+            <button type="button" onClick={() => answerServiceContact("family_help_requested")}><HandHeart aria-hidden="true" />没约好，请家人帮忙</button>
           </div>
         </section>
       </div>}

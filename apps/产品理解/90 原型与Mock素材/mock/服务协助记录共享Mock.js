@@ -22,6 +22,7 @@ export const familyServiceContactResults = {
 };
 
 export const serviceContactEventTypes = {
+  servicePhoneViewed: "service_phone_viewed",
   serviceCallStarted: "service_call_started",
   familyHelpInquirySent: "family_help_inquiry_sent",
   elderAppointmentConfirmed: "elder_appointment_confirmed",
@@ -33,7 +34,10 @@ export const serviceContactEventTypes = {
   familyServiceContactResultSubmitted: "family_service_contact_result_submitted",
 };
 
-export const shouldCreateServiceContactRecord = (phoneActionType) => phoneActionType === servicePhoneActionTypes.callStarted;
+export const shouldCreateServiceContactRecord = (phoneActionType) => [
+  servicePhoneActionTypes.phoneViewed,
+  servicePhoneActionTypes.callStarted,
+].includes(phoneActionType);
 
 const familyWorkflowStages = new Set([
   "family_help_pending",
@@ -268,15 +272,25 @@ export const isActiveServiceAssistance = (record) => Boolean(record
   && ["pending", "handling", "handled"].includes(record.status)
   && (record.familyHandlingStatus ?? (record.serviceStatus === "completed" ? "completed" : "not_completed")) !== "completed");
 
-// 点击拨号只记录“已发起联系”，不代表接通、已预约或已进入家人协助。
+// 查看号码只记录联系意向；点击拨号只记录“已发起联系”。两者都不代表接通或已预约。
 export const startSharedServiceContact = (candidate) => {
   const phoneActionType = candidate.phoneActionType || servicePhoneActionTypes.callStarted;
-  if (!shouldCreateServiceContactRecord(phoneActionType)) return { record: null, created: false, reason: "phone_view_only" };
+  if (!shouldCreateServiceContactRecord(phoneActionType)) return { record: null, created: false, reason: "unsupported_phone_action" };
   const records = readSharedServiceAssistanceRecords();
   const duplicate = records.find((record) => record.id === candidate.id);
   if (duplicate) return { record: duplicate, created: false };
+  if (phoneActionType === servicePhoneActionTypes.phoneViewed) {
+    const pendingIntent = records.find((record) => isPendingServiceContact(record)
+      && record.phoneActionType === servicePhoneActionTypes.phoneViewed
+      && record.elder?.id === candidate.elder?.id
+      && record.service?.id === candidate.service?.id);
+    if (pendingIntent) return { record: pendingIntent, created: false, reason: "contact_intent_exists" };
+  }
   const contactStartedAt = candidate.contactStartedAt || candidate.requestedAt || new Date().toISOString();
   const actor = candidate.contactStartedBy || { type: "elder", id: candidate.elder?.id, name: candidate.elder?.name };
+  const eventType = phoneActionType === servicePhoneActionTypes.phoneViewed
+    ? serviceContactEventTypes.servicePhoneViewed
+    : serviceContactEventTypes.serviceCallStarted;
   const record = appendWorkflowEvent({
     ...candidate,
     requestedAt: candidate.requestedAt || contactStartedAt,
@@ -292,7 +306,7 @@ export const startSharedServiceContact = (candidate) => {
     status: "pending",
     familyHandlingStatus: "not_completed",
     serviceStatus: "not_completed",
-  }, createWorkflowEvent("service_call_started", actor, contactStartedAt, { phone: candidate.provider?.phone || "", phoneActionType }));
+  }, createWorkflowEvent(eventType, actor, contactStartedAt, { phone: candidate.provider?.phone || "", phoneActionType }));
   writeRecords([record, ...records]);
   return { record, created: true };
 };
