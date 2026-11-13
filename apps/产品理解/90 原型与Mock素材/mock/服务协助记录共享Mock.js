@@ -84,6 +84,10 @@ export const isPendingServiceContact = (record) => Boolean(record
   && record.workflowStage === "contact_pending_confirmation"
   && !record.appointmentOutcome);
 
+export const isPendingServiceContactInquiry = (record) => Boolean(
+  isPendingServiceContact(record) && record.familyHelpInquiry,
+);
+
 // 新发起记录保存服务项的展示快照；后续目录编辑不得反写历史记录。
 export const createServiceAssistanceSnapshot = (service, serviceItem) => ({
   id: service?.id || "",
@@ -122,11 +126,11 @@ export const getServiceAssistanceConfirmationCopy = (record) => {
     title: "确认请家人帮忙？",
     confirmLabel: "确认发送",
     successMessage: "已通知家人",
-    description: "确认发送后开始计时。家人将协助联系服务商，并提交处理结果。",
-    hint: "48 小时内未处理将自动失效，您可以重新发起。",
+    description: "发送后，家人会收到您的帮忙请求。",
+    hint: "若 48 小时内无人处理，本次请求将自动结束。",
   };
   if (!record || record.status === "cancelled" || !isFamilyAssistanceRecord(record)) return defaultCopy;
-  if (record.status === "expired") return { ...defaultCopy, hint: serviceAssistanceExpiryMessage };
+  if (record.status === "expired") return defaultCopy;
   if (isActiveServiceAssistance(record)) return {
     title: "已通知过家人，要再提醒一次吗？",
     description: "将再次提醒家人处理当前事项。",
@@ -139,7 +143,7 @@ export const getServiceAssistanceConfirmationCopy = (record) => {
     confirmLabel: "确认发送",
     successMessage: "已通知家人",
     description: "再次确认会生成一条新的协助请求，上次处理结果仍保留在服务记录中。",
-    hint: "新请求将从本次发送时间开始计时。",
+    hint: "若 48 小时内无人处理，本次请求将自动结束。",
   };
 };
 
@@ -359,7 +363,7 @@ export const askSharedElderIfFamilyHelpNeeded = (recordId, actor = {}) => {
   const normalized = normalizeServiceAssistanceRecord(current);
   if (!isPendingServiceContact(normalized)) return { record: normalized, asked: false, reason: "already_resolved" };
   const existingInquiry = [...(current.workflowEvents || [])].reverse().find((event) => event.type === "family_help_inquiry_sent");
-  if (existingInquiry) return { record: normalized, asked: false, reason: "inquiry_already_sent", inquiry: existingInquiry };
+  if (current.familyHelpInquiry || existingInquiry) return { record: normalized, asked: false, reason: "inquiry_already_sent", inquiry: existingInquiry || current.familyHelpInquiry };
   const askedAt = new Date().toISOString();
   const asker = { type: "child", id: actor.id || null, name: actor.name || null };
   const inquiry = createWorkflowEvent("family_help_inquiry_sent", asker, askedAt);

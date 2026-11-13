@@ -1,5 +1,9 @@
 {
-  "version": "2026-11-11",
+  "version": "2026-11-13",
+  "categorySettings": {
+    "enabled": false,
+    "updatedAt": "2026-11-13 11:46"
+  },
   "communities": [
     {
       "id": "COM-001",
@@ -32,25 +36,38 @@
   ],
   "categories": [
     {
+      "id": "SC-ELECTRIC",
       "code": "electric",
       "name": "电力维修",
-      "order": 1
+      "description": "家庭电路、灯具、开关与用电设施相关服务",
+      "displayOrder": 1,
+      "status": "enabled",
+      "updatedAt": "2026-11-13 11:46"
     },
     {
+      "id": "SC-WATER",
       "code": "water",
       "name": "水利维修",
-      "order": 2
+      "description": "水龙头、水管和家庭供水设施相关服务",
+      "displayOrder": 2,
+      "status": "enabled",
+      "updatedAt": "2026-11-13 11:46"
     },
     {
+      "id": "SC-BASIC",
       "code": "basic",
       "name": "基础维修",
-      "order": 3
+      "description": "门锁、家具与家庭小型设施维修安装服务",
+      "displayOrder": 3,
+      "status": "enabled",
+      "updatedAt": "2026-11-13 11:46"
     }
   ],
   "services": [
     {
       "id": "srv-electric-1",
       "displayOrder": 1,
+      "status": "enabled",
       "legacyServiceIds": ["srv-electric-2"],
       "categoryId": null,
       "category": "",
@@ -93,6 +110,7 @@
     {
       "id": "srv-water-1",
       "displayOrder": 2,
+      "status": "enabled",
       "legacyServiceIds": ["srv-water-2"],
       "categoryId": null,
       "category": "",
@@ -135,6 +153,7 @@
     {
       "id": "srv-basic-2",
       "displayOrder": 3,
+      "status": "enabled",
       "legacyServiceIds": [],
       "categoryId": null,
       "category": "",
@@ -168,6 +187,7 @@
     {
       "id": "srv-basic-1",
       "displayOrder": 4,
+      "status": "enabled",
       "legacyServiceIds": [],
       "categoryId": null,
       "category": "",

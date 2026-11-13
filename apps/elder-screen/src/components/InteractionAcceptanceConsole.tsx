@@ -453,8 +453,7 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
   default: { label: "当前服务目录", description: "不展示分类入口，按共享目录动态展示当前四项服务及明细价格。" },
   "no-services": { label: "暂无可用服务", description: "全部服务不可用时展示统一空状态。" },
-  "contact-pending": { label: "联系后待确认", description: "老人移动端真实发起联系后，中控屏可回答约好了或请家人帮忙。" },
-  "contact-family-inquiry": { label: "家人发起询问", description: "家人询问联系结果后，老人端展示同一待确认卡。" },
+  "contact-family-inquiry": { label: "家人发起询问", description: "家人主动询问联系结果后，老人端展示带家人身份的确认弹窗。" },
   "contact-confirmed": { label: "已约好", description: "老人确认约好后结束本次联系，结果同步给家人。" },
   "family-help-idle": { label: "未请求", description: "查看联系电话与家人协助均展示初始状态。" },
   "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
@@ -1157,7 +1156,7 @@ export default function InteractionAcceptanceConsole({
                   <ChevronRight aria-hidden="true" />打开当前特约服务场景
                 </button>
               </div>
-              <p className="interaction-acceptance-note">中控屏只查看服务商号码，不创建拨号记录；来自老人移动端的联系动态与家人协助分开展示，“没约好”沿用原记录。</p>
+              <p className="interaction-acceptance-note">老人拨号或查看号码只记录联系动态；仅家人主动询问后展示联系结果确认，“没约好”沿用原记录进入家人协助。</p>
             </section>}
 
             {activeSection === "community-staff" && <section>

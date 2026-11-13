@@ -20,10 +20,20 @@ import {
   currentElderProfile,
   getAppointmentServiceById,
   initialServiceAssistanceRecords,
+  normalizeAppointmentServiceDirectoryContract,
   resolveAppointmentServiceId,
+  resolveAppointmentServiceDirectory,
+  type AppointmentServiceDirectoryContract,
   type AppointmentService,
   type ServiceAssistanceRecord,
 } from "./appointmentData";
+// 共享目录由普通 JS 维护；本端在消费入口将运行时数据收敛为强类型契约。
+// @ts-expect-error 共享目录暂未提供 TypeScript 声明文件
+import * as unifiedServiceDirectoryRuntime from "../../产品理解/90 原型与Mock素材/mock/统一服务目录.js";
+const {
+  readUnifiedServiceDirectoryRuntime,
+  subscribeUnifiedServiceDirectoryRuntime,
+} = unifiedServiceDirectoryRuntime;
 import {
   answerSharedServiceContact,
   canReviewServiceAssistance,
@@ -46,7 +56,9 @@ import {
 export type AppointmentScenario =
   | "default"
   | "detail"
-  | "contact_pending"
+  | "category_off"
+  | "category_on"
+  | "family_inquiry"
   | "requested"
   | "handling"
   | "not_appointed"
@@ -204,6 +216,10 @@ const createContactScenarioRecord = (
     contactStartedAt: "2026-10-30T09:20:00+08:00",
     workflowStage: "contact_pending_confirmation",
     appointmentOutcome: null,
+    familyHelpInquiry: {
+      askedAt: "2026-10-30T09:36:00+08:00",
+      askedBy: { type: "child", id: "child-zhang-xiaoyan", name: "张晓燕" },
+    },
     status: "pending",
     recipientIds: BOUND_FAMILY_IDS,
     handledBy: null,
@@ -238,11 +254,8 @@ const serviceSnapshotLabel = (service: ServiceAssistanceRecord["service"]) =>
   service.categoryName === service.name
     ? service.name
     : `${service.categoryName} · ${service.name}`;
-const isElderContactPending = (record: ServiceAssistanceRecord) =>
-  isPendingServiceContact(record) ||
-  (record.id.startsWith("CALL-") &&
-    record.status === "pending" &&
-    (record.requestReason === "老人直接拨打服务电话" || !record.appointmentOutcome));
+const isFamilyInquiryPending = (record: ServiceAssistanceRecord) =>
+  isPendingServiceContact(record) && Boolean(record.familyHelpInquiry?.askedAt);
 
 type Props = {
   scenario: AppointmentScenario;
@@ -250,13 +263,11 @@ type Props = {
     scenario: AppointmentScenario,
     returnTarget?: AppointmentReturnTarget,
   ) => void;
-  onPendingCountChange?: (count: number) => void;
 };
 
 export default function AppointmentServicesPage({
   scenario,
   onViewChange,
-  onPendingCountChange,
 }: Props) {
   const [view, setViewState] = useState<View>("list");
   const [detailTab, setDetailTab] = useState<DetailTab>("detail");
@@ -277,11 +288,16 @@ export default function AppointmentServicesPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [familyHelpSuccessMessage, setFamilyHelpSuccessMessage] = useState("");
-  const [pendingListOpen, setPendingListOpen] = useState(false);
+  const [categoryPreviewMode, setCategoryPreviewMode] = useState<boolean | null>(null);
+  const [selectedCategoryCode, setSelectedCategoryCode] = useState("");
+  const [serviceDirectoryContract, setServiceDirectoryContract] =
+    useState<AppointmentServiceDirectoryContract>(() =>
+      normalizeAppointmentServiceDirectoryContract(
+        readUnifiedServiceDirectoryRuntime(),
+      ),
+    );
   const submissionGuardRef = useRef(false);
-  const pendingCallRecordRef = useRef<ServiceAssistanceRecord | null>(null);
-  const callLeftAppRef = useRef(false);
-  const callResultShownRef = useRef(false);
+  const realInquiryNavigationRef = useRef(false);
 
   const setView = (
     next: View,
@@ -293,13 +309,35 @@ export default function AppointmentServicesPage({
   };
 
   useEffect(() => {
-    if (scenario === "default") setViewState("list");
+    return subscribeUnifiedServiceDirectoryRuntime((contract: unknown) => {
+      setServiceDirectoryContract(
+        normalizeAppointmentServiceDirectoryContract(
+          contract as Parameters<typeof normalizeAppointmentServiceDirectoryContract>[0],
+        ),
+      );
+    });
+  }, []);
+
+  useEffect(() => {
+    if (scenario === "default") {
+      setCategoryPreviewMode(null);
+      setViewState("list");
+    }
+    if (scenario === "category_off" || scenario === "category_on") {
+      setCategoryPreviewMode(scenario === "category_on");
+      setViewState("list");
+    }
     if (scenario === "detail") {
       setDetailTab("detail");
       setViewState("detail");
     }
     if (scenario === "records") setViewState("records");
-    if (scenario === "contact_pending") {
+    if (scenario === "family_inquiry") {
+      if (realInquiryNavigationRef.current) {
+        realInquiryNavigationRef.current = false;
+        setViewState("result");
+        return;
+      }
       setRecords((current) => {
         if (current.some((record) => record.id.startsWith("CALL-MOCK-PENDING-"))) return current;
         const mockPendingRecords = appointmentServices
@@ -355,32 +393,6 @@ export default function AppointmentServicesPage({
   }, [scenario]);
 
   useEffect(() => {
-    const presentPendingCallResult = () => {
-      if (
-        !callLeftAppRef.current ||
-        callResultShownRef.current ||
-        !pendingCallRecordRef.current
-      )
-        return;
-      callResultShownRef.current = true;
-      setLatest(pendingCallRecordRef.current);
-      setView("result", "contact_pending", "detail");
-    };
-    const handleVisibility = () => {
-      if (document.visibilityState === "hidden" && pendingCallRecordRef.current)
-        callLeftAppRef.current = true;
-      if (document.visibilityState === "visible") presentPendingCallResult();
-    };
-    const handleFocus = () => presentPendingCallResult();
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
-
-  useEffect(() => {
     const syncRecords = () => {
       const nextRecords = readRecords();
       setRecords((current) => {
@@ -402,17 +414,31 @@ export default function AppointmentServicesPage({
     };
   }, []);
 
-  const communityServices = useMemo(
-    () =>
-      appointmentServices.filter(
-        (service) =>
-          service.coverageMode === "all" ||
-          service.coverageCommunityIds.includes(
-            currentElderProfile.communityId,
-          ),
-      ),
-    [],
-  );
+  const directory = useMemo(() => {
+    const categoryEnabled = categoryPreviewMode ?? serviceDirectoryContract.categorySettings.enabled;
+    const categories = serviceDirectoryContract.categories;
+    const services = categoryPreviewMode === true
+      ? serviceDirectoryContract.services.map((service, index) => {
+          if (service.categoryId || service.categoryCode || categories.length === 0) return service;
+          const category = categories[index % categories.length];
+          return { ...service, categoryId: category.code, categoryCode: category.code };
+        })
+      : serviceDirectoryContract.services;
+    return resolveAppointmentServiceDirectory({ categoryEnabled, categories, services });
+  }, [categoryPreviewMode, serviceDirectoryContract]);
+  const communityServices = directory.services;
+  useEffect(() => {
+    if (!directory.categoryEnabled) {
+      setSelectedCategoryCode("");
+      return;
+    }
+    if (!directory.groups.some((group) => group.code === selectedCategoryCode)) {
+      setSelectedCategoryCode(directory.groups[0]?.code ?? "");
+    }
+  }, [directory.categoryEnabled, directory.groups, selectedCategoryCode]);
+  const visibleServices = directory.categoryEnabled
+    ? directory.groups.find((group) => group.code === selectedCategoryCode)?.services ?? []
+    : communityServices;
   const serviceReviewSummaries = useMemo(
     () =>
       new Map(
@@ -442,16 +468,12 @@ export default function AppointmentServicesPage({
   };
   const selectedReviews = selectedReviewSummary.reviews;
   const selectedAverageRating = selectedReviewSummary.average;
-  const pendingContacts = records.filter(isElderContactPending);
+  const familyInquiries = records.filter(isFamilyInquiryPending);
   const isNotAppointedFeedback =
     latest?.status === "pending" && latest.familyContactStatus === "not_appointed";
   const contactActorName = latest?.familyContactBy?.name || latest?.handledBy || "家人";
   const lastContactActorName =
     latest?.lastFamilyContactBy?.name || latest?.familyContactBy?.name || "家人";
-
-  useEffect(() => {
-    onPendingCountChange?.(new Set(pendingContacts.map((record) => record.id)).size);
-  }, [onPendingCountChange, pendingContacts]);
 
   const requestFamilyHelp = (service = selected) => {
     const scenarioRecord = latest?.service.id === service.id ? latest : null;
@@ -491,9 +513,6 @@ export default function AppointmentServicesPage({
         record.service.id === selected.id && isPendingServiceContact(record),
     );
     if (existing) {
-      pendingCallRecordRef.current = existing;
-      callLeftAppRef.current = false;
-      callResultShownRef.current = false;
       return;
     }
     const now = new Date().toISOString();
@@ -530,9 +549,6 @@ export default function AppointmentServicesPage({
       result.record,
       ...current.filter((item) => item.id !== result.record.id),
     ]);
-    pendingCallRecordRef.current = result.record;
-    callLeftAppRef.current = false;
-    callResultShownRef.current = false;
   };
 
   const answerServiceCall = (
@@ -736,7 +752,6 @@ export default function AppointmentServicesPage({
       >
         <ClipboardCheck />
         协助记录
-        {pendingContacts.length > 0 && <span className="appointment-pending-count" aria-label={`${pendingContacts.length} 项拨号结果待确认`}>{pendingContacts.length}</span>}
       </button>
     </div>
   );
@@ -751,7 +766,20 @@ export default function AppointmentServicesPage({
       )}
       {view === "list" && (
         <section className="appointment-service-list">
-          {communityServices.map((service) => {
+          {directory.categoryEnabled && directory.groups.length > 0 && (
+            <nav className="appointment-category-nav" aria-label="服务分类">
+              {directory.groups.map((group) => (
+                <button
+                  key={group.code}
+                  className={selectedCategoryCode === group.code ? "active" : ""}
+                  onClick={() => setSelectedCategoryCode(group.code)}
+                >
+                  {group.name}
+                </button>
+              ))}
+            </nav>
+          )}
+          {visibleServices.map((service) => {
             const reviewSummary = serviceReviewSummaries.get(service.id) ?? {
               count: 0,
               average: null,
@@ -798,6 +826,13 @@ export default function AppointmentServicesPage({
               </button>
             );
           })}
+          {visibleServices.length === 0 && (
+            <div className="appointment-service-empty">
+              <Wrench />
+              <strong>暂无可用服务</strong>
+              <p>当前社区暂时没有可展示的服务。</p>
+            </div>
+          )}
         </section>
       )}
 
@@ -1005,8 +1040,8 @@ export default function AppointmentServicesPage({
             )}
           </span>
           <h2>
-            {isPendingServiceContact(latest)
-              ? "这项服务约好了吗？"
+            {isFamilyInquiryPending(latest)
+              ? `${latest.familyHelpInquiry?.askedBy.name || "家人"}想问：这项服务约好了吗？`
               : latest.workflowStage === "appointment_confirmed"
                 ? "已记录预约结果"
                 : latest.status === "expired"
@@ -1024,8 +1059,8 @@ export default function AppointmentServicesPage({
                           : "已通知家人"}
           </h2>
           <p>
-            {isPendingServiceContact(latest)
-              ? "请根据您刚才拨号后的实际情况选择；还不确定时可返回，稍后从协助记录继续确认。"
+            {isFamilyInquiryPending(latest)
+              ? `${latest.familyHelpInquiry?.askedBy.name || "家人"}想确认您是否已经约好；您的答复会同步给家人。`
               : latest.workflowStage === "appointment_confirmed"
                 ? "您已确认约好，本次联系已结束并同步给家人。"
                 : latest.status === "expired"
@@ -1147,7 +1182,7 @@ export default function AppointmentServicesPage({
               </small>
             </div>
           )}
-          {isPendingServiceContact(latest) && (
+          {isFamilyInquiryPending(latest) && (
             <div className="appointment-contact-answer-actions">
               <button
                 className="primary-button"
@@ -1195,45 +1230,32 @@ export default function AppointmentServicesPage({
         </section>
       )}
 
-      {view === "records" && pendingContacts.length > 0 && (
-        <section className="appointment-pending-contact-group">
-          <button
-            className="appointment-pending-contact-entry"
-            onClick={() => setPendingListOpen((open) => !open)}
-            aria-expanded={pendingListOpen}
-          >
-            <PhoneCall />
-            <span>
-              <strong>有 {pendingContacts.length} 项拨号结果待确认</strong>
-              <small>逐项确认是否已经约好服务</small>
-            </span>
-            <ChevronRight className={pendingListOpen ? "is-open" : ""} />
-          </button>
-          {pendingListOpen && (
-            <div className="appointment-pending-contact-list">
-              {pendingContacts.map((record) => (
-                <button
-                  key={record.id}
-                  onClick={() => {
-                    setLatest(record);
-                    setView("result", "contact_pending", "records");
-                  }}
-                >
-                  <span>
-                    <strong>{record.service.name}</strong>
-                    <small>{formatTime(record.requestedAt)} · 等待您确认</small>
-                  </span>
-                  <ChevronRight />
-                </button>
-              ))}
-            </div>
-          )}
+      {view === "records" && familyInquiries.length > 0 && (
+        <section className="appointment-family-inquiry-list" aria-label="家人询问">
+          {familyInquiries.map((record) => (
+            <button
+              key={record.id}
+              className="appointment-family-inquiry-entry"
+              onClick={() => {
+                realInquiryNavigationRef.current = true;
+                setLatest(record);
+                setView("result", "family_inquiry", "records");
+              }}
+            >
+              <BellRing />
+              <span>
+                <strong>{record.familyHelpInquiry?.askedBy.name || "家人"}想问您</strong>
+                <small>{record.service.name}是否已经约好？</small>
+              </span>
+              <ChevronRight />
+            </button>
+          ))}
         </section>
       )}
 
       {view === "records" && (
         <section className="appointment-records">
-          {records.filter((record) => !isElderContactPending(record)).map((record) => (
+          {records.filter((record) => !isFamilyInquiryPending(record)).map((record) => (
             <article
               key={record.id}
               className={`appointment-record ${record.status}`}
@@ -1241,7 +1263,9 @@ export default function AppointmentServicesPage({
               <header>
                 <span>{record.service.categoryName}</span>
                 <b>
-                  {record.status === "expired"
+                  {!isFamilyAssistanceRecord(record) && isPendingServiceContact(record)
+                    ? "已拨打"
+                    : record.status === "expired"
                     ? "已失效"
                     : record.review
                       ? "已评价"

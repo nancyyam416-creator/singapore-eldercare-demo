@@ -70,8 +70,10 @@ const pages: AcceptancePage[] = [
   { id: 'services', label: '服务协助', modules: [
     { id: 'service-booking', label: '电话与家人协助', scenarios: [
       { value: 'default', label: '默认', description: '展示当前社区可用服务、明细数量与参考价格区间。', status: '正常' },
+      { value: 'category_off', label: '分类关闭', description: '不展示分类入口、标签或导航，全部有效服务按后台顺序平铺。', status: '平铺' },
+      { value: 'category_on', label: '分类开启', description: '展示后台启用且已关联服务的分类，分类与服务均按后台顺序排列。', status: '分类展示' },
       { value: 'detail', label: '图文服务详情', description: '展示头图、服务内容、注意事项、详情图和完整服务信息。', status: '正常' },
-      { value: 'contact_pending', label: '拨号返回待确认', description: '模拟系统电话返回后询问是否约好；不代表已接通或预约成功。', status: '待确认' },
+      { value: 'family_inquiry', label: '家人询问预约结果', description: '仅在子女明确询问后展示，并标明询问人；普通拨号不会自动弹出问题。', status: '待答复' },
       { value: 'requested', label: '已请求家人', description: '已通知所有绑定家人，等待家人处理。', status: '待处理' },
       { value: 'handling', label: '家人处理中', description: '家人已开始联系服务商，可再次提醒家人处理当前事项。', status: '处理中' },
       { value: 'not_appointed', label: '暂未约成', description: '家人反馈本次尚未约成，记录继续等待其他家人联系，不代表服务完成。', status: '待继续联系' },

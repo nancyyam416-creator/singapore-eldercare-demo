@@ -3,7 +3,7 @@ import { getServiceReviewSummary, readSharedServiceAssistanceRecords, subscribeS
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ChevronRight, AlertCircle, RefreshCw, Phone, UserRound, Clock3, MapPin } from 'lucide-react';
-import { unifiedServiceCatalog } from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js';
+import { unifiedServiceCatalog, readUnifiedServiceDirectoryRuntime, subscribeUnifiedServiceDirectoryRuntime, resolveUnifiedServiceDirectory } from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.js';
 import catalog from '../../../产品理解/90 原型与Mock素材/mock/统一服务目录.json';
 
 const serviceImages = import.meta.glob('../../../elder-miniapp/public/assets/services/*', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -17,6 +17,9 @@ const coverageLabel = (service: DirectoryService) => service.coverageMode === 'a
 const firstServicePrice = (service: DirectoryService) => service.serviceItems.find(item => item.priceText?.trim())?.priceText;
 
 export function H5ServiceDirectory({ communityId, disabledCategory, loadError = false }: { communityId?: string; disabledCategory?: string; loadError?: boolean }) {
+  const [contract, setContract] = useState(() => readUnifiedServiceDirectoryRuntime());
+  const [category, setCategory] = useState('');
+  useEffect(() => subscribeUnifiedServiceDirectoryRuntime(setContract), []);
   const [reviewRecords, setReviewRecords] = useState(() => readSharedServiceAssistanceRecords());
   useEffect(() => { const sync = () => setReviewRecords(readSharedServiceAssistanceRecords()); const off = subscribeSharedServiceAssistanceRecords(sync); const timer = window.setInterval(sync, 1200); return () => { off(); window.clearInterval(timer); }; }, []);
   const reviewSummary = (service: DirectoryService) => getServiceReviewSummary([service.id, ...service.legacyServiceIds], reviewRecords);
@@ -24,8 +27,12 @@ export function H5ServiceDirectory({ communityId, disabledCategory, loadError = 
   const [detailTab, setDetailTab] = useState<'details' | 'reviews'>('details');
   const [recovered, setRecovered] = useState(false);
   useEffect(() => { setSelected(null); }, [communityId]);
-  const available = appointmentServices.filter(item => (!disabledCategory || item.id !== `srv-${disabledCategory}-1`) && communityId && (item.coverageMode === 'all' || item.coverageCommunityIds.includes(communityId)));
-  const services = available;
+  const directory = resolveUnifiedServiceDirectory({ communityId, settings: contract.categorySettings, categories: contract.categories, services: contract.services });
+  const activeCategory = directory.categoryEnabled && directory.categories.some(item => item.code === category) ? category : '';
+  const available = communityId ? directory.services.filter(item => (!disabledCategory || item.categoryCode !== disabledCategory)).map(item => ({ ...item, coverImage: item.coverImage || appointmentServices.find(source => source.id === item.id)?.coverImage, detailImages: item.detailImages || [], precautions: Array.isArray(item.precautions) ? item.precautions.join('\n') : item.precautions || '' })) : [];
+  const services = activeCategory ? available.filter(item => item.categoryCode === activeCategory || item.categoryId === activeCategory) : available;
+  useEffect(() => { setCategory(''); }, [communityId]);
+  useEffect(() => { setSelected(current => current ? available.find(item => item.id === current.id) || null : null); }, [contract, communityId, disabledCategory]);
   if (loadError && !recovered) return <section role="alert" className="rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center"><AlertCircle size={28} className="mx-auto text-slate-400"/><h2 className="mt-3 text-sm font-bold">服务目录加载失败</h2><p className="mt-2 text-xs text-slate-500">暂时无法加载社区服务，请重新加载。</p><button onClick={() => setRecovered(true)} className="mx-auto mt-4 flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white"><RefreshCw size={14}/>重新加载</button></section>;
   if (selected) return <section className="space-y-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
     <button onClick={() => setSelected(null)} className="flex min-h-11 items-center gap-2 text-sm"><ArrowLeft size={18} />服务详情</button>
@@ -45,6 +52,7 @@ export function H5ServiceDirectory({ communityId, disabledCategory, loadError = 
   </section>;
   return <section className="space-y-3" aria-label="服务目录">
     <p className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={14}/>{communityNames.get(communityId ?? '') ?? '社区未设置'}</p>
+    {directory.categoryEnabled && <nav aria-label="服务分类" className="flex gap-2 overflow-x-auto pb-1">{[{ code: '', name: '全部' }, ...directory.categories].map(item => <button key={item.code} aria-pressed={activeCategory === item.code} onClick={() => setCategory(item.code)} className={`shrink-0 rounded-full px-3 py-2 text-xs ${activeCategory === item.code ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'}`}>{item.name}</button>)}</nav>}
     <div className="space-y-3">{services.length === 0 && <div className="rounded-2xl bg-white px-5 py-12 text-center text-sm text-slate-500">{communityId ? '当前社区暂无可用服务' : '社区未设置'}</div>}{services.map(item => <button key={item.id} onClick={() => { setDetailTab('details'); setSelected(item); }} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-xs"><img src={item.coverImage} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" loading="lazy"/><span className="min-w-0 flex-1 space-y-1"><strong className="block text-sm leading-5 text-slate-900">{item.name}</strong><span className="block text-[11px] leading-4 text-slate-500">{item.provider}</span>{firstServicePrice(item) && <span className="block break-words text-sm font-bold leading-5 text-blue-600">{firstServicePrice(item)}</span>}<span className="block text-[11px] text-slate-500">{reviewSummary(item).count ? `${reviewSummary(item).average}分 · ${reviewSummary(item).count}条评价` : '暂无评价'}</span></span><ChevronRight size={16} className="shrink-0 text-slate-400"/></button>)}</div>
   </section>;
 }

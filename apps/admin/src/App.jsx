@@ -8,7 +8,7 @@ import communityLifeMock from "../../产品理解/90 原型与Mock素材/mock/�
 import { readSharedCommunityAnnouncements, setSharedCommunityAnnouncementStatus, subscribeSharedCommunityAnnouncements, upsertSharedCommunityAnnouncement } from "../../产品理解/90 原型与Mock素材/mock/社区公告共享Mock.js";
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
-import { unifiedCommunities, unifiedServiceCatalog } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
+import { unifiedCommunities, unifiedServiceCatalog, unifiedServiceCategories, unifiedServiceCategorySettings, writeUnifiedServiceDirectoryRuntime } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
 import { getServiceReviewSummary, isFamilyAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import {
   careScriptMockApi,
@@ -45,6 +45,7 @@ import { ServiceCommunicationPage } from "./ServiceCommunication";
 import { PlatformTabletDevicesPage } from "./PlatformTabletDevices";
 import { TabletOtaPage, tabletOtaStorageKey } from "./TabletOta";
 import { MetricHelp } from "./MetricHelp";
+import { AdminTooltip } from "./AdminTooltip";
 import { SingleImageUpload } from "./SingleImageUpload";
 import { CommunityScopeField } from "./CommunityScopeField";
 import {
@@ -329,9 +330,10 @@ function isCommunityContentAvailable(record) {
   return !record.validUntil || record.validUntil >= communityContentMockNow;
 }
 
-const initialServiceCategories = serviceCategoryMock.serviceCategories.map((category) => ({
+const initialServiceCategories = unifiedServiceCategories.map((category) => ({
   ...category,
   status: category.status === "enabled" ? "启用" : "已停用",
+  availableServiceCount: 0,
 }));
 
 const serviceProviderPhones = {
@@ -498,7 +500,7 @@ function normalizeServiceCatalogItem(service) {
     priceRange: [...new Set(serviceItems.map((item) => item.priceText).filter(Boolean))].join(" / "),
     description: service.description || "电话咨询服务",
     providerPhone: service.providerPhone || serviceProviderPhones[service.id] || "+65 6000 0000",
-    status: service.status === "enabled" ? (service.available ? "启用" : "停用") : service.status,
+    status: service.status === "disabled" || service.status === "停用" ? "停用" : "启用",
     updatedAt: service.updatedAt || serviceCategoryMock.mockNow.slice(0, 16).replace("T", " "),
   };
 }
@@ -2724,7 +2726,7 @@ function RecommendationStrategyPage({ strategies, reminderPolicies, communityNam
           <div className="recommendation-day-preview">
             <div className="recommendation-day-preview-heading"><div><h4>当天排期</h4><span>{selectedDateLabel}</span></div></div>
             {selectedDayItems.length === 0 && <div className="recommendation-preview-empty"><CalendarDays size={22}/><div><b>当天暂无推荐内容</b><span>可通过页面右上角新增推荐内容。</span></div></div>}
-            {selectedDayItems.length > 0 && <div className="recommendation-day-list">{selectedDayItems.map((item, index) => <div key={item.id} className={daySortDrag === item.id ? "sorting" : ""} onDragOver={(event) => { if (daySortDrag) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (!daySortDrag || daySortDrag === item.id) return; const items = dayItems(selectedDate); const sourceIndex = items.findIndex((candidate) => candidate.id === daySortDrag); const targetIndex = items.findIndex((candidate) => candidate.id === item.id); const next = [...items]; const [moved] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, moved); setDayItems(selectedDate, next); setDaySortDrag(null); setScheduleToast({ message: `已调整${selectedDateLabel}的展示顺序` }); }}><span className="recommendation-sort-handle" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDaySortDrag(item.id); }} onDragEnd={() => setDaySortDrag(null)} aria-label={`拖拽调整${item.name}顺序`}><GripVertical size={15}/></span><em>{index + 1}</em><span><b>{item.name}</b></span><div className="recommendation-day-actions"><button type="button" className="table-action" onClick={() => editScheduledItem(selectedDate, item)}>编辑</button><button type="button" className="table-action danger-text" onClick={() => setDeleteTarget({ date: selectedDate, itemId: item.id, name: item.name })}>删除</button></div></div>)}</div>}
+            {selectedDayItems.length > 0 && <div className="recommendation-day-list">{selectedDayItems.map((item, index) => <div key={item.id} className={daySortDrag === item.id ? "sorting" : ""} onDragOver={(event) => { if (daySortDrag) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (!daySortDrag || daySortDrag === item.id) return; const items = dayItems(selectedDate); const sourceIndex = items.findIndex((candidate) => candidate.id === daySortDrag); const targetIndex = items.findIndex((candidate) => candidate.id === item.id); const next = [...items]; const [moved] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, moved); setDayItems(selectedDate, next); setDaySortDrag(null); setScheduleToast({ message: `已调整${selectedDateLabel}的展示顺序` }); }}><span className="recommendation-sort-handle" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDaySortDrag(item.id); }} onDragEnd={() => setDaySortDrag(null)} aria-label={`拖拽调整${item.name}顺序`}><GripVertical size={15}/></span><em>{index + 1}</em><span className="recommendation-day-title"><b>{item.name}</b></span><div className="recommendation-day-actions"><button type="button" className="table-action" onClick={() => editScheduledItem(selectedDate, item)}>编辑</button><button type="button" className="table-action danger-text" onClick={() => setDeleteTarget({ date: selectedDate, itemId: item.id, name: item.name })}>删除</button></div></div>)}</div>}
           </div>
         </div></section>}
       {activeView === "content" && <section className="panel recommendation-pool-panel">
@@ -3276,16 +3278,24 @@ function ServiceAssistanceRecordPage({ records, elderlyRecords, projects, commun
   );
 }
 
-function ServiceCatalogPage({ catalog, projects, reviewSummaries, onCreate, onView, onEdit }) {
-  const initialFilters = { query: "" };
+function ServiceCatalogPage({ catalog, projects, reviewSummaries, categoryEnabled, categories, onToggleCategories, onCreateCategory, onEditCategory, onToggleCategory, onDeleteCategory, onCreate, onView, onEdit, onToggleService }) {
+  const initialFilters = { query: "", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const visibleCatalog = catalog.filter((service) => {
+  const [selectedCategoryCode, setSelectedCategoryCode] = useState("全部分类");
+  const sortedCatalog = catalog.slice().sort((a, b) => Number(a.displayOrder || 999) - Number(b.displayOrder || 999) || a.name.localeCompare(b.name));
+  const categoryNameByCode = Object.fromEntries(categories.map((category) => [category.code, category.name]));
+  useEffect(() => {
+    if (!categoryEnabled || (selectedCategoryCode !== "全部分类" && !categories.some((category) => category.code === selectedCategoryCode))) setSelectedCategoryCode("全部分类");
+  }, [categoryEnabled, categories, selectedCategoryCode]);
+  const visibleCatalog = sortedCatalog.filter((service) => {
     const keyword = filters.query.trim().toLowerCase();
     const itemKeywords = (service.serviceItems || []).flatMap((item) => [item.name, item.content, item.priceText]);
-    const matchesKeyword = !keyword || [service.name, service.description, service.provider, service.providerPhone, service.businessHours, ...itemKeywords]
+    const matchesKeyword = !keyword || [service.name, service.description, service.provider, service.providerPhone, service.businessHours, categoryNameByCode[service.categoryId] || service.category, ...itemKeywords]
       .some((value) => `${value || ""}`.toLowerCase().includes(keyword));
-    return matchesKeyword;
+    return matchesKeyword
+      && (filters.status === "全部状态" || service.status === filters.status)
+      && (!categoryEnabled || selectedCategoryCode === "全部分类" || service.categoryId === selectedCategoryCode);
   });
   const reset = () => {
     setDraftFilters(initialFilters);
@@ -3293,72 +3303,90 @@ function ServiceCatalogPage({ catalog, projects, reviewSummaries, onCreate, onVi
   };
   return <>
     <div className="page-heading"><div><h1>服务目录</h1><p>维护老人可查看的服务内容与服务范围</p></div><button className="primary-button" onClick={onCreate}><Plus size={16}/>新增服务</button></div>
-    <section className="panel management-panel service-catalog-panel">
+    <section className="panel service-catalog-category-settings">
+      <label className="admin-switch-field"><input type="checkbox" checked={categoryEnabled} onChange={(event) => onToggleCategories(event.target.checked)}/><span><b className="admin-field-label">启用服务分类<AdminTooltip label="查看服务分类展示规则" content={categoryEnabled ? "开启后，三端按已启用分类展示关联服务，未分类服务不进入分类入口。" : "关闭后，三端不展示分类入口、标签或导航，服务直接展示。"}/></b></span><StatusTag>{categoryEnabled ? "已开启" : "已关闭"}</StatusTag></label>
+    </section>
+    <div className={`service-catalog-workspace ${categoryEnabled ? "role-management-grid with-categories" : "without-categories"}`}>
+    {categoryEnabled && <ServiceCategoryPanel categories={categories} selectedCategoryCode={selectedCategoryCode} onSelect={setSelectedCategoryCode} onCreate={onCreateCategory} onEdit={onEditCategory} onToggle={onToggleCategory} onDelete={onDeleteCategory}/>}
+    <section className={`panel management-panel service-catalog-panel ${categoryEnabled ? "role-detail-panel" : ""}`}>
       <div className="filters service-catalog-filters">
         <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="服务名称、服务内容、服务商或电话"/></div></label>
+        <label><span>服务状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>启用</option><option>停用</option></select></label>
         <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
       </div>
-      <div className="table-scroll"><table className="service-catalog-table"><thead><tr><th>服务名称</th><th>服务内容与参考价格</th><th>服务商</th><th>电话</th><th>营业时间</th><th>服务范围</th><th>评价</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {visibleCatalog.map((service) => { const summary = reviewSummaries[service.id]; return <tr key={service.id}><td><button className="service-catalog-name" onClick={() => onView(service)}><img src={service.coverImage} alt=""/><span><b>{service.name}</b><small>{service.serviceItems?.length || 0} 条服务内容</small></span></button></td><td><div className="service-item-summary">{(service.serviceItems || []).map((item) => <div key={item.id}><span><b>{item.name}</b><small>{item.content}</small></span><strong>{item.priceText || "待确认"}</strong></div>)}</div></td><td>{service.provider}</td><td>{service.providerPhone}</td><td>{service.businessHours || "—"}</td><td>{getServiceCoverageLabel(service, projects)}</td><td>{summary?.count > 0 ? <div className="service-review-summary"><b>★ {summary.average.toFixed(1)}</b><small>{summary.count} 条评价</small></div> : <span className="muted-value">暂无评价</span>}</td><td className="sticky-right"><button className="table-action" onClick={() => onView(service)}>详情</button><button className="table-action" onClick={() => onEdit(service)}>编辑</button></td></tr>; })}
-        {!visibleCatalog.length && <tr><td colSpan="8"><div className="empty-table-state">暂无符合条件的服务</div></td></tr>}
+      <div className="table-scroll"><table className="service-catalog-table"><thead><tr><th>服务名称</th>{categoryEnabled && <th>服务分类</th>}<th>服务内容与参考价格</th><th>服务商</th><th>服务范围</th><th>状态</th><th>评价</th><th className="sticky-right">操作</th></tr></thead><tbody>
+        {visibleCatalog.map((service) => { const summary = reviewSummaries[service.id]; return <tr key={service.id}><td><button className="service-catalog-name" onClick={() => onView(service)}><img src={service.coverImage} alt=""/><span><b>{service.name}</b><small>{service.serviceItems?.length || 0} 条服务内容</small></span></button></td>{categoryEnabled && <td>{categoryNameByCode[service.categoryId] || <span className="muted-value">未分类</span>}</td>}<td className="service-items-cell"><div className="service-item-summary">{(service.serviceItems || []).map((item) => <div key={item.id}><span><b>{item.name}</b><small>{item.content}</small></span><strong>{item.priceText || "待确认"}</strong></div>)}</div></td><td><div className="stacked-cell"><b>{service.provider}</b><small>{service.providerPhone}</small></div></td><td>{getServiceCoverageLabel(service, projects)}</td><td><StatusTag>{service.status}</StatusTag></td><td>{summary?.count > 0 ? <div className="service-review-summary"><b>★ {summary.average.toFixed(1)}</b><small>{summary.count} 条评价</small></div> : <span className="muted-value">暂无评价</span>}</td><td className="sticky-right"><button className="table-action" onClick={() => onView(service)}>详情</button><button className="table-action" onClick={() => onEdit(service)}>编辑</button><button className={`table-action ${service.status === "启用" ? "danger-text" : ""}`} onClick={() => onToggleService(service.id)}>{service.status === "启用" ? "停用" : "启用"}</button></td></tr>; })}
+        {!visibleCatalog.length && <tr><td colSpan={categoryEnabled ? 8 : 7}><div className="empty-table-state">暂无符合条件的服务</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>当前展示 {visibleCatalog.length} 条数据</span></div>
     </section>
+    </div>
   </>;
 }
 
-function ServiceCategoryPanel({ categories, onCreate, onEdit, onMove, onToggle }) {
-  const [draftFilters, setDraftFilters] = useState({ query: "", status: "全部状态" });
-  const [filters, setFilters] = useState({ query: "", status: "全部状态" });
+function ServiceCategoryPanel({ categories, selectedCategoryCode, onSelect, onCreate, onEdit, onToggle, onDelete }) {
   const [confirmTarget, setConfirmTarget] = useState(null);
-  const sorted = categories.slice().sort((a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
-  const rows = sorted.filter((category) => {
-    const keyword = filters.query.trim().toLowerCase();
-    return (!keyword || [category.name, category.code, category.description].some((value) => `${value || ""}`.toLowerCase().includes(keyword)))
-      && (filters.status === "全部状态" || category.status === filters.status);
-  });
-  const reset = () => {
-    const next = { query: "", status: "全部状态" };
-    setDraftFilters(next);
-    setFilters(next);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuTriggerRefs = useRef(new Map());
+  const rows = categories.slice().sort((a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
+  const closeMenu = (restoreFocus = false) => {
+    const closingId = openMenuId;
+    setOpenMenuId(null);
+    if (restoreFocus && closingId) requestAnimationFrame(() => menuTriggerRefs.current.get(closingId)?.focus());
   };
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+    const handlePointerDown = (event) => {
+      if (!event.target.closest(".service-category-more-wrap")) closeMenu(true);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMenu(true);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenuId]);
   return <>
-    <section className="panel management-panel service-category-panel">
-      <div className="filters service-category-filters">
-        <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="分类名称、标识或说明"/></div></label>
-        <label><span>分类状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>启用</option><option>已停用</option></select></label>
-        <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
+    <section className="panel role-list-panel service-category-panel">
+      <header className="panel-title service-category-panel-header"><h3>服务分类</h3><button type="button" className="icon-button service-category-add-button" aria-label="新增分类" onClick={onCreate}><Plus size={16}/></button></header>
+      <div className="role-list service-category-list">
+        <button type="button" className={`service-category-all ${selectedCategoryCode === "全部分类" ? "active" : ""}`} aria-pressed={selectedCategoryCode === "全部分类"} onClick={() => onSelect("全部分类")}><b>全部服务</b></button>
+        {rows.map((category) => <article key={category.id} className={`service-category-item ${selectedCategoryCode === category.code ? "active" : ""}`}>
+          <button type="button" className="service-category-item-main" aria-pressed={selectedCategoryCode === category.code} onClick={() => onSelect(category.code)}><b>{category.name}</b></button>
+          <StatusTag>{category.status}</StatusTag>
+          <div className="service-category-more-wrap">
+            <button ref={(node) => { if (node) menuTriggerRefs.current.set(category.id, node); else menuTriggerRefs.current.delete(category.id); }} type="button" className="service-category-more-button" aria-label={`${category.name}更多操作`} aria-haspopup="menu" aria-expanded={openMenuId === category.id} onClick={(event) => { event.stopPropagation(); setOpenMenuId((current) => current === category.id ? null : category.id); }}><MoreHorizontal size={16}/></button>
+            {openMenuId === category.id && <div className="service-category-action-menu" role="menu" aria-label={`${category.name}操作菜单`} onClick={(event) => event.stopPropagation()}>
+              <button type="button" role="menuitem" onClick={() => { closeMenu(); onEdit(category); }}>编辑</button>
+              <button type="button" role="menuitem" className={category.status === "启用" ? "danger-text" : ""} onClick={() => { closeMenu(); category.status === "启用" ? setConfirmTarget(category) : onToggle(category.id); }}>{category.status === "启用" ? "停用" : "启用"}</button>
+              <button type="button" role="menuitem" className="danger-text" onClick={() => { closeMenu(); setDeleteTarget(category); }}>删除</button>
+            </div>}
+          </div>
+        </article>)}
+        {!rows.length && <div className="empty-table-state">暂无服务分类</div>}
       </div>
-      <div className="table-toolbar"><div><span className="result-count">共 {rows.length} 个分类</span><span className="toolbar-hint">分类停用后不再进入新的电话咨询入口，历史咨询记录继续保留分类快照</span></div><button className="icon-button" title="刷新"><RefreshCw size={16}/></button></div>
-      <div className="table-scroll"><table className="service-category-table"><thead><tr><th>分类名称 / 标识</th><th>分类说明</th><th>展示顺序</th><th>服务项目</th><th>分类状态</th><th>更新时间</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {rows.map((category) => { const sourceIndex = sorted.findIndex((item) => item.id === category.id); return <tr key={category.id}><td><button className="service-booking-name" onClick={() => onEdit(category)}><b>{category.name}</b><small>{category.code}</small></button></td><td>{category.description || "—"}</td><td><div className="category-order-cell"><b>{category.displayOrder}</b><span><button disabled={sourceIndex === 0} onClick={() => onMove(category.id, "up")}>上移</button><button disabled={sourceIndex === sorted.length - 1} onClick={() => onMove(category.id, "down")}>下移</button></span></div></td><td><b>{category.availableServiceCount}</b> 项</td><td><StatusTag>{category.status}</StatusTag></td><td>{category.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(category)}>编辑</button><button className={`table-action ${category.status === "启用" ? "danger-text" : ""}`} onClick={() => category.status === "启用" ? setConfirmTarget(category) : onToggle(category.id)}>{category.status === "启用" ? "停用" : "启用"}</button></td></tr>; })}
-        {!rows.length && <tr><td colSpan="7"><div className="empty-table-state">暂无符合条件的服务分类</div></td></tr>}
-      </tbody></table></div>
-      <div className="pagination"><span>当前展示 {rows.length} 条数据</span><button className="secondary-button service-empty-create" onClick={onCreate}><Plus size={15}/>新增分类</button></div>
     </section>
-    {confirmTarget && <div className="modal-layer"><button className="modal-backdrop" aria-label="关闭停用确认" onClick={() => setConfirmTarget(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="停用服务分类"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>停用“{confirmTarget.name}”？</h3><p>停用后，该分类及其中的服务将不再出现在老人端的新咨询入口中；历史拨打与预约确认记录不受影响。</p><div><button className="secondary-button" onClick={() => setConfirmTarget(null)}>取消</button><button className="danger-button" onClick={() => { onToggle(confirmTarget.id); setConfirmTarget(null); }}>确认停用</button></div></section></div>}
+    {confirmTarget && <AdminConfirm title={`停用“${confirmTarget.name}”？`} description="停用后，该分类及其中的服务将不再出现在三端的新服务入口中；历史联系与协助记录继续保留分类快照。" confirmLabel="确认停用" onClose={() => setConfirmTarget(null)} onConfirm={() => { onToggle(confirmTarget.id); setConfirmTarget(null); }}/>}
+    {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.name}”？`} description="删除后，已关联服务将变为未分类，服务本身和历史记录快照不会被删除。" confirmLabel="确认删除" danger onClose={() => setDeleteTarget(null)} onConfirm={() => { onDelete(deleteTarget.id); setDeleteTarget(null); }}/>}
   </>;
 }
 
-function ServiceCategoryDrawer({ record, categories, communityName, onClose, onSave }) {
-  const [form, setForm] = useState(() => record ? { ...record } : { name: "", code: "", description: "", displayOrder: categories.length + 1, status: "启用", availableServiceCount: 0 });
-  const [errors, setErrors] = useState({});
-  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+function ServiceCategoryModal({ record, categories, onClose, onSave }) {
+  const [name, setName] = useState(record?.name || "");
+  const [error, setError] = useState("");
   const save = () => {
-    const nextErrors = {};
-    const name = form.name.trim();
-    if (!name) nextErrors.name = "请输入分类名称";
-    const duplicated = categories.some((category) => category.id !== record?.id && category.status === "启用" && category.name.trim().toLowerCase() === name.toLowerCase());
-    if (duplicated) nextErrors.name = "当前社区已存在同名的启用分类";
-    if (!Number.isInteger(Number(form.displayOrder)) || Number(form.displayOrder) < 1) nextErrors.displayOrder = "展示顺序必须为大于 0 的整数";
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
-    onSave({ ...form, name, description: form.description.trim(), displayOrder: Number(form.displayOrder) });
+    const normalizedName = name.trim();
+    if (!normalizedName) { setError("请输入分类名称"); return; }
+    if (categories.some((category) => category.id !== record?.id && category.name.trim().toLowerCase() === normalizedName.toLowerCase())) { setError("已存在同名分类"); return; }
+    onSave(record ? { ...record, name: normalizedName } : { name: normalizedName });
   };
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer service-category-drawer" role="dialog" aria-modal="true" aria-label={record ? "编辑服务分类" : "新增服务分类"}>
-    <header><div><h2>{record ? "编辑服务分类" : "新增服务分类"}</h2></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header>
-    <div className="drawer-body"><div className="form-section"><h3>分类信息</h3><label><span>分类名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="例如：陪伴服务"/>{errors.name && <small className="field-error">{errors.name}</small>}</label><label><span>分类标识</span><input value={record?.code || "保存后自动生成"} disabled/><small className="field-help">分类标识保存后不可修改，供老人端和子女端稳定识别。</small></label><label><span>分类说明</span><textarea rows="4" value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="说明该分类包含的服务范围"/></label><div className="form-row"><label><span>展示顺序 *</span><input type="number" min="1" value={form.displayOrder} onChange={(event) => update("displayOrder", event.target.value)}/>{errors.displayOrder && <small className="field-error">{errors.displayOrder}</small>}</label><label><span>分类状态</span><input value={form.status} disabled/></label></div>{record && <div className="form-tip"><div><b>当前服务项目</b><p>{record.availableServiceCount} 项；修改名称后，新咨询入口使用新名称，历史记录仍保留当时的分类快照。</p></div></div>}</div></div>
-    <footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存分类</button></footer>
-  </aside></div>;
+  return <AdminModal title={record ? "编辑分类" : "新增分类"} ariaLabel={record ? "编辑服务分类" : "新增服务分类"} className="activity-category-modal-layer service-category-modal-layer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存</button></>}><div className="activity-category-modal-body service-category-modal-body"><label><span>分类名称 *</span><input autoFocus maxLength="30" value={name} onChange={(event) => { setName(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") save(); }} placeholder="请输入分类名称"/>{error && <small className="field-error">{error}</small>}</label></div></AdminModal>;
 }
 
 function ServiceCatalogPanel({ services, onCreate, onEdit, onToggle }) {
@@ -3384,7 +3412,7 @@ function ServiceCatalogPanel({ services, onCreate, onEdit, onToggle }) {
   </section>;
 }
 
-function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
+function ServiceCatalogDrawer({ record, projects, categoryEnabled, categories, onClose, onSave }) {
   const [form, setForm] = useState(() => {
     const serviceItems = record?.serviceItems?.length
       ? record.serviceItems.map((item) => ({ ...item }))
@@ -3417,6 +3445,7 @@ function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
   const save = () => {
     const nextErrors = {};
     if (!form.name.trim()) nextErrors.name = "请输入服务名称";
+    if (categoryEnabled && !form.categoryId) nextErrors.categoryId = "请选择服务分类";
     if (!form.provider.trim()) nextErrors.provider = "请输入服务机构";
     if (!form.providerPhone.trim()) nextErrors.providerPhone = "请输入咨询电话";
     if (!form.description.trim()) nextErrors.description = "请输入服务介绍";
@@ -3438,10 +3467,10 @@ function ServiceCatalogDrawer({ record, projects, onClose, onSave }) {
   };
   const imageUpload = (assetLabel, field, value, previewRatio) => <div className="single-image-form-item"><span>{assetLabel}</span><SingleImageUpload value={value} alt={`${assetLabel}预览`} accept="image/png,image/jpeg,image/webp,image/svg+xml" hint="支持 PNG、JPG、WebP、SVG，大小不超过 3MB" error={errors[field]} assetLabel={assetLabel} previewRatio={previewRatio} onFileSelect={(file) => chooseImage(field, file)} onRemove={() => update(field, "")}/></div>;
   return <AdminDrawer title={record ? "编辑服务" : "新增服务"} ariaLabel={record ? "编辑服务" : "新增服务"} className="service-catalog-drawer" onClose={onClose} footer={<><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}>保存服务</button></>}>
-    <div className="form-section"><h3>基础信息</h3><label><span>服务名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)}/>{errors.name && <small className="field-error">{errors.name}</small>}</label><div className="form-row"><label><span>服务商 *</span><input value={form.provider} onChange={(event) => update("provider", event.target.value)}/>{errors.provider && <small className="field-error">{errors.provider}</small>}</label><label><span>电话 *</span><input value={form.providerPhone} onChange={(event) => update("providerPhone", event.target.value)}/>{errors.providerPhone && <small className="field-error">{errors.providerPhone}</small>}</label></div><label><span>营业时间</span><input value={form.businessHours} onChange={(event) => update("businessHours", event.target.value)}/></label></div>
+    <div className="form-section"><h3>基础信息</h3><label><span>服务名称 *</span><input value={form.name} onChange={(event) => update("name", event.target.value)}/>{errors.name && <small className="field-error">{errors.name}</small>}</label>{categoryEnabled && <label><span>服务分类 *</span><select className="select-control form-select-native" value={form.categoryId || ""} onChange={(event) => update("categoryId", event.target.value)}><option value="">请选择分类</option>{categories.filter((category) => category.status === "启用" || category.code === form.categoryId).sort((a, b) => a.displayOrder - b.displayOrder).map((category) => <option key={category.id} value={category.code}>{category.name}{category.status !== "启用" ? "（已停用）" : ""}</option>)}</select>{errors.categoryId && <small className="field-error">{errors.categoryId}</small>}</label>}<div className="form-row"><label><span>服务商 *</span><input value={form.provider} onChange={(event) => update("provider", event.target.value)}/>{errors.provider && <small className="field-error">{errors.provider}</small>}</label><label><span>电话 *</span><input value={form.providerPhone} onChange={(event) => update("providerPhone", event.target.value)}/>{errors.providerPhone && <small className="field-error">{errors.providerPhone}</small>}</label></div><label><span>营业时间</span><input value={form.businessHours} onChange={(event) => update("businessHours", event.target.value)}/></label></div>
     <div className="form-section"><h3>服务范围</h3><CommunityScopeField mode={form.coverageMode} selectedIds={form.coverageCommunityIds} communities={projects} onModeChange={(value) => update("coverageMode", value)} onSelectedIdsChange={(ids) => update("coverageCommunityIds", ids)} error={errors.coverageCommunityIds}/></div>
     <div className="form-section"><h3>服务介绍</h3><label><span>介绍摘要 *</span><textarea rows="3" value={form.description} onChange={(event) => update("description", event.target.value)}/>{errors.description && <small className="field-error">{errors.description}</small>}</label><label><span>注意事项 *</span><textarea rows="5" value={form.precautions} onChange={(event) => update("precautions", event.target.value)}/>{errors.precautions && <small className="field-error">{errors.precautions}</small>}</label></div>
-    <div className="form-section service-items-form"><div className="form-section-heading"><div><h3>服务内容与价格</h3><p>每条服务内容对应一条参考价格，价格按原文展示。</p></div><button type="button" className="secondary-button" onClick={addServiceItem}><Plus size={15}/>添加内容</button></div><div className="service-items-editor">{form.serviceItems.map((item, index) => <section key={item.id} className="service-item-editor"><header><b>服务内容 {index + 1}</b><button type="button" className="table-action danger-text" disabled={form.serviceItems.length === 1} onClick={() => removeServiceItem(index)}><Trash2 size={14}/>删除</button></header><label><span>内容名称 *</span><input value={item.name} onChange={(event) => updateServiceItem(index, "name", event.target.value)} placeholder="例如：灯具与开关检查"/>{errors.serviceItems?.[index]?.name && <small className="field-error">{errors.serviceItems[index].name}</small>}</label><label><span>服务内容 *</span><textarea rows="3" value={item.content} onChange={(event) => updateServiceItem(index, "content", event.target.value)} placeholder="说明该项服务的具体内容"/>{errors.serviceItems?.[index]?.content && <small className="field-error">{errors.serviceItems[index].content}</small>}</label><label><span>参考价格 *</span><input value={item.priceText} onChange={(event) => updateServiceItem(index, "priceText", event.target.value)} placeholder="例如：S$35–90"/><small className="field-help">仅用于展示，支持固定价或价格区间，不参与交易计算。</small>{errors.serviceItems?.[index]?.priceText && <small className="field-error">{errors.serviceItems[index].priceText}</small>}</label></section>)}</div></div>
+    <div className="form-section service-items-form"><div className="form-section-heading"><div><h3 className="admin-field-label">服务内容与价格<AdminTooltip label="查看服务内容与价格规则" content="每条服务内容对应一条参考价格，价格按原文展示。"/></h3></div><button type="button" className="secondary-button" onClick={addServiceItem}><Plus size={15}/>添加内容</button></div><div className="service-items-editor">{form.serviceItems.map((item, index) => <section key={item.id} className="service-item-editor"><header><b>服务内容 {index + 1}</b><button type="button" className="table-action danger-text" disabled={form.serviceItems.length === 1} onClick={() => removeServiceItem(index)}><Trash2 size={14}/>删除</button></header><label><span>内容名称 *</span><input value={item.name} onChange={(event) => updateServiceItem(index, "name", event.target.value)} placeholder="例如：灯具与开关检查"/>{errors.serviceItems?.[index]?.name && <small className="field-error">{errors.serviceItems[index].name}</small>}</label><label><span>服务内容 *</span><textarea rows="3" value={item.content} onChange={(event) => updateServiceItem(index, "content", event.target.value)} placeholder="说明该项服务的具体内容"/>{errors.serviceItems?.[index]?.content && <small className="field-error">{errors.serviceItems[index].content}</small>}</label><label><span className="admin-field-label">参考价格 *<AdminTooltip label={`查看第 ${index + 1} 条参考价格规则`} content="仅用于展示，支持固定价或价格区间，不参与交易计算。"/></span><input value={item.priceText} onChange={(event) => updateServiceItem(index, "priceText", event.target.value)} placeholder="例如：S$35–90"/>{errors.serviceItems?.[index]?.priceText && <small className="field-error">{errors.serviceItems[index].priceText}</small>}</label></section>)}</div></div>
     <div className="form-section"><h3>服务图片</h3>{imageUpload("封面图（目录 / 详情头部）", "coverImage", form.coverImage, "landscape")}{imageUpload("服务详情长图", "detailImage", form.detailImage, "natural")}</div>
   </AdminDrawer>;
 }
@@ -4694,10 +4723,18 @@ export function App() {
   const [communityTopicScenario, setCommunityTopicScenario] = useState("normal");
   const [serviceCategories, setServiceCategories] = useState(() => {
     try {
-      const savedCategories = window.localStorage.getItem("u2g-service-categories-v10-unified");
+      const savedCategories = window.localStorage.getItem("u2g-service-categories-v11-directory");
       return savedCategories ? JSON.parse(savedCategories) : initialServiceCategories;
     } catch {
       return initialServiceCategories;
+    }
+  });
+  const [serviceCategorySettings, setServiceCategorySettings] = useState(() => {
+    try {
+      const savedSettings = window.localStorage.getItem("u2g-service-category-settings-v1");
+      return savedSettings ? JSON.parse(savedSettings) : unifiedServiceCategorySettings;
+    } catch {
+      return unifiedServiceCategorySettings;
     }
   });
   const [serviceBookings, setServiceBookings] = useState(() => {
@@ -5100,8 +5137,12 @@ export function App() {
   }, [customActivityScopes]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-service-categories-v10-unified", JSON.stringify(serviceCategories));
+    window.localStorage.setItem("u2g-service-categories-v11-directory", JSON.stringify(serviceCategories));
   }, [serviceCategories]);
+
+  useEffect(() => {
+    window.localStorage.setItem("u2g-service-category-settings-v1", JSON.stringify(serviceCategorySettings));
+  }, [serviceCategorySettings]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-service-assistance-records-v5-family-help", JSON.stringify(serviceBookings));
@@ -5126,6 +5167,15 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem("u2g-service-catalog-v8-service-items", JSON.stringify(serviceCatalog));
   }, [serviceCatalog]);
+
+  useEffect(() => {
+    writeUnifiedServiceDirectoryRuntime({
+      version: "2026-11-13",
+      categorySettings: serviceCategorySettings,
+      categories: serviceCategories,
+      services: serviceCatalog,
+    });
+  }, [serviceCategorySettings, serviceCategories, serviceCatalog]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-family-album-batches-v12", JSON.stringify(familyAlbumBatches));
@@ -5572,21 +5622,21 @@ export function App() {
   };
 
   const saveServiceCategory = (category) => {
-    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-");
     if (category.id) {
       setServiceCategories((items) => items.map((item) => item.id === category.id ? { ...item, ...category, updatedAt } : item));
-      setServiceCatalog((items) => items.map((item) => item.projectId === category.projectId && item.categoryCode === category.code ? { ...item, category: category.name, categoryName: category.name, updatedAt } : item));
+      setServiceCatalog((items) => items.map((item) => item.categoryCode === category.code ? { ...item, category: category.name, categoryName: category.name, updatedAt } : item));
     } else {
       const customNumbers = serviceCategories.map((item) => Number(`${item.code}`.match(/^custom-(\d+)$/)?.[1]) || 0);
       const nextNumber = Math.max(0, ...customNumbers) + 1;
       const suffix = String(nextNumber).padStart(3, "0");
       setServiceCategories((items) => [...items, {
         ...category,
-        id: `SC-${currentProject.id}-CUSTOM-${suffix}`,
-        projectId: currentProject.id,
-        communityId: serviceCategoryMock.communities.find((item) => item.projectId === currentProject.id)?.communityId || currentProject.id,
+        id: `SC-CUSTOM-${suffix}`,
         code: `custom-${suffix}`,
         status: "启用",
+        description: "",
+        displayOrder: Math.max(0, ...items.map((item) => Number(item.displayOrder) || 0)) + 1,
         availableServiceCount: 0,
         updatedAt,
       }]);
@@ -5594,32 +5644,30 @@ export function App() {
     setDrawer(null);
   };
 
-  const moveServiceCategory = (id, direction) => {
-    const scoped = serviceCategories.filter((item) => item.projectId === currentProject.id).sort((a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
-    const currentIndex = scoped.findIndex((item) => item.id === id);
-    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= scoped.length) return;
-    const current = scoped[currentIndex];
-    const target = scoped[nextIndex];
-    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
-    setServiceCategories((items) => items.map((item) => item.id === current.id
-      ? { ...item, displayOrder: target.displayOrder, updatedAt }
-      : item.id === target.id
-        ? { ...item, displayOrder: current.displayOrder, updatedAt }
-        : item));
-  };
-
   const toggleServiceCategory = (id) => {
-    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-");
     setServiceCategories((items) => items.map((item) => item.id === id ? { ...item, status: item.status === "启用" ? "已停用" : "启用", updatedAt } : item));
   };
 
+  const deleteServiceCategory = (id) => {
+    const category = serviceCategories.find((item) => item.id === id);
+    if (!category) return;
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-");
+    setServiceCategories((items) => items.filter((item) => item.id !== id));
+    setServiceCatalog((items) => items.map((item) => item.categoryId === category.code || item.categoryCode === category.code
+      ? { ...item, categoryId: null, categoryCode: "", category: "", categoryName: "", updatedAt }
+      : item));
+  };
+
   const saveServiceCatalogItem = (service) => {
-    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-");
+    const category = serviceCategories.find((item) => item.code === service.categoryId);
     const normalizedService = normalizeServiceCatalogItem({
       ...service,
       categoryId: service.categoryId || null,
       categoryCode: service.categoryId || service.categoryCode || "",
+      category: category?.name || service.category || "",
+      categoryName: category?.name || service.categoryName || "",
       updatedAt,
     });
     if (service.id) {
@@ -5627,13 +5675,13 @@ export function App() {
     } else {
       const nextNumber = Math.max(0, ...serviceCatalog.map((item) => Number(item.id.match(/custom-(\d+)$/)?.[1]) || 0)) + 1;
       const id = `srv-custom-${String(nextNumber).padStart(3, "0")}`;
-      setServiceCatalog((items) => [...items, normalizeServiceCatalogItem({ ...normalizedService, id, displayOrder: items.length + 1 })]);
+      setServiceCatalog((items) => [...items, normalizeServiceCatalogItem({ ...normalizedService, id, status: "启用", displayOrder: Math.max(0, ...items.map((item) => Number(item.displayOrder || 0))) + 1 })]);
     }
     setDrawer(null);
   };
 
   const toggleServiceCatalogItem = (id) => {
-    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-");
     setServiceCatalog((items) => items.map((item) => item.id === id ? { ...item, status: item.status === "启用" ? "停用" : "启用", updatedAt } : item));
   };
 
@@ -5921,7 +5969,7 @@ export function App() {
               : safeActive === "services"
                 ? <ServiceAssistanceRecordPage records={platformMode === "platform" ? serviceBookings : scopedServiceBookings} elderlyRecords={platformMode === "platform" ? elderlyRecords : scopedElderlyRecords} projects={projects} communityName={currentProject?.name || "当前社区"} showCommunity={platformMode === "platform"} onOpen={(record) => setDrawer({ kind: "serviceAssistanceRecord", record })}/>
               : safeActive === "serviceCatalog" && platformMode === "platform"
-                ? <ServiceCatalogPage catalog={serviceCatalog} projects={unifiedCommunities} reviewSummaries={serviceReviewSummaries} onCreate={() => setDrawer({ kind: "serviceCatalog" })} onView={(record) => setDrawer({ kind: "serviceCatalogDetail", record })} onEdit={(record) => setDrawer({ kind: "serviceCatalog", record })}/>
+                ? <ServiceCatalogPage catalog={serviceCatalog} projects={unifiedCommunities} reviewSummaries={serviceReviewSummaries} categoryEnabled={serviceCategorySettings.enabled} categories={serviceCategories} onToggleCategories={(enabled) => setServiceCategorySettings({ enabled, updatedAt: new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-") })} onCreateCategory={() => setDrawer({ kind: "serviceCategory" })} onEditCategory={(record) => setDrawer({ kind: "serviceCategory", record })} onToggleCategory={toggleServiceCategory} onDeleteCategory={deleteServiceCategory} onCreate={() => setDrawer({ kind: "serviceCatalog" })} onView={(record) => setDrawer({ kind: "serviceCatalogDetail", record })} onEdit={(record) => setDrawer({ kind: "serviceCatalog", record })} onToggleService={toggleServiceCatalogItem}/>
               : safeActive === "projects"
                 ? <ProjectPage projects={projects} members={communityMembers} roles={roles} onSave={saveProject} onToggle={toggleProject} onSaveMember={saveCommunityMember} onToggleMember={toggleCommunityMember}/>
                 : safeActive === "userManagement"
@@ -5978,8 +6026,8 @@ export function App() {
         return <CommunityTopicDetailDrawer topic={topic} comments={scopedTopicComments.filter((comment) => comment.topicId === topic.id)} contentRecords={scopedSafetyNews} currentUser={currentCommunityMember} onClose={() => setDrawer(null)} onAddComment={addCommunityTopicComment} onCloseTopic={closeCommunityTopic} onViewReference={(record) => setDrawer({ kind: "safety", mode: "view", record, contentType: record.type })}/>;
       })()}
       {drawer?.kind === "serviceAssistanceRecord" && <ServiceAssistanceRecordDrawer record={drawer.record} elderly={(platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>}
-      {drawer?.kind === "serviceCategory" && <ServiceCategoryDrawer key={drawer.record?.id || `new-service-category-${currentProjectId}`} record={drawer.record} categories={scopedServiceCategories} communityName={currentProject?.name || "当前社区"} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>}
-      {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} projects={unifiedCommunities} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>}
+      {drawer?.kind === "serviceCategory" && <ServiceCategoryModal key={drawer.record?.id || "new-service-category"} record={drawer.record} categories={serviceCategories} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>}
+      {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} projects={unifiedCommunities} categoryEnabled={serviceCategorySettings.enabled} categories={serviceCategories} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>}
       {drawer?.kind === "serviceCatalogDetail" && <ServiceCatalogDetailDrawer record={drawer.record} projects={unifiedCommunities} reviewSummary={serviceReviewSummaries[drawer.record.id]} onClose={() => setDrawer(null)} onEdit={() => setDrawer({ kind: "serviceCatalog", record: drawer.record })}/>}
       {drawer?.kind === "relativeWeather" && <RelativeWeatherLocationDrawer key={drawer.account.id} account={drawer.account} location={weatherMockApi.getLocation(weatherLocations, "亲属", drawer.account.id)} onClose={() => setDrawer(null)} onSave={(selection) => saveRelativeWeatherLocation(drawer.account, selection)}/>}
       {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.record?.id || drawer.condition?.code || "new-care-script"} condition={drawer.condition} availableConditions={drawer.availableConditions} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>}
