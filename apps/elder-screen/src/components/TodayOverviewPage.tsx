@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   CalendarCheck2,
   Check,
-  CheckCircle2,
   Clock3,
   Flag,
   Footprints,
@@ -183,7 +182,6 @@ export default function TodayOverviewPage({
   const [pendingSyncIds, setPendingSyncIds] = useState<string[]>(() => readStringArray(SYNC_QUEUE_STORAGE_KEY));
   const [completedRecommendationIds, setCompletedRecommendationIds] = useState<string[]>(() => readStringArray(RECOMMENDATION_STORAGE_KEY));
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-  const [syncNotice, setSyncNotice] = useState("");
   const [activeRecommendationId, setActiveRecommendationId] = useState<string | null>(null);
   const [entertainmentOpenState, setEntertainmentOpenState] = useState<"ready" | "retrying" | "failure">("ready");
 
@@ -246,8 +244,6 @@ export default function TodayOverviewPage({
     const timer = window.setTimeout(() => {
       setPendingSyncIds([]);
       window.localStorage.setItem(SYNC_QUEUE_STORAGE_KEY, "[]");
-      setSyncNotice("离线确认记录已同步");
-      window.setTimeout(() => setSyncNotice(""), 3000);
     }, 900);
     return () => window.clearTimeout(timer);
   }, [isOnline, pendingSyncIds]);
@@ -371,10 +367,6 @@ export default function TodayOverviewPage({
             })}
           </div>
 
-          <div className="today-offline-note">
-            {isOnline ? <CheckCircle2 aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
-            <span>{isOnline ? (syncNotice || "日程已保存，本地补打记录会自动同步") : "离线模式：日程仍可查看和补打，联网后自动同步"}</span>
-          </div>
         </section>
 
         <section className="today-recommendation-panel" aria-labelledby="today-worth-title">

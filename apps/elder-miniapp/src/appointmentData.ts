@@ -76,9 +76,9 @@ export type ServiceAssistanceRecord = {
   reminderTimes?: string[];
   lastRemindedAt?: string;
   review: { rating: number; text: string; elderId?: string; submittedAt: string; edited: boolean } | null;
-  workflowStage?: 'contact_pending_confirmation' | 'appointment_confirmed' | 'family_help_pending' | 'family_help_handling' | 'family_help_handled' | 'family_help_completed' | 'cancelled' | 'expired';
+  workflowStage?: 'contact_pending_confirmation' | 'appointment_confirmed' | 'service_no_longer_needed' | 'family_help_pending' | 'family_help_handling' | 'family_help_handled' | 'family_help_completed' | 'cancelled' | 'expired';
   contactStartedAt?: string;
-  appointmentOutcome?: 'appointment_confirmed' | 'family_help_requested' | null;
+  appointmentOutcome?: 'appointment_confirmed' | 'family_help_requested' | 'service_no_longer_needed' | null;
   appointmentOutcomeAt?: string | null;
   familyHelpRequestedAt?: string | null;
   familyHelpInquiry?: { askedAt: string; askedBy: { type: string; id?: string | null; name?: string | null } };

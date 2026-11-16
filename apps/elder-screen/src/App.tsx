@@ -1296,7 +1296,7 @@ export default function App() {
         setIsSchedulePageOpen(true);
       }}
       onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
-      onShowServices={() => openAcceptanceSpecialServicesScenario(acceptanceSpecialServicesScenario)}
+      onShowServices={(scenario) => openAcceptanceSpecialServicesScenario(scenario ?? acceptanceSpecialServicesScenario)}
       onShowCommunityStaff={() => openAcceptanceCommunityStaffScenario(acceptanceCommunityStaffScenario)}
       onShowContacts={(scenario) => {
         showHomeForAcceptance();

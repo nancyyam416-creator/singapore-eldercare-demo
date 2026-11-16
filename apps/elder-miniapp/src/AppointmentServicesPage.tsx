@@ -69,7 +69,7 @@ export type AppointmentScenario =
   | "reviewed"
   | "records";
 export type AppointmentReturnTarget = "detail" | "records";
-type View = "list" | "detail" | "result" | "records";
+type View = "list" | "detail" | "result" | "records" | "record-detail";
 type DetailTab = "detail" | "reviews";
 
 const CHILD_NOTIFICATION_KEY = "u2g-child-service-assistance-notifications-v1";
@@ -256,6 +256,93 @@ const serviceSnapshotLabel = (service: ServiceAssistanceRecord["service"]) =>
     : `${service.categoryName} · ${service.name}`;
 const isFamilyInquiryPending = (record: ServiceAssistanceRecord) =>
   isPendingServiceContact(record) && Boolean(record.familyHelpInquiry?.askedAt);
+
+type UnifiedRecordStatus = "待处理" | "处理中" | "已处理" | "已失效";
+type RecordProgressItem = { time: string; text: string };
+
+const getUnifiedRecordStatus = (record: ServiceAssistanceRecord): UnifiedRecordStatus => {
+  if (record.status === "expired" || record.workflowStage === "expired") return "已失效";
+  if (
+    record.familyContactStatus === "contacting" ||
+    record.status === "handling" ||
+    record.workflowStage === "family_help_handling"
+  ) return "处理中";
+  if (
+    record.status === "handled" ||
+    record.status === "cancelled" ||
+    Boolean(record.review) ||
+    isFamilyHandlingCompleted(record) ||
+    record.workflowStage === "appointment_confirmed" ||
+    record.workflowStage === "service_no_longer_needed" ||
+    record.familyContactResult === "appointment_confirmed"
+  ) return "已处理";
+  return "待处理";
+};
+
+const getRecordType = (record: ServiceAssistanceRecord) =>
+  isFamilyAssistanceRecord(record) ? "请家人帮忙" : "联系动态";
+
+const getRecordProgress = (record: ServiceAssistanceRecord): RecordProgressItem[] => {
+  const items: RecordProgressItem[] = [{
+    time: record.contactStartedAt ?? record.requestedAt,
+    text: isFamilyAssistanceRecord(record) ? "已请求家人帮忙" : "已联系服务商",
+  }];
+  if (record.familyHelpInquiry) items.push({
+    time: record.familyHelpInquiry.askedAt,
+    text: `${record.familyHelpInquiry.askedBy.name || "家人"}询问联系结果`,
+  });
+  if (record.appointmentOutcomeAt && record.appointmentOutcome === "appointment_confirmed") {
+    items.push({ time: record.appointmentOutcomeAt, text: "您回复：约好了" });
+  }
+  if (record.appointmentOutcomeAt && record.appointmentOutcome === "family_help_requested") {
+    items.push({ time: record.appointmentOutcomeAt, text: "您回复：没约好，请家人帮忙" });
+  }
+  if (record.appointmentOutcomeAt && record.appointmentOutcome === "service_no_longer_needed") {
+    items.push({ time: record.appointmentOutcomeAt, text: "您回复：暂时不需要了" });
+  }
+  if (record.contactStartedAt || record.familyContactStatus === "contacting") {
+    const contactAt = record.familyContactResultAt ?? record.lastFamilyContactAt ?? record.handledAt;
+    if (contactAt) items.push({
+      time: contactAt,
+      text: `${record.familyContactBy?.name || record.handledBy || "家人"}开始联系服务商`,
+    });
+  }
+  if (record.familyContactResultAt && record.familyContactResult === "not_appointed") {
+    items.push({
+      time: record.familyContactResultAt,
+      text: `${record.lastFamilyContactBy?.name || record.familyContactBy?.name || "家人"}反馈：还没约好`,
+    });
+  }
+  if (record.familyContactResultAt && record.familyContactResult === "appointment_confirmed") {
+    items.push({
+      time: record.familyContactResultAt,
+      text: `${record.familyContactBy?.name || record.handledBy || "家人"}反馈：已约好`,
+    });
+  }
+  if (record.handledAt && record.resultSummary && !record.familyContactResult) {
+    items.push({ time: record.handledAt, text: record.resultSummary });
+  }
+  const completedAt = getFamilyHandlingCompletedAt(record);
+  if (completedAt) items.push({ time: completedAt, text: "家人协助已处理" });
+  if (record.status === "expired" || record.workflowStage === "expired") {
+    items.push({ time: record.expiredAt ?? record.requestedAt, text: "本次记录已失效" });
+  }
+  if (record.review) items.push({
+    time: record.review.submittedAt,
+    text: `已提交服务评价：${"★".repeat(record.review.rating)}${record.review.text ? ` · ${record.review.text}` : ""}`,
+  });
+  return items.sort((first, second) => first.time.localeCompare(second.time));
+};
+
+const getLatestRecordProgress = (record: ServiceAssistanceRecord) => {
+  const progress = getRecordProgress(record);
+  if (progress.length > 1) return progress.at(-1)!.text;
+  const status = getUnifiedRecordStatus(record);
+  if (status === "已处理") return "本次记录已处理";
+  if (status === "处理中") return "家人正在处理";
+  if (status === "已失效") return "本次记录已失效";
+  return "等待后续处理";
+};
 
 type Props = {
   scenario: AppointmentScenario;
@@ -552,7 +639,10 @@ export default function AppointmentServicesPage({
   };
 
   const answerServiceCall = (
-    answer: "appointment_confirmed" | "family_help_requested",
+    answer:
+      | "appointment_confirmed"
+      | "family_help_requested"
+      | "service_no_longer_needed",
   ) => {
     if (!latest) return;
     const result = latest.id.startsWith("CALL-MOCK-PENDING-")
@@ -570,16 +660,18 @@ export default function AppointmentServicesPage({
                 ? "拨号后未约成，已请家人协助"
                 : latest.requestReason,
             handledBy:
-              answer === serviceContactAnswers.appointmentConfirmed
+              answer !== serviceContactAnswers.familyHelpRequested
                 ? "王奶奶"
                 : null,
             handledAt:
-              answer === serviceContactAnswers.appointmentConfirmed
+              answer !== serviceContactAnswers.familyHelpRequested
                 ? new Date().toISOString()
                 : null,
             resultSummary:
               answer === serviceContactAnswers.appointmentConfirmed
                 ? "老人已确认与服务商约好。"
+                : answer === serviceContactAnswers.serviceNoLongerNeeded
+                  ? "老人表示暂时不需要此服务。"
                 : null,
           }) as ServiceAssistanceRecord,
           updated: true,
@@ -599,7 +691,9 @@ export default function AppointmentServicesPage({
     setFamilyHelpSuccessMessage(
       answer === serviceContactAnswers.appointmentConfirmed
         ? "已记录：您已经约好了"
-        : "已沿用本次联系记录通知家人",
+        : answer === serviceContactAnswers.serviceNoLongerNeeded
+          ? "已记录：暂时不需要此服务"
+          : "已沿用本次联系记录通知家人",
     );
   };
 
@@ -740,14 +834,14 @@ export default function AppointmentServicesPage({
       aria-label="服务协助页面"
     >
       <button
-        className={view !== "records" ? "active" : ""}
+        className={view !== "records" && view !== "record-detail" ? "active" : ""}
         onClick={() => setView("list", "default")}
       >
         <Wrench />
         可用服务
       </button>
       <button
-        className={view === "records" ? "active" : ""}
+        className={view === "records" || view === "record-detail" ? "active" : ""}
         onClick={() => setView("records", "records")}
       >
         <ClipboardCheck />
@@ -1032,6 +1126,7 @@ export default function AppointmentServicesPage({
             {latest.status === "expired" || latest.status === "cancelled" ? (
               <XCircle />
             ) : latest.workflowStage === "appointment_confirmed" ||
+              latest.workflowStage === "service_no_longer_needed" ||
               isFamilyHandlingCompleted(latest) ||
               latest.status === "handled" ? (
               <CheckCircle2 />
@@ -1044,6 +1139,8 @@ export default function AppointmentServicesPage({
               ? `${latest.familyHelpInquiry?.askedBy.name || "家人"}想问：这项服务约好了吗？`
               : latest.workflowStage === "appointment_confirmed"
                 ? "已记录预约结果"
+                : latest.workflowStage === "service_no_longer_needed"
+                  ? "暂时不需要此服务"
                 : latest.status === "expired"
                   ? "协助已失效"
                   : latest.status === "cancelled"
@@ -1063,6 +1160,8 @@ export default function AppointmentServicesPage({
               ? `${latest.familyHelpInquiry?.askedBy.name || "家人"}想确认您是否已经约好；您的答复会同步给家人。`
               : latest.workflowStage === "appointment_confirmed"
                 ? "您已确认约好，本次联系已结束并同步给家人。"
+                : latest.workflowStage === "service_no_longer_needed"
+                  ? "本次询问已结束，您的答复已同步给家人。"
                 : latest.status === "expired"
                   ? serviceAssistanceExpiryMessage
                   : latest.status === "cancelled"
@@ -1201,6 +1300,15 @@ export default function AppointmentServicesPage({
                 <HandHeart />
                 没约好，请家人帮忙
               </button>
+              <button
+                className="secondary-button appointment-no-longer-needed-button"
+                onClick={() =>
+                  answerServiceCall(serviceContactAnswers.serviceNoLongerNeeded)
+                }
+              >
+                <XCircle />
+                暂时不需要了
+              </button>
             </div>
           )}
           {isFamilyAssistanceRecord(latest) &&
@@ -1230,130 +1338,36 @@ export default function AppointmentServicesPage({
         </section>
       )}
 
-      {view === "records" && familyInquiries.length > 0 && (
-        <section className="appointment-family-inquiry-list" aria-label="家人询问">
-          {familyInquiries.map((record) => (
-            <button
-              key={record.id}
-              className="appointment-family-inquiry-entry"
-              onClick={() => {
-                realInquiryNavigationRef.current = true;
-                setLatest(record);
-                setView("result", "family_inquiry", "records");
-              }}
-            >
-              <BellRing />
-              <span>
-                <strong>{record.familyHelpInquiry?.askedBy.name || "家人"}想问您</strong>
-                <small>{record.service.name}是否已经约好？</small>
-              </span>
-              <ChevronRight />
-            </button>
-          ))}
-        </section>
-      )}
-
       {view === "records" && (
         <section className="appointment-records">
-          {records.filter((record) => !isFamilyInquiryPending(record)).map((record) => (
-            <article
-              key={record.id}
-              className={`appointment-record ${record.status}`}
-            >
-              <header>
-                <span>{record.service.categoryName}</span>
-                <b>
-                  {!isFamilyAssistanceRecord(record) && isPendingServiceContact(record)
-                    ? "已拨打"
-                    : record.status === "expired"
-                    ? "已失效"
-                    : record.review
-                      ? "已评价"
-                      : isFamilyHandlingCompleted(record)
-                        ? "家人处理完成"
-                        : record.familyContactStatus === "not_appointed"
-                          ? "暂未约成"
-                        : record.status === "handled"
-                          ? "已反馈"
-                          : record.status === "handling"
-                            ? `${record.familyContactBy?.name || "家人"}联系中`
-                            : "待处理"}
-                </b>
-              </header>
-              <h3>{record.service.name}</h3>
-              <p>
-                <UserRound />
-                {record.provider.name} · {record.provider.phone}
-              </p>
-              <p>
-                <Clock3 />
-                请求于 {formatTime(record.requestedAt)}
-              </p>
-              {record.lastRemindedAt && (
-                <p>
-                  <BellRing />
-                  最近提醒于 {formatTime(record.lastRemindedAt)}
-                </p>
-              )}
-              {record.status === "expired" && (
-                <p className="appointment-expiry-copy">
-                  <XCircle />
-                  {serviceAssistanceExpiryMessage}
-                </p>
-              )}
-              {record.status === "pending" &&
-                record.familyContactStatus === "not_appointed" &&
-                record.lastFamilyContactAt && (
-                  <p>
-                    <PhoneCall />
-                    {record.lastFamilyContactBy?.name || "家人"} 于 {formatTime(record.lastFamilyContactAt)} 反馈暂未约成
-                  </p>
-                )}
-              {record.status === "handled" && (
-                <>
-                  <p>
-                    <CheckCircle2 />
-                    {record.handledBy} 已于 {formatTime(record.handledAt!)} 反馈
-                  </p>
-                  <p>
-                    <ClipboardCheck />
-                    {record.resultSummary}
-                  </p>
-                </>
-              )}
-              {record.appointmentAt?.trim() && (
-                <p>
-                  <Clock3 />
-                  预约时间：{record.appointmentAt}
-                </p>
-              )}
-              {record.feeText?.trim() && (
-                <p>
-                  <ClipboardCheck />
-                  参考费用：{record.feeText}
-                </p>
-              )}
-              {getFamilyHandlingCompletedAt(record) && (
-                <p>
-                  <CheckCircle2 />
-                  家人处理完成于{" "}
-                  {formatTime(getFamilyHandlingCompletedAt(record)!)}
-                </p>
-              )}
-              {record.review && (
-                <>
-                  <p>
-                    <Star />
-                    {record.review.rating} 星 ·{" "}
-                    {record.review.text || "未填写文字评价"}
-                  </p>
-                  <p>
-                    <UserRound />
-                    评价人：{record.elder.name} ·{" "}
-                    {formatTime(record.review.submittedAt)}
-                  </p>
-                </>
-              )}
+          {records.map((record) => (
+            <article key={record.id} className="appointment-record-summary">
+              <button
+                className="appointment-record-open"
+                onClick={() => {
+                  if (isFamilyInquiryPending(record)) realInquiryNavigationRef.current = true;
+                  setLatest(record);
+                  setView("record-detail", "records", "records");
+                }}
+              >
+                <span className={isFamilyAssistanceRecord(record) ? "is-help" : "is-contact"}>
+                  {isFamilyAssistanceRecord(record) ? <HandHeart /> : <PhoneCall />}
+                </span>
+                <span className="appointment-record-summary-copy">
+                  <span className="appointment-record-summary-meta">
+                    <small>{getRecordType(record)}</small>
+                    <b data-status={getUnifiedRecordStatus(record)}>{getUnifiedRecordStatus(record)}</b>
+                  </span>
+                  <strong>{record.service.name}</strong>
+                  <small>{record.provider.name}</small>
+                  <time>{formatTime(record.contactStartedAt ?? record.requestedAt)}</time>
+                  <em>{getLatestRecordProgress(record)}</em>
+                </span>
+                <span className="appointment-record-summary-aside">
+                  {isFamilyInquiryPending(record) && <b>待回应</b>}
+                  <ChevronRight />
+                </span>
+              </button>
               {canReviewServiceAssistance(record, record.elder.id) && (
                 <button
                   className="appointment-record-review"
@@ -1365,25 +1379,65 @@ export default function AppointmentServicesPage({
                   setView("result", "completed", "records");
                   }}
                 >
+                  <Star />
                   评价服务
                 </button>
               )}
-              <footer>
-                <small>{record.id}</small>
-                <span>
-                  {record.review
-                    ? "当前评价已提交"
-                    : record.status === "expired"
-                      ? "本次协助已结束，历史记录已保留"
-                      : isFamilyHandlingCompleted(record)
-                        ? "家人协助工单已处理完成"
-                        : record.status === "handled"
-                          ? "已收到家人联系结果"
-                          : "已通知全部绑定家人"}
-                </span>
-              </footer>
             </article>
           ))}
+        </section>
+      )}
+
+      {view === "record-detail" && latest && (
+        <section className="appointment-record-detail">
+          <button className="appointment-record-back" onClick={() => setView("records", "records")}>
+            返回协助记录
+          </button>
+          <header>
+            <span>{getRecordType(latest)}</span>
+            <b data-status={getUnifiedRecordStatus(latest)}>{getUnifiedRecordStatus(latest)}</b>
+          </header>
+          <h2>{latest.service.name}</h2>
+          <div className="appointment-record-provider">
+            <UserRound />
+            <span><small>服务商</small><strong>{latest.provider.name}</strong></span>
+            <a href={`tel:${latest.provider.phone.replace(/\s/g, "")}`}><PhoneCall />{latest.provider.phone}</a>
+          </div>
+          <section className="appointment-record-progress" aria-label="处理进展">
+            <h3>处理进展</h3>
+            <ol>
+              {getRecordProgress(latest).map((item, index) => (
+                <li key={`${item.time}-${index}`}>
+                  <time>{formatTime(item.time)}</time>
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+          {isFamilyInquiryPending(latest) && (
+            <section className="appointment-record-answer" aria-label="回复家人询问">
+              <strong>{latest.familyHelpInquiry?.askedBy.name || "家人"}想问：这项服务约好了吗？</strong>
+              <p>您的答复会同步给家人。</p>
+              <div className="appointment-contact-answer-actions">
+                <button className="primary-button" onClick={() => answerServiceCall(serviceContactAnswers.appointmentConfirmed)}>约好了</button>
+                <button className="secondary-button" onClick={() => answerServiceCall(serviceContactAnswers.familyHelpRequested)}><HandHeart />没约好，请家人帮忙</button>
+                <button className="secondary-button appointment-no-longer-needed-button" onClick={() => answerServiceCall(serviceContactAnswers.serviceNoLongerNeeded)}><XCircle />暂时不需要了</button>
+              </div>
+            </section>
+          )}
+          {canReviewServiceAssistance(latest, latest.elder.id) && (
+            <button
+              className="appointment-record-review"
+              onClick={() => {
+                setRating(5);
+                setReviewText("");
+                setReviewError("");
+                setView("result", "completed", "records");
+              }}
+            >
+              <Star />评价服务
+            </button>
+          )}
         </section>
       )}
 

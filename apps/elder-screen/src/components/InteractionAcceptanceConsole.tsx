@@ -179,7 +179,7 @@ interface InteractionAcceptanceConsoleProps {
   onShowAlbum: () => void;
   onShowReminders: () => void;
   onShowCommunity: () => void;
-  onShowServices: () => void;
+  onShowServices: (scenario?: SpecialServicesAcceptanceScenario) => void;
   onShowCommunityStaff: () => void;
   onShowContacts: (scenario?: ServiceConversationAcceptanceScenario) => void;
   onShowFamilyRequests: () => void;
@@ -209,10 +209,12 @@ interface InteractionAcceptanceConsoleProps {
   onReset: () => void;
 }
 
-type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | "special-services" | "community-staff" | "family-requests" | "service-messages" | "activation";
+type SpecialServicesAcceptanceSection = "special-services-list" | "special-services-detail" | "special-services-records";
+type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | SpecialServicesAcceptanceSection | "community-staff" | "family-requests" | "service-messages" | "activation";
 type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "community-staff" | "contacts" | "activation";
 type WeatherAcceptanceTarget = "home" | "detail";
 type RightContentAcceptanceObject = "family" | "medication" | "schedule" | "activity" | "recommendation" | "queue";
+type SpecialServicesRecordType = "contact" | "family-help";
 
 const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: string }> = [
   { id: "weather", label: "家庭天气" },
@@ -221,7 +223,9 @@ const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: str
   { id: "task-progress", label: "首页右侧" },
   { id: "reminders", label: "今日提醒" },
   { id: "community-life", label: "社区生活" },
-  { id: "special-services", label: "特约服务" },
+  { id: "special-services-list", label: "服务列表" },
+  { id: "special-services-detail", label: "服务详情" },
+  { id: "special-services-records", label: "服务记录" },
   { id: "community-staff", label: "社区人员" },
   { id: "family-requests", label: "家人申请" },
   { id: "service-messages", label: "通讯录与家庭互动" },
@@ -234,7 +238,7 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
   { id: "family-album", label: "家庭相册", sections: ["album"] },
   { id: "reminders", label: "提醒事项", sections: ["reminders"] },
   { id: "community-life", label: "社区生活", sections: ["community-life"] },
-  { id: "special-services", label: "特约服务", sections: ["special-services"] },
+  { id: "special-services", label: "特约服务", sections: ["special-services-list", "special-services-detail", "special-services-records"] },
   { id: "community-staff", label: "社区人员", sections: ["community-staff"] },
   { id: "contacts", label: "通讯录", sections: ["family-requests", "service-messages"] },
 ];
@@ -453,17 +457,79 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
   default: { label: "当前服务目录", description: "不展示分类入口，按共享目录动态展示当前四项服务及明细价格。" },
   "no-services": { label: "暂无可用服务", description: "全部服务不可用时展示统一空状态。" },
+  "contact-pending": { label: "待处理", description: "联系动态已经生成，等待家人确认本次联系结果。" },
   "contact-family-inquiry": { label: "家人发起询问", description: "家人主动询问联系结果后，老人端展示带家人身份的确认弹窗。" },
-  "contact-confirmed": { label: "已约好", description: "老人确认约好后结束本次联系，结果同步给家人。" },
+  "contact-confirmed": { label: "联系已确认", description: "老人确认约好后结束本次联系，结果同步给家人。" },
   "family-help-idle": { label: "未请求", description: "查看联系电话与家人协助均展示初始状态。" },
   "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
   "family-help-pending": { label: "家人待处理", description: "已通知家人，请等待联系。" },
-  "family-help-handling": { label: "家人正在联系", description: "显示具体家人正在联系服务商，尚未产生联系结果。" },
+  "family-help-handling": { label: "家人联系中", description: "显示具体家人正在联系服务商，尚未产生联系结果。" },
   "family-help-not-appointed": { label: "暂未约好", description: "家人已返回还没约好的结果，同一记录继续等待后续联系。" },
-  "family-help-handled": { label: "已约好", description: "展示家人返回的联系结果、预约时间和参考费用，不等同于服务完成。" },
+  "family-help-handled": { label: "家人已约好", description: "展示家人返回的联系结果、预约时间和参考费用，不等同于服务完成。" },
+  "family-help-expired": { label: "已失效", description: "展示超过处理期限的服务记录，保留原进展但不可继续处理。" },
   "service-completed": { label: "家人协助完成", description: "仅表示家人协助记录完成，并保留当前已授权的评价入口。" },
   "service-reviewed": { label: "老人已评价", description: "展示星级、可选文字和评价提交结果。" },
 };
+
+const specialServicesRecordTypeConfigs: Record<SpecialServicesRecordType, {
+  label: string;
+  statuses: Array<{
+    id: "pending" | "handling" | "handled" | "expired";
+    label: string;
+    scenario: SpecialServicesAcceptanceScenario;
+  }>;
+}> = {
+  contact: {
+    label: "联系动态",
+    statuses: [
+      { id: "pending", label: "待处理", scenario: "contact-pending" },
+      { id: "handled", label: "已处理", scenario: "contact-confirmed" },
+    ],
+  },
+  "family-help": {
+    label: "请家人帮忙",
+    statuses: [
+      { id: "pending", label: "待处理", scenario: "family-help-pending" },
+      { id: "handling", label: "处理中", scenario: "family-help-handling" },
+      { id: "handled", label: "已处理", scenario: "family-help-handled" },
+      { id: "expired", label: "已失效", scenario: "family-help-expired" },
+    ],
+  },
+};
+
+const specialServicesModuleConfigs: Record<SpecialServicesAcceptanceSection, {
+  title: string;
+  description: string;
+  actionLabel: string;
+  note: string;
+  scenarios: SpecialServicesAcceptanceScenario[];
+}> = {
+  "special-services-list": {
+    title: "服务列表场景",
+    description: "验收服务目录的正常列表和空状态。",
+    actionLabel: "打开当前服务列表示例",
+    note: "本模块只控制服务目录，不改变服务详情和服务记录。",
+    scenarios: ["default", "no-services"],
+  },
+  "special-services-detail": {
+    title: "服务详情交互",
+    description: "验收服务详情中的联系与请家人帮忙流程。",
+    actionLabel: "打开当前服务详情示例",
+    note: "详情页沿用正式服务内容与右侧操作区，只切换当前交互结果。",
+    scenarios: ["family-help-idle", "family-help-confirm", "contact-family-inquiry"],
+  },
+  "special-services-records": {
+    title: "服务记录验收",
+    description: "选择工单类型和状态，在正式服务记录列表中查看结果。",
+    actionLabel: "打开当前服务记录示例",
+    note: "联系已确认为已处理；暂未约好仍是待处理；家人协助完成和老人已评价仍归入已处理，不作为独立工单状态。",
+    scenarios: ["contact-pending", "contact-confirmed", "family-help-pending", "family-help-handling", "family-help-handled", "family-help-expired"],
+  },
+};
+
+const isSpecialServicesSection = (section: AcceptanceConsoleSection): section is SpecialServicesAcceptanceSection => (
+  section === "special-services-list" || section === "special-services-detail" || section === "special-services-records"
+);
 
 const communityStaffScenarioLabels: Record<CommunityStaffAcceptanceScenario, { label: string; description: string }> = {
   multiple: { label: "多人列表", description: "同屏展示四位已启用人员及完整联系信息。" },
@@ -674,6 +740,11 @@ export default function InteractionAcceptanceConsole({
   const selectedWeatherScenario = getWeatherScenarioPresentation(selectedWeatherTarget, weatherScenario);
   const selectedPage = acceptancePageOptions.find((page) => page.id === activePage) ?? acceptancePageOptions[0];
   const selectedPageSections = acceptanceSectionOptions.filter((section) => selectedPage.sections.includes(section.id));
+  const selectedSpecialServicesModule = isSpecialServicesSection(activeSection) ? specialServicesModuleConfigs[activeSection] : null;
+  const selectedSpecialServicesRecordType = (Object.keys(specialServicesRecordTypeConfigs) as SpecialServicesRecordType[])
+    .find((recordType) => specialServicesRecordTypeConfigs[recordType].statuses.some((status) => status.scenario === serviceScenario)) ?? "contact";
+  const selectedSpecialServicesRecordStatus = specialServicesRecordTypeConfigs[selectedSpecialServicesRecordType].statuses
+    .find((status) => status.scenario === serviceScenario) ?? specialServicesRecordTypeConfigs[selectedSpecialServicesRecordType].statuses[0];
   const albumScenarioOptions = activePage === "family-album" ? familyAlbumScenarios : homeAlbumScenarios;
   const selectedRightContentObject = rightContentAcceptanceObjects.find((item) => item.scenarios.includes(rightContentScenario))
     ?? rightContentAcceptanceObjects[rightContentAcceptanceObjects.length - 1];
@@ -720,6 +791,7 @@ export default function InteractionAcceptanceConsole({
   const changeSection = (sectionId: AcceptanceConsoleSection) => {
     onReset();
     setActiveSection(sectionId);
+    if (isSpecialServicesSection(sectionId)) onSetServiceScenario(specialServicesModuleConfigs[sectionId].scenarios[0]);
     setWeatherAcceptanceTarget("home");
     setActivationDebugOpen(false);
   };
@@ -729,6 +801,9 @@ export default function InteractionAcceptanceConsole({
       onSetRightContentCondition("relationship-valid");
       onSetRightContentScenario(nextObject.scenarios[0]);
     }
+  };
+  const changeSpecialServicesRecordType = (recordType: SpecialServicesRecordType) => {
+    onSetServiceScenario(specialServicesRecordTypeConfigs[recordType].statuses[0].scenario);
   };
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
@@ -860,6 +935,44 @@ export default function InteractionAcceptanceConsole({
                   <ChevronDown aria-hidden="true" />
                 </span>
               </label>
+            )}
+            {activeSection === "special-services-records" && (
+              <>
+                <label className="interaction-acceptance-module-picker">
+                  <span>三级工单</span>
+                  <span className="interaction-acceptance-module-picker__select">
+                    <select
+                      value={selectedSpecialServicesRecordType}
+                      onChange={(event) => changeSpecialServicesRecordType(event.target.value as SpecialServicesRecordType)}
+                      aria-label="选择服务记录工单"
+                    >
+                      {(Object.keys(specialServicesRecordTypeConfigs) as SpecialServicesRecordType[]).map((recordType) => (
+                        <option key={recordType} value={recordType}>{specialServicesRecordTypeConfigs[recordType].label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
+                </label>
+                <label className="interaction-acceptance-module-picker">
+                  <span>四级状态</span>
+                  <span className="interaction-acceptance-module-picker__select">
+                    <select
+                      value={selectedSpecialServicesRecordStatus.id}
+                      onChange={(event) => {
+                        const nextStatus = specialServicesRecordTypeConfigs[selectedSpecialServicesRecordType].statuses
+                          .find((status) => status.id === event.target.value);
+                        if (nextStatus) onSetServiceScenario(nextStatus.scenario);
+                      }}
+                      aria-label="选择服务记录状态"
+                    >
+                      {specialServicesRecordTypeConfigs[selectedSpecialServicesRecordType].statuses.map((status) => (
+                        <option key={status.id} value={status.id}>{status.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
+                </label>
+              </>
             )}
           </section>
 
@@ -1135,12 +1248,17 @@ export default function InteractionAcceptanceConsole({
               <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向提交后不可重复提交或取消，与直播观看相互独立。</p>
             </section>}
 
-            {activeSection === "special-services" && <section>
+            {selectedSpecialServicesModule && <section>
               <div className="interaction-acceptance-field">
-                <h2><HandHeart aria-hidden="true" />特约服务可见状态</h2>
-                <p>选择状态后点击下方按钮，在正式服务详情或服务记录中查看结果。</p>
-                <div className="interaction-acceptance-scenario-list">
-                  {(Object.keys(specialServicesScenarioLabels) as SpecialServicesAcceptanceScenario[]).map((scenario) => (
+                <h2><HandHeart aria-hidden="true" />{selectedSpecialServicesModule.title}</h2>
+                <p>{selectedSpecialServicesModule.description}</p>
+                {activeSection === "special-services-records" ? (
+                  <div className="interaction-acceptance-current" aria-live="polite">
+                    <strong>{specialServicesRecordTypeConfigs[selectedSpecialServicesRecordType].label} · {selectedSpecialServicesRecordStatus.label}</strong>
+                    <p>{specialServicesScenarioLabels[serviceScenario].description}</p>
+                  </div>
+                ) : <div className="interaction-acceptance-scenario-list">
+                  {selectedSpecialServicesModule.scenarios.map((scenario) => (
                     <button
                       key={scenario}
                       type="button"
@@ -1151,12 +1269,12 @@ export default function InteractionAcceptanceConsole({
                       <small>{specialServicesScenarioLabels[scenario].description}</small>
                     </button>
                   ))}
-                </div>
-                <button type="button" className="interaction-acceptance-primary-action" onClick={onShowServices}>
-                  <ChevronRight aria-hidden="true" />打开当前特约服务场景
+                </div>}
+                <button type="button" className="interaction-acceptance-primary-action" onClick={() => onShowServices(serviceScenario)}>
+                  <ChevronRight aria-hidden="true" />{selectedSpecialServicesModule.actionLabel}
                 </button>
               </div>
-              <p className="interaction-acceptance-note">老人拨号或查看号码只记录联系动态；仅家人主动询问后展示联系结果确认，“没约好”沿用原记录进入家人协助。</p>
+              <p className="interaction-acceptance-note">{selectedSpecialServicesModule.note}</p>
             </section>}
 
             {activeSection === "community-staff" && <section>

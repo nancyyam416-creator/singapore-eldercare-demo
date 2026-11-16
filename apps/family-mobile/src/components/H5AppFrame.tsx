@@ -12,7 +12,7 @@ import {
   Heart, 
   ShoppingBag, 
   ClipboardList, 
-  UserRound,
+  CircleUserRound,
   Wifi, 
   Signal, 
   Battery, 
@@ -26,8 +26,8 @@ import {
   X,
   Compass,
   ArrowRight,
-  House,
-  MessageCircle,
+  Home,
+  Images,
   BellRing,
   Mic,
   MicOff,
@@ -35,7 +35,7 @@ import {
   VideoOff,
   Volume2,
   ImagePlus,
-  Settings2
+  CalendarCheck2
 } from 'lucide-react';
 import {
   Medication,
@@ -547,7 +547,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
         {isLoggedIn && activeTab === 'store' && familySection !== 'notifications' && (
           <div className="shrink-0 bg-slate-50 px-4 pt-4 pb-3">
             <div role="tablist" aria-label="家庭内容" className={segmentedControlClass}>
-              {(['messages', 'photos'] as const).map(section => (
+              {(['photos', 'messages'] as const).map(section => (
                 <button key={section} type="button" role="tab" aria-selected={familySection === section} onClick={() => setFamilySection(section)} className={segmentedOptionClass(familySection === section)}>
                   {section === 'messages' ? '家庭留言' : '家庭相册'}
                 </button>
@@ -837,16 +837,16 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             disabled={!isLoggedIn}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'monitor' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <House size={18} className={activeTab === 'monitor' ? 'stroke-[2.5]' : ''} />
+            <Home size={18} className={activeTab === 'monitor' ? 'stroke-[2.5]' : ''} />
             <span className="text-5xs font-extrabold tracking-tight">首页</span>
           </button>
 
           <button
-            onClick={() => { setActiveTab('store'); setFamilySection('messages'); }}
+            onClick={() => { setActiveTab('store'); setFamilySection('photos'); }}
             disabled={!isLoggedIn}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'store' && familySection !== 'notifications' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="relative"><MessageCircle size={18} className={activeTab === 'store' && familySection === 'messages' ? 'stroke-[2.5]' : ''} />{familyUnread > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{familyUnread}</span>}</span>
+            <span className="relative"><Images size={18} className={activeTab === 'store' && familySection !== 'notifications' ? 'stroke-[2.5]' : ''} />{familyUnread > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-black text-white">{familyUnread}</span>}</span>
             <span className="text-5xs font-extrabold tracking-tight">家庭</span>
           </button>
 
@@ -856,7 +856,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'profile' && showReminders ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <BellRing size={18} className={activeTab === 'profile' && showReminders ? 'stroke-[2.5]' : ''} />
-            <span className="text-5xs font-extrabold tracking-tight">提醒事项</span>
+            <span className="text-5xs font-extrabold tracking-tight">提醒</span>
           </button>
 
           <button
@@ -864,15 +864,15 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
             disabled={!isLoggedIn}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${activeTab === 'orders' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="relative"><span className="absolute -right-4 -top-2"><ServiceAssistanceBadge/></span><Settings2 size={18} className={activeTab === 'orders' ? 'stroke-[2.5]' : ''} /></span>
-            <span className="text-5xs font-extrabold tracking-tight">预约服务</span>
+            <span className="relative"><span className="absolute -right-4 -top-2"><ServiceAssistanceBadge/></span><CalendarCheck2 size={18} className={activeTab === 'orders' ? 'stroke-[2.5]' : ''} /></span>
+            <span className="text-5xs font-extrabold tracking-tight">服务</span>
           </button>
 
           <button
             onClick={() => { setShowReminders(false); setActiveTab('profile'); }}
             className={`flex flex-col items-center justify-center flex-1 gap-1 h-full transition-colors ${((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <UserRound size={18} className={((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) ? 'stroke-[2.5]' : ''} />
+            <CircleUserRound size={18} className={((activeTab === 'profile' && !showReminders) || (activeTab === 'store' && familySection === 'notifications')) ? 'stroke-[2.5]' : ''} />
             <span className="text-5xs font-extrabold tracking-tight">我的</span>
           </button>
         </nav>}

@@ -50,6 +50,18 @@ type Activity = { id: string; title: string; time: string; location: string; spo
 type ServiceCategory = 'water' | 'electric' | 'repair';
 type BindingStatus = 'pending' | 'success' | 'rejected' | 'expired' | 'tablet-approved' | 'tablet-rejected' | 'network';
 type PhotoVoiceState = 'idle' | 'listening' | 'processing' | 'error';
+type FamilyView = 'album' | 'messages';
+type FamilyMessage = {
+  id: string;
+  sender: 'child' | 'elder';
+  senderName: string;
+  text: string;
+  sentAt: string;
+  type: 'text' | 'voice';
+  durationSeconds?: number;
+  status: 'delivered' | 'listened';
+};
+type FamilyVoiceState = 'idle' | 'recording' | 'ready' | 'sending';
 type ReminderFilter = 'all' | ReminderType;
 type ReminderView = 'today' | 'rules';
 type LocationPermissionState = 'prompt' | 'granted' | 'denied';
@@ -62,6 +74,11 @@ const photos = [
   { id: 2, title: '家里的兰花开了', date: '昨天 16:10', tone: 'flowers' },
   { id: 3, title: '和老朋友喝茶', date: '10月19日', tone: 'tea' },
   { id: 4, title: '社区晨练', date: '10月18日', tone: 'exercise' },
+];
+
+const initialFamilyMessages: FamilyMessage[] = [
+  { id: 'message-daughter-1', sender: 'child', senderName: '张晓燕', text: '妈妈，晚上记得吃降压药，我下班后给您打电话。', sentAt: '今天 16:45', type: 'voice', durationSeconds: 12, status: 'delivered' },
+  { id: 'message-son-1', sender: 'child', senderName: '张建平', text: '周末我带您去公园走走，天气好我们再拍些照片。', sentAt: '昨天 20:18', type: 'text', status: 'listened' },
 ];
 
 const activities: Activity[] = [
@@ -151,6 +168,11 @@ export default function App() {
   const [photoNote, setPhotoNote] = useState('今天阳光很好，和大家分享一下。');
   const [photoVoiceState, setPhotoVoiceState] = useState<PhotoVoiceState>('idle');
   const [selectedFamilyPhoto, setSelectedFamilyPhoto] = useState<(typeof photos)[number] | null>(null);
+  const [familyView, setFamilyView] = useState<FamilyView>('album');
+  const [familyMessages, setFamilyMessages] = useState<FamilyMessage[]>(initialFamilyMessages);
+  const [familyVoiceState, setFamilyVoiceState] = useState<FamilyVoiceState>('idle');
+  const [familyVoiceSeconds, setFamilyVoiceSeconds] = useState(0);
+  const [playingFamilyMessageId, setPlayingFamilyMessageId] = useState<string | null>(null);
   const [reminderStep, setReminderStep] = useState<'edit' | 'success'>('edit');
   const [reminderType, setReminderType] = useState<ReminderType>('medication');
   const [reminderTitle, setReminderTitle] = useState('晚间降压药');
@@ -252,6 +274,54 @@ export default function App() {
 
   useEffect(() => () => window.speechSynthesis.cancel(), []);
 
+  useEffect(() => {
+    if (familyVoiceState !== 'recording') return;
+    const timer = window.setInterval(() => setFamilyVoiceSeconds(current => Math.min(current + 1, 60)), 1000);
+    return () => window.clearInterval(timer);
+  }, [familyVoiceState]);
+
+  useEffect(() => {
+    if (familyVoiceState !== 'recording') return;
+    const timer = window.setInterval(() => setFamilyVoiceSeconds(current => Math.min(current + 1, 60)), 1000);
+    return () => window.clearInterval(timer);
+  }, [familyVoiceState]);
+
+  const playFamilyMessage = (message: FamilyMessage) => {
+    window.speechSynthesis.cancel();
+    if (playingFamilyMessageId === message.id) {
+      setPlayingFamilyMessageId(null);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(message.text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = .88;
+    utterance.onend = () => setPlayingFamilyMessageId(null);
+    utterance.onerror = () => setPlayingFamilyMessageId(null);
+    setPlayingFamilyMessageId(message.id);
+    setFamilyMessages(current => current.map(item => item.id === message.id ? { ...item, status: 'listened' } : item));
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const sendFamilyVoice = () => {
+    if (!familyVoiceSeconds) return;
+    setFamilyVoiceState('sending');
+    window.setTimeout(() => {
+      setFamilyMessages(current => [{
+        id: `message-elder-${Date.now()}`,
+        sender: 'elder',
+        senderName: '王奶奶',
+        text: '我已经收到留言了，你们放心。',
+        sentAt: '刚刚',
+        type: 'voice',
+        durationSeconds: familyVoiceSeconds,
+        status: 'delivered',
+      }, ...current]);
+      setFamilyVoiceState('idle');
+      setFamilyVoiceSeconds(0);
+      showToast('语音留言已发送给家人');
+    }, 700);
+  };
+
   const openOverlay = (next: Exclude<Overlay, null>) => {
     if (next === 'photo') { setPhotoStep('edit'); setPhotoVoiceState('idle'); }
     if (next === 'reminder') { setReminderStep('edit'); setReminderAddedToday(false); }
@@ -269,6 +339,10 @@ export default function App() {
   const goTo = (next: MainTab) => {
     setLocationPanelOpen(false);
     setSelectedFamilyPhoto(null);
+    setFamilyView('album');
+    setFamilyVoiceState('idle');
+    setFamilyVoiceSeconds(0);
+    setPlayingFamilyMessageId(null);
     setSelectedActivity(null);
     setSelectedAlert(null);
     setActivityIntentFailure(null);
@@ -312,6 +386,8 @@ export default function App() {
     setTab(pageId);
     if (moduleId === 'reminder-today') setReminderView('today');
     if (moduleId === 'reminder-rules') setReminderView('rules');
+    if (moduleId === 'family-album') setFamilyView('album');
+    if (moduleId === 'family-messages') setFamilyView('messages');
     if (moduleId === 'activity-detail') setSelectedActivity(activities[0]);
     if (moduleId === 'community-alerts') setCommunityView('alerts');
     if (moduleId === 'service-booking') setAppointmentScenario('default');
@@ -323,6 +399,7 @@ export default function App() {
     if (moduleId === 'home-schedule') setHomeScheduleScenario(scenario);
     if (moduleId === 'home-family') setHomeFamilyScenario(scenario);
     if (moduleId === 'family-album') setFamilyAlbumScenario(scenario);
+    if (moduleId === 'family-messages') setFamilyMessages(scenario === 'empty' ? [] : initialFamilyMessages);
     if (moduleId === 'reminder-today') setReminderItems(scenario === 'empty' ? [] : initialReminderItems.map(item => ({ ...item, completed: scenario === 'completed' ? true : item.completed })));
     if (moduleId === 'reminder-rules') setReminderRules(scenario === 'empty' ? [] : initialReminderRules.map(rule => ({ ...rule })));
     if (moduleId === 'activity-list') setActivityListScenario(scenario);
@@ -369,6 +446,7 @@ export default function App() {
     if (action === 'open-reminders') goTo('reminders');
     if (action === 'open-family') goTo('family');
     if (action === 'open-photo') openOverlay('photo');
+    if (action === 'start-family-voice') { setFamilyView('messages'); setFamilyVoiceSeconds(1); setFamilyVoiceState('recording'); }
     if (action === 'open-reminder') openOverlay('reminder');
     if (action === 'open-first-activity') { setTab('activities'); setSelectedActivity(activities[0]); setAcceptancePageId('activities'); setAcceptanceModuleId('activity-detail'); }
     if (action === 'open-first-alert') { setTab('activities'); setCommunityView('alerts'); openAlert(communityAlerts[0]); setAcceptancePageId('activities'); setAcceptanceModuleId('community-alerts'); }
@@ -459,13 +537,38 @@ export default function App() {
       <b>{selectedFamilyPhotoIndex + 1}/{visibleFamilyPhotos.length}</b>
     </footer>
   </section> : <>
-    <ElderPageHeader title="家人分享" description="查看家人分享的照片和视频，也可以发布新的相册。" />
-    <section className="family-actions">
-      <button onClick={() => openOverlay('photo')} className="family-action photo-action"><Upload /><div><strong>发相册</strong><span>直接分享给已绑定家人</span></div><ChevronRight /></button>
-    </section>
-    <div className="section-heading family-gallery-heading"><div><span>家庭相册</span><h2>最近的照片和视频</h2></div><b>{visibleFamilyPhotos.length} 项</b></div>
-    <section className="gallery family-aligned-gallery">{visibleFamilyPhotos.map(photo => <button key={photo.id} className={`gallery-card ${photo.tone}`} aria-label={`${photo.id === 4 ? '视频' : '照片'} ${photo.title}`} onClick={() => setSelectedFamilyPhoto(photo)}><span className="gallery-badge">{photo.id === 4 ? <><Video />视频</> : <><Camera />照片</>}</span><div><strong>{photo.title}</strong></div></button>)}</section>
-    {!visibleFamilyPhotos.length && <div className="acceptance-empty-state standalone"><Images /><strong>暂无照片和视频</strong><span>点击“发相册”与家人分享近况</span></div>}
+    <ElderPageHeader title="家人分享" description="查看已绑定家人分享的照片、视频和留言。" />
+    <div className="family-view-switch elder-segmented-control" role="tablist" aria-label="家人分享内容">
+      <button role="tab" aria-selected={familyView === 'album'} className={familyView === 'album' ? 'active' : ''} onClick={() => { setFamilyView('album'); setAcceptanceModuleId('family-album'); }}><Images /><strong>家庭相册</strong></button>
+      <button role="tab" aria-selected={familyView === 'messages'} className={familyView === 'messages' ? 'active' : ''} onClick={() => { setFamilyView('messages'); setAcceptanceModuleId('family-messages'); }}><Volume2 /><strong>家人留言</strong></button>
+    </div>
+    {familyView === 'album' ? <>
+      <section className="family-actions">
+        <button onClick={() => openOverlay('photo')} className="family-action photo-action"><Upload /><div><strong>发相册</strong><span>直接分享给已绑定家人</span></div><ChevronRight /></button>
+      </section>
+      <div className="section-heading family-gallery-heading"><div><span>家庭相册</span><h2>最近的照片和视频</h2></div></div>
+      <section className="gallery family-aligned-gallery">{visibleFamilyPhotos.map(photo => <button key={photo.id} className={`gallery-card ${photo.tone}`} aria-label={`${photo.id === 4 ? '视频' : '照片'} ${photo.title}`} onClick={() => setSelectedFamilyPhoto(photo)}><span className="gallery-badge">{photo.id === 4 ? <><Video />视频</> : <><Camera />照片</>}</span><div><strong>{photo.title}</strong></div></button>)}</section>
+      {!visibleFamilyPhotos.length && <div className="acceptance-empty-state standalone"><Images /><strong>暂无照片和视频</strong><span>点击“发相册”与家人分享近况</span></div>}
+    </> : <section className="family-message-page" aria-label="家人留言列表">
+      <header className="family-message-page-header"><div><span><Volume2 /></span><h2>家人留言</h2></div></header>
+      <div className="family-message-list">
+        {!!familyMessages.some(message => message.sender === 'child') && <section className="family-message-group received"><h3>家人发来的留言</h3>{familyMessages.filter(message => message.sender === 'child').map(message => <article key={message.id} className="family-message-card from-family">
+          <span className={`message-avatar ${message.senderName === '张晓燕' ? 'daughter' : 'son'}`}>{message.senderName === '张晓燕' ? '女儿' : '儿子'}</span>
+          <div><header><strong>{message.senderName}</strong><time>{message.sentAt}</time></header><p>{message.text}</p>{message.type === 'voice' && <button className={playingFamilyMessageId === message.id ? 'playing' : ''} onClick={() => playFamilyMessage(message)}><Volume2 /><span>{playingFamilyMessageId === message.id ? '正在播放' : `播放语音 ${message.durationSeconds}秒`}</span></button>}<small>{message.status === 'listened' ? '已听过' : '新留言'}</small></div>
+        </article>)}</section>}
+        {!!familyMessages.some(message => message.sender === 'elder') && <section className="family-message-group sent"><h3>我发出的留言</h3>{familyMessages.filter(message => message.sender === 'elder').map(message => <article key={message.id} className="family-message-card from-elder">
+          <div><header><strong>发给已绑定家人</strong><time>{message.sentAt}</time></header><p>{message.text}</p>{message.type === 'voice' && <button className={playingFamilyMessageId === message.id ? 'playing' : ''} onClick={() => playFamilyMessage(message)}><Volume2 /><span>{playingFamilyMessageId === message.id ? '正在播放' : `播放语音 ${message.durationSeconds}秒`}</span></button>}<small>已发送</small></div>
+        </article>)}</section>}
+        {!familyMessages.length && <div className="acceptance-empty-state standalone"><Volume2 /><strong>暂时没有家人留言</strong><span>您仍可以录一段语音发给已绑定家人</span></div>}
+      </div>
+      <div className={`family-voice-composer ${familyVoiceState}`}>
+        <div><Mic /><span><strong>{familyVoiceState === 'recording' ? `正在录音 ${familyVoiceSeconds}秒` : familyVoiceState === 'ready' ? `语音已录好 · ${familyVoiceSeconds}秒` : familyVoiceState === 'sending' ? '正在发送…' : '给家人留语音'}</strong><small>留言仅发送给已绑定家人</small></span></div>
+        {familyVoiceState === 'idle' && <button onClick={() => { setFamilyVoiceSeconds(1); setFamilyVoiceState('recording'); }}>开始录音</button>}
+        {familyVoiceState === 'recording' && <button onClick={() => { setFamilyVoiceSeconds(current => Math.max(current, 8)); setFamilyVoiceState('ready'); }}>结束录音</button>}
+        {familyVoiceState === 'ready' && <div className="family-voice-actions"><button onClick={() => { setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); }}>重录</button><button className="send" onClick={sendFamilyVoice}>发送留言</button></div>}
+        {familyVoiceState === 'sending' && <button disabled>发送中</button>}
+      </div>
+    </section>}
   </>;
 
   const remindersPage = <>

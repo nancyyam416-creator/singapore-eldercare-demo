@@ -4,6 +4,7 @@ export const serviceAssistanceExpiryMs = 48 * 60 * 60 * 1000;
 export const serviceContactAnswers = {
   appointmentConfirmed: "appointment_confirmed",
   familyHelpRequested: "family_help_requested",
+  serviceNoLongerNeeded: "service_no_longer_needed",
 };
 
 export const servicePhoneActionTypes = {
@@ -27,6 +28,7 @@ export const serviceContactEventTypes = {
   familyHelpInquirySent: "family_help_inquiry_sent",
   elderAppointmentConfirmed: "elder_appointment_confirmed",
   elderFamilyHelpRequested: "elder_family_help_requested",
+  elderServiceNoLongerNeeded: "elder_service_no_longer_needed",
   familyHelpRequested: "family_help_requested",
   familyHelpReminded: "family_help_reminded",
   familyHelpClaimed: "family_help_claimed",
@@ -107,6 +109,8 @@ export const normalizeServiceAssistanceRecord = (record, now = Date.now()) => {
     ? familyStageFromRecord(record)
     : record.appointmentOutcome === serviceContactAnswers.appointmentConfirmed
       ? "appointment_confirmed"
+      : record.appointmentOutcome === serviceContactAnswers.serviceNoLongerNeeded
+        ? "service_no_longer_needed"
       : "contact_pending_confirmation";
   record = { ...record, workflowStage };
   const sentAt = Date.parse(record.familyHelpRequestedAt || record.requestedAt);
@@ -315,9 +319,9 @@ export const startSharedServiceContact = (candidate) => {
   return { record, created: true };
 };
 
-// 老人答复只有两种；不调用本接口即继续保持待确认，待确认阶段不启动 48 小时计时。
+// 老人答复会结束当前未决询问或沿用原记录转家人协助；待确认阶段不启动 48 小时计时。
 export const answerSharedServiceContact = (recordId, answer, actor = {}) => {
-  if (![serviceContactAnswers.appointmentConfirmed, serviceContactAnswers.familyHelpRequested].includes(answer)) return { record: null, updated: false, reason: "invalid_answer" };
+  if (![serviceContactAnswers.appointmentConfirmed, serviceContactAnswers.familyHelpRequested, serviceContactAnswers.serviceNoLongerNeeded].includes(answer)) return { record: null, updated: false, reason: "invalid_answer" };
   const records = readSharedServiceAssistanceRecords();
   const current = records.find((record) => record.id === recordId);
   if (!current) return { record: null, updated: false, reason: "not_found" };
@@ -325,8 +329,12 @@ export const answerSharedServiceContact = (recordId, answer, actor = {}) => {
   if (!isPendingServiceContact(normalized)) return { record: normalized, updated: false, reason: "already_resolved" };
   const answeredAt = new Date().toISOString();
   const responder = { type: actor.type || "elder", id: actor.id || current.elder?.id, name: actor.name || current.elder?.name };
-  const eventType = answer === serviceContactAnswers.appointmentConfirmed ? "elder_appointment_confirmed" : "elder_family_help_requested";
-  const next = appendWorkflowEvent(answer === serviceContactAnswers.appointmentConfirmed ? {
+  const eventType = answer === serviceContactAnswers.appointmentConfirmed
+    ? serviceContactEventTypes.elderAppointmentConfirmed
+    : answer === serviceContactAnswers.familyHelpRequested
+      ? serviceContactEventTypes.elderFamilyHelpRequested
+      : serviceContactEventTypes.elderServiceNoLongerNeeded;
+  const nextRecord = answer === serviceContactAnswers.appointmentConfirmed ? {
     ...current,
     workflowStage: "appointment_confirmed",
     appointmentOutcome: answer,
@@ -335,7 +343,7 @@ export const answerSharedServiceContact = (recordId, answer, actor = {}) => {
     status: "handled",
     handledAt: answeredAt,
     resultSummary: "老人确认已约好",
-  } : {
+  } : answer === serviceContactAnswers.familyHelpRequested ? {
     ...current,
     workflowStage: "family_help_pending",
     appointmentOutcome: answer,
@@ -350,9 +358,24 @@ export const answerSharedServiceContact = (recordId, answer, actor = {}) => {
     resultSummary: null,
     familyHandlingStatus: "not_completed",
     serviceStatus: "not_completed",
-  }, createWorkflowEvent(eventType, responder, answeredAt));
+  } : {
+    ...current,
+    workflowStage: "service_no_longer_needed",
+    appointmentOutcome: answer,
+    appointmentOutcomeAt: answeredAt,
+    appointmentOutcomeBy: responder,
+    status: "handled",
+    handledAt: answeredAt,
+    resultSummary: "老人表示暂时不需要此服务",
+  };
+  const next = appendWorkflowEvent(nextRecord, createWorkflowEvent(eventType, responder, answeredAt));
   writeRecords(records.map((record) => record.id === recordId ? next : record));
-  return { record: next, updated: true, familyHelpRequested: answer === serviceContactAnswers.familyHelpRequested };
+  return {
+    record: next,
+    updated: true,
+    familyHelpRequested: answer === serviceContactAnswers.familyHelpRequested,
+    serviceNoLongerNeeded: answer === serviceContactAnswers.serviceNoLongerNeeded,
+  };
 };
 
 // 多位家人共享同一询问结果；待老人答复期间只保留一条未决询问，避免重复打扰。

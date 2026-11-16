@@ -1,4 +1,4 @@
-import { addServiceContactScenario, addPendingServiceAssistanceExample } from './H5BookingConfirmation';
+import { resetServiceDemoBaseline, selectServicePreview } from './H5BookingConfirmation';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -389,6 +389,31 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   const [acceptanceModule, setAcceptanceModule] = useState<AcceptanceModule>('score');
   const [familyPhotoTarget, setFamilyPhotoTarget] = useState<FamilyPhotoAcceptanceTarget>('list');
   const [scoreCategory, setScoreCategory] = useState<ScoreScenarioCategory>('overall');
+  const [servicePreview, setServicePreview] = useState<string | null>(null);
+  const [previewFilter, setPreviewFilter] = useState({ group: '', status: '' });
+  useEffect(() => {
+    const update = (event: Event) => setPreviewFilter((event as CustomEvent).detail);
+    window.addEventListener('service-preview-filter-change', update);
+    return () => window.removeEventListener('service-preview-filter-change', update);
+  }, []);
+  const [canReturnFromCall, setCanReturnFromCall] = useState(false);
+  useEffect(() => {
+    const update = (event: Event) => setCanReturnFromCall(Boolean((event as CustomEvent).detail));
+    window.addEventListener('service-preview-can-return', update);
+    return () => window.removeEventListener('service-preview-can-return', update);
+  }, []);
+  const [awaitingAnswer, setAwaitingAnswer] = useState(false);
+  useEffect(() => {
+    const update = (event: Event) => setAwaitingAnswer(Boolean((event as CustomEvent).detail));
+    window.addEventListener('service-preview-awaiting-answer', update);
+    return () => window.removeEventListener('service-preview-awaiting-answer', update);
+  }, []);
+  const openServiceRecords = (group: string | null) => {
+    setServicePreview(group);
+    selectServicePreview(group);
+    onStoreCategoryScenarioChange('records');
+    onOpenStore();
+  };
   const [scoreSelectionByCategory, setScoreSelectionByCategory] = useState(initialScoreSelection);
 
   useEffect(() => {
@@ -979,15 +1004,55 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
               </>
             )}
 
-            {acceptanceModule === 'service_records' && <section className="space-y-3" aria-label="服务协助记录交互">
-              <h3 className="text-xs font-bold text-slate-700">服务协助记录</h3>
-              <button onClick={() => window.dispatchEvent(new Event('service-contact-simulate-return'))} className="w-full rounded-lg border p-3 text-xs">模拟拨号返回</button>
-              <p className="text-[11px] leading-5 text-slate-500">选择待处理记录并点击打电话帮忙约。桌面不拨号，点击模拟返回后填写约好或未约好结果。</p>
-              <button type="button" onClick={() => { onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg bg-blue-600 p-3 text-xs font-bold text-white">打开服务协助记录</button>
-              {([['pending', '老人拨号待确认'], ['help', '老人没约好请家人帮忙'], ['other', '其他家人正在联系'], ['confirmed', '老人已约好']] as const).map(([scenario, label]) => <button key={scenario} onClick={() => { addServiceContactScenario(scenario); onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg border p-3 text-xs">{label}</button>)}
-              <button type="button" onClick={() => { addPendingServiceAssistanceExample(); onStoreCategoryScenarioChange('records'); onOpenStore(); }} className="w-full rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-bold text-blue-600">新增一条待处理协助</button>
-              <p className="text-[10px] text-slate-400">新增记录保留原有记录，48小时未处理后失效。</p>
-            </section>}
+            {acceptanceModule === 'service_records' && (
+              <>
+                <section aria-label="服务协助记录场景">
+                  <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">记录场景</h3>
+                  <div className="space-y-1.5">
+                    {([
+                      ['intent', '联系动态', '查看老人联系服务商后的进展。'],
+                      ['help', '请家人帮忙', '拨号后可再次联系，约好后直接确认。'],
+                    ] as const).map(([group, label, description]) => (
+                      <button key={group} type="button" onClick={() => openServiceRecords(group)}
+                        aria-pressed={servicePreview === group}
+                        className={`w-full rounded-xl border px-3 py-2.5 text-left ${servicePreview === group ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}>
+                        <span className="flex items-start justify-between gap-2">
+                          <strong className="text-[11px] text-slate-800">{label}</strong>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-600">交互场景</span>
+                        </span>
+                        <span className="mt-1 block text-[9px] text-slate-400">{description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                {servicePreview && <section aria-label="预览状态">
+                  <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">预览状态</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['', '待处理', '处理中', '已处理', ...(previewFilter.group === 'intent' ? [] : ['已失效'])].map(status => (
+                      <button key={status} type="button" aria-pressed={previewFilter.status === status}
+                        onClick={() => window.dispatchEvent(new CustomEvent('service-preview-select-filter', { detail: status }))}
+                        className="rounded-lg border border-slate-200 px-2 py-2 text-[10px] font-bold text-slate-600 aria-pressed:border-blue-300 aria-pressed:bg-blue-50 aria-pressed:text-blue-700">
+                        {status || '全部状态'}
+                      </button>
+                    ))}
+                  </div>
+                </section>}
+                <section aria-label="服务协助记录交互">
+                  <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3>
+                  <button type="button" onClick={() => openServiceRecords(null)} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开实际记录</button>
+                  {canReturnFromCall && <button type="button" onClick={() => window.dispatchEvent(new Event('service-preview-return'))} className="mt-2 w-full rounded-lg bg-slate-100 px-2 py-2.5 text-[10px] font-bold text-slate-600">模拟拨号返回</button>}
+                  {awaitingAnswer && ([
+                    ['booked', '模拟老人答复：已约好'],
+                    ['help', '模拟老人答复：请家人帮忙'],
+                    ['unneeded', '模拟老人答复：暂时不需要了'],
+                  ] as const).map(([answer, label]) => (
+                    <button key={answer} type="button" onClick={() => window.dispatchEvent(new CustomEvent('service-preview-elder-answer', { detail: answer }))} className="mt-2 w-full rounded-lg bg-slate-100 px-2 py-2.5 text-[10px] font-bold text-slate-600">{label}</button>
+                  ))}
+                  {!servicePreview && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) && <button type="button" onClick={() => { resetServiceDemoBaseline(); openServiceRecords(null); }} className="mt-2 w-full rounded-lg bg-slate-100 px-2 py-2.5 text-[10px] font-bold text-slate-600">重置本地演示记录</button>}
+                  {servicePreview && <button type="button" onClick={() => openServiceRecords(servicePreview)} className="mt-2 w-full rounded-lg bg-slate-100 px-2 py-2.5 text-[10px] font-bold text-slate-600">重置当前场景</button>}
+                </section>
+              </>
+            )}
             {acceptanceModule === 'service_store' && (
               <>
                 <section aria-label="服务目录场景">

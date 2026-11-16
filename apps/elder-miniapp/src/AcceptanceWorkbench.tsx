@@ -8,6 +8,7 @@ export type AcceptanceModuleId =
   | 'home-schedule'
   | 'home-family'
   | 'family-album'
+  | 'family-messages'
   | 'reminder-today'
   | 'reminder-rules'
   | 'activity-list'
@@ -31,7 +32,7 @@ const pages: AcceptancePage[] = [
       { value: 'empty', label: '暂无安排', description: '今日没有用药或活动安排。', status: '空状态' },
     ], actions: [{ id: 'open-reminders', label: '进入提醒页' }] },
     { id: 'home-family', label: '家人动态摘要', scenarios: [
-      { value: 'default', label: '有动态', description: '展示照片和两条家人留言。', status: '正常' },
+      { value: 'default', label: '有动态', description: '展示家人分享和留言入口。', status: '正常' },
       { value: 'empty', label: '暂无动态', description: '首页摘要显示暂无家人分享。', status: '空状态' },
     ], actions: [{ id: 'open-family', label: '进入家庭页' }] },
   ] },
@@ -40,6 +41,10 @@ const pages: AcceptancePage[] = [
       { value: 'default', label: '已有影像', description: '展示固定的照片与视频列表。', status: '正常' },
       { value: 'empty', label: '暂无影像', description: '相册为空，保留正式发布入口。', status: '空状态' },
     ], actions: [{ id: 'open-photo', label: '打开发布相册' }] },
+    { id: 'family-messages', label: '家人留言', scenarios: [
+      { value: 'default', label: '有留言', description: '展示已绑定家人的文字与语音留言。', status: '正常' },
+      { value: 'empty', label: '暂无留言', description: '展示无留言状态，并保留给家人录音入口。', status: '空状态' },
+    ], actions: [{ id: 'start-family-voice', label: '开始录音留言' }] },
   ] },
   { id: 'reminders', label: '提醒', modules: [
     { id: 'reminder-today', label: '今天', scenarios: [

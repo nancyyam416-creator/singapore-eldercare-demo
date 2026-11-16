@@ -1150,6 +1150,8 @@ button:active { transform: scale(.98); }
 }
 .appointment-assistance-result { display: grid; gap: 14px; padding: 28px 20px; border: 1px solid #dbe4ef; border-radius: 22px; background: #fff; text-align: center; }
 .appointment-contact-answer-actions { display: grid; gap: 10px; }
+.appointment-contact-answer-actions .appointment-no-longer-needed-button { min-height: 44px; color: #64748b; border-color: transparent; background: transparent; }
+.appointment-contact-answer-actions .appointment-no-longer-needed-button:hover { color: #334155; background: #f1f5f9; }
 .appointment-family-inquiry-list { display: grid; gap: 12px; margin-bottom: 16px; }
 .appointment-family-inquiry-entry { width: 100%; min-height: 78px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #bfdbfe; border-radius: 16px; background: #eff6ff; color: #1d4ed8; text-align: left; }
 .appointment-family-inquiry-entry > svg:first-child { width: 24px; height: 24px; }
@@ -1304,6 +1306,55 @@ button:active { transform: scale(.98); }
 .gallery.family-aligned-gallery .gallery-card { min-height: 0; aspect-ratio: 1; padding: 8px; border-radius: 12px; }
 .gallery.family-aligned-gallery .gallery-badge { padding: 4px 6px; font-size: 9px; }
 .gallery.family-aligned-gallery .gallery-card strong { font-size: 11px; line-height: 1.3; }
+
+.family-view-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; padding: 5px; border-radius: 16px; background: #e9eef5; }
+.family-view-switch button { min-width: 0; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; color: #64748b; background: transparent; }
+.family-view-switch button.active { color: #1d4ed8; background: #fff; box-shadow: 0 2px 8px rgba(31,42,68,.08); }
+.family-view-switch button > svg { width: 21px; height: 21px; }
+.family-view-switch button strong { font-size: 14px; }
+
+.family-message-page { display: grid; gap: 14px; }
+.family-message-page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 16px; border: 1px solid #dbe4ef; border-radius: 18px; background: #fff; }
+.family-message-page-header > div { display: flex; align-items: center; gap: 11px; }
+.family-message-page-header > div > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: #2563eb; background: #eff6ff; }
+.family-message-page-header svg { width: 22px; height: 22px; }
+.family-message-page-header h2 { margin: 0; font-size: 17px; }
+.family-message-page-header > b { padding: 5px 9px; border-radius: 999px; color: #1d4ed8; background: #eff6ff; font-size: 11px; }
+
+.family-message-page .family-message-list { display: grid; gap: 10px; }
+.family-message-group { display: grid; gap: 9px; }
+.family-message-group > h3 { margin: 4px 2px 0; color: #64748b; font-size: 12px; font-weight: 800; }
+.family-message-group.sent { margin-top: 4px; }
+.family-message-group.sent > h3 { text-align: right; }
+.family-message-card { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 11px; padding: 14px; border: 1px solid #dbe4ef; border-radius: 17px; background: #fff; }
+.family-message-card.from-elder { width: 86%; grid-template-columns: minmax(0,1fr); justify-self: end; border-color: #bfdbfe; background: #eff6ff; }
+.family-message-card .message-avatar { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 850; }
+.family-message-card .message-avatar.daughter { background: #f43f5e; }
+.family-message-card .message-avatar.son { background: #2f80ed; }
+.family-message-card .message-avatar.elder { background: #7c3aed; }
+.family-message-card > div { min-width: 0; }
+.family-message-card header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.family-message-card header strong { font-size: 14px; }
+.family-message-card time { color: #94a3b8; font-size: 10px; }
+.family-message-card p { margin: 6px 0 0; color: #526078; font-size: 13px; line-height: 1.55; }
+.family-message-card button { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; padding: 0 12px; border: 1px solid #bfdbfe; border-radius: 999px; color: #1d4ed8; background: #eff6ff; font-size: 12px; font-weight: 800; }
+.family-message-card button.playing { color: #fff; background: #2563eb; }
+.family-message-card button svg { width: 16px; height: 16px; }
+.family-message-card > div > small { display: block; margin-top: 8px; color: #64748b; font-size: 10px; }
+
+.family-voice-composer { position: sticky; bottom: 0; display: grid; gap: 12px; padding: 15px; border: 1px solid #c7d7f8; border-radius: 18px; background: #f7faff; box-shadow: 0 10px 24px rgba(30,64,175,.08); }
+.family-voice-composer > div:first-child { display: flex; align-items: center; gap: 10px; }
+.family-voice-composer > div:first-child > svg { width: 42px; height: 42px; padding: 10px; border-radius: 50%; color: #2563eb; background: #dbeafe; }
+.family-voice-composer > div:first-child span { display: grid; gap: 3px; }
+.family-voice-composer strong { font-size: 14px; }
+.family-voice-composer small { color: #64748b; font-size: 11px; }
+.family-voice-composer > button, .family-voice-actions button { min-height: 46px; border: 0; border-radius: 13px; color: #fff; background: #2563eb; font-size: 14px; font-weight: 850; }
+.family-voice-composer > button:disabled { opacity: .65; }
+.family-voice-composer.recording > div:first-child > svg { color: #fff; background: #ef3154; animation: family-recording-pulse 1.2s ease-in-out infinite; }
+@keyframes family-recording-pulse { 50% { box-shadow: 0 0 0 8px rgba(239,49,84,.12); } }
+.family-voice-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 9px; }
+.family-voice-actions button { color: #526078; background: #e9eef5; }
+.family-voice-actions button.send { color: #fff; background: #2563eb; }
 
 /* Family media preview follows the child app's dedicated full-screen viewer. */
 .family-media-preview { min-height: 100%; display: flex; flex-direction: column; margin: calc(var(--space-4) * -1) calc(var(--space-3) * -1) calc(var(--space-5) * -1); color: #fff; background: #020617; }
