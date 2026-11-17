@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CircleX, Headphones, Minimize2, PhoneCall, PhoneOff, UserRoundCheck, X } from "lucide-react";
+import { Headphones, Minimize2, PhoneCall, PhoneOff, UserRoundCheck, X } from "lucide-react";
 import {
   cancelEmergencyAssistance,
   createEmergencyAssistanceEvent,
@@ -14,7 +14,7 @@ import {
 
 export type { EmergencyAcceptanceScenario } from "../emergency-assistance";
 
-type AssistanceStage = "confirm" | "contacting" | "connected" | "failed" | "cancelled";
+type AssistanceStage = "confirm" | "contacting" | "connected" | "failed";
 
 interface EmergencyModalProps {
   isOpen: boolean;
@@ -26,7 +26,7 @@ interface EmergencyModalProps {
 
 const getInitialStage = (event: EmergencyAssistanceEvent | null): AssistanceStage => {
   if (!event) return "confirm";
-  if (event.status === "已取消") return "cancelled";
+  if (event.status === "已取消") return "confirm";
   if (event.status === "待接听") return "contacting";
   if (event.status === "未接通" || event.status === "待回拨") return "failed";
   return "connected";
@@ -113,7 +113,6 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
     contacting: { icon: PhoneCall, eyebrow: "呼叫中", title: `正在联系${activeTargetName}`, description: "正在尝试接通，请稍候。", tone: "text-[#F2C96D] bg-[#392F1B] border-[#7A632D]" },
     connected: { icon: UserRoundCheck, eyebrow: "已接听", title: `${activeTargetName}已接听`, description: "您可以继续通话，也可以缩小窗口返回首页。", tone: "text-[#79D5AC] bg-[#143328] border-[#2B795A]" },
     failed: { icon: PhoneOff, eyebrow: "暂未接通", title: "暂时没有接通", description: "您可以先返回首页，稍后重新发起在线协助。", tone: "text-[#F28B82] bg-[#3A2020] border-[#8B4141]" },
-    cancelled: { icon: CircleX, eyebrow: "已取消", title: "已取消连接", description: "这次没有继续联系，需要时可以重新打开在线协助。", tone: "text-[#B8C9D5] bg-[#253240] border-[#486174]" },
   }[stage];
   const StatusIcon = presentation.icon;
 
@@ -133,7 +132,7 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
             <div className="flex items-center gap-4">
               <Headphones className="h-9 w-9 shrink-0 text-[#6AC79D]" />
               <div>
-                <span className="block text-[15px] font-bold text-[#8EA4B4]">{stage === "contacting" ? "正在联系" : stage === "connected" ? "通话对象" : stage === "failed" ? "最后联系" : "本次联系"}</span>
+                <span className="block text-[15px] font-bold text-[#8EA4B4]">{stage === "contacting" ? "正在联系" : stage === "connected" ? "通话对象" : "最后联系"}</span>
                 <strong className="mt-1 block text-[21px] font-black text-white">{activeTargetName}</strong>
               </div>
             </div>
@@ -154,9 +153,7 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
               <button type="button" onClick={onDismiss} className="flex items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><Minimize2 className="h-6 w-6" />缩小通话</button>
               <button type="button" onClick={hangUpCall} className="flex items-center justify-center gap-3 rounded-2xl bg-[#B82F2F] py-5 text-[22px] font-black transition active:scale-[0.98]"><PhoneOff className="h-6 w-6" />挂断通话</button>
             </div>
-          ) : (
-            <button type="button" onClick={onDismiss} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><Check className="h-6 w-6" />返回首页</button>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
