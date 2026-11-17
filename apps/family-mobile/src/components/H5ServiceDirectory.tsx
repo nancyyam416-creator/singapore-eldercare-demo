@@ -16,7 +16,7 @@ const communityNames = new Map(catalog.communities.map(item => [item.id, item.na
 const coverageLabel = (service: DirectoryService) => service.coverageMode === 'all' ? '全部社区' : service.coverageCommunityIds.map(id => communityNames.get(id) ?? '社区未设置').join('、');
 const firstServicePrice = (service: DirectoryService) => service.serviceItems.find(item => item.priceText?.trim())?.priceText;
 
-export function H5ServiceDirectory({ communityId, disabledCategory, loadError = false }: { communityId?: string; disabledCategory?: string; loadError?: boolean }) {
+export function H5ServiceDirectory({ communityId, disabledCategory, loadError = false, onDetailChange }: { onDetailChange: (open: boolean) => void; communityId?: string; disabledCategory?: string; loadError?: boolean }) {
   const [contract, setContract] = useState(() => readUnifiedServiceDirectoryRuntime());
   const [category, setCategory] = useState('');
   useEffect(() => subscribeUnifiedServiceDirectoryRuntime(setContract), []);
@@ -24,6 +24,8 @@ export function H5ServiceDirectory({ communityId, disabledCategory, loadError = 
   useEffect(() => { const sync = () => setReviewRecords(readSharedServiceAssistanceRecords()); const off = subscribeSharedServiceAssistanceRecords(sync); const timer = window.setInterval(sync, 1200); return () => { off(); window.clearInterval(timer); }; }, []);
   const reviewSummary = (service: DirectoryService) => getServiceReviewSummary([service.id, ...service.legacyServiceIds], reviewRecords);
   const [selected, setSelected] = useState<DirectoryService | null>(null);
+  const inDetail = Boolean(selected);
+  React.useLayoutEffect(() => { onDetailChange(inDetail); }, [inDetail, onDetailChange]);
   const [detailTab, setDetailTab] = useState<'details' | 'reviews'>('details');
   const [recovered, setRecovered] = useState(false);
   useEffect(() => { setSelected(null); }, [communityId]);

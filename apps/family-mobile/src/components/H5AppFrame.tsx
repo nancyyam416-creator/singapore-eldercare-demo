@@ -542,7 +542,7 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
 
         {/* App page title */}
         <header className="relative z-30 flex h-11 shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 shadow-3xs">
-          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : assistanceOpen ? '在线协助' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'notifications' ? '消息' : '家庭' : activeTab === 'orders' ? '预约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>
+          <h1 className="text-sm font-extrabold tracking-tight text-slate-900">{!isLoggedIn ? '登录' : assistanceOpen ? '在线协助' : activeTab === 'monitor' ? '首页' : activeTab === 'store' ? familySection === 'notifications' ? '消息' : '家庭' : activeTab === 'orders' ? '特约服务' : showReminders ? '给老人设置提醒' : '我的'}</h1>
         </header>
         {isLoggedIn && activeTab === 'store' && familySection !== 'notifications' && (
           <div className="shrink-0 bg-slate-50 px-4 pt-4 pb-3">

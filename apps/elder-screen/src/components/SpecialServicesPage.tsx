@@ -6,6 +6,7 @@ import {
   Clock3,
   HandHeart,
   MapPinOff,
+  MessageCircle,
   Phone,
   ShieldCheck,
   Star,
@@ -46,7 +47,9 @@ export type SpecialServicesAcceptanceScenario =
   | "no-services"
   | "contact-pending"
   | "contact-family-inquiry"
+  | "detail-contact-family-inquiry"
   | "contact-confirmed"
+  | "contact-no-longer-needed"
   | "family-help-idle"
   | "family-help-confirm"
   | "family-help-pending"
@@ -207,10 +210,11 @@ const scenarioRecord = (scenario: SpecialServicesAcceptanceScenario): Assistance
 };
 
 const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenario): SharedAssistanceRecord | null => {
-  if (!["contact-pending", "contact-family-inquiry", "contact-confirmed", "family-help-pending", "family-help-handling", "family-help-not-appointed", "family-help-handled", "family-help-expired", "service-completed", "service-reviewed"].includes(scenario)) return null;
+  if (!["contact-pending", "contact-family-inquiry", "detail-contact-family-inquiry", "contact-confirmed", "contact-no-longer-needed", "family-help-pending", "family-help-handling", "family-help-not-appointed", "family-help-handled", "family-help-expired", "service-completed", "service-reviewed"].includes(scenario)) return null;
   const service = services[0];
-  const isContactScenario = scenario.startsWith("contact-");
+  const isContactScenario = scenario.startsWith("contact-") || scenario === "detail-contact-family-inquiry";
   const contactConfirmed = scenario === "contact-confirmed";
+  const contactNoLongerNeeded = scenario === "contact-no-longer-needed";
   const familyContactHandling = scenario === "family-help-handling";
   const familyContactNotAppointed = scenario === "family-help-not-appointed";
   const familyHelpExpired = scenario === "family-help-expired";
@@ -229,12 +233,12 @@ const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenari
     provider: { name: service.provider, phone: service.providerPhone },
     requestReason: isContactScenario ? "老人查看服务商联系电话" : "请家人协助联系服务商",
     requestedAt: "2026-10-30T09:20:00+08:00",
-    status: isContactScenario ? (contactConfirmed ? "handled" : "pending") : familyHelpExpired ? "expired" : familyContactHandling ? "handling" : familyContactHandled ? "handled" : "pending",
+    status: isContactScenario ? (contactConfirmed || contactNoLongerNeeded ? "handled" : "pending") : familyHelpExpired ? "expired" : familyContactHandling ? "handling" : familyContactHandled ? "handled" : "pending",
     expiredAt: familyHelpExpired ? "2026-10-31T09:20:00+08:00" : null,
     recipientIds: ["child-zhang-xiaoyan", "child-zhang-jianping"],
     handledBy: !isContactScenario && (familyContactHandling || familyContactHandled) ? "张晓燕" : null,
     handledAt: !isContactScenario && familyContactHandled ? "2026-10-30T09:42:00+08:00" : null,
-    resultSummary: contactConfirmed ? "老人确认已约好" : !isContactScenario && familyContactHandled ? "已联系服务商并约好" : null,
+    resultSummary: contactConfirmed ? "老人确认已约好" : contactNoLongerNeeded ? "老人表示暂时不需要此服务" : !isContactScenario && familyContactHandled ? "已联系服务商并约好" : null,
     familyHandlingStatus: familyHandlingCompleted ? "completed" : "not_completed",
     handlingCompletedAt: familyHandlingCompleted ? "2026-10-30T16:30:00+08:00" : null,
     handlingCompletedBy: familyHandlingCompleted ? "张晓燕" : null,
@@ -248,7 +252,7 @@ const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenari
     workflowStage: familyHelpExpired
       ? "expired"
       : isContactScenario
-        ? (contactConfirmed ? "appointment_confirmed" : "contact_pending_confirmation")
+        ? (contactConfirmed ? "appointment_confirmed" : contactNoLongerNeeded ? "service_no_longer_needed" : "contact_pending_confirmation")
         : familyContactHandling
         ? "family_help_handling"
         : familyContactHandled
@@ -257,9 +261,9 @@ const createAcceptanceSharedRecord = (scenario: SpecialServicesAcceptanceScenari
     contactStartedAt: isContactScenario ? "2026-10-30T09:20:00+08:00" : undefined,
     contactStartedBy: isContactScenario ? { type: "elder", id: elderProfileMock.id, name: elderProfileMock.name } : undefined,
     phoneActionType: isContactScenario ? "phone_viewed" : undefined,
-    appointmentOutcome: contactConfirmed ? "appointment_confirmed" : null,
-    appointmentOutcomeAt: contactConfirmed ? "2026-10-30T09:24:00+08:00" : null,
-    familyHelpInquiry: ["contact-family-inquiry", "contact-confirmed"].includes(scenario)
+    appointmentOutcome: contactConfirmed ? "appointment_confirmed" : contactNoLongerNeeded ? "service_no_longer_needed" : null,
+    appointmentOutcomeAt: contactConfirmed || contactNoLongerNeeded ? "2026-10-30T09:24:00+08:00" : null,
+    familyHelpInquiry: ["contact-family-inquiry", "detail-contact-family-inquiry", "contact-confirmed", "contact-no-longer-needed"].includes(scenario)
       ? { askedAt: "2026-10-30T09:22:00+08:00", askedBy: { type: "child", id: "child-zhang-xiaoyan", name: "张晓燕" } }
       : undefined,
     claimedAt: familyContactHandling ? "2026-10-30T09:35:00+08:00" : null,
@@ -345,24 +349,37 @@ const getSharedRecordStatus = (record: SharedAssistanceRecord) => {
   return "待处理" satisfies UnifiedRecordStatus;
 };
 
+const getRecordDisplayStatus = (record: SharedAssistanceRecord) => {
+  if (!isContactRecord(record)) return getSharedRecordStatus(record);
+  if (record.appointmentOutcome) return "已答复";
+  if (isPendingServiceContactInquiry(record)) return "待答复";
+  return null;
+};
+
 interface RecordProgressItem { time: string; text: string }
 
-const getRecordType = (record: SharedAssistanceRecord) => isContactRecord(record) ? "联系动态" : "请家人帮忙";
+const getRecordType = (record: SharedAssistanceRecord) => isContactRecord(record) ? "我的联系记录" : "请家人帮忙";
+
+const getFamilyActorLabel = (name?: string | null, id?: string | null) => {
+  if (id === "child-zhang-xiaoyan" || name === "张晓燕") return "女儿 张晓燕";
+  if (id === "child-zhang-jianping" || name === "张建平") return "儿子 张建平";
+  return name ? `家人 ${name}` : "家人";
+};
 
 const getRecordProgress = (record: SharedAssistanceRecord): RecordProgressItem[] => {
   const items: RecordProgressItem[] = [{
     time: record.contactStartedAt ?? record.requestedAt,
     text: isContactRecord(record)
       ? record.phoneActionType === servicePhoneActionTypes.phoneViewed ? "查看了服务商联系电话" : "发起服务商电话联系"
-      : "已请求家人帮忙",
+      : "已通知家人，请家人帮忙联系",
   }];
-  if (record.familyHelpInquiry) items.push({ time: record.familyHelpInquiry.askedAt, text: `${record.familyHelpInquiry.askedBy.name || "家人"}询问联系结果` });
+  if (record.familyHelpInquiry) items.push({ time: record.familyHelpInquiry.askedAt, text: `${getFamilyActorLabel(record.familyHelpInquiry.askedBy.name, record.familyHelpInquiry.askedBy.id)}想问您约好了吗` });
   if (record.appointmentOutcomeAt && record.appointmentOutcome === "appointment_confirmed") items.push({ time: record.appointmentOutcomeAt, text: "您回复：约好了" });
   if (record.appointmentOutcomeAt && record.appointmentOutcome === "family_help_requested") items.push({ time: record.appointmentOutcomeAt, text: "您回复：没约好，请家人帮忙" });
   if (record.appointmentOutcomeAt && record.appointmentOutcome === "service_no_longer_needed") items.push({ time: record.appointmentOutcomeAt, text: "您回复：暂时不需要了" });
-  if (record.familyContactStartedAt || record.claimedAt) items.push({ time: record.familyContactStartedAt ?? record.claimedAt!, text: `${record.familyContactBy?.name || record.handledBy || "家人"}开始联系服务商` });
-  if (record.familyContactResultAt && record.familyContactResult === "not_appointed") items.push({ time: record.familyContactResultAt, text: `${record.lastFamilyContactBy?.name || record.familyContactBy?.name || "家人"}反馈：还没约好` });
-  if (record.familyContactResultAt && record.familyContactResult === "appointment_confirmed") items.push({ time: record.familyContactResultAt, text: `${record.familyContactBy?.name || record.handledBy || "家人"}反馈：已约好` });
+  if (record.familyContactStartedAt || record.claimedAt) items.push({ time: record.familyContactStartedAt ?? record.claimedAt!, text: `${getFamilyActorLabel(record.familyContactBy?.name || record.handledBy, record.familyContactBy?.id)}正在帮您联系服务商` });
+  if (record.familyContactResultAt && record.familyContactResult === "not_appointed") items.push({ time: record.familyContactResultAt, text: `${getFamilyActorLabel(record.lastFamilyContactBy?.name || record.familyContactBy?.name, record.lastFamilyContactBy?.id || record.familyContactBy?.id)}反馈：还没约好` });
+  if (record.familyContactResultAt && record.familyContactResult === "appointment_confirmed") items.push({ time: record.familyContactResultAt, text: `${getFamilyActorLabel(record.familyContactBy?.name || record.handledBy, record.familyContactBy?.id)}反馈：已约好` });
   if (record.handledAt && record.resultSummary && !record.familyContactResult) items.push({ time: record.handledAt, text: record.resultSummary });
   const completedAt = getFamilyHandlingCompletedAt(record);
   if (completedAt) items.push({ time: completedAt, text: "家人协助已处理" });
@@ -372,17 +389,24 @@ const getRecordProgress = (record: SharedAssistanceRecord): RecordProgressItem[]
 };
 
 const getLatestRecordProgress = (record: SharedAssistanceRecord) => {
+  if (isContactRecord(record)) {
+    if (record.appointmentOutcome === "appointment_confirmed") return "您已回复：已约好";
+    if (record.appointmentOutcome === "service_no_longer_needed") return "您已回复：暂时不需要";
+    if (record.appointmentOutcome === "family_help_requested") return "您已请家人帮忙";
+    if (isPendingServiceContactInquiry(record)) return `${getFamilyActorLabel(record.familyHelpInquiry?.askedBy.name, record.familyHelpInquiry?.askedBy.id)}想问您：约好了吗？`;
+    return record.phoneActionType === servicePhoneActionTypes.phoneViewed ? "已查看服务商联系电话" : "已记录本次联系";
+  }
   const progress = getRecordProgress(record);
   if (progress.length > 1) return progress.at(-1)!.text;
   const status = getSharedRecordStatus(record);
   if (status === "已处理") return "本次记录已处理";
   if (status === "处理中") return "家人正在处理";
-  if (status === "已失效") return "本次记录已失效";
-  return "等待后续处理";
+  if (status === "已失效") return "暂无家人接手，本次请求已结束";
+  return "已通知家人，等待有人协助";
 };
 
-const getLatestPendingContactInquiry = (records: SharedAssistanceRecord[]) => records
-  .filter((record) => isPendingServiceContactInquiry(record))
+const getLatestPendingContactInquiryForService = (records: SharedAssistanceRecord[], serviceId: string) => records
+  .filter((record) => isPendingServiceContactInquiry(record) && serviceIdsMatch(record.service.id, serviceId))
   .sort((first, second) => (second.familyHelpInquiry?.askedAt ?? second.requestedAt).localeCompare(first.familyHelpInquiry?.askedAt ?? first.requestedAt))[0] ?? null;
 
 export default function SpecialServicesPage({
@@ -400,8 +424,10 @@ export default function SpecialServicesPage({
   const [familyHelpConfirmation, setFamilyHelpConfirmation] = useState(() => getServiceAssistanceConfirmationCopy(null));
   const [familyHelpFeedback, setFamilyHelpFeedback] = useState<"notified" | "reminded" | "notify-error" | "remind-error" | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactInquiryOpen, setContactInquiryOpen] = useState(false);
   const [contactIntentFeedback, setContactIntentFeedback] = useState<"notified" | "existing" | "error" | null>(null);
-  const [activeContactRecord, setActiveContactRecord] = useState<SharedAssistanceRecord | null>(() => getLatestPendingContactInquiry(readCurrentElderRecords()));
+  const [activeContactRecord, setActiveContactRecord] = useState<SharedAssistanceRecord | null>(null);
+  const [dismissedContactInquiryId, setDismissedContactInquiryId] = useState<string | null>(null);
   const [contactOutcomeFeedback, setContactOutcomeFeedback] = useState<"confirmed" | "no-longer-needed" | "error" | null>(null);
   const [sharedRecords, setSharedRecords] = useState<SharedAssistanceRecord[]>(readCurrentElderRecords);
   const [allSharedRecords, setAllSharedRecords] = useState<SharedAssistanceRecord[]>(readAllSharedRecords);
@@ -410,6 +436,7 @@ export default function SpecialServicesPage({
   const [reviewText, setReviewText] = useState("");
   const [acceptanceReview, setAcceptanceReview] = useState<SharedAssistanceRecord["review"]>(null);
   const [acceptanceReviewRecordId, setAcceptanceReviewRecordId] = useState<string | null>(null);
+  const [acceptanceRecordOverride, setAcceptanceRecordOverride] = useState<SharedAssistanceRecord | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSubmitError, setReviewSubmitError] = useState("");
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
@@ -442,10 +469,16 @@ export default function SpecialServicesPage({
       .filter((record): record is SharedAssistanceRecord => Boolean(record));
   }, [effectiveScenario]);
   const visibleRecords = acceptanceRecords.length > 0
-    ? acceptanceRecords.map((record) => record.id === acceptanceReviewRecordId && acceptanceReview
-      ? { ...record, review: acceptanceReview }
-      : record)
+    ? acceptanceRecords.map((record) => {
+      const currentRecord = record.id === acceptanceRecordOverride?.id ? acceptanceRecordOverride : record;
+      return currentRecord.id === acceptanceReviewRecordId && acceptanceReview
+        ? { ...currentRecord, review: acceptanceReview }
+        : currentRecord;
+    })
     : sharedRecords;
+  const selectedServicePendingInquiry = selectedService
+    ? getLatestPendingContactInquiryForService(visibleRecords, selectedService.id)
+    : null;
   const selectedRecord = visibleRecords.find((record) => record.id === selectedRecordId) ?? null;
   const reviewSourceRecords = acceptanceRecords.length > 0 ? visibleRecords : allSharedRecords;
   const serviceReviewSummary = useMemo(() => {
@@ -471,6 +504,8 @@ export default function SpecialServicesPage({
       setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
       setFamilyHelpFeedback(null);
       setContactModalOpen(false);
+      setContactInquiryOpen(false);
+      setDismissedContactInquiryId(null);
       setContactIntentFeedback(null);
       setActiveContactRecord(null);
       setContactOutcomeFeedback(null);
@@ -478,14 +513,20 @@ export default function SpecialServicesPage({
       setSelectedRecordId(null);
       setAcceptanceReview(null);
       setAcceptanceReviewRecordId(null);
+      setAcceptanceRecordOverride(null);
       return;
     }
     const resolvedInitialServiceId = initialServiceId ? resolveUnifiedServiceId(initialServiceId) : null;
     if (resolvedInitialServiceId && serviceReviewTargets.some((service) => service.id === resolvedInitialServiceId)) {
       setSelectedServiceId(resolvedInitialServiceId);
       setDetailTab("details");
+      const currentRecords = readCurrentElderRecords();
       const storedRecord = findSharedRecord(resolvedInitialServiceId);
+      const pendingInquiry = getLatestPendingContactInquiryForService(currentRecords, resolvedInitialServiceId);
       setAssistance(storedRecord ? toAssistanceRecord(storedRecord) : { stage: "idle" });
+      setActiveContactRecord(pendingInquiry);
+      setContactInquiryOpen(Boolean(pendingInquiry));
+      setDismissedContactInquiryId(null);
       setView("detail");
     }
   }, [initialServiceId, isOpen, serviceReviewTargets]);
@@ -495,12 +536,15 @@ export default function SpecialServicesPage({
     setFamilyHelpConfirmation(getServiceAssistanceConfirmationCopy(null));
     setFamilyHelpFeedback(null);
     setContactModalOpen(false);
+    setContactInquiryOpen(false);
+    setDismissedContactInquiryId(null);
     setContactIntentFeedback(null);
     setActiveContactRecord(null);
     setContactOutcomeFeedback(null);
     setReviewingRecord(null);
     setAcceptanceReview(null);
     setAcceptanceReviewRecordId(null);
+    setAcceptanceRecordOverride(null);
     setReviewSubmitError("");
     if (["family-help-pending", "family-help-handling", "family-help-not-appointed", "family-help-handled", "family-help-expired", "service-completed", "service-reviewed"].includes(acceptanceScenario)) {
       setSelectedServiceId(services[0].id);
@@ -508,12 +552,24 @@ export default function SpecialServicesPage({
       setView("records");
       return;
     }
-    if (["contact-pending", "contact-family-inquiry", "contact-confirmed"].includes(acceptanceScenario)) {
+    if (["contact-pending", "contact-family-inquiry", "contact-confirmed", "contact-no-longer-needed"].includes(acceptanceScenario)) {
       const contactRecord = createAcceptanceSharedRecord(acceptanceScenario);
       setSelectedServiceId(services[0].id);
-      setAssistance({ stage: contactRecord?.workflowStage === "appointment_confirmed" ? "handled" : "pending" });
+      setAssistance({ stage: contactRecord?.status === "handled" ? "handled" : "pending" });
       setActiveContactRecord(contactRecord && isPendingServiceContactInquiry(contactRecord) ? contactRecord : null);
-      setView(acceptanceScenario === "contact-pending" || contactRecord?.workflowStage === "appointment_confirmed" ? "records" : "detail");
+      setSelectedRecordId(contactRecord?.id ?? null);
+      setView(acceptanceScenario === "contact-family-inquiry" ? "record-detail" : "records");
+      setContactInquiryOpen(acceptanceScenario === "contact-family-inquiry");
+      return;
+    }
+    if (acceptanceScenario === "detail-contact-family-inquiry") {
+      const contactRecord = createAcceptanceSharedRecord(acceptanceScenario);
+      setSelectedServiceId(services[0].id);
+      setAssistance({ stage: "pending" });
+      setActiveContactRecord(contactRecord);
+      setSelectedRecordId(null);
+      setView("detail");
+      setContactInquiryOpen(Boolean(contactRecord));
       return;
     }
     if (["family-help-idle", "family-help-confirm"].includes(acceptanceScenario)) {
@@ -535,16 +591,24 @@ export default function SpecialServicesPage({
       const nextRecords = readCurrentElderRecords();
       setSharedRecords(nextRecords);
       setAllSharedRecords(readAllSharedRecords());
-      setActiveContactRecord(getLatestPendingContactInquiry(nextRecords));
       if (selectedServiceId) {
         const storedRecord = findSharedRecord(selectedServiceId);
         if (storedRecord) setAssistance(toAssistanceRecord(storedRecord));
+        if (view === "detail") {
+          const pendingInquiry = getLatestPendingContactInquiryForService(nextRecords, selectedServiceId);
+          setActiveContactRecord(pendingInquiry);
+          if (!pendingInquiry) {
+            setContactInquiryOpen(false);
+          } else if (pendingInquiry.id !== dismissedContactInquiryId) {
+            setContactInquiryOpen(true);
+          }
+        }
       }
     };
     syncStoredRecord();
     const timer = window.setInterval(syncStoredRecord, 1200);
     return () => window.clearInterval(timer);
-  }, [acceptanceScenario, isOpen, selectedServiceId]);
+  }, [acceptanceScenario, dismissedContactInquiryId, isOpen, selectedServiceId, view]);
 
   const openService = (serviceId: string) => {
     const resolvedServiceId = resolveUnifiedServiceId(serviceId);
@@ -557,6 +621,10 @@ export default function SpecialServicesPage({
     setFamilyHelpFeedback(null);
     setContactModalOpen(false);
     setContactOutcomeFeedback(null);
+    const pendingInquiry = getLatestPendingContactInquiryForService(sharedRecords, resolvedServiceId);
+    setActiveContactRecord(pendingInquiry);
+    setContactInquiryOpen(Boolean(pendingInquiry));
+    setDismissedContactInquiryId(null);
     setView("detail");
   };
 
@@ -642,10 +710,13 @@ export default function SpecialServicesPage({
         updatedRecord = result.record;
       }
       if (!updatedRecord) throw new Error("contact answer failed");
+      if (updatedRecord.id.startsWith("CALL-MOCK-")) setAcceptanceRecordOverride(updatedRecord);
       setSharedRecords((current) => current.map((item) => item.id === updatedRecord!.id ? updatedRecord! : item));
       setAllSharedRecords((current) => current.map((item) => item.id === updatedRecord!.id ? updatedRecord! : item));
       setAssistance(toAssistanceRecord(updatedRecord));
+      setDismissedContactInquiryId(updatedRecord.id);
       setActiveContactRecord(null);
+      setContactInquiryOpen(false);
       if (answer === serviceContactAnswers.appointmentConfirmed) {
         setContactOutcomeFeedback("confirmed");
       } else if (answer === serviceContactAnswers.serviceNoLongerNeeded) {
@@ -675,7 +746,10 @@ export default function SpecialServicesPage({
   };
   const openServiceRecord = (record: SharedAssistanceRecord) => {
     setSelectedRecordId(record.id);
-    if (isPendingServiceContactInquiry(record)) setActiveContactRecord(record);
+    const hasPendingInquiry = isPendingServiceContactInquiry(record);
+    setActiveContactRecord(hasPendingInquiry ? record : null);
+    setContactInquiryOpen(hasPendingInquiry);
+    setDismissedContactInquiryId(null);
     setView("record-detail");
   };
   const submitServiceReview = () => {
@@ -803,11 +877,12 @@ export default function SpecialServicesPage({
             ? <div className="special-services-records-empty"><ClipboardList aria-hidden="true" /><strong>暂无服务记录</strong><p>在老人移动端联系服务商，或在这里请家人帮忙后，记录会显示在这里。</p></div>
             : <div className="special-services-records-list">{visibleRecords.map((record) => {
               const canReview = canReviewServiceAssistance(record, elderProfileMock.id);
+              const displayStatus = getRecordDisplayStatus(record);
               return <article key={record.id} className="special-services-record-card">
                 <button type="button" className="special-services-record-card__open" onClick={() => openServiceRecord(record)}>
                   <span className={isContactRecord(record) ? "is-contact" : undefined}>{isContactRecord(record) ? <Phone aria-hidden="true" /> : <HandHeart aria-hidden="true" />}</span>
                   <span className="special-services-record-card__copy">
-                    <span className="special-services-record-card__meta"><small>{getRecordType(record)}</small><strong data-status={getSharedRecordStatus(record)}>{getSharedRecordStatus(record)}</strong></span>
+                    <span className="special-services-record-card__meta"><small>{getRecordType(record)}</small>{displayStatus && <strong data-status={displayStatus}>{displayStatus}</strong>}</span>
                     <span className="special-services-record-card__title">{record.service.name}</span>
                     <span className="special-services-record-card__provider">{record.provider.name}</span>
                     <time>{formatAssistanceTime(record.contactStartedAt ?? record.requestedAt)}</time>
@@ -826,18 +901,17 @@ export default function SpecialServicesPage({
           <header className="special-services-record-detail__header">
             <span className={isContactRecord(selectedRecord) ? "is-contact" : undefined}>{isContactRecord(selectedRecord) ? <Phone aria-hidden="true" /> : <HandHeart aria-hidden="true" />}</span>
             <div><small>{getRecordType(selectedRecord)}</small><h2>{selectedRecord.service.name}</h2><p>{selectedRecord.provider.name}</p></div>
-            <strong data-status={getSharedRecordStatus(selectedRecord)}>{getSharedRecordStatus(selectedRecord)}</strong>
+            {getRecordDisplayStatus(selectedRecord) && <strong data-status={getRecordDisplayStatus(selectedRecord)!}>{getRecordDisplayStatus(selectedRecord)}</strong>}
           </header>
           {(canReviewServiceAssistance(selectedRecord, elderProfileMock.id) || selectedRecord.review) && <button type="button" className="special-services-review-entry" onClick={() => selectedRecord.review ? openSubmittedServiceReview(selectedRecord) : openServiceReview(selectedRecord)}><Star aria-hidden="true" />{selectedRecord.review ? "查看评价" : "评价服务"}</button>}
           <section className="special-services-record-progress" aria-labelledby="special-services-record-progress-title">
             <h3 id="special-services-record-progress-title">处理进展</h3>
             <ol>{getRecordProgress(selectedRecord).map((item, index) => <li key={`${item.time}-${index}`}><span aria-hidden="true" /><div><time>{formatAssistanceTime(item.time)}</time><p>{item.text}</p></div></li>)}</ol>
           </section>
-          {isPendingServiceContactInquiry(selectedRecord) && <section className="special-services-record-answer" aria-label="回复家人询问">
-            <small>{selectedRecord.familyHelpInquiry?.askedBy.name || "家人"}想和您确认</small>
-            <h3>这项服务约好了吗？</h3>
-            <div><button type="button" className="is-primary" onClick={() => answerServiceContact("appointment_confirmed")}><CheckCircle2 aria-hidden="true" />约好了</button><button type="button" onClick={() => answerServiceContact("family_help_requested")}><HandHeart aria-hidden="true" />没约好，请家人帮忙</button><button type="button" className="is-tertiary" onClick={() => answerServiceContact("service_no_longer_needed")}><X aria-hidden="true" />暂时不需要了</button></div>
-          </section>}
+          {isPendingServiceContactInquiry(selectedRecord) && <button type="button" className="special-services-record-reply-entry" onClick={() => {
+            setActiveContactRecord(selectedRecord);
+            setContactInquiryOpen(true);
+          }}><MessageCircle aria-hidden="true" /><span><strong>回复家人</strong><small>{getFamilyActorLabel(selectedRecord.familyHelpInquiry?.askedBy.name, selectedRecord.familyHelpInquiry?.askedBy.id)}想问您这项服务是否约好</small></span><ChevronRight aria-hidden="true" /></button>}
         </section>
       </div>}
 
@@ -895,6 +969,15 @@ export default function SpecialServicesPage({
                 <span><strong>请家人帮忙</strong><small>协助确认上门时间和费用</small></span>
                 <ChevronRight aria-hidden="true" />
               </button>
+
+              {selectedServicePendingInquiry && <button type="button" className="special-services-detail-inquiry-entry" onClick={() => {
+                setActiveContactRecord(selectedServicePendingInquiry);
+                setContactInquiryOpen(true);
+              }}>
+                <span><MessageCircle aria-hidden="true" /></span>
+                <span><strong>回复家人</strong><small>{getFamilyActorLabel(selectedServicePendingInquiry.familyHelpInquiry?.askedBy.name, selectedServicePendingInquiry.familyHelpInquiry?.askedBy.id)}想问是否约好</small></span>
+                <ChevronRight aria-hidden="true" />
+              </button>}
             </div>
           </aside>
         </div>
@@ -933,11 +1016,15 @@ export default function SpecialServicesPage({
         </section>
       </div>}
 
-      {activeContactRecord && view !== "record-detail" && <div className="special-services-contact-inquiry-overlay" role="presentation">
+      {activeContactRecord && contactInquiryOpen && <div className="special-services-contact-inquiry-overlay" role="presentation">
         <section role="dialog" aria-modal="true" aria-labelledby="special-services-contact-inquiry-title">
+          <button type="button" className="special-services-contact-inquiry-overlay__close" aria-label="关闭家人询问" onClick={() => {
+            setDismissedContactInquiryId(activeContactRecord.id);
+            setContactInquiryOpen(false);
+          }}><X aria-hidden="true" /></button>
           <span><Phone aria-hidden="true" /></span>
-          <small>{activeContactRecord.familyHelpInquiry?.askedBy.name || "家人"}想和您确认</small>
-          <h2 id="special-services-contact-inquiry-title">联系服务商后，结果怎么样？</h2>
+          <small>{getFamilyActorLabel(activeContactRecord.familyHelpInquiry?.askedBy.name, activeContactRecord.familyHelpInquiry?.askedBy.id)}想问您</small>
+          <h2 id="special-services-contact-inquiry-title">这项服务约好了吗？</h2>
           <p>{activeContactRecord.service.name} · {activeContactRecord.provider.name}</p>
           <div>
             <button type="button" className="is-primary" onClick={() => answerServiceContact("appointment_confirmed")}><CheckCircle2 aria-hidden="true" />约好了</button>

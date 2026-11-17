@@ -47,6 +47,9 @@ import {
   type ActivationAcceptanceScenario,
 } from "./activation-contract";
 import {
+  advanceEmergencyAssistanceAfterNoAnswer,
+  cancelEmergencyAssistance,
+  connectEmergencyAssistanceTarget,
   createEmergencyAssistanceEvent,
   type EmergencyAssistanceEvent,
 } from "./emergency-assistance";
@@ -904,7 +907,23 @@ export default function App() {
     } else {
       setEmergencyAssistanceEvent(null);
     }
-    setIsSOSOpen(true);
+    setIsSOSOpen(scenario !== "cancelled");
+  };
+
+  const setAcceptanceEmergencyScenario = (scenario: EmergencyAcceptanceScenario) => {
+    setIsSOSOpen(false);
+    setEmergencyAssistanceEvent(null);
+    setEmergencyAcceptanceScenario(scenario);
+  };
+
+  const controlAcceptanceEmergencyScenario = (action: "connected" | "unanswered" | "cancelled") => {
+    setEmergencyAssistanceEvent((current) => {
+      if (!current) return current;
+      if (action === "connected") return connectEmergencyAssistanceTarget(current);
+      if (action === "unanswered") return advanceEmergencyAssistanceAfterNoAnswer(current);
+      return cancelEmergencyAssistance(current);
+    });
+    if (action === "cancelled") setIsSOSOpen(false);
   };
 
   const handleAcceptanceAlbumScenario = (scenario: AcceptanceAlbumScenario) => {
@@ -1347,8 +1366,10 @@ export default function App() {
       onOpenHomeReminderAlert={openAcceptanceHomeReminderAlert}
       onHomeCommand={sendAcceptanceCommand}
       emergencyScenario={emergencyAcceptanceScenario}
-      onSetEmergencyScenario={setEmergencyAcceptanceScenario}
+      emergencyStatus={emergencyAssistanceEvent?.status}
+      onSetEmergencyScenario={setAcceptanceEmergencyScenario}
       onOpenEmergencyScenario={openAcceptanceEmergencyScenario}
+      onControlEmergencyScenario={controlAcceptanceEmergencyScenario}
       onOpenActivation={() => {
         resetActivationScenario();
       }}

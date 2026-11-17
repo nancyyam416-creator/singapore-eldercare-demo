@@ -57,7 +57,7 @@ export default function HomeSettingsPage({ isOpen, onClose }: HomeSettingsPagePr
         <section className="home-settings-content" aria-labelledby="assistance-settings-title">
           <header className="home-settings-content__header">
             <span><Headphones aria-hidden="true" /></span>
-            <div><h2 id="assistance-settings-title">在线协助呼叫顺序</h2><p>在线协助会严格按照下方保存顺序逐一进行 Mock 呼叫。</p></div>
+            <div><h2 id="assistance-settings-title">在线协助呼叫顺序</h2><p>在线协助会严格按照下方保存顺序逐一联系。</p></div>
           </header>
 
           <div className="home-settings-targets" aria-label="在线协助呼叫顺序">

@@ -120,6 +120,10 @@
 .special-services-record-detail__header > strong { padding: 6px 11px; border-radius: var(--radius-round); color: var(--color-green); background: color-mix(in oklch, var(--color-green), transparent 87%); font-size: 15px; }
 .special-services-record-card__meta strong[data-status="处理中"],
 .special-services-record-detail__header > strong[data-status="处理中"] { color: #79aefd; background: color-mix(in oklch, #4f8fe8, transparent 86%); }
+.special-services-record-card__meta strong[data-status="待答复"],
+.special-services-record-detail__header > strong[data-status="待答复"] { color: var(--color-amber); background: color-mix(in oklch, var(--color-amber), transparent 86%); }
+.special-services-record-card__meta strong[data-status="未询问"],
+.special-services-record-detail__header > strong[data-status="未询问"] { color: var(--color-text-soft); background: color-mix(in oklch, var(--color-text-muted), transparent 88%); }
 .special-services-record-card__meta strong[data-status="已失效"],
 .special-services-record-detail__header > strong[data-status="已失效"] { color: var(--color-text-muted); background: color-mix(in oklch, var(--color-text-muted), transparent 88%); }
 .special-services-record-card__title { color: var(--color-text); font-size: 24px; font-weight: 900; }
@@ -145,14 +149,12 @@
 .special-services-record-progress li > span { position: relative; z-index: 1; width: 18px; height: 18px; margin-top: 3px; border: 4px solid color-mix(in oklch, var(--color-green), transparent 55%); border-radius: 50%; background: var(--color-green); }
 .special-services-record-progress time { color: var(--color-text-muted); font-size: 15px; font-weight: 750; }
 .special-services-record-progress p { margin: 5px 0 0; color: var(--color-text); font-size: 18px; line-height: 1.45; font-weight: 800; }
-.special-services-record-answer { display: grid; gap: 10px; margin-top: 12px; padding: 20px; border: var(--rule-strong) solid color-mix(in oklch, var(--color-green), transparent 54%); border-radius: 20px; background: color-mix(in oklch, var(--color-green-dark), transparent 58%); }
-.special-services-record-answer small { color: var(--color-green); font-size: 15px; font-weight: 900; }
-.special-services-record-answer h3 { margin: 0; font-size: 23px; }
-.special-services-record-answer > div { display: grid; grid-template-columns: .9fr 1.4fr; gap: 12px; margin-top: 6px; }
-.special-services-record-answer button { min-height: 62px; display: flex; align-items: center; justify-content: center; gap: 8px; border: var(--rule-strong) solid var(--color-line); border-radius: 17px; background: var(--color-panel-raised); font-size: 18px; font-weight: 900; cursor: pointer; }
-.special-services-record-answer button.is-primary { border-color: color-mix(in oklch, var(--color-green), transparent 34%); background: var(--color-green-dark); }
-.special-services-record-answer button.is-tertiary { grid-column: 1 / -1; min-height: 52px; color: var(--color-text-soft); background: transparent; }
-.special-services-record-answer button svg { width: 23px; height: 23px; }
+.special-services-record-reply-entry { width: 100%; min-height: 74px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 24px; align-items: center; gap: 14px; margin-top: 12px; padding: 14px 18px; border: var(--rule-strong) solid color-mix(in oklch, var(--color-green), transparent 54%); border-radius: 20px; color: var(--color-text); background: color-mix(in oklch, var(--color-green-dark), transparent 58%); text-align: left; cursor: pointer; }
+.special-services-record-reply-entry > svg:first-child { width: 30px; height: 30px; color: var(--color-green); }
+.special-services-record-reply-entry > svg:last-child { width: 24px; height: 24px; color: var(--color-text-muted); }
+.special-services-record-reply-entry span { display: grid; gap: 4px; }
+.special-services-record-reply-entry strong { font-size: 20px; font-weight: 900; }
+.special-services-record-reply-entry small { color: var(--color-text-soft); font-size: 15px; font-weight: 750; }
 
 .special-services-offline-banner {
   display: flex;
@@ -1519,6 +1521,13 @@
 .special-services-family-option strong { font-size: 20px; font-weight: 900; }
 .special-services-family-option small { color: color-mix(in oklch, var(--color-text), transparent 24%); font-size: 14px; line-height: 1.35; font-weight: 750; }
 .special-services-family-option > svg { width: 24px; height: 24px; color: var(--color-text); }
+.special-services-detail-inquiry-entry { min-height: 78px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 24px; align-items: center; gap: 12px; padding: 14px 16px; border: var(--rule-strong) solid color-mix(in oklch, var(--color-green), transparent 46%); border-radius: 18px; color: var(--color-text); background: color-mix(in oklch, var(--color-green-dark), transparent 46%); text-align: left; cursor: pointer; }
+.special-services-detail-inquiry-entry > span:first-child { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; color: var(--color-green); background: color-mix(in oklch, var(--color-green), transparent 82%); }
+.special-services-detail-inquiry-entry > span:first-child svg { width: 25px; height: 25px; }
+.special-services-detail-inquiry-entry > span:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
+.special-services-detail-inquiry-entry strong { font-size: 18px; font-weight: 900; }
+.special-services-detail-inquiry-entry small { color: var(--color-text-soft); font-size: 13px; line-height: 1.35; font-weight: 750; }
+.special-services-detail-inquiry-entry > svg { width: 23px; height: 23px; color: var(--color-text-muted); }
 
 .special-services-family-progress { display: grid; gap: 12px; padding-top: 4px; }
 .special-services-family-progress > header { display: flex; align-items: center; gap: 9px; }
@@ -1653,6 +1662,7 @@
 }
 
 .special-services-contact-inquiry-overlay > section {
+  position: relative;
   width: min(700px, calc(100vw - 72px));
   display: grid;
   justify-items: center;
@@ -1663,6 +1673,9 @@
   background: var(--color-canvas-deep);
   box-shadow: 0 32px 80px rgba(0, 0, 0, .5);
 }
+
+.special-services-contact-inquiry-overlay button.special-services-contact-inquiry-overlay__close { position: absolute; top: 18px; right: 18px; width: 48px; min-height: 48px; padding: 0; border-radius: 50%; color: var(--color-text-soft); background: var(--color-panel-raised); }
+.special-services-contact-inquiry-overlay button.special-services-contact-inquiry-overlay__close svg { width: 24px; height: 24px; }
 
 .special-services-contact-inquiry-overlay > section > span { width: 76px; height: 76px; display: grid; place-items: center; border-radius: 50%; color: var(--color-green); background: color-mix(in oklch, var(--color-green), transparent 84%); }
 .special-services-contact-inquiry-overlay > section > span svg { width: 38px; height: 38px; }

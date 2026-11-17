@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import type { FamilyWeatherMockScenario } from "../weather/familyWeather";
 import type { EmergencyAcceptanceScenario } from "./EmergencyModal";
-import { emergencyScenarioDefinitions } from "../emergency-assistance";
+import { emergencyScenarioDefinitions, type EmergencyAssistanceStatus } from "../emergency-assistance";
 import type { SpecialServicesAcceptanceScenario } from "./SpecialServicesPage";
 import type { CommunityStaffAcceptanceScenario } from "./CommunityStaffPage";
 import type { ServiceConversationAcceptanceScenario } from "./ContactsCommunicationPage";
@@ -175,6 +175,7 @@ interface InteractionAcceptanceConsoleProps {
   activationScenario: ActivationAcceptanceScenario;
   activationContractState: ActivationContractState;
   emergencyScenario: EmergencyAcceptanceScenario;
+  emergencyStatus?: EmergencyAssistanceStatus;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
@@ -204,6 +205,7 @@ interface InteractionAcceptanceConsoleProps {
   onHomeCommand: (command: AcceptanceHomeCommand) => void;
   onSetEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
   onOpenEmergencyScenario: (scenario: EmergencyAcceptanceScenario) => void;
+  onControlEmergencyScenario: (action: "connected" | "unanswered" | "cancelled") => void;
   onOpenActivation: () => void;
   onResetActivation: () => void;
   onReset: () => void;
@@ -457,9 +459,11 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
   default: { label: "当前服务目录", description: "不展示分类入口，按共享目录动态展示当前四项服务及明细价格。" },
   "no-services": { label: "暂无可用服务", description: "全部服务不可用时展示统一空状态。" },
-  "contact-pending": { label: "待处理", description: "联系动态已经生成，等待家人确认本次联系结果。" },
-  "contact-family-inquiry": { label: "家人发起询问", description: "家人主动询问联系结果后，老人端展示带家人身份的确认弹窗。" },
-  "contact-confirmed": { label: "联系已确认", description: "老人确认约好后结束本次联系，结果同步给家人。" },
+  "contact-pending": { label: "未询问", description: "只记录您查看过服务商电话，不附加待处理含义。" },
+  "contact-family-inquiry": { label: "待答复", description: "女儿张晓燕主动询问预约结果，突出询问人并提供三种答复。" },
+  "detail-contact-family-inquiry": { label: "家人询问预约结果", description: "当前服务存在真实未决询问时，以服务详情为背景主动打开具名询问弹窗。" },
+  "contact-confirmed": { label: "已答复", description: "展示老人实际答复结果，本场景为已约好。" },
+  "contact-no-longer-needed": { label: "已答复", description: "展示老人实际答复结果，本场景为暂时不需要。" },
   "family-help-idle": { label: "未请求", description: "查看联系电话与家人协助均展示初始状态。" },
   "family-help-confirm": { label: "确认通知家人", description: "点击请家人帮忙后，先确认再创建协助事项。" },
   "family-help-pending": { label: "家人待处理", description: "已通知家人，请等待联系。" },
@@ -474,16 +478,17 @@ const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, {
 const specialServicesRecordTypeConfigs: Record<SpecialServicesRecordType, {
   label: string;
   statuses: Array<{
-    id: "pending" | "handling" | "handled" | "expired";
+    id: string;
     label: string;
     scenario: SpecialServicesAcceptanceScenario;
   }>;
 }> = {
   contact: {
-    label: "联系动态",
+    label: "我的联系记录",
     statuses: [
-      { id: "pending", label: "待处理", scenario: "contact-pending" },
-      { id: "handled", label: "已处理", scenario: "contact-confirmed" },
+      { id: "unasked", label: "未询问", scenario: "contact-pending" },
+      { id: "inquiry", label: "待答复", scenario: "contact-family-inquiry" },
+      { id: "answered", label: "已答复", scenario: "contact-no-longer-needed" },
     ],
   },
   "family-help": {
@@ -516,14 +521,14 @@ const specialServicesModuleConfigs: Record<SpecialServicesAcceptanceSection, {
     description: "验收服务详情中的联系与请家人帮忙流程。",
     actionLabel: "打开当前服务详情示例",
     note: "详情页沿用正式服务内容与右侧操作区，只切换当前交互结果。",
-    scenarios: ["family-help-idle", "family-help-confirm", "contact-family-inquiry"],
+    scenarios: ["family-help-idle", "family-help-confirm", "detail-contact-family-inquiry"],
   },
   "special-services-records": {
     title: "服务记录验收",
     description: "选择工单类型和状态，在正式服务记录列表中查看结果。",
     actionLabel: "打开当前服务记录示例",
-    note: "联系已确认为已处理；暂未约好仍是待处理；家人协助完成和老人已评价仍归入已处理，不作为独立工单状态。",
-    scenarios: ["contact-pending", "contact-confirmed", "family-help-pending", "family-help-handling", "family-help-handled", "family-help-expired"],
+    note: "老人端只呈现本人联系记录、具名家人询问与实际答复；底层共享四态与子女端处理规则不变。",
+    scenarios: ["contact-pending", "contact-family-inquiry", "contact-confirmed", "contact-no-longer-needed", "family-help-pending", "family-help-handling", "family-help-handled", "family-help-expired"],
   },
 };
 
@@ -692,6 +697,7 @@ export default function InteractionAcceptanceConsole({
   activationScenario,
   activationContractState,
   emergencyScenario,
+  emergencyStatus,
   onShowHome,
   onShowAlbum,
   onShowReminders,
@@ -721,6 +727,7 @@ export default function InteractionAcceptanceConsole({
   onHomeCommand,
   onSetEmergencyScenario,
   onOpenEmergencyScenario,
+  onControlEmergencyScenario,
   onOpenActivation,
   onResetActivation,
   onReset,
@@ -954,7 +961,7 @@ export default function InteractionAcceptanceConsole({
                   </span>
                 </label>
                 <label className="interaction-acceptance-module-picker">
-                  <span>四级状态</span>
+                  <span>{selectedSpecialServicesRecordType === "contact" ? "四级场景" : "四级状态"}</span>
                   <span className="interaction-acceptance-module-picker__select">
                     <select
                       value={selectedSpecialServicesRecordStatus.id}
@@ -963,7 +970,7 @@ export default function InteractionAcceptanceConsole({
                           .find((status) => status.id === event.target.value);
                         if (nextStatus) onSetServiceScenario(nextStatus.scenario);
                       }}
-                      aria-label="选择服务记录状态"
+                      aria-label={selectedSpecialServicesRecordType === "contact" ? "选择联系记录场景" : "选择服务记录状态"}
                     >
                       {specialServicesRecordTypeConfigs[selectedSpecialServicesRecordType].statuses.map((status) => (
                         <option key={status.id} value={status.id}>{status.label}</option>
@@ -1123,9 +1130,14 @@ export default function InteractionAcceptanceConsole({
               </div>
               <div className="interaction-acceptance-field">
                 <h2>交互动作</h2>
-                <button type="button" className="is-primary" onClick={() => onOpenEmergencyScenario(emergencyScenario)}>
+                <button type="button" className="interaction-acceptance-primary-action" onClick={() => onOpenEmergencyScenario(emergencyScenario)}>
                   <PhoneCall aria-hidden="true" />打开在线协助流程
                 </button>
+                <div className="weather-acceptance-actions">
+                  <button type="button" disabled={emergencyStatus !== "待接听"} onClick={() => onControlEmergencyScenario("connected")}>模拟已接通</button>
+                  <button type="button" disabled={emergencyStatus !== "待接听"} onClick={() => onControlEmergencyScenario("unanswered")}>模拟未接通并推进</button>
+                  <button type="button" disabled={emergencyStatus !== "待接听"} onClick={() => onControlEmergencyScenario("cancelled")}>模拟取消</button>
+                </div>
               </div>
             </section>}
 

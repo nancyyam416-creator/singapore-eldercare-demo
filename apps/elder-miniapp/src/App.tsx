@@ -54,6 +54,7 @@ type FamilyView = 'album' | 'messages';
 type FamilyMessage = {
   id: string;
   sender: 'child' | 'elder';
+  familyMemberId: string;
   senderName: string;
   text: string;
   sentAt: string;
@@ -61,6 +62,7 @@ type FamilyMessage = {
   durationSeconds?: number;
   status: 'delivered' | 'listened';
 };
+type FamilyMember = { id: string; name: string; relation: string; phone: string; avatar: string; tone: 'daughter' | 'son' };
 type FamilyVoiceState = 'idle' | 'recording' | 'ready' | 'sending';
 type ReminderFilter = 'all' | ReminderType;
 type ReminderView = 'today' | 'rules';
@@ -76,9 +78,14 @@ const photos = [
   { id: 4, title: '社区晨练', date: '10月18日', tone: 'exercise' },
 ];
 
+const familyMembers: FamilyMember[] = [
+  { id: 'daughter', name: '张晓燕', relation: '女儿', phone: '139 1234 5678', avatar: '女', tone: 'daughter' },
+  { id: 'son', name: '张建平', relation: '儿子', phone: '138 9876 5432', avatar: '儿', tone: 'son' },
+];
+
 const initialFamilyMessages: FamilyMessage[] = [
-  { id: 'message-daughter-1', sender: 'child', senderName: '张晓燕', text: '妈妈，晚上记得吃降压药，我下班后给您打电话。', sentAt: '今天 16:45', type: 'voice', durationSeconds: 12, status: 'delivered' },
-  { id: 'message-son-1', sender: 'child', senderName: '张建平', text: '周末我带您去公园走走，天气好我们再拍些照片。', sentAt: '昨天 20:18', type: 'text', status: 'listened' },
+  { id: 'message-daughter-1', sender: 'child', familyMemberId: 'daughter', senderName: '张晓燕', text: '妈妈，晚上记得吃降压药，我下班后给您打电话。', sentAt: '今天 16:45', type: 'voice', durationSeconds: 12, status: 'delivered' },
+  { id: 'message-son-1', sender: 'child', familyMemberId: 'son', senderName: '张建平', text: '周末我带您去公园走走，天气好我们再拍些照片。', sentAt: '昨天 20:18', type: 'text', status: 'listened' },
 ];
 
 const activities: Activity[] = [
@@ -170,6 +177,8 @@ export default function App() {
   const [selectedFamilyPhoto, setSelectedFamilyPhoto] = useState<(typeof photos)[number] | null>(null);
   const [familyView, setFamilyView] = useState<FamilyView>('album');
   const [familyMessages, setFamilyMessages] = useState<FamilyMessage[]>(initialFamilyMessages);
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<string | null>(null);
+  const [familyMemberScenario, setFamilyMemberScenario] = useState<'default' | 'no_family'>('default');
   const [familyVoiceState, setFamilyVoiceState] = useState<FamilyVoiceState>('idle');
   const [familyVoiceSeconds, setFamilyVoiceSeconds] = useState(0);
   const [playingFamilyMessageId, setPlayingFamilyMessageId] = useState<string | null>(null);
@@ -216,7 +225,7 @@ export default function App() {
   const [locationSharing, setLocationSharing] = useState<LocationSharingState>('off');
   const [locationUpdatedAt, setLocationUpdatedAt] = useState<string | null>(null);
 
-  const pageTitle = bindingOpen ? '家人绑定确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '服务协助' : '我的';
+  const pageTitle = bindingOpen ? '家人绑定确认' : tab === 'home' ? '首页' : tab === 'family' ? '家庭' : tab === 'reminders' ? '提醒' : tab === 'activities' ? '社区' : tab === 'services' ? '特约服务' : '我的';
   const currentService = serviceData[serviceCategory];
   const canSaveReminder = reminderTitle.trim() && (reminderType === 'daily' || reminderDetail.trim()) && (repeat !== 'weekly' || weekdays.length > 0);
   const filteredReminders = useMemo(() => reminderItems, [reminderItems]);
@@ -303,14 +312,17 @@ export default function App() {
   };
 
   const sendFamilyVoice = () => {
-    if (!familyVoiceSeconds) return;
+    if (!familyVoiceSeconds || !selectedFamilyMemberId) return;
+    const recipient = familyMembers.find(member => member.id === selectedFamilyMemberId);
+    if (!recipient) return;
     setFamilyVoiceState('sending');
     window.setTimeout(() => {
       setFamilyMessages(current => [{
         id: `message-elder-${Date.now()}`,
         sender: 'elder',
+        familyMemberId: recipient.id,
         senderName: '王奶奶',
-        text: '我已经收到留言了，你们放心。',
+        text: '我已经收到留言了，你放心。',
         sentAt: '刚刚',
         type: 'voice',
         durationSeconds: familyVoiceSeconds,
@@ -318,7 +330,7 @@ export default function App() {
       }, ...current]);
       setFamilyVoiceState('idle');
       setFamilyVoiceSeconds(0);
-      showToast('语音留言已发送给家人');
+      showToast(`语音留言已发送给${recipient.name}`);
     }, 700);
   };
 
@@ -340,6 +352,8 @@ export default function App() {
     setLocationPanelOpen(false);
     setSelectedFamilyPhoto(null);
     setFamilyView('album');
+    setSelectedFamilyMemberId(null);
+    setFamilyMemberScenario('default');
     setFamilyVoiceState('idle');
     setFamilyVoiceSeconds(0);
     setPlayingFamilyMessageId(null);
@@ -353,7 +367,7 @@ export default function App() {
     setServiceStep('detail');
     setTab(next);
     setAcceptancePageId(next);
-    setAcceptanceModuleId(next === 'home' ? 'home-schedule' : next === 'family' ? 'family-album' : next === 'reminders' ? 'reminder-today' : next === 'activities' ? 'activity-list' : next === 'services' ? 'service-booking' : 'profile-guardians');
+    setAcceptanceModuleId(next === 'home' ? 'home-schedule' : next === 'family' ? 'family-album' : next === 'reminders' ? 'reminder-today' : next === 'activities' ? 'activity-list' : next === 'services' ? 'service-list' : 'profile-guardians');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -363,6 +377,7 @@ export default function App() {
     setPhotoStep('edit');
     setPhotoVoiceState('idle');
     setSelectedFamilyPhoto(null);
+    setSelectedFamilyMemberId(null);
     setReminderStep('edit');
     setReminderFilter('all');
     setSelectedService(null);
@@ -387,10 +402,12 @@ export default function App() {
     if (moduleId === 'reminder-today') setReminderView('today');
     if (moduleId === 'reminder-rules') setReminderView('rules');
     if (moduleId === 'family-album') setFamilyView('album');
-    if (moduleId === 'family-messages') setFamilyView('messages');
+    if (moduleId === 'family-messages') { setFamilyView('messages'); setSelectedFamilyMemberId(null); }
     if (moduleId === 'activity-detail') setSelectedActivity(activities[0]);
     if (moduleId === 'community-alerts') setCommunityView('alerts');
-    if (moduleId === 'service-booking') setAppointmentScenario('default');
+    if (moduleId === 'service-list') setAppointmentScenario('default');
+    if (moduleId === 'service-detail') setAppointmentScenario('detail');
+    if (moduleId === 'service-records') setAppointmentScenario('record_contact_unasked');
     document.querySelector('.app-content')?.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -399,7 +416,11 @@ export default function App() {
     if (moduleId === 'home-schedule') setHomeScheduleScenario(scenario);
     if (moduleId === 'home-family') setHomeFamilyScenario(scenario);
     if (moduleId === 'family-album') setFamilyAlbumScenario(scenario);
-    if (moduleId === 'family-messages') setFamilyMessages(scenario === 'empty' ? [] : initialFamilyMessages);
+    if (moduleId === 'family-messages') {
+      setFamilyMemberScenario(scenario === 'no_family' ? 'no_family' : 'default');
+      setFamilyMessages(scenario === 'empty' ? [] : initialFamilyMessages);
+      setSelectedFamilyMemberId(null);
+    }
     if (moduleId === 'reminder-today') setReminderItems(scenario === 'empty' ? [] : initialReminderItems.map(item => ({ ...item, completed: scenario === 'completed' ? true : item.completed })));
     if (moduleId === 'reminder-rules') setReminderRules(scenario === 'empty' ? [] : initialReminderRules.map(rule => ({ ...rule })));
     if (moduleId === 'activity-list') setActivityListScenario(scenario);
@@ -414,7 +435,7 @@ export default function App() {
       setAlertReadIds(scenario === 'detail' ? [communityAlerts[0].id] : []);
       setSelectedAlert(scenario === 'detail' ? communityAlerts[0] : null);
     }
-    if (moduleId === 'service-booking') { setAppointmentReturnTarget('detail'); setAppointmentScenario(scenario as AppointmentScenario); }
+    if (moduleId === 'service-list' || moduleId === 'service-detail' || moduleId === 'service-records') { setAppointmentReturnTarget(moduleId === 'service-records' ? 'records' : 'detail'); setAppointmentScenario(scenario as AppointmentScenario); }
     if (moduleId === 'profile-guardians') setGuardianScenario(scenario);
     if (moduleId === 'profile-binding') {
       setBindingStatus(scenario as BindingStatus);
@@ -446,11 +467,10 @@ export default function App() {
     if (action === 'open-reminders') goTo('reminders');
     if (action === 'open-family') goTo('family');
     if (action === 'open-photo') openOverlay('photo');
-    if (action === 'start-family-voice') { setFamilyView('messages'); setFamilyVoiceSeconds(1); setFamilyVoiceState('recording'); }
+    if (action === 'start-family-voice') { setFamilyView('messages'); setSelectedFamilyMemberId(familyMembers[0].id); setFamilyVoiceSeconds(1); setFamilyVoiceState('recording'); }
     if (action === 'open-reminder') openOverlay('reminder');
     if (action === 'open-first-activity') { setTab('activities'); setSelectedActivity(activities[0]); setAcceptancePageId('activities'); setAcceptanceModuleId('activity-detail'); }
     if (action === 'open-first-alert') { setTab('activities'); setCommunityView('alerts'); openAlert(communityAlerts[0]); setAcceptancePageId('activities'); setAcceptanceModuleId('community-alerts'); }
-    if (action === 'open-services') goTo('services');
     if (action === 'open-binding') { setTab('profile'); setBindingStatus('pending'); setBindingOpen(true); setAcceptancePageId('profile'); setAcceptanceModuleId('profile-binding'); }
     if (action === 'open-location') { setTab('profile'); setLocationPanelOpen(true); setAcceptancePageId('profile'); setAcceptanceModuleId('profile-location'); }
   };
@@ -468,6 +488,9 @@ export default function App() {
 
   const scheduleAllCompleted = homeScheduleScenario === 'completed';
   const visibleFamilyPhotos = familyAlbumScenario === 'empty' ? [] : photos;
+  const visibleFamilyMembers = familyMemberScenario === 'no_family' ? [] : familyMembers;
+  const selectedFamilyMember = visibleFamilyMembers.find(member => member.id === selectedFamilyMemberId) ?? null;
+  const selectedFamilyConversation = selectedFamilyMember ? familyMessages.filter(message => message.familyMemberId === selectedFamilyMember.id) : [];
   const selectedFamilyPhotoIndex = selectedFamilyPhoto ? visibleFamilyPhotos.findIndex(photo => photo.id === selectedFamilyPhoto.id) : -1;
   const visibleActivities = activityListScenario === 'empty' ? [] : activities;
   const activityStatusLabel = (activity: Activity) => activity.status === 'ongoing' ? '正在进行' : activity.status === 'ended' ? '活动已结束' : activity.status === 'cancelled' ? '活动已取消' : `还剩 ${activity.spotsLeft} 个名额`;
@@ -526,6 +549,23 @@ export default function App() {
 
   </>;
 
+  const familyConversationPage = selectedFamilyMember ? <section className="family-conversation-page" aria-label={`与${selectedFamilyMember.name}的留言`}>
+    <div className="family-message-list">
+      {selectedFamilyConversation.map(message => <article key={message.id} className={`family-message-card ${message.sender === 'elder' ? 'from-elder' : 'from-family'}`}>
+        {message.sender === 'child' && <span className={`message-avatar ${selectedFamilyMember.tone}`}>{selectedFamilyMember.avatar}</span>}
+        <div><header><strong>{message.sender === 'elder' ? '我' : selectedFamilyMember.name}</strong><time>{message.sentAt}</time></header><p>{message.text}</p>{message.type === 'voice' && <button className={playingFamilyMessageId === message.id ? 'playing' : ''} onClick={() => playFamilyMessage(message)}><Volume2 /><span>{playingFamilyMessageId === message.id ? '正在播放' : `播放语音 ${message.durationSeconds}秒`}</span></button>}<small>{message.sender === 'elder' ? `已发送给${selectedFamilyMember.name}` : message.status === 'listened' ? '已听过' : '新留言'}</small></div>
+      </article>)}
+      {!selectedFamilyConversation.length && <div className="acceptance-empty-state standalone"><Volume2 /><strong>还没有留言</strong><span>可以先给{selectedFamilyMember.name}录一段语音</span></div>}
+    </div>
+    <div className={`family-voice-composer ${familyVoiceState}`}>
+      <div><Mic /><span><strong>{familyVoiceState === 'recording' ? `正在录音 ${familyVoiceSeconds}秒` : familyVoiceState === 'ready' ? `语音已录好 · ${familyVoiceSeconds}秒` : familyVoiceState === 'sending' ? '正在发送…' : `给${selectedFamilyMember.name}留语音`}</strong><small>本次留言仅发送给{selectedFamilyMember.name}</small></span></div>
+      {familyVoiceState === 'idle' && <button onClick={() => { setFamilyVoiceSeconds(1); setFamilyVoiceState('recording'); }}>开始录音</button>}
+      {familyVoiceState === 'recording' && <button onClick={() => { setFamilyVoiceSeconds(current => Math.max(current, 8)); setFamilyVoiceState('ready'); }}>结束录音</button>}
+      {familyVoiceState === 'ready' && <div className="family-voice-actions"><button onClick={() => { setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); }}>重录</button><button className="send" onClick={sendFamilyVoice}>发送给{selectedFamilyMember.name}</button></div>}
+      {familyVoiceState === 'sending' && <button disabled>发送中</button>}
+    </div>
+  </section> : null;
+
   const familyPage = selectedFamilyPhoto ? <section className="family-media-preview" aria-label={`预览${selectedFamilyPhoto.title}`}>
     <div className={`family-media-stage ${selectedFamilyPhoto.tone}`}>
       {selectedFamilyPhoto.id === 4 ? <span className="family-video-preview"><Video /><b>视频预览</b></span> : <Camera />}
@@ -536,38 +576,33 @@ export default function App() {
       <div><strong>{selectedFamilyPhoto.title}</strong><span>{selectedFamilyPhoto.date} · {selectedFamilyPhoto.id === 4 ? '视频' : '照片'}</span></div>
       <b>{selectedFamilyPhotoIndex + 1}/{visibleFamilyPhotos.length}</b>
     </footer>
-  </section> : <>
+  </section> : selectedFamilyMember ? familyConversationPage : <>
     <ElderPageHeader title="家人分享" description="查看已绑定家人分享的照片、视频和留言。" />
     <div className="family-view-switch elder-segmented-control" role="tablist" aria-label="家人分享内容">
       <button role="tab" aria-selected={familyView === 'album'} className={familyView === 'album' ? 'active' : ''} onClick={() => { setFamilyView('album'); setAcceptanceModuleId('family-album'); }}><Images /><strong>家庭相册</strong></button>
-      <button role="tab" aria-selected={familyView === 'messages'} className={familyView === 'messages' ? 'active' : ''} onClick={() => { setFamilyView('messages'); setAcceptanceModuleId('family-messages'); }}><Volume2 /><strong>家人留言</strong></button>
+      <button role="tab" aria-selected={familyView === 'messages'} className={familyView === 'messages' ? 'active' : ''} onClick={() => { setFamilyView('messages'); setSelectedFamilyMemberId(null); setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); setAcceptanceModuleId('family-messages'); }}><Volume2 /><strong>家人留言</strong></button>
     </div>
     {familyView === 'album' ? <>
       <section className="family-actions">
         <button onClick={() => openOverlay('photo')} className="family-action photo-action"><Upload /><div><strong>发相册</strong><span>直接分享给已绑定家人</span></div><ChevronRight /></button>
       </section>
       <div className="section-heading family-gallery-heading"><div><span>家庭相册</span><h2>最近的照片和视频</h2></div></div>
-      <section className="gallery family-aligned-gallery">{visibleFamilyPhotos.map(photo => <button key={photo.id} className={`gallery-card ${photo.tone}`} aria-label={`${photo.id === 4 ? '视频' : '照片'} ${photo.title}`} onClick={() => setSelectedFamilyPhoto(photo)}><span className="gallery-badge">{photo.id === 4 ? <><Video />视频</> : <><Camera />照片</>}</span><div><strong>{photo.title}</strong></div></button>)}</section>
+      <section className="gallery family-aligned-gallery">{visibleFamilyPhotos.map(photo => <button key={photo.id} className="gallery-card" aria-label={`${photo.id === 4 ? '视频' : '照片'} ${photo.title}`} onClick={() => setSelectedFamilyPhoto(photo)}><span className={`gallery-card-media ${photo.tone}`}><span className="gallery-badge">{photo.id === 4 ? <><Video />视频</> : <><Camera />照片</>}</span></span></button>)}</section>
       {!visibleFamilyPhotos.length && <div className="acceptance-empty-state standalone"><Images /><strong>暂无照片和视频</strong><span>点击“发相册”与家人分享近况</span></div>}
-    </> : <section className="family-message-page" aria-label="家人留言列表">
-      <header className="family-message-page-header"><div><span><Volume2 /></span><h2>家人留言</h2></div></header>
-      <div className="family-message-list">
-        {!!familyMessages.some(message => message.sender === 'child') && <section className="family-message-group received"><h3>家人发来的留言</h3>{familyMessages.filter(message => message.sender === 'child').map(message => <article key={message.id} className="family-message-card from-family">
-          <span className={`message-avatar ${message.senderName === '张晓燕' ? 'daughter' : 'son'}`}>{message.senderName === '张晓燕' ? '女儿' : '儿子'}</span>
-          <div><header><strong>{message.senderName}</strong><time>{message.sentAt}</time></header><p>{message.text}</p>{message.type === 'voice' && <button className={playingFamilyMessageId === message.id ? 'playing' : ''} onClick={() => playFamilyMessage(message)}><Volume2 /><span>{playingFamilyMessageId === message.id ? '正在播放' : `播放语音 ${message.durationSeconds}秒`}</span></button>}<small>{message.status === 'listened' ? '已听过' : '新留言'}</small></div>
-        </article>)}</section>}
-        {!!familyMessages.some(message => message.sender === 'elder') && <section className="family-message-group sent"><h3>我发出的留言</h3>{familyMessages.filter(message => message.sender === 'elder').map(message => <article key={message.id} className="family-message-card from-elder">
-          <div><header><strong>发给已绑定家人</strong><time>{message.sentAt}</time></header><p>{message.text}</p>{message.type === 'voice' && <button className={playingFamilyMessageId === message.id ? 'playing' : ''} onClick={() => playFamilyMessage(message)}><Volume2 /><span>{playingFamilyMessageId === message.id ? '正在播放' : `播放语音 ${message.durationSeconds}秒`}</span></button>}<small>已发送</small></div>
-        </article>)}</section>}
-        {!familyMessages.length && <div className="acceptance-empty-state standalone"><Volume2 /><strong>暂时没有家人留言</strong><span>您仍可以录一段语音发给已绑定家人</span></div>}
-      </div>
-      <div className={`family-voice-composer ${familyVoiceState}`}>
-        <div><Mic /><span><strong>{familyVoiceState === 'recording' ? `正在录音 ${familyVoiceSeconds}秒` : familyVoiceState === 'ready' ? `语音已录好 · ${familyVoiceSeconds}秒` : familyVoiceState === 'sending' ? '正在发送…' : '给家人留语音'}</strong><small>留言仅发送给已绑定家人</small></span></div>
-        {familyVoiceState === 'idle' && <button onClick={() => { setFamilyVoiceSeconds(1); setFamilyVoiceState('recording'); }}>开始录音</button>}
-        {familyVoiceState === 'recording' && <button onClick={() => { setFamilyVoiceSeconds(current => Math.max(current, 8)); setFamilyVoiceState('ready'); }}>结束录音</button>}
-        {familyVoiceState === 'ready' && <div className="family-voice-actions"><button onClick={() => { setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); }}>重录</button><button className="send" onClick={sendFamilyVoice}>发送留言</button></div>}
-        {familyVoiceState === 'sending' && <button disabled>发送中</button>}
-      </div>
+    </> : <section className="family-message-page" aria-label="家人留言">
+      <section className="family-member-picker" aria-label="选择留言家人">
+        {visibleFamilyMembers.length ? <>
+          <div className="family-member-list">{visibleFamilyMembers.map(member => {
+            const unreadCount = familyMessages.filter(message => message.familyMemberId === member.id && message.sender === 'child' && message.status === 'delivered').length;
+            return <button key={member.id} onClick={() => { setSelectedFamilyMemberId(member.id); setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); }}>
+              <span className={`family-member-avatar ${member.tone}`}>{member.avatar}</span>
+              <span><strong>{member.name}</strong><small>{member.relation} · {member.phone}</small></span>
+              {unreadCount > 0 && <b>{unreadCount} 条新留言</b>}
+              <ChevronRight />
+            </button>;
+          })}</div>
+        </> : <div className="acceptance-empty-state standalone"><Users /><strong>暂无已绑定家人</strong><span>确认家庭关系后，才能与家人单独留言</span></div>}
+      </section>
     </section>}
   </>;
 
@@ -691,6 +726,7 @@ export default function App() {
   const showingService = tab === 'home' && servicesOpen;
 
   const shellBack = selectedFamilyPhoto ? { label: '返回家庭相册', action: () => setSelectedFamilyPhoto(null) }
+    : selectedFamilyMember ? { label: '返回家人选择', action: () => { window.speechSynthesis.cancel(); setPlayingFamilyMessageId(null); setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); setSelectedFamilyMemberId(null); } }
     : bindingOpen ? { label: '返回我的', action: () => setBindingOpen(false) }
     : selectedActivity ? { label: '返回活动列表', action: () => { setSelectedActivity(null); setActivityIntentFailure(null); } }
         : selectedAlert ? { label: '返回警惕事项', action: () => { window.speechSynthesis.cancel(); setAlertSpeechState(null); setSelectedAlert(null); } }
@@ -699,10 +735,10 @@ export default function App() {
               : tab === 'services' && appointmentScenario === 'detail' ? { label: '返回服务列表', action: () => setAppointmentScenario('default') }
                 : undefined;
 
-  return <MobileAppShell title={selectedFamilyPhoto ? '影像预览' : showingService ? '特约服务' : pageTitle} onBack={shellBack?.action} backLabel={shellBack?.label}>
-    <main className="app-content">{bindingOpen ? bindingPage : showingService ? servicePage : tab === 'home' ? homePage : tab === 'family' ? familyPage : tab === 'reminders' ? remindersPage : tab === 'activities' ? activitiesPage : tab === 'services' ? <AppointmentServicesPage scenario={appointmentScenario} onViewChange={(view, returnTarget) => { setAcceptancePageId('services'); setAcceptanceModuleId('service-booking'); if (returnTarget) setAppointmentReturnTarget(returnTarget); setAppointmentScenario(view); }} /> : profilePage}</main>
+  return <MobileAppShell title={selectedFamilyPhoto ? '影像预览' : selectedFamilyMember ? `${selectedFamilyMember.name} · ${selectedFamilyMember.relation}` : showingService ? '特约服务' : pageTitle} onBack={shellBack?.action} backLabel={shellBack?.label}>
+    <main className={selectedFamilyMember ? 'app-content family-conversation-content' : 'app-content'}>{bindingOpen ? bindingPage : showingService ? servicePage : tab === 'home' ? homePage : tab === 'family' ? familyPage : tab === 'reminders' ? remindersPage : tab === 'activities' ? activitiesPage : tab === 'services' ? <AppointmentServicesPage scenario={appointmentScenario} onViewChange={(view, returnTarget) => { setAcceptancePageId('services'); setAcceptanceModuleId(view === 'records' ? 'service-records' : view === 'detail' || view === 'family_inquiry' || view === 'requested' || view === 'handling' || view === 'not_appointed' || view === 'expired' || view === 'cancelled' || view === 'handled' || view === 'completed' || view === 'reviewed' ? 'service-detail' : 'service-list'); if (returnTarget) setAppointmentReturnTarget(returnTarget); setAppointmentScenario(view); }} /> : profilePage}</main>
 
-    {!bindingOpen && !showingService && !selectedFamilyPhoto && <nav className="bottom-nav" aria-label="主导航">
+    {!bindingOpen && !showingService && !selectedFamilyPhoto && !selectedFamilyMember && <nav className="bottom-nav" aria-label="主导航">
       {([
         ['home', Home, '首页'], ['family', Images, '家庭'], ['activities', CalendarDays, '社区'], ['services', CalendarCheck2, '服务'], ['profile', CircleUserRound, '我的'],
       ] as const).map(([key, Icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => goTo(key)}><Icon /><span>{label}</span></button>)}

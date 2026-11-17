@@ -130,7 +130,7 @@ export function ServiceAssistanceBadge() {
   const count = items.filter(item => item.state === '待处理' && isFamilyAssistanceRecord(item)).length;
   return count > 0 ? <span aria-label={`${count}条待处理协助`} className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold leading-4 text-white">{count}</span> : null;
 }
-export function H5BookingConfirmation({ visible, inline = false }: { visible: boolean; resetSignal: number; inline?: boolean }) {
+export function H5BookingConfirmation({ visible, inline = false, onDetailChange }: { onDetailChange: (open: boolean) => void; visible: boolean; resetSignal: number; inline?: boolean }) {
   const stored = useSyncExternalStore(subscribe, snapshot);
   const [preview] = useState(() => previewGroup);
   const [examples, setExamples] = useState(() => preview ? [...makePreview(false), ...makePreview(true)] : demoBaseline);
@@ -166,6 +166,8 @@ export function H5BookingConfirmation({ visible, inline = false }: { visible: bo
   }, [simulatedCall]);
   const [feedback, setFeedback] = useState('');
   const selected = items.find(item => item.id === selectedId);
+  const inDetail = Boolean(selected);
+  React.useLayoutEffect(() => { onDetailChange(inDetail); }, [inDetail, onDetailChange]);
   useEffect(() => {
     if (!visible) return undefined;
     syncSharedRecords();

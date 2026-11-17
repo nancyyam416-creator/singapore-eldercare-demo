@@ -503,7 +503,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
             <div>
               <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">一级页面</h3>
               <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭相册'], ['care', '预约服务'], ['profile', '我的']] as const).map(([page, label]) => (
+                {([['login', '登录'], ['home', '首页'], ['messages', '家庭留言'], ['photos', '家庭相册'], ['care', '特约服务'], ['profile', '我的']] as const).map(([page, label]) => (
                   <button key={page} type="button" onClick={() => changeAcceptancePage(page)} aria-pressed={acceptancePage === page} className={`rounded-lg px-2 py-2 text-[10px] font-bold ${acceptancePage === page ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'}`}>{label}</button>
                 ))}
               </div>

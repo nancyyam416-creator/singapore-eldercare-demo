@@ -249,6 +249,81 @@ export function createEmergencyAssistanceEvent(
   };
 }
 
+export function connectEmergencyAssistanceTarget(event: EmergencyAssistanceEvent): EmergencyAssistanceEvent {
+  const targets = event.callRoute.orderedTargets;
+  const activeTarget = targets.find((target) => (
+    event.callRoute.activeTargetType === "call-center"
+      ? target.id === emergencyCallCenterTarget.id
+      : target.id === event.callRoute.activeContactId
+  )) ?? targets[0] ?? emergencyCallCenterTarget;
+  const attempt: EmergencyCallAttempt = {
+    targetId: activeTarget.id,
+    targetName: activeTarget.name,
+    targetType: activeTarget.targetType,
+    result: "已接通",
+  };
+  return {
+    ...event,
+    status: "处理中",
+    callCenter: activeTarget.targetType === "call-center"
+      ? { ...event.callCenter, status: "已接听", answeredAt: "已接听" }
+      : event.callCenter,
+    callRoute: {
+      ...event.callRoute,
+      attempts: [...event.callRoute.attempts, attempt],
+      activeTargetType: activeTarget.targetType,
+      activeTargetName: activeTarget.name,
+      activeContactId: activeTarget.targetType === "contact" ? activeTarget.id : null,
+    },
+  };
+}
+
+export function advanceEmergencyAssistanceAfterNoAnswer(event: EmergencyAssistanceEvent): EmergencyAssistanceEvent {
+  const targets = event.callRoute.orderedTargets;
+  const activeIndex = Math.max(0, targets.findIndex((target) => (
+    event.callRoute.activeTargetType === "call-center"
+      ? target.id === emergencyCallCenterTarget.id
+      : target.id === event.callRoute.activeContactId
+  )));
+  const activeTarget = targets[activeIndex] ?? emergencyCallCenterTarget;
+  const attempts: EmergencyCallAttempt[] = [...event.callRoute.attempts, {
+    targetId: activeTarget.id,
+    targetName: activeTarget.name,
+    targetType: activeTarget.targetType,
+    result: "未接通",
+  }];
+  const nextTarget = targets[activeIndex + 1];
+  if (nextTarget) {
+    return {
+      ...event,
+      status: "待接听",
+      callRoute: {
+        ...event.callRoute,
+        attempts,
+        activeTargetType: nextTarget.targetType,
+        activeTargetName: nextTarget.name,
+        activeContactId: nextTarget.targetType === "contact" ? nextTarget.id : null,
+      },
+    };
+  }
+  return {
+    ...event,
+    status: "未接通",
+    callCenter: activeTarget.targetType === "call-center"
+      ? { ...event.callCenter, status: "未接通", answeredAt: "" }
+      : event.callCenter,
+    callRoute: { ...event.callRoute, attempts },
+  };
+}
+
+export function cancelEmergencyAssistance(event: EmergencyAssistanceEvent): EmergencyAssistanceEvent {
+  return {
+    ...event,
+    status: "已取消",
+    callCenter: { ...event.callCenter, status: "待接听", answeredAt: "" },
+  };
+}
+
 export function isEmergencyAssistanceActive(event: EmergencyAssistanceEvent | null) {
   return Boolean(event && !["已完成", "已取消"].includes(event.status));
 }

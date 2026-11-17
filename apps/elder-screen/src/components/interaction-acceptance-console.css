@@ -327,6 +327,7 @@
 .weather-acceptance-status-grid button svg { width: 15px; height: 15px; flex: 0 0 15px; }
 .weather-acceptance-status-grid button span { min-width: 0; line-height: 1.25; }
 .weather-acceptance-actions button.is-primary { border-color: rgba(105, 223, 88, 0.56); color: #efffec; background: rgba(31, 111, 66, 0.72); }
+.weather-acceptance-actions button:disabled { opacity: 0.42; cursor: not-allowed; }
 .weather-acceptance-state-help { min-height: 28px; display: block; margin-top: 8px; color: #8fa2b8; font-size: 10px; line-height: 1.4; }
 .weather-acceptance-flow {
   display: grid;

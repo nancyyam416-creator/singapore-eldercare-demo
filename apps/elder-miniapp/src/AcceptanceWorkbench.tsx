@@ -14,14 +14,17 @@ export type AcceptanceModuleId =
   | 'activity-list'
   | 'activity-detail'
   | 'community-alerts'
-  | 'service-booking'
+  | 'service-list'
+  | 'service-detail'
+  | 'service-records'
   | 'profile-guardians'
   | 'profile-binding'
   | 'profile-location';
 
 type ScenarioOption = { value: string; label: string; description: string; status: string };
 type ActionOption = { id: string; label: string };
-type AcceptanceModule = { id: AcceptanceModuleId; label: string; scenarios: ScenarioOption[]; actions?: ActionOption[] };
+type AcceptanceObject = { id: string; label: string; scenarios: ScenarioOption[]; actions?: ActionOption[] };
+type AcceptanceModule = { id: AcceptanceModuleId; label: string; scenarios?: ScenarioOption[]; objects?: AcceptanceObject[]; actions?: ActionOption[] };
 type AcceptancePage = { id: AcceptancePageId; label: string; modules: AcceptanceModule[] };
 
 const pages: AcceptancePage[] = [
@@ -42,8 +45,9 @@ const pages: AcceptancePage[] = [
       { value: 'empty', label: '暂无影像', description: '相册为空，保留正式发布入口。', status: '空状态' },
     ], actions: [{ id: 'open-photo', label: '打开发布相册' }] },
     { id: 'family-messages', label: '家人留言', scenarios: [
-      { value: 'default', label: '有留言', description: '展示已绑定家人的文字与语音留言。', status: '正常' },
-      { value: 'empty', label: '暂无留言', description: '展示无留言状态，并保留给家人录音入口。', status: '空状态' },
+      { value: 'default', label: '已绑定家人', description: '先选择家人，再进入该家人的独立留言会话。', status: '正常' },
+      { value: 'empty', label: '暂无留言', description: '家人列表正常，进入会话后展示无留言状态。', status: '空状态' },
+      { value: 'no_family', label: '暂无家人', description: '尚未绑定家人，无法发起留言。', status: '空状态' },
     ], actions: [{ id: 'start-family-voice', label: '开始录音留言' }] },
   ] },
   { id: 'reminders', label: '提醒', modules: [
@@ -72,22 +76,30 @@ const pages: AcceptancePage[] = [
       { value: 'detail', label: '事项详情', description: '打开详情后记录已阅读，并可朗读正文。', status: '已阅读' },
     ], actions: [{ id: 'open-first-alert', label: '打开首项详情' }] },
   ] },
-  { id: 'services', label: '服务协助', modules: [
-    { id: 'service-booking', label: '电话与家人协助', scenarios: [
+  { id: 'services', label: '特约服务', modules: [
+    { id: 'service-list', label: '服务列表', scenarios: [
       { value: 'default', label: '默认', description: '展示当前社区可用服务、明细数量与参考价格区间。', status: '正常' },
       { value: 'category_off', label: '分类关闭', description: '不展示分类入口、标签或导航，全部有效服务按后台顺序平铺。', status: '平铺' },
       { value: 'category_on', label: '分类开启', description: '展示后台启用且已关联服务的分类，分类与服务均按后台顺序排列。', status: '分类展示' },
+      { value: 'empty', label: '暂无服务', description: '当前社区没有可展示的服务，呈现正式空状态。', status: '空状态' },
+    ] },
+    { id: 'service-detail', label: '服务详情', scenarios: [
       { value: 'detail', label: '图文服务详情', description: '展示头图、服务内容、注意事项、详情图和完整服务信息。', status: '正常' },
       { value: 'family_inquiry', label: '家人询问预约结果', description: '仅在子女明确询问后展示，并标明询问人；普通拨号不会自动弹出问题。', status: '待答复' },
-      { value: 'requested', label: '已请求家人', description: '已通知所有绑定家人，等待家人处理。', status: '待处理' },
-      { value: 'handling', label: '家人处理中', description: '家人已开始联系服务商，可再次提醒家人处理当前事项。', status: '处理中' },
-      { value: 'not_appointed', label: '暂未约成', description: '家人反馈本次尚未约成，记录继续等待其他家人联系，不代表服务完成。', status: '待继续联系' },
-      { value: 'expired', label: '48 小时已失效', description: '家人未在 48 小时内提交处理结果，保留历史并可重新发起。', status: '已失效' },
-      { value: 'cancelled', label: '已取消', description: '上次请求已取消，可正常发起新请求。', status: '已取消' },
-      { value: 'handled', label: '家人已反馈', description: '展示反馈人、反馈时间和联系结果，不代表服务已经完成。', status: '已反馈' },
-      { value: 'completed', label: '家人处理完成', description: '家人协助工单处理完成，并保留当前已授权的评价入口。', status: '待评价' },
-      { value: 'reviewed', label: '已评价', description: '展示老人的评分与评价内容，允许修改一次。', status: '已评价' },
-    ], actions: [{ id: 'open-services', label: '打开服务协助' }] },
+    ] },
+    { id: 'service-records', label: '协助记录', objects: [
+      { id: 'contact', label: '我的联系记录', scenarios: [
+        { value: 'record_contact_unasked', label: '未询问', description: '仅记录老人拨打过服务电话，不附加任何待处理含义。', status: '已记录' },
+        { value: 'record_contact_inquiry', label: '待答复', description: '家人明确询问预约结果，突出询问人并提供三种答复。', status: '待答复' },
+        { value: 'record_contact_answered', label: '已答复', description: '展示老人实际答复结果，本场景为暂时不需要。', status: '已答复' },
+      ] },
+      { id: 'family-help', label: '请家人帮忙', scenarios: [
+        { value: 'record_family_pending', label: '待处理', description: '已通知绑定家人，等待家人开始联系。', status: '待处理' },
+        { value: 'record_family_handling', label: '处理中', description: '家人正在联系服务商。', status: '处理中' },
+        { value: 'record_family_handled', label: '已处理', description: '家人已完成协助，可在真实列表中验收评价入口。', status: '已处理' },
+        { value: 'record_family_expired', label: '已失效', description: '家人未在 48 小时内处理，历史保留且可重新发起。', status: '已失效' },
+      ] },
+    ] },
   ] },
   { id: 'profile', label: '我的', modules: [
     { id: 'profile-guardians', label: '家庭守护人', scenarios: [
@@ -128,7 +140,8 @@ export default function AcceptanceWorkbench({ portalUrl, pageId, moduleId, onCon
   const initialPosition = () => ({ x: Math.max(margin, window.innerWidth - 60), y: 18 });
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(initialPosition);
-  const [scenarioByModule, setScenarioByModule] = useState<Partial<Record<AcceptanceModuleId, string>>>({});
+  const [scenarioByModule, setScenarioByModule] = useState<Record<string, string>>({});
+  const [objectByModule, setObjectByModule] = useState<Partial<Record<AcceptanceModuleId, string>>>({});
   const shellRef = useRef<HTMLDivElement>(null);
   const closedPositionRef = useRef(initialPosition());
   const movedRef = useRef(false);
@@ -136,8 +149,11 @@ export default function AcceptanceWorkbench({ portalUrl, pageId, moduleId, onCon
 
   const currentPage = pages.find(page => page.id === pageId) ?? pages[0];
   const currentModule = currentPage.modules.find(module => module.id === moduleId) ?? currentPage.modules[0];
-  const currentScenarioValue = scenarioByModule[currentModule.id] ?? currentModule.scenarios[0].value;
-  const currentScenario = currentModule.scenarios.find(item => item.value === currentScenarioValue) ?? currentModule.scenarios[0];
+  const currentObject = currentModule.objects?.find(item => item.id === objectByModule[currentModule.id]) ?? currentModule.objects?.[0];
+  const currentScenarios = currentObject?.scenarios ?? currentModule.scenarios ?? [];
+  const scenarioKey = `${currentModule.id}:${currentObject?.id ?? 'module'}`;
+  const currentScenarioValue = scenarioByModule[scenarioKey] ?? currentScenarios[0].value;
+  const currentScenario = currentScenarios.find(item => item.value === currentScenarioValue) ?? currentScenarios[0];
 
   const clampCurrentPosition = () => {
     const rect = shellRef.current?.getBoundingClientRect();
@@ -216,14 +232,18 @@ export default function AcceptanceWorkbench({ portalUrl, pageId, moduleId, onCon
   const selectPage = (nextPageId: AcceptancePageId) => {
     const nextPage = pages.find(page => page.id === nextPageId) ?? pages[0];
     const nextModule = nextPage.modules[0];
-    const nextScenario = scenarioByModule[nextModule.id] ?? nextModule.scenarios[0].value;
+    const nextScenarios = nextModule.objects?.[0]?.scenarios ?? nextModule.scenarios ?? [];
+    const nextScenario = nextScenarios[0].value;
     onContextChange(nextPage.id, nextModule.id);
     onScenarioChange(nextPage.id, nextModule.id, nextScenario);
   };
 
   const selectModule = (nextModuleId: AcceptanceModuleId) => {
     const nextModule = currentPage.modules.find(module => module.id === nextModuleId) ?? currentPage.modules[0];
-    const nextScenario = scenarioByModule[nextModule.id] ?? nextModule.scenarios[0].value;
+    const nextObject = nextModule.objects?.[0];
+    if (nextObject) setObjectByModule(current => ({ ...current, [nextModule.id]: nextObject.id }));
+    const nextScenarios = nextObject?.scenarios ?? nextModule.scenarios ?? [];
+    const nextScenario = nextScenarios[0].value;
     onContextChange(currentPage.id, nextModule.id);
     onScenarioChange(currentPage.id, nextModule.id, nextScenario);
   };
@@ -243,12 +263,13 @@ export default function AcceptanceWorkbench({ portalUrl, pageId, moduleId, onCon
           <div className="acceptance-body">
             <label>一级页面<select value={currentPage.id} onChange={event => selectPage(event.target.value as AcceptancePageId)}>{pages.map(page => <option key={page.id} value={page.id}>{page.label}</option>)}</select></label>
             <label>二级模块<select value={currentModule.id} onChange={event => selectModule(event.target.value as AcceptanceModuleId)}>{currentPage.modules.map(module => <option key={module.id} value={module.id}>{module.label}</option>)}</select></label>
+            {currentModule.objects && currentObject && <label>三级对象<select value={currentObject.id} onChange={event => { const nextObject = currentModule.objects?.find(item => item.id === event.target.value) ?? currentModule.objects?.[0]; if (!nextObject) return; setObjectByModule(current => ({ ...current, [currentModule.id]: nextObject.id })); onScenarioChange(currentPage.id, currentModule.id, nextObject.scenarios[0].value); }}>{currentModule.objects.map(object => <option key={object.id} value={object.id}>{object.label}</option>)}</select></label>}
             <div className="acceptance-section">
               <span className="acceptance-label">验收场景</span>
-              <div className="acceptance-options">{currentModule.scenarios.map(scenario => <button type="button" key={scenario.value} className={scenario.value === currentScenario.value ? 'active' : ''} onClick={() => { setScenarioByModule(current => ({ ...current, [currentModule.id]: scenario.value })); onScenarioChange(currentPage.id, currentModule.id, scenario.value); }}>{scenario.label}</button>)}</div>
+              <div className="acceptance-options">{currentScenarios.map(scenario => <button type="button" key={scenario.value} className={scenario.value === currentScenario.value ? 'active' : ''} onClick={() => { setScenarioByModule(current => ({ ...current, [scenarioKey]: scenario.value })); onScenarioChange(currentPage.id, currentModule.id, scenario.value); }}>{scenario.label}</button>)}</div>
               <div className="acceptance-description"><b>{currentScenario.status}</b><p>{currentScenario.description}</p></div>
             </div>
-            {!!currentModule.actions?.length && <div className="acceptance-section"><span className="acceptance-label">一次性动作</span><div className="acceptance-actions">{currentModule.actions.map(action => <button type="button" key={action.id} onClick={() => onAction(action.id)}>{action.label}</button>)}</div></div>}
+            {!!(currentObject?.actions ?? currentModule.actions)?.length && <div className="acceptance-section"><span className="acceptance-label">一次性动作</span><div className="acceptance-actions">{(currentObject?.actions ?? currentModule.actions)!.map(action => <button type="button" key={action.id} onClick={() => onAction(action.id)}>{action.label}</button>)}</div></div>}
           </div>
           <footer><a className="acceptance-portal-link" href={portalUrl}><ArrowLeft />返回 U2G智慧养老</a></footer>
         </section>

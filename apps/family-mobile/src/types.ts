@@ -316,6 +316,7 @@ export interface PublishedPhotoBatch {
     type: 'photo' | 'video';
     previewUrl: string;
     videoUrl?: string;
+    likedBy?: Array<{ id: string; name: string }>;
     durationSeconds?: number;
   }>;
   publishStatus: 'published' | 'failed';

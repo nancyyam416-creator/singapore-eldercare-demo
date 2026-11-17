@@ -68,11 +68,17 @@ const formatBubbleTime = (utc: string) => new Intl.DateTimeFormat('zh-CN', {
 
 const isIncomingUnread = (message: FamilyMessage) => message.sender === 'elder' && message.status === 'delivered';
 
-const feedbackMeta = {
-  published: { label: '已发布', className: 'bg-blue-50 text-blue-700', icon: CheckCheck },
-  viewed: { label: '已查看', className: 'bg-violet-50 text-violet-700', icon: Eye },
-  liked: { label: '已查看并点赞', className: 'bg-rose-50 text-rose-700', icon: Heart }
-} as const;
+function photoLikeNames(records: PublishedPhotoBatch[], itemId: string) {
+  const names = new Map<string, string>();
+  for (const record of records) {
+    const item = record.items.find(entry => entry.id === itemId);
+    if (!item || record.publishStatus === 'failed') continue;
+    const people = item.likedBy ?? (record.items.length === 1 && record.feedback === 'liked'
+      ? [{ id: record.recipientElderId, name: record.elderName }] : []);
+    for (const person of people) names.set(person.id, person.name);
+  }
+  return [...names.values()];
+}
 
 const deliveryLabel = (message: FamilyMessage) => {
   if (message.status === 'sending') return '发送中…';
@@ -481,10 +487,9 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
                     {group.entries.map(({ batch, item }) => (
                       <button key={item.id} type="button" onClick={() => setSelectedPhotoItemId(item.id)} aria-label={`查看${item.name}`} className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100 text-left">
                         <img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]" />
-                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/65 to-transparent px-2 pb-1.5 pt-5 text-[8px] font-bold text-white">{item.name.replace(/\.[^.]+$/, '')}</span>
                         {item.type === 'video' && <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/65 text-white"><Play size={13} className="ml-0.5 fill-current" /></span></span>}
                         {item.type === 'video' && item.durationSeconds && <span className="absolute right-1 top-1 rounded bg-slate-950/70 px-1 py-0.5 text-[8px] text-white">{Math.floor(item.durationSeconds / 60)}:{String(item.durationSeconds % 60).padStart(2, '0')}</span>}
-                        {batch.feedback === 'liked' && <span className="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-rose-500 shadow-sm"><Heart size={10} className="fill-current" /></span>}
+                        {photoLikeNames(photoPublicationGroups.get(batch.publicationId)?.recipients ?? [batch], item.id).length > 0 && <span className="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-rose-500 shadow-sm"><Heart size={10} className="fill-current" /></span>}
                       </button>
                     ))}
                   </div>
@@ -498,8 +503,8 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
       {selectedPhotoEntry && (() => {
         const { batch, item } = selectedPhotoEntry;
         const recipientRecords = photoPublicationGroups.get(batch.publicationId)?.recipients ?? [batch];
-        const meta = feedbackMeta[batch.feedback];
-        const StatusIcon = meta.icon;
+        const failures = recipientRecords.filter(record => record.publishStatus === 'failed');
+        const likeNames = photoLikeNames(recipientRecords, item.id);
         const publishedAt = new Date(batch.publishedAt);
         const dateLabel = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }).format(publishedAt);
         const timeLabel = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(publishedAt);
@@ -533,16 +538,16 @@ export const H5FamilyTab: React.FC<H5FamilyTabProps> = ({
             <footer className="shrink-0 border-t border-white/10 bg-slate-950 px-4 pb-5 pt-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <strong className="block truncate text-sm">{item.name.replace(/\.[^.]+$/, '')}</strong>
                   <span className="mt-1 block text-[10px] text-white/55">{batch.categoryNameSnapshot} · 发给{batch.elderName}</span>
                 </div>
-                <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${meta.className}`}><StatusIcon size={11} />{meta.label}</span>
+
               </div>
+              {likeNames.length > 0 && <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-rose-200"><Heart size={14} className="mt-0.5 shrink-0" /><span>{likeNames.length}人点赞 · {likeNames.join('、')}</span></p>}
               {batch.message && <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-white/70">{batch.message}</p>}
-              <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
-                {recipientRecords.map(record => <div key={record.id} className="flex items-center justify-between gap-3 text-[10px]"><span className="font-bold text-white/85">{record.elderName}</span><span className={record.publishStatus === 'failed' ? 'text-rose-300' : record.feedback === 'liked' ? 'text-rose-300' : 'text-white/55'}>{record.publishStatus === 'failed' ? record.failureReason || '发送失败' : record.feedback === 'liked' ? '已喜欢' : record.feedback === 'viewed' ? '已查看' : '已送达 · 暂无反馈'}</span></div>)}
-                {recipientRecords.some(record => record.publishStatus === 'failed' && record.retryable) && <button type="button" onClick={() => onRetryFailedRecipients(batch.publicationId)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-[10px] font-bold text-white"><RefreshCw size={13} />重试失败老人</button>}
-              </div>
+              {failures.length > 0 && <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+                {failures.map(record => <div key={record.id} className="flex items-center justify-between gap-3 text-[10px]"><span className="font-bold text-white/85">{record.elderName}</span><span className="text-rose-300">{record.failureReason || '发送失败'}</span></div>)}
+                {failures.some(record => record.retryable) && <button type="button" onClick={() => onRetryFailedRecipients(batch.publicationId)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-[10px] font-bold text-white"><RefreshCw size={13} />重试失败老人</button>}
+              </div>}
             </footer>
           </section>
         );

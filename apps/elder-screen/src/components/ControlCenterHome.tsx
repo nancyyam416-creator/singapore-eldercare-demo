@@ -687,7 +687,7 @@ export default function ControlCenterHome({
           onPointerMove={handleCallFloatPointerMove}
           onPointerUp={handleCallFloatPointerUp}
           onPointerCancel={handleCallFloatPointerUp}
-          aria-label={`展开正在进行的${emergencyAssistanceTargetName} Mock 通话`}
+          aria-label={`展开正在进行的${emergencyAssistanceTargetName}通话`}
         >
           <span className="assistance-call-float__icon"><Phone aria-hidden="true" /></span>
           <span className="assistance-call-float__copy">
