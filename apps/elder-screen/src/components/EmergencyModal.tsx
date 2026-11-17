@@ -147,7 +147,10 @@ export default function EmergencyModal({ isOpen, onDismiss, scenario = "normal-c
           {stage === "failed" ? (
             <button type="button" onClick={onDismiss} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-[#385267] bg-[#172A39] py-5 text-[22px] font-black transition active:scale-[0.98]"><X className="h-6 w-6" />返回首页</button>
           ) : stage === "contacting" ? (
-            <button type="button" onClick={cancelConnection} className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-[#486174] bg-[#172A39] py-5 text-[21px] font-black transition active:scale-[0.98]"><X className="h-6 w-6" />取消呼叫</button>
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              <button type="button" onClick={onDismiss} className="flex items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[21px] font-black transition active:scale-[0.98]"><Minimize2 className="h-6 w-6" />收起</button>
+              <button type="button" onClick={cancelConnection} className="flex items-center justify-center gap-3 rounded-2xl border-2 border-[#486174] bg-[#172A39] py-5 text-[21px] font-black transition active:scale-[0.98]"><X className="h-6 w-6" />取消呼叫</button>
+            </div>
           ) : stage === "connected" ? (
             <div className="mt-8 grid grid-cols-2 gap-4">
               <button type="button" onClick={onDismiss} className="flex items-center justify-center gap-3 rounded-2xl bg-[#197451] py-5 text-[22px] font-black transition active:scale-[0.98]"><Minimize2 className="h-6 w-6" />缩小通话</button>

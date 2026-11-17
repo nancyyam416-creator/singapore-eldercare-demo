@@ -198,7 +198,9 @@ export default function ControlCenterHome({
   acceptanceCommand = null,
   familyWeather,
 }: ControlCenterHomeProps) {
-  const isAssistanceCallActive = emergencyAssistanceStatus === "处理中" || emergencyAssistanceStatus === "需跟进";
+  const isAssistanceCallActive = Boolean(
+    emergencyAssistanceStatus && !["已完成", "已取消"].includes(emergencyAssistanceStatus),
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [callFloatPosition, setCallFloatPosition] = useState<{ left: number; top: number } | null>(null);
   const callFloatRef = useRef<HTMLButtonElement | null>(null);
@@ -297,6 +299,11 @@ export default function ControlCenterHome({
     }
     onTriggerSOS();
   };
+  const assistanceFloatStatus = emergencyAssistanceStatus === "待接听"
+    ? "呼叫中"
+    : emergencyAssistanceStatus === "未接通" || emergencyAssistanceStatus === "待回拨"
+      ? "暂未接通"
+      : "通话中";
   const homePhotoPool = useMemo(() => {
     let photos = albumPhotos.map((photo) => ({
       ...photo,
@@ -687,11 +694,11 @@ export default function ControlCenterHome({
           onPointerMove={handleCallFloatPointerMove}
           onPointerUp={handleCallFloatPointerUp}
           onPointerCancel={handleCallFloatPointerUp}
-          aria-label={`展开正在进行的${emergencyAssistanceTargetName}通话`}
+          aria-label={`展开${emergencyAssistanceTargetName}${assistanceFloatStatus}`}
         >
           <span className="assistance-call-float__icon"><Phone aria-hidden="true" /></span>
           <span className="assistance-call-float__copy">
-            <small><i aria-hidden="true" />通话中</small>
+            <small><i aria-hidden="true" />{assistanceFloatStatus}</small>
             <strong>{emergencyAssistanceTargetName}</strong>
           </span>
         </button>
