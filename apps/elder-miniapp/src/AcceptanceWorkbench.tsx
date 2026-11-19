@@ -34,9 +34,9 @@ const pages: AcceptancePage[] = [
       { value: 'completed', label: '全部完成', description: '四项安排均显示为已完成。', status: '成功' },
       { value: 'empty', label: '暂无安排', description: '今日没有用药或活动安排。', status: '空状态' },
     ], actions: [{ id: 'open-reminders', label: '进入提醒页' }] },
-    { id: 'home-family', label: '家人动态摘要', scenarios: [
-      { value: 'default', label: '有动态', description: '展示家人分享和留言入口。', status: '正常' },
-      { value: 'empty', label: '暂无动态', description: '首页摘要显示暂无家人分享。', status: '空状态' },
+    { id: 'home-family', label: '家庭互动', scenarios: [
+      { value: 'default', label: '有动态', description: '展示照片、留言和点赞动态。', status: '正常' },
+      { value: 'empty', label: '暂无动态', description: '首页家庭互动显示空状态。', status: '空状态' },
     ], actions: [{ id: 'open-family', label: '进入家庭页' }] },
   ] },
   { id: 'family', label: '家庭', modules: [

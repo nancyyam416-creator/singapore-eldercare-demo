@@ -189,12 +189,22 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 4px
 .home-activity-card > div > strong { font-size: 18px; }
 .home-activity-card p { margin: 0; color: var(--muted); font-size: 13px; }
 .home-activity-card > svg { width: 19px; height: 19px; flex: none; color: #94a3b8; }
-.family-glance .home-module-header { margin-bottom: 13px; }
-.family-glance .home-module-header > span { color: #a53f64; background: #fcedf3; }
+.home-family-interactions .home-module-header { margin-bottom: 2px; }
+.home-family-interactions .home-module-header > span { color: #a53f64; background: #fcedf3; }
 .service-module .home-module-header > span { color: #315b9e; background: #edf3fc; }
-.photo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
-.photo-tile { aspect-ratio: .85; display: flex; align-items: flex-end; padding: 10px; overflow: hidden; border: 0; border-radius: 17px; color: white; text-align: left; }
-.photo-tile span { font-size: 12px; font-weight: 800; text-shadow: 0 1px 5px #0007; }
+.home-family-interaction-list { display: grid; }
+.home-family-interaction-item { width: 100%; min-height: 82px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 18px; align-items: center; gap: 12px; padding: 12px 2px; border: 0; border-bottom: 1px solid #edf0f5; color: var(--text); background: transparent; text-align: left; }
+.home-family-interaction-item:last-child { border-bottom: 0; }
+.home-family-interaction-item > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+.home-family-interaction-item strong { font-size: 15px; }
+.home-family-interaction-item small { overflow: hidden; color: #5f6f84; font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.home-family-interaction-item time { color: #94a3b8; font-size: 11px; }
+.home-family-interaction-item > svg { width: 18px; color: #94a3b8; }
+.home-family-interaction-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; }
+.home-family-interaction-icon svg { width: 23px; height: 23px; }
+.home-family-interaction-icon.photo { color: #2871d0; background: #eaf3ff; }
+.home-family-interaction-icon.message { color: #7450b8; background: #f1ecff; }
+.home-family-interaction-icon.like { color: #c43c68; background: #fcedf3; }
 .garden { background: linear-gradient(145deg, #96c57a, #2d7658); } .flowers { background: linear-gradient(145deg, #efc7d7, #b95176); } .tea { background: linear-gradient(145deg, #d8ae77, #7c5132); } .exercise { background: linear-gradient(145deg, #9bb8d7, #3f5f84); }
 .family-actions { display: grid; gap: 12px; }
 .family-action { min-height: 96px; display: flex; align-items: center; gap: 14px; padding: 18px; border: 0; border-radius: 22px; text-align: left; }
@@ -454,8 +464,6 @@ body { color: #172033; background: #edf2f7; }
 .schedule-item p { margin-top: 3px; color: #6d7b8f; font-size: 11px; }
 .schedule-item > span b { font-size: 10px; }
 
-.photo-row { gap: 8px; }
-.photo-tile { border-radius: 14px; }
 .family-message-heading { margin: 15px 1px 8px; }
 .family-message-heading strong { font-size: 15px; }
 .family-message-list { gap: 8px; }
@@ -524,9 +532,7 @@ button:active { transform: scale(.98); }
 .schedule-item { padding: 14px 14px 13px; }
 .schedule-item > strong { margin-top: 8px; }
 .schedule-item p { margin-top: 5px; line-height: 1.5; }
-.family-glance .home-module-header { margin-bottom: 16px; }
-.photo-row { gap: 11px; }
-.photo-tile { padding: 11px; }
+.home-family-interactions .home-module-header { margin-bottom: 4px; }
 .family-message-heading { margin: 20px 2px 11px; }
 .family-message-list { gap: 11px; }
 .family-message-list button { min-height: 84px; padding: 12px 13px; }
@@ -540,7 +546,6 @@ button:active { transform: scale(.98); }
   .home-module { margin-top: 18px; padding: 16px 13px 14px; }
   .schedule-list { gap: 10px; padding-top: 13px; }
   .schedule-item { padding: 12px; }
-  .photo-row,
   .service-entry-grid { gap: 8px; }
 }
 
@@ -574,14 +579,6 @@ button:active { transform: scale(.98); }
 .schedule-row:has(> svg) .schedule-item { padding-right: 36px; }
 
 /* Elder-first family binding confirmation. */
-.binding-notice { width: 100%; min-height: 94px; margin-top: 22px; display: flex; align-items: center; gap: 13px; padding: 15px; border: 1px solid #fed7aa; border-radius: 20px; color: var(--text); background: #fffaf2; text-align: left; box-shadow: 0 4px 12px rgba(154,82,20,.06); }
-.binding-notice > span { width: 48px; height: 48px; display: grid; place-items: center; flex: none; border-radius: 15px; color: #c2410c; background: #ffedd5; }
-.binding-notice > span svg { width: 25px; height: 25px; }
-.binding-notice > div { flex: 1; min-width: 0; }
-.binding-notice small { display: block; margin-bottom: 4px; color: #c2410c; font-size: 12px; font-weight: 800; }
-.binding-notice strong { display: block; font-size: 16px; line-height: 1.35; }
-.binding-notice p { margin: 4px 0 0; color: #64748b; font-size: 12px; }
-.binding-notice > b { min-width: 68px; padding: 9px 10px; border-radius: 12px; color: #fff; background: #ea580c; text-align: center; font-size: 13px; }
 .profile-binding-entry { width: 100%; min-height: 82px; position: relative; margin-top: 16px; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 18px; color: var(--text); background: #fff; text-align: left; }
 .profile-binding-entry > span { width: 46px; height: 46px; display: grid; place-items: center; flex: none; border-radius: 14px; color: #c2410c; background: #fff1e7; }
 .profile-binding-entry div { flex: 1; display: grid; gap: 4px; }
@@ -653,7 +650,6 @@ button:active { transform: scale(.98); }
 .binding-confirm .secondary-button { width: 100%; margin-top: 9px; }
 
 @media (max-width: 370px) {
-  .binding-notice > b { min-width: 62px; padding-inline: 8px; }
   .binding-title h2 { font-size: 23px; }
 }
 
@@ -856,8 +852,7 @@ button:active { transform: scale(.98); }
 .schedule-item p { font-size: var(--font-caption); }
 .schedule-item > strong { margin-top: var(--space-2); font-size: var(--font-action); }
 
-.family-glance .home-module-header { margin-bottom: var(--space-4); }
-.photo-row,
+.home-family-interactions .home-module-header { margin-bottom: var(--space-2); }
 .family-message-list,
 .gallery,
 .list-stack,
@@ -907,7 +902,6 @@ button:active { transform: scale(.98); }
 .gallery-card strong { font-size: var(--font-action); }
 
 .profile-card,
-.binding-notice,
 .applicant-card { margin-top: var(--space-5); }
 .guardian-card header { margin-bottom: var(--space-3); }
 .guardian-list { gap: var(--space-2); }

@@ -35,6 +35,7 @@ import type { EmergencyAssistanceStatus } from "../emergency-assistance";
 import type { AcceptanceAlbumScenario, AcceptanceHeartScenario, AcceptanceHomeCommand, AcceptanceRightContentScenario } from "./InteractionAcceptanceConsole";
 import {
   formatWeatherLocalTime,
+  formatWeatherUpdatedAt,
   type FamilyWeatherMember,
   type FamilyWeatherSnapshot,
   type WeatherConditionCode,
@@ -892,16 +893,26 @@ export default function ControlCenterHome({
                         <span>{locationLabel}</span>
                       </b>
                       <span className="weather-city-card__time">当地 {formatWeatherLocalTime(member.location.timeZone)}</span>
+                      <span className="weather-city-card__updates">
+                        <span>城市更新 {formatWeatherUpdatedAt(member.location.updatedAt, member.location.timeZone)}</span>
+                        <span>天气更新 {formatWeatherUpdatedAt(member.weather.lastSuccessAt ?? member.weather.observedAt ?? member.weather.queryUpdatedAt, member.location.timeZone)}</span>
+                      </span>
                     </>
                   ) : (
                     <>
                       <strong className="weather-city-card__empty-temperature">--</strong>
                       <span className="weather-city-card__empty-copy">{weatherUnavailableText(member)}</span>
                       {member.location && (
-                        <b className="weather-city-card__location">
-                          <MapPin aria-hidden="true" />
-                          <span>{locationLabel}</span>
-                        </b>
+                        <>
+                          <b className="weather-city-card__location">
+                            <MapPin aria-hidden="true" />
+                            <span>{locationLabel}</span>
+                          </b>
+                          <span className="weather-city-card__updates">
+                            <span>城市更新 {formatWeatherUpdatedAt(member.location.updatedAt, member.location.timeZone || "Asia/Shanghai")}</span>
+                            {member.weather && <span>天气更新 {formatWeatherUpdatedAt(member.weather.lastSuccessAt ?? member.weather.observedAt ?? member.weather.queryUpdatedAt, member.location.timeZone || "Asia/Shanghai")}</span>}
+                          </span>
+                        </>
                       )}
                     </>
                   )}

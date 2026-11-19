@@ -654,7 +654,7 @@
 .weather-city-card {
   position: relative;
   min-width: 0;
-  min-height: 362px;
+  min-height: 392px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -745,6 +745,7 @@ button.weather-city-card:hover { background: var(--color-panel-soft); }
   font-weight: 850;
 }
 .weather-city-card__time { color: var(--color-text); font-size: 16px; font-weight: 800; }
+.weather-city-card__updates { display: grid; gap: 2px; color: var(--color-text-muted); font-size: 12px; font-weight: 750; line-height: 1.25; }
 .weather-city-card__empty-temperature { color: var(--color-text-muted); }
 .weather-city-card__empty-copy { max-width: 230px; color: var(--color-text-soft); font-size: 16px; font-weight: 800; line-height: 1.4; }
 .weather-care-panel {

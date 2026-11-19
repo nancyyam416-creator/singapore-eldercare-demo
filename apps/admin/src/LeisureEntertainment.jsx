@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, ImageOff, Link2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ImageOff, Link2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AdminConfirm, AdminDrawer } from "./AdminOverlay";
 import { SingleImageUpload } from "./SingleImageUpload";
@@ -165,17 +165,12 @@ export function LeisureEntertainmentPage({ entries, onChange, scenario = "normal
     else { const nextNumber = Math.max(0, ...entries.map((item) => Number(item.id.split("-").pop()) || 0)) + 1; persist([...entries, { ...entry, id: `ENT-${String(nextNumber).padStart(3, "0")}`, updatedAt: now }], "娱乐入口已新增"); }
     setEditing(undefined); onDirtyChange?.(false);
   };
-  const move = (id, offset) => {
-    const sorted = [...entries].sort((a, b) => a.displayOrder - b.displayOrder); const index = sorted.findIndex((item) => item.id === id); const targetIndex = index + offset;
-    if (index < 0 || targetIndex < 0 || targetIndex >= sorted.length) return;
-    const currentOrder = sorted[index].displayOrder; sorted[index] = { ...sorted[index], displayOrder: sorted[targetIndex].displayOrder, updatedAt: "2026-10-23 15:30" }; sorted[targetIndex] = { ...sorted[targetIndex], displayOrder: currentOrder, updatedAt: "2026-10-23 15:30" }; persist(sorted, "展示顺序已更新");
-  };
   return <>
     <div className="page-heading"><div><h1>休闲娱乐</h1><p>统一维护所有社区老人端的娱乐入口</p></div><button className="primary-button" onClick={() => setEditing(null)}><Plus size={16}/>新增娱乐入口</button></div>
     <section className="panel management-panel entertainment-management">
       <div className="filters entertainment-filters"><label><span>关键字</span><div className="input-wrap"><Link2 size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="娱乐名称、说明或入口 URL"/></div></label><label><span>内容分类</span><select className="select-control filter-select" value={category} onChange={(event) => setCategory(event.target.value)}><option>全部分类</option>{categoryOptions.map((item) => <option key={item}>{item}</option>)}</select></label><label><span>启用状态</span><select className="select-control filter-select" value={status} onChange={(event) => setStatus(event.target.value)}><option>全部状态</option><option>启用</option><option>停用</option></select></label></div>
       <div className="table-scroll"><table className="entertainment-table"><thead><tr><th>娱乐名称</th><th>内容分类</th><th>入口 URL</th><th>白名单数量</th><th>展示顺序</th><th>启用状态</th><th>最后更新</th><th className="sticky-right">操作</th></tr></thead><tbody>
-        {rows.map((item, index) => <tr key={item.id}><td><div className="entertainment-name-cell"><EntryIcon src={item.iconData} name={item.name}/><div><b>{item.name}</b><small>{item.description}</small></div></div></td><td>{item.category}</td><td><span className="entertainment-url" title={item.entryUrl}>{item.entryUrl}</span></td><td>{item.whitelist.length} 条</td><td><div className="recommendation-order-control"><button aria-label={`${item.name}上移`} disabled={index === 0 || scenario !== "normal"} onClick={() => move(item.id, -1)}><ChevronLeft size={14}/></button><b>{item.displayOrder}</b><button aria-label={`${item.name}下移`} disabled={index === rows.length - 1 || scenario !== "normal"} onClick={() => move(item.id, 1)}><ChevronRight size={14}/></button></div></td><td><StatusTag>{item.enabled ? "启用" : "停用"}</StatusTag></td><td>{item.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => setEditing(item)}>编辑</button><button className="table-action" onClick={() => item.enabled ? setDisableTarget(item) : setEditing({ ...item, enabled: true })}>{item.enabled ? "停用" : "启用"}</button><button className="table-action danger-text" onClick={() => setDeleteTarget(item)}>删除</button></td></tr>)}
+        {rows.map((item) => <tr key={item.id}><td><div className="entertainment-name-cell"><EntryIcon src={item.iconData} name={item.name}/><div><b>{item.name}</b><small>{item.description}</small></div></div></td><td>{item.category}</td><td><span className="entertainment-url" title={item.entryUrl}>{item.entryUrl}</span></td><td>{item.whitelist.length} 条</td><td><b>{item.displayOrder}</b></td><td><StatusTag>{item.enabled ? "启用" : "停用"}</StatusTag></td><td>{item.updatedAt}</td><td className="sticky-right"><button className="table-action" onClick={() => setEditing(item)}>编辑</button><button className="table-action" onClick={() => item.enabled ? setDisableTarget(item) : setEditing({ ...item, enabled: true })}>{item.enabled ? "停用" : "启用"}</button><button className="table-action danger-text" onClick={() => setDeleteTarget(item)}>删除</button></td></tr>)}
         {!rows.length && <tr><td colSpan="8"><div className="empty-table-state">暂无娱乐入口，可点击“新增娱乐入口”建立所有社区共用的内容。</div></td></tr>}
       </tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 条数据</span><span>所有社区共用同一份清单</span></div>
     </section>

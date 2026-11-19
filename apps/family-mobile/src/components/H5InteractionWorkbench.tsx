@@ -34,7 +34,7 @@ import {
 type ElderAcceptanceTarget = 'card' | 'profile';
 type FamilyPhotoAcceptanceTarget = 'list' | 'publish';
 type AcceptancePage = 'login' | 'home' | 'messages' | 'photos' | 'care' | 'profile';
-type AcceptanceModule = 'service_records' | 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding' | 'assistance_home';
+type AcceptanceModule = 'my_city' | 'service_records' | 'login' | 'elder' | 'score' | 'medication' | 'activity' | 'family_receipts' | 'today_feed' | 'family_messages' | 'family_calls' | 'family_photos' | 'family_notifications' | 'reminders' | 'service_store' | 'elder_binding' | 'assistance_home';
 type ScoreScenarioCategory = 'space' | 'schedule' | 'interaction' | 'overall';
 
 interface H5InteractionWorkbenchProps {
@@ -178,7 +178,7 @@ const familyPhotoPublishScenarios: Array<{ value: FamilyPhotoScenario; label: st
 ];
 
 const elderBindingScenarios: Array<{ value: ElderBindingScenario; label: string; description: string; status: string }> = [
-  { value: 'records_multiple', label: '多条申请记录', description: '从我的快捷入口查看全部申请及状态，点击进入详情。', status: '3条记录' },
+  { value: 'records_multiple', label: '多条家人绑定申请', description: '从我的家人绑定申请入口查看绑定申请及状态，点击进入详情。', status: '3条记录' },
   { value: 'bound', label: '已绑定老人', description: '展示已绑定老人列表、当前老人及新增绑定入口。', status: '正常' },
   { value: 'no_elder', label: '登录后暂无老人', description: '登录成功后直接进入绑定老人引导。', status: '首次绑定' },
   { value: 'mock_success', label: '手机号申请', description: '预填王*国手机号，提交后需老人确认才生效。', status: '待提交' },
@@ -248,6 +248,7 @@ const acceptanceModulesByPage: Record<AcceptancePage, Array<{ value: AcceptanceM
     { value: 'service_records', label: '服务协助记录' }
   ],
   profile: [
+    { value: 'my_city', label: '我的城市' },
     { value: 'family_notifications', label: '消息' },
     { value: 'reminders', label: '提醒事项' },
     { value: 'elder_binding', label: '老人绑定' }
@@ -389,6 +390,8 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
   const [acceptanceModule, setAcceptanceModule] = useState<AcceptanceModule>('score');
   const [familyPhotoTarget, setFamilyPhotoTarget] = useState<FamilyPhotoAcceptanceTarget>('list');
   const [scoreCategory, setScoreCategory] = useState<ScoreScenarioCategory>('overall');
+  const [cityScenario, setCityScenario] = useState('actual');
+  const openCity = (scenario: string) => { setCityScenario(scenario); window.dispatchEvent(new CustomEvent('h5-city-preview', { detail: scenario })); };
   const [servicePreview, setServicePreview] = useState<string | null>(null);
   const [previewFilter, setPreviewFilter] = useState({ group: '', status: '' });
   useEffect(() => {
@@ -517,6 +520,7 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                 onChange={event => {
                   const nextModule = event.target.value as AcceptanceModule;
                   setAcceptanceModule(nextModule);
+                  if (nextModule === 'my_city') openCity('actual');
                   if (nextModule === 'login') onOpenLogin();
                   if (acceptancePage === 'home') onOpenHome();
                   if (nextModule === 'reminders') onOpenReminders();
@@ -1004,6 +1008,15 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
               </>
             )}
 
+            {acceptanceModule === 'my_city' && <>
+              <section aria-label="我的城市场景"><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">城市共享场景</h3><p className="mb-2 text-[10px] text-slate-400">场景数据独立，不覆盖已保存城市。当前支持新加坡、上海、温哥华；实际共享仅限同浏览器、同主机的本地预览。</p><div className="space-y-1.5">{[
+                ['empty', '尚未共享', '未设置', '选择城市后直接保存。'],
+                ['shared', '已共享城市', '已共享', '选择新城市后立即更新。'],
+                ['denied', '定位权限未允许', '可手选', '拒绝定位保留已保存城市。'],
+                ['failed', '城市识别失败', '可重试', '识别失败保留已保存城市，可手动选择。'],
+              ].map(([value, label, status, description]) => <button key={value} type="button" aria-pressed={cityScenario === value} onClick={() => openCity(value)} className={`w-full rounded-xl border px-3 py-2.5 text-left ${cityScenario === value ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}><span className="flex items-start justify-between gap-2"><strong className="text-[11px] text-slate-800">{label}</strong><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-600">{status}</span></span><span className="mt-1 block text-[9px] text-slate-400">{description}</span></button>)}</div></section>
+              <section><h3 className="mb-2 text-[11px] font-extrabold text-slate-500">交互动作</h3><button type="button" onClick={() => openCity('actual')} className="w-full rounded-lg bg-blue-600 px-2 py-2.5 text-[10px] font-bold text-white">打开我的城市</button><button type="button" onClick={() => openCity(cityScenario)} className="mt-2 w-full rounded-lg bg-slate-100 px-2 py-2.5 text-[10px] font-bold text-slate-600">重置当前城市场景</button></section>
+            </>}
             {acceptanceModule === 'service_records' && (
               <>
                 <section aria-label="服务协助记录场景">
@@ -1027,12 +1040,16 @@ export const H5InteractionWorkbench: React.FC<H5InteractionWorkbenchProps> = ({
                 </section>
                 {servicePreview && <section aria-label="预览状态">
                   <h3 className="mb-2 text-[11px] font-extrabold text-slate-500">预览状态</h3>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="space-y-1.5">
                     {['', '待处理', '处理中', '已处理', ...(previewFilter.group === 'intent' ? [] : ['已失效'])].map(status => (
                       <button key={status} type="button" aria-pressed={previewFilter.status === status}
                         onClick={() => window.dispatchEvent(new CustomEvent('service-preview-select-filter', { detail: status }))}
-                        className="rounded-lg border border-slate-200 px-2 py-2 text-[10px] font-bold text-slate-600 aria-pressed:border-blue-300 aria-pressed:bg-blue-50 aria-pressed:text-blue-700">
-                        {status || '全部状态'}
+                        className={`w-full rounded-xl border px-3 py-2.5 text-left ${previewFilter.status === status ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}>
+                        <span className="flex items-start justify-between gap-2">
+                          <strong className="text-[11px] text-slate-800">{status || '全部状态'}</strong>
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[8px] font-bold text-slate-600">{status || '全部'}</span>
+                        </span>
+                        <span className="mt-1 block text-[9px] leading-snug text-slate-400">{({ '': '展示当前场景的全部记录。', '待处理': '查看尚待回应或联系的服务记录。', '处理中': '查看正在联系与确认的服务记录。', '已处理': '查看已完成处理的结果与进展。', '已失效': '查看超过处理时限的服务记录。' } as Record<string, string>)[status]}</span>
                       </button>
                     ))}
                   </div>

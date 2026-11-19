@@ -42,7 +42,7 @@ export const serviceCommunicationFixture = [
   },
 ];
 
-const statusOptions = ["全部状态", "未查看", "已查看", "已回复"];
+const statusOptions = ["全部查看状态", "未查看", "已查看"];
 
 function ContactAvatar({ type }) {
   return <span className={`service-contact-avatar ${type === "服务机构" ? "organization" : "person"}`}>{type === "服务机构" ? <Building2 size={20}/> : <UserRound size={20}/>}</span>;
@@ -56,57 +56,54 @@ function MessageStatus({ message }) {
 }
 
 function getConversationStatus(conversation) {
-  if (conversation.messages.some((message) => message.sender === "elderly")) return "已回复";
-  if (conversation.messages.some((message) => message.sender === "staff" && message.elderViewedAt)) return "已查看";
-  return "未查看";
+  const latestStaffMessage = [...conversation.messages].reverse().find((message) => message.sender === "staff");
+  return latestStaffMessage?.elderViewedAt ? "已查看" : "未查看";
 }
 
-export function ServiceCommunicationPage({ projectId, communityName }) {
-  const [conversations, setConversations] = useState(serviceCommunicationFixture);
+export function ServiceCommunicationPage({ projectId, communityName, conversations, onConversationsChange, openConversationId = "" }) {
   const [selectedId, setSelectedId] = useState("CONV-STATION-001");
   const [query, setQuery] = useState("");
-  const [elderlyFilter, setElderlyFilter] = useState("全部老人");
-  const [contactType, setContactType] = useState("全部类型");
-  const [status, setStatus] = useState("全部状态");
+  const [status, setStatus] = useState("全部查看状态");
   const [draft, setDraft] = useState("");
   const [voiceStage, setVoiceStage] = useState("idle");
   const [playingId, setPlayingId] = useState("");
   const localMessageSequence = useRef(1);
 
   const scopedConversations = useMemo(() => conversations.filter((item) => item.projectId === projectId), [conversations, projectId]);
-  const elderlyOptions = useMemo(() => ["全部老人", ...new Set(scopedConversations.map((item) => item.elderlyName))], [scopedConversations]);
   const filteredConversations = useMemo(() => scopedConversations.filter((item) => {
     const keyword = query.trim().toLowerCase();
-    const matchesKeyword = !keyword || [item.elderlyName, item.contactName, item.staffName, item.lastMessage].some((value) => String(value || "").toLowerCase().includes(keyword));
+    const matchesKeyword = !keyword || [item.elderlyName, item.elderlyPhone].some((value) => String(value || "").toLowerCase().includes(keyword));
     return matchesKeyword
-      && (elderlyFilter === "全部老人" || item.elderlyName === elderlyFilter)
-      && (contactType === "全部类型" || item.contactType === contactType)
-      && (status === "全部状态" || getConversationStatus(item) === status);
-  }), [scopedConversations, query, elderlyFilter, contactType, status]);
+      && (status === "全部查看状态" || getConversationStatus(item) === status);
+  }), [scopedConversations, query, status]);
 
   useEffect(() => {
     if (!scopedConversations.some((item) => item.id === selectedId)) setSelectedId(scopedConversations[0]?.id || "");
   }, [projectId, scopedConversations, selectedId]);
+
+  useEffect(() => {
+    if (openConversationId && scopedConversations.some((item) => item.id === openConversationId)) selectConversation(openConversationId);
+  }, [openConversationId, projectId]);
 
   const selected = scopedConversations.find((item) => item.id === selectedId);
 
   const selectConversation = (id) => {
     setSelectedId(id);
     setVoiceStage("idle");
-    setConversations((items) => items.map((item) => item.id === id && item.staffUnreadReplyCount
+    onConversationsChange((items) => items.map((item) => item.id === id && item.staffUnreadReplyCount
       ? { ...item, staffUnreadReplyCount: 0 }
       : item));
   };
 
   const appendOutgoing = (message) => {
     if (!selected) return;
-    setConversations((items) => items.map((item) => item.id === selected.id ? {
+    onConversationsChange((items) => items.map((item) => item.id === selected.id ? {
       ...item,
       lastMessage: message.type === "audio" ? `语音留言 ${message.duration}` : message.content,
       lastMessageAt: "刚刚",
       messages: [...item.messages, message],
     } : item));
-    window.setTimeout(() => setConversations((items) => items.map((item) => item.id === selected.id ? {
+    window.setTimeout(() => onConversationsChange((items) => items.map((item) => item.id === selected.id ? {
       ...item,
       messages: item.messages.map((entry) => entry.messageId === message.messageId ? { ...entry, deliveryStatus: "delivered" } : entry),
     } : item)), 650);
@@ -134,8 +131,8 @@ export function ServiceCommunicationPage({ projectId, communityName }) {
 
   const retryMessage = (messageId) => {
     if (!selected) return;
-    setConversations((items) => items.map((item) => item.id === selected.id ? { ...item, messages: item.messages.map((message) => message.messageId === messageId ? { ...message, deliveryStatus: "sending" } : message) } : item));
-    window.setTimeout(() => setConversations((items) => items.map((item) => item.id === selected.id ? { ...item, messages: item.messages.map((message) => message.messageId === messageId ? { ...message, deliveryStatus: "delivered" } : message) } : item)), 650);
+    onConversationsChange((items) => items.map((item) => item.id === selected.id ? { ...item, messages: item.messages.map((message) => message.messageId === messageId ? { ...message, deliveryStatus: "sending" } : message) } : item));
+    window.setTimeout(() => onConversationsChange((items) => items.map((item) => item.id === selected.id ? { ...item, messages: item.messages.map((message) => message.messageId === messageId ? { ...message, deliveryStatus: "delivered" } : message) } : item)), 650);
   };
 
   const playMessage = (messageId) => {
@@ -153,18 +150,16 @@ export function ServiceCommunicationPage({ projectId, communityName }) {
       <div className="service-conversation-sidebar">
         <div className="service-conversation-filters">
           <div className="service-filter-heading"><b>筛选会话</b></div>
-          <div className="service-search-control"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索老人或服务联系人"/>{query && <button type="button" aria-label="清除搜索" onClick={() => setQuery("")}><X size={14}/></button>}</div>
+          <div className="service-search-control"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索老人姓名或者电话"/>{query && <button type="button" aria-label="清除搜索" onClick={() => setQuery("")}><X size={14}/></button>}</div>
           <div className="service-filter-row">
-            <label className="service-filter-elder"><span>老人</span><select className="select-control" aria-label="老人筛选" value={elderlyFilter} onChange={(event) => setElderlyFilter(event.target.value)}>{elderlyOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
-            <label><span>联系人</span><select className="select-control" aria-label="联系人类型筛选" value={contactType} onChange={(event) => setContactType(event.target.value)}><option value="全部类型">全部联系人</option><option>个人服务人员</option><option>服务机构</option></select></label>
-            <label><span>沟通状态</span><select className="select-control" aria-label="沟通状态筛选" value={status} onChange={(event) => setStatus(event.target.value)}>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label><span>老人查看状态</span><select className="select-control" aria-label="老人查看状态筛选" value={status} onChange={(event) => setStatus(event.target.value)}>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
           </div>
         </div>
         <div className="service-conversation-count">共 {filteredConversations.length} 个会话</div>
         <div className="service-conversation-list">
           {filteredConversations.map((item) => <button key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => selectConversation(item.id)}>
             <ContactAvatar type={item.contactType}/>
-            <span className="service-conversation-copy"><span><b>{item.elderlyName}</b><time>{item.lastMessageAt}</time></span><strong>{item.contactType === "个人服务人员" ? `${item.staffName} · ${item.contactName}` : item.contactName}</strong><small>{item.lastMessage}</small></span>
+            <span className="service-conversation-copy"><span><b>{item.elderlyName}</b><time>{item.lastMessageAt}</time></span><small>{item.lastMessage}</small></span>
             {item.staffUnreadReplyCount > 0 && <em>{item.staffUnreadReplyCount}</em>}
           </button>)}
           {!filteredConversations.length && <div className="service-conversation-empty"><MessageSquareText size={27}/><b>暂无会话</b><span>{scopedConversations.length ? "没有符合当前筛选条件的会话" : "当前社区尚无服务沟通记录"}</span></div>}

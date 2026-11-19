@@ -48,7 +48,6 @@ interface H5MonitorTabProps {
   onSwitchToOrders: () => void;
   onOpenElderProfile: () => void;
   onSwitchElder?: () => void;
-  assistanceSummary?: React.ReactNode;
   onOpenPhotoShare: () => void;
   onOpenFamilyMessages: () => void;
   familyMessages: SharedFamilyMessage[];
@@ -245,7 +244,6 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
   parentProfile,
   onOpenElderProfile,
   onSwitchElder,
-  assistanceSummary,
   onOpenPhotoShare,
   onOpenFamilyMessages,
   familyMessages: sharedFamilyMessages,
@@ -1772,7 +1770,6 @@ export const H5MonitorTab: React.FC<H5MonitorTabProps> = ({
           </div>
         )}
       </H5ElderStatusCard>
-      {assistanceSummary}
 
       <button
         type="button"

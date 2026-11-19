@@ -19,6 +19,7 @@ import {
   UserRound
 } from 'lucide-react';
 import { BoundElder, ElderBindingScenario } from '../types';
+import { H5MyCity } from './H5MyCity';
 import { H5ElderBindingFlow } from './H5ElderBindingFlow';
 import { BindingAction, BindingState, bindingCandidates, bindingStatusLabels, mockApplicantId } from '../data/familyBinding';
 
@@ -53,30 +54,13 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [error, setError] = useState('');
-  const [locationBusy, setLocationBusy] = useState(false);
-  const [locationLabel, setLocationLabel] = useState('');
-  const locate = () => {
-    if (!navigator.geolocation) { setLocationLabel('当前浏览器不支持定位'); return; }
-    setLocationBusy(true);
-    setLocationLabel('');
-    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
-      try {
-        const query = new URLSearchParams({ latitude: coords.latitude.toFixed(2), longitude: coords.longitude.toFixed(2), localityLanguage: 'zh' });
-        const response = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?' + query, { signal: AbortSignal.timeout(10000) });
-        if (!response.ok) throw new Error();
-        const { countryName, city, locality } = await response.json();
-        const area = [...new Set([countryName, city, locality].filter(Boolean))].join(' · ');
-        if (!area) throw new Error();
-        setLocationLabel(area);
-      } catch { setLocationLabel('暂时无法识别地区，请重试'); }
-      finally { setLocationBusy(false); }
-    }, error => {
-      setLocationBusy(false);
-      setLocationLabel(error.code === 1 ? '请允许位置权限后重试' : '暂时无法获取位置，请重试');
-    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
-  };
-
-  const [profileView, setProfileView] = useState<'main' | 'elder_binding' | 'request_records'>('main');
+  const [profileView, setProfileView] = useState<'main' | 'elder_binding' | 'request_records' | 'city'>('main');
+  const [cityPreview, setCityPreview] = useState<{ scenario: string; sequence: number }>({ scenario: 'actual', sequence: 0 });
+  useEffect(() => {
+    const open = (event: Event) => { setCityPreview(previous => ({ scenario: (event as CustomEvent).detail, sequence: previous.sequence + 1 })); setProfileView('city'); };
+    window.addEventListener('h5-city-preview', open);
+    return () => window.removeEventListener('h5-city-preview', open);
+  }, []);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -189,11 +173,13 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
     );
   }
 
+  if (profileView === 'city') return <H5MyCity key={cityPreview.sequence} scenario={cityPreview.scenario} onBack={() => setProfileView('main')} />;
+
   const requests = bindingState.requests.filter(request => request.applicantId === mockApplicantId);
   if (profileView === 'request_records') {
     return <div className="min-h-full space-y-4 bg-slate-50 p-4 pb-8">
-      <div className="flex items-center gap-3"><button type="button" aria-label="返回我的" onClick={() => setProfileView('main')} className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-600"><ArrowLeft size={18} /></button><h2 className="text-base font-bold text-slate-900">申请记录</h2></div>
-      {requests.length ? <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">{[...requests].reverse().map(request => <button key={request.id} type="button" onClick={() => { setSelectedRequestId(request.id); setProfileView('elder_binding'); }} className="flex min-h-20 w-full items-center gap-3 p-4 text-left"><span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{bindingCandidates.find(elder => elder.id === request.elderId)?.maskedName} · {request.relation}</strong><span className="mt-1 block text-xs text-slate-400">{request.id}</span></span><span className="text-xs font-semibold text-blue-600">{bindingStatusLabels[request.status]}</span><ChevronRight size={16} className="text-slate-300" /></button>)}</div> : <div className="rounded-2xl bg-white px-4 py-10 text-center"><ClipboardList size={28} className="mx-auto mb-3 text-slate-300" /><p className="text-sm text-slate-500">暂无申请记录</p></div>}
+      <div className="flex items-center gap-3"><button type="button" aria-label="返回我的" onClick={() => setProfileView('main')} className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-600"><ArrowLeft size={18} /></button><h2 className="text-base font-bold text-slate-900">家人绑定申请</h2></div>
+      {requests.length ? <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">{[...requests].reverse().map(request => <button key={request.id} type="button" onClick={() => { setSelectedRequestId(request.id); setProfileView('elder_binding'); }} className="flex min-h-20 w-full items-center gap-3 p-4 text-left"><span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{bindingCandidates.find(elder => elder.id === request.elderId)?.maskedName} · {request.relation}</strong><span className="mt-1 block text-xs text-slate-400">{request.id}</span></span><span className="text-xs font-semibold text-blue-600">{bindingStatusLabels[request.status]}</span><ChevronRight size={16} className="text-slate-300" /></button>)}</div> : <div className="rounded-2xl bg-white px-4 py-10 text-center"><ClipboardList size={28} className="mx-auto mb-3 text-slate-300" /><p className="text-sm text-slate-500">暂无家人绑定申请</p></div>}
     </div>;
   }
 
@@ -228,8 +214,7 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">138****8899</p>
-            <button type="button" disabled={locationBusy} onClick={locate} className="mt-2 inline-flex min-h-10 items-center gap-1 text-xs font-semibold text-blue-600"><MapPin size={14}/>{locationBusy ? '正在识别…' : '识别我的位置'}</button>
-            <p aria-live="polite" className="text-xs text-slate-500">{locationLabel || '允许后，由 BigDataCloud 根据大致位置识别地区。'}</p>
+            <button type="button" onClick={() => { setCityPreview(previous => ({ scenario: 'actual', sequence: previous.sequence + 1 })); setProfileView('city'); }} className="mt-2 inline-flex min-h-10 items-center gap-1 text-xs font-semibold text-blue-600"><MapPin size={14}/>我的城市<ChevronRight size={14}/></button>
           </div>
         </div>
       </section>
@@ -270,7 +255,7 @@ export const H5ProfileTab: React.FC<H5ProfileTabProps> = ({
 
       <section aria-label="快捷入口" className="space-y-3">
         <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">{[
-          { label: '申请记录', Icon: ClipboardList, action: () => setProfileView('request_records') },
+          { label: '家人绑定申请', Icon: ClipboardList, action: () => setProfileView('request_records') },
           { label: '家人在线协助', Icon: Headphones, action: onOpenAssistance }
         ].map(({ label, Icon, action }) => <button key={label} type="button" onClick={action} className="flex min-h-18 w-full items-center gap-3 p-4 text-left"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon size={19} /></span><span className="min-w-0 flex-1"><strong className="block text-sm text-slate-900">{label}</strong></span><ChevronRight size={17} className="text-slate-300" /></button>)}</div>
       </section>

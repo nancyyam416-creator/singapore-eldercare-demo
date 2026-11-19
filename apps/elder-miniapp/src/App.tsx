@@ -492,6 +492,7 @@ export default function App() {
   const selectedFamilyMember = visibleFamilyMembers.find(member => member.id === selectedFamilyMemberId) ?? null;
   const selectedFamilyConversation = selectedFamilyMember ? familyMessages.filter(message => message.familyMemberId === selectedFamilyMember.id) : [];
   const selectedFamilyPhotoIndex = selectedFamilyPhoto ? visibleFamilyPhotos.findIndex(photo => photo.id === selectedFamilyPhoto.id) : -1;
+  const homeFamilyMessage = familyMessages.find(message => message.id === 'message-son-1');
   const visibleActivities = activityListScenario === 'empty' ? [] : activities;
   const activityStatusLabel = (activity: Activity) => activity.status === 'ongoing' ? '正在进行' : activity.status === 'ended' ? '活动已结束' : activity.status === 'cancelled' ? '活动已取消' : `还剩 ${activity.spotsLeft} 个名额`;
   const alertReadingMinutes = (alert: (typeof communityAlerts)[number]) => Math.max(1, Math.ceil(`${alert.title}${alert.summary}${alert.description}`.length / 260));
@@ -501,12 +502,6 @@ export default function App() {
       <div><span className="eyebrow">星期四 · 10月22日</span><h2>新加坡 · 多云</h2><p>体感 32°C，午后可能有短时阵雨，外出记得带伞。</p></div>
       <div className="hero-weather"><CloudSun /><strong>29°</strong><span>多云</span></div>
     </section>
-
-    <button className="binding-notice" onClick={() => { setBindingStatus('pending'); setBindingOpen(true); }}>
-      <span><Heart /></span>
-      <div><small>新的家人绑定</small><strong>张建国想与您建立家庭关系</strong><p>请核对是不是您的家人</p></div>
-      <b>去确认</b>
-    </button>
 
     <section className="home-module daily-schedule">
       <header className="home-module-header">
@@ -538,13 +533,28 @@ export default function App() {
       </div>
     </section>
 
-    <section className="home-module family-glance">
+    <section className="home-module home-family-interactions">
       <header className="home-module-header">
-        <span><Images /></span>
-        <div><h2>家人最近分享</h2><p>推荐看看</p></div>
-        <button onClick={() => goTo('family')}>查看全部</button>
+        <span><Heart /></span>
+        <div><h2>家庭互动</h2><p>照片、留言和点赞动态</p></div>
       </header>
-      {homeFamilyScenario === 'empty' ? <div className="acceptance-empty-state"><Images /><strong>暂无家人分享</strong><span>家人的照片和视频会显示在这里</span></div> : <div className="photo-row">{photos.slice(0, 3).map(photo => <button key={photo.id} onClick={() => goTo('family')} className={`photo-tile ${photo.tone}`}><span>{photo.title}</span></button>)}</div>}
+      {homeFamilyScenario === 'empty' ? <div className="acceptance-empty-state"><Heart /><strong>暂无家庭互动</strong><span>家人的照片、留言和点赞动态会显示在这里</span></div> : <div className="home-family-interaction-list">
+        <button className="home-family-interaction-item" onClick={() => { setTab('family'); setFamilyView('album'); setSelectedFamilyPhoto(photos[0]); setAcceptancePageId('family'); setAcceptanceModuleId('family-album'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+          <span className="home-family-interaction-icon photo"><Images /></span>
+          <span><strong>张晓燕分享了照片</strong><small>周末花园散步</small><time>今天 09:20</time></span>
+          <ChevronRight />
+        </button>
+        {homeFamilyMessage && <button className="home-family-interaction-item" onClick={() => { setTab('family'); setFamilyView('messages'); setSelectedFamilyMemberId(homeFamilyMessage.familyMemberId); setFamilyVoiceState('idle'); setFamilyVoiceSeconds(0); setAcceptancePageId('family'); setAcceptanceModuleId('family-messages'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+          <span className="home-family-interaction-icon message"><Volume2 /></span>
+          <span><strong>{homeFamilyMessage.senderName}给您留言</strong><small>{homeFamilyMessage.text}</small><time>{homeFamilyMessage.sentAt}</time></span>
+          <ChevronRight />
+        </button>}
+        <button className="home-family-interaction-item" onClick={() => { setTab('family'); setFamilyView('album'); setSelectedFamilyPhoto(photos[1]); setAcceptancePageId('family'); setAcceptanceModuleId('family-album'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+          <span className="home-family-interaction-icon like"><Heart /></span>
+          <span><strong>张晓燕点赞了照片</strong><small>家里的兰花开了</small><time>昨天 16:18</time></span>
+          <ChevronRight />
+        </button>
+      </div>}
     </section>
 
   </>;

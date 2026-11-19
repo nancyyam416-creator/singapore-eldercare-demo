@@ -9,7 +9,7 @@ import { readSharedCommunityAnnouncements, setSharedCommunityAnnouncementStatus,
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { unifiedCommunities, unifiedServiceCatalog, unifiedServiceCategories, unifiedServiceCategorySettings, writeUnifiedServiceDirectoryRuntime } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
-import { getServiceReviewSummary, isFamilyAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
+import { canReviewServiceAssistance, getServiceReviewSummary, isFamilyAssistanceRecord, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import {
   careScriptMockApi,
   formatWeatherLocation,
@@ -41,13 +41,14 @@ import {
 } from "./CommunityMembers";
 import { CommunityStaffDrawer, CommunityStaffPage, initialCommunityStaff } from "./CommunityStaff";
 import { LeisureEntertainmentPage, leisureEntertainmentStorageKey, readLeisureEntertainmentEntries } from "./LeisureEntertainment";
-import { ServiceCommunicationPage } from "./ServiceCommunication";
+import { ServiceCommunicationPage, serviceCommunicationFixture } from "./ServiceCommunication";
 import { PlatformTabletDevicesPage } from "./PlatformTabletDevices";
 import { TabletOtaPage, tabletOtaStorageKey } from "./TabletOta";
 import { MetricHelp } from "./MetricHelp";
 import { AdminTooltip } from "./AdminTooltip";
 import { SingleImageUpload } from "./SingleImageUpload";
 import { CommunityScopeField } from "./CommunityScopeField";
+import { DEFAULT_OFFLINE_POLICY, canFormInactivityConclusion, reconcileDeviceOfflineEvents, validateOfflinePolicy } from "./deviceAlertPolicyEngine";
 import {
   Activity,
   AlertTriangle,
@@ -83,6 +84,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -92,7 +94,7 @@ const u2gPortalUrl = import.meta.env.VITE_U2G_PORTAL_URL || (import.meta.env.DEV
 const communityMenuGroups = [
   { label: "工作台", items: [
     { key: "overview", label: "运营概览", icon: LayoutDashboard },
-    { key: "elderlyDataDashboard", label: "老人使用分析", icon: Activity },
+    { key: "serviceCommunication", label: "服务沟通", icon: MessageSquareText },
     { key: "recommendations", label: "推荐策略", icon: Sparkles },
   ] },
   {
@@ -101,13 +103,12 @@ const communityMenuGroups = [
       { key: "elderly", label: "老人档案", icon: Users },
       { key: "relations", label: "亲属档案", icon: HeartHandshake },
       { key: "emergencyHelp", label: "在线协助", icon: AlertTriangle },
-      { key: "serviceCommunication", label: "服务沟通", icon: MessageSquareText },
     ],
   },
   {
     label: "服务预约",
     items: [
-      { key: "services", label: "服务协助记录", icon: ClipboardList },
+      { key: "services", label: "服务记录", icon: ClipboardList },
     ],
   },
   {
@@ -125,7 +126,6 @@ const communityMenuGroups = [
     label: "设备与数据",
     items: [
       { key: "tabletDevices", label: "平板设备", icon: MonitorSmartphone },
-      { key: "deviceAlertPolicies", label: "设备告警策略", icon: SlidersHorizontal },
     ],
   },
   {
@@ -133,6 +133,12 @@ const communityMenuGroups = [
     items: [
       { key: "userManagement", label: "用户管理", icon: Users },
       { key: "roleManagement", label: "角色管理", icon: ShieldCheck },
+    ],
+  },
+  {
+    label: "暂时不做",
+    items: [
+      { key: "elderlyDataDashboard", label: "老人使用分析", icon: Activity },
     ],
   },
 ];
@@ -143,6 +149,8 @@ const platformMenuGroups = [
     label: "社区管理",
     items: [
       { key: "projects", label: "项目与社区", icon: Building2 },
+      { key: "platformElderly", label: "老人档案", icon: Users },
+      { key: "platformRelations", label: "亲属档案", icon: HeartHandshake },
     ],
   },
   {
@@ -157,7 +165,7 @@ const platformMenuGroups = [
     label: "服务管理",
     items: [
       { key: "serviceCatalog", label: "服务目录", icon: BookOpen },
-      { key: "services", label: "服务协助记录", icon: ClipboardList },
+      { key: "services", label: "服务记录", icon: ClipboardList },
     ],
   },
   {
@@ -165,6 +173,7 @@ const platformMenuGroups = [
     items: [
       { key: "platformTabletDevices", label: "平板设备", icon: MonitorSmartphone },
       { key: "tabletOta", label: "平板 OTA 升级", icon: Upload },
+      { key: "deviceAlertPolicies", label: "设备告警策略", icon: SlidersHorizontal },
     ],
   },
   {
@@ -201,16 +210,18 @@ const pageMeta = {
   alertItems: { title: "警惕事项", description: "管理当前社区面向老人的警惕事项", add: "新增事项" },
   activities: { title: "社区活动", description: "发布活动并跟踪老人参与意向与触达结果", add: "发布活动" },
   communityStaff: { title: "社区人员", description: "维护面向当前社区老人展示的社区人员与服务联系人", add: "新增人员" },
-  services: { title: "服务协助记录", description: "查看老人从中控屏发起的“请家人帮忙”请求及家人处理结果", add: "" },
+  services: { title: "服务记录", description: "查看服务联系动态、请家人帮忙及后续处理进展", add: "" },
   serviceCatalog: { title: "服务目录", description: "维护老人可查看的服务内容与服务范围", add: "新增服务" },
   tabletDevices: { title: "平板设备", description: "查看平板自动上报、老人绑定和在线状态", add: "" },
-  deviceAlertPolicies: { title: "设备告警策略", description: "按设备类型和事件维护当前社区已有的告警判断规则", add: "" },
+  deviceAlertPolicies: { title: "设备告警策略", description: "由平台按社区维护连续无活动与设备离线判断规则", add: "" },
   platformTabletDevices: { title: "平板设备", description: "跨项目查看平板版本、升级进度与执行结果", add: "" },
   tabletOta: { title: "平板 OTA 升级", description: "统一管理平板 ROM 固件与 APK 应用版本，并向指定项目下发升级任务", add: "上传升级包" },
   careScripts: { title: "天气关怀话术", description: "按和风天气现象代码分组维护老人端可匹配展示的话术", add: "" },
-  reminderPolicies: { title: "消息推送", description: "管理平台自动消息的触发规则、推送终端与启停状态", add: "" },
+  reminderPolicies: { title: "消息推送", description: "查看平台固定消息的触发、终止与接收范围", add: "" },
   leisureEntertainment: { title: "休闲娱乐", description: "统一维护所有社区老人端的多个娱乐入口", add: "" },
   projects: { title: "项目与社区", description: "维护老人档案可选择的服务项目和所属社区", add: "新增项目" },
+  platformElderly: { title: "老人档案", description: "查看所有社区老人档案及所属社区", add: "" },
+  platformRelations: { title: "亲属档案", description: "查看平台注册用户及其老人关联情况", add: "" },
   userManagement: { title: "用户管理", description: "维护后台用户、关联角色和账号状态", add: "新增用户" },
   roleManagement: { title: "角色管理", description: "维护菜单权限、操作权限和数据范围", add: "新增角色" },
   logs: { title: "操作日志", description: "追溯关键业务操作、结果与责任边界", add: "" },
@@ -243,7 +254,7 @@ const getElderlyPackageLabel = (value) => elderlyPackageCatalog.find((item) => i
 
 const elderlyRows = [
   {
-    name: "陈美玲", id: "SG-E-000128", gender: "女", birthday: "1950-03-18", age: 76,
+    name: "陈美玲", id: "SG-E-000128", projectId: "PRJ-001", gender: "女", birthday: "1950-03-18", age: 76,
     phone: "+65 9123 6208", project: "红山社区养老计划", community: "红山社区", packageType: "home_guard",
     streetAddress: "12 Kitchener Link", unitNumber: "#21-06", buildingName: "City Square Residences", postalCode: "207229",
     address: "12 Kitchener Link #21-06 City Square Residences, Singapore 207229", rooms: ["客厅", "卧室", "厨房"], tags: ["独居", "高龄"],
@@ -251,7 +262,7 @@ const elderlyRows = [
     emergency: { name: "陈伟强", relation: "儿子", phone: "+65 9881 2036" }, updatedAt: "2026-07-16 10:24",
   },
   {
-    name: "黄国强", id: "SG-E-000127", gender: "男", birthday: "1945-11-02", age: 81,
+    name: "黄国强", id: "SG-E-000127", projectId: "PRJ-002", gender: "男", birthday: "1945-11-02", age: 81,
     phone: "+65 9018 3321", project: "大巴窑关怀中心", community: "大巴窑社区", packageType: "tablet_care",
     streetAddress: "85 Lorong 4 Toa Payoh", unitNumber: "#06-112", buildingName: "Toa Payoh View", postalCode: "310085",
     address: "85 Lorong 4 Toa Payoh #06-112 Toa Payoh View, Singapore 310085", rooms: ["客厅", "卧室", "厨房"], tags: ["独居", "设备关注"],
@@ -259,7 +270,7 @@ const elderlyRows = [
     emergency: { name: "黄丽芬", relation: "女儿", phone: "+65 9766 4102" }, updatedAt: "2026-07-16 09:42",
   },
   {
-    name: "林秀英", id: "SG-E-000126", gender: "女", birthday: "1953-05-26", age: 73,
+    name: "林秀英", id: "SG-E-000126", projectId: "PRJ-003", gender: "女", birthday: "1953-05-26", age: 73,
     phone: "+65 8890 7136", project: "女皇镇乐龄中心", community: "女皇镇社区", packageType: "mobile_care",
     streetAddress: "46 Commonwealth Drive", unitNumber: "#10-127", buildingName: "Commonwealth 10", postalCode: "140046",
     address: "46 Commonwealth Drive #10-127 Commonwealth 10, Singapore 140046", rooms: ["客厅", "主卧", "厨房", "卫生间"], tags: ["慢病关注", "用药提醒"],
@@ -267,14 +278,14 @@ const elderlyRows = [
     emergency: { name: "林志明", relation: "儿子", phone: "+65 9332 5771" }, updatedAt: "2026-07-15 18:06",
   },
   {
-    name: "王德昌", id: "SG-E-000125", gender: "男", birthday: "1947-08-14", age: 79,
+    name: "王德昌", id: "SG-E-000125", projectId: "PRJ-001", gender: "男", birthday: "1947-08-14", age: 79,
     phone: "", project: "红山社区养老计划", community: "红山社区", packageType: "unconfigured",
     address: "待补充", rooms: [], tags: ["资料待补"],
     family: 2, device: "待安装",
     emergency: { name: "", relation: "", phone: "" }, updatedAt: "2026-07-15 14:18",
   },
   {
-    name: "李玉珍", id: "SG-E-000124", gender: "女", birthday: "1942-01-09", age: 84,
+    name: "李玉珍", id: "SG-E-000124", projectId: "PRJ-004", gender: "女", birthday: "1942-01-09", age: 84,
     phone: "+65 8227 1645", project: "宏茂桥活跃乐龄中心", community: "宏茂桥社区", packageType: "home_guard",
     streetAddress: "305 Ang Mo Kio Avenue 1", unitNumber: "#11-1161", buildingName: "Teck Ghee Vista", postalCode: "560305",
     address: "305 Ang Mo Kio Avenue 1 #11-1161 Teck Ghee Vista, Singapore 560305", rooms: ["客厅", "卧室", "厨房"], tags: ["高龄", "家庭同住"],
@@ -282,7 +293,7 @@ const elderlyRows = [
     emergency: { name: "李惠珍", relation: "女儿", phone: "+65 9188 0427" }, updatedAt: "2026-07-14 16:35",
   },
   {
-    name: "周阿顺", id: "SG-E-000123", gender: "男", birthday: "1949-06-30", age: 77,
+    name: "周阿顺", id: "SG-E-000123", projectId: "PRJ-002", gender: "男", birthday: "1949-06-30", age: 77,
     phone: "+65 8660 2941", project: "大巴窑关怀中心", community: "大巴窑社区", packageType: "unconfigured",
     streetAddress: "123 Lorong 1 Toa Payoh", unitNumber: "#04-308", buildingName: "Toa Payoh Vista", postalCode: "310123",
     address: "123 Lorong 1 Toa Payoh #04-308 Toa Payoh Vista, Singapore 310123", rooms: ["客厅", "卧室", "玄关"], tags: ["待回访"],
@@ -346,135 +357,7 @@ const serviceProviderPhones = {
   "SRV-104": "+65 6256 3310",
 };
 
-const serviceCallResultByLegacyStatus = {
-  "待确认": "已发起",
-  "已确认": "已接通",
-  "服务中": "未接通",
-  "已完成": "已接通",
-  "已取消": "已接通",
-};
-
-const serviceReservationStatusByLegacyStatus = {
-  "待确认": "预约结果待确认",
-  "已确认": "已预约成功",
-  "服务中": "预约结果待确认",
-  "已完成": "已预约成功",
-  "已取消": "暂未预约成功",
-};
-
-const serviceReservationConfirmationMock = {
-  "RSV-20260824001": { reservationStatus: "预约结果待确认", confirmedByName: "", confirmedByRelation: "", confirmedAt: "", appointmentAt: "", confirmationNote: "", failureReason: "" },
-  "RSV-20260823002": { reservationStatus: "已预约成功", confirmedByName: "陈伟强", confirmedByRelation: "儿子", confirmedAt: "2026-08-24 08:30", appointmentAt: "2026-08-25 14:00—16:00", confirmationNote: "子女致电供应商后确认上门时间。", failureReason: "" },
-  "RSV-20260822003": { reservationStatus: "预约结果待确认", confirmedByName: "", confirmedByRelation: "", confirmedAt: "", appointmentAt: "", confirmationNote: "", failureReason: "" },
-  "RSV-20260821004": { reservationStatus: "已预约成功", confirmedByName: "陈丽华", confirmedByRelation: "女儿", confirmedAt: "2026-08-22 13:10", appointmentAt: "2026-08-23 07:30—12:00", confirmationNote: "已与健康管家中心确认陪诊安排。", failureReason: "" },
-  "RSV-20260820005": { reservationStatus: "暂未预约成功", confirmedByName: "陈伟强", confirmedByRelation: "儿子", confirmedAt: "2026-08-20 15:02", appointmentAt: "", confirmationNote: "待家人确认新的安装日期后再次联系。", failureReason: "供应商本周五已无可安排人员" },
-};
-
-const serviceAssistanceHandlingMock = {
-  "RSV-20260824001": { assistanceStatus: "待处理", handledBy: "", handledAt: "", resultSummary: "" },
-  "RSV-20260823002": { assistanceStatus: "已完成", handledBy: "陈伟强（儿子）", handledAt: "2026-08-24 08:30", resultSummary: "已联系服务商，已向老人回告服务时间。" },
-  "RSV-20260822003": { assistanceStatus: "处理中", handledBy: "陈伟强（儿子）", handledAt: "2026-08-22 10:18", resultSummary: "正在与服务商确认上门时间。" },
-  "RSV-20260821004": { assistanceStatus: "已完成", handledBy: "陈丽华（女儿）", handledAt: "2026-08-22 13:10", resultSummary: "已联系服务商，并将约定时间告知老人。" },
-  "RSV-20260820005": { assistanceStatus: "已取消", handledBy: "陈伟强（儿子）", handledAt: "2026-08-20 15:02", resultSummary: "老人暂时不需要该服务，家人已取消本次协助。" },
-  "RSV-20260824011": { assistanceStatus: "待处理", handledBy: "", handledAt: "", resultSummary: "" },
-  "RSV-20260823012": { assistanceStatus: "已完成", handledBy: "林志强（儿子）", handledAt: "2026-08-23 16:20", resultSummary: "已联系服务商，并向老人回告处理结果。" },
-};
-
-const serviceAssistanceExpiryMs = 48 * 60 * 60 * 1000;
-
-function getServiceAssistanceStatus(record, now = Date.now()) {
-  const rawStatus = record.assistanceStatus || record.status || "待处理";
-  const status = rawStatus === "cancelled" ? "已取消"
-    : rawStatus === "handling" ? "处理中"
-      : rawStatus === "handled" || rawStatus === "completed" ? "已完成"
-        : rawStatus === "expired" ? "已失效"
-          : rawStatus === "pending" ? "待处理" : rawStatus;
-  if (["已完成", "已取消", "已失效"].includes(status)) return status;
-  const requestedAt = record.confirmedSentAt || record.requestedAt || record.initiatedAt;
-  const requestedAtMs = new Date(requestedAt).getTime();
-  if (Number.isFinite(requestedAtMs) && now - requestedAtMs >= serviceAssistanceExpiryMs) return "已失效";
-  return status;
-}
-
-function getServiceAssistanceExpiredAt(record) {
-  const requestedAt = record.confirmedSentAt || record.requestedAt || record.initiatedAt;
-  const requestedAtMs = new Date(requestedAt).getTime();
-  return Number.isFinite(requestedAtMs) ? new Date(requestedAtMs + serviceAssistanceExpiryMs).toISOString() : "";
-}
-
-function normalizeServiceBooking(booking) {
-  const { assistStatus: _assistStatus, slotId: _slotId, slotLabel: _slotLabel, operator: _operator, ...record } = booking;
-  const confirmation = serviceReservationConfirmationMock[booking.id] || {};
-  const assistanceHandling = serviceAssistanceHandlingMock[booking.id] || {};
-  const normalized = {
-    ...record,
-    category: booking.categoryNameSnapshot || booking.category,
-    providerPhone: booking.providerPhone || serviceProviderPhones[booking.serviceId] || "+65 6000 0000",
-    callAt: booking.callAt || booking.createdAt,
-    callResult: booking.callResult || serviceCallResultByLegacyStatus[booking.status] || "已发起",
-    reservationStatus: booking.reservationStatus || confirmation.reservationStatus || serviceReservationStatusByLegacyStatus[booking.status] || "预约结果待确认",
-    confirmedByName: booking.confirmedByName || confirmation.confirmedByName || "",
-    confirmedByRelation: booking.confirmedByRelation || confirmation.confirmedByRelation || "",
-    confirmedAt: booking.confirmedAt || confirmation.confirmedAt || "",
-    appointmentAt: booking.appointmentAt || confirmation.appointmentAt || "",
-    confirmationNote: booking.confirmationNote || confirmation.confirmationNote || "",
-    failureReason: booking.failureReason || confirmation.failureReason || "",
-    source: booking.source || "老人中控屏",
-    initiatedAt: booking.initiatedAt || booking.callAt || booking.createdAt,
-    assistanceStatus: booking.assistanceStatus || assistanceHandling.assistanceStatus || "待处理",
-    handledBy: booking.handledBy || assistanceHandling.handledBy || "",
-    handledAt: booking.handledAt || assistanceHandling.handledAt || "",
-    requestReason: booking.requestReason || "请家人协助联系服务商",
-    resultSummary: booking.resultSummary || assistanceHandling.resultSummary || "",
-  };
-  return { ...normalized, assistanceStatus: getServiceAssistanceStatus(normalized) };
-}
-
 const canonicalElderServiceCatalog = unifiedServiceCatalog;
-
-const mapSharedServiceAssistanceRecord = (record) => {
-  const normalized = {
-  id: record.id,
-  projectId: record.projectId || "PRJ-001",
-  communityId: record.communityId || "COM-001",
-  elderlyId: record.elder?.id || "",
-  elderlyName: record.elder?.name || "",
-  elderlyPhone: record.elder?.phone || "",
-  serviceId: record.service?.id || "",
-  serviceName: record.service?.name || "",
-  category: record.service?.categoryName || "",
-  provider: record.provider?.name || "",
-  providerPhone: record.provider?.phone || "",
-  requestReason: record.requestReason || "请家人协助联系服务商",
-  initiatedAt: record.familyHelpRequestedAt || record.requestedAt || "",
-  assistanceStatus: record.status,
-  handledBy: record.handledBy || "",
-  handledAt: record.handledAt || "",
-  resultSummary: record.resultSummary || "",
-  completedAt: record.completedAt || "",
-  rating: record.review?.rating ?? null,
-  reviewContent: record.review?.text || "",
-  reviewer: record.elder?.name || "",
-  reviewedAt: record.review?.submittedAt || "",
-  source: "老人中控屏",
-  };
-  return { ...normalized, assistanceStatus: getServiceAssistanceStatus(normalized) };
-};
-
-const mergeSharedServiceAssistanceRecords = (records) => {
-  const shared = readSharedServiceAssistanceRecords().filter(isFamilyAssistanceRecord).map(mapSharedServiceAssistanceRecord);
-  if (!shared.length) return records;
-  const sharedIds = new Set(shared.map((record) => record.id));
-  return [...shared, ...records.filter((record) => !sharedIds.has(record.id))];
-};
-
-const initialServiceBookings = [
-  { id: "HELP-20261029-01", projectId: "PRJ-001", elderlyId: "elder-wang", elderlyName: "王奶奶", elderlyPhone: "+65 8123 4567", serviceId: "srv-water-1", serviceName: "水龙头检修", category: "水利维修", provider: "安心到家水务服务站", providerPhone: "+65 6123 8802", initiatedAt: "2026-10-29T16:20:00+08:00", source: "老人中控屏", requestReason: "请家人协助联系服务商", assistanceStatus: "待处理", handledBy: "", handledAt: "", resultSummary: "" },
-  { id: "HELP-20261027-01", projectId: "PRJ-001", elderlyId: "elder-wang", elderlyName: "王奶奶", elderlyPhone: "+65 8123 4567", serviceId: "srv-basic-2", serviceName: "家具小修", category: "基础维修", provider: "乐居综合维修服务站", providerPhone: "+65 6123 8803", initiatedAt: "2026-10-27T10:10:00+08:00", source: "老人中控屏", requestReason: "请家人协助联系服务商", assistanceStatus: "已完成", handledBy: "张晓燕", handledAt: "2026-10-27T10:35:00+08:00", resultSummary: "已电话咨询服务商，约定 10 月 31 日上午再上门查看。" },
-  ...serviceCategoryMock.serviceBookings
-    .filter((booking) => booking.projectId !== "PRJ-001")
-    .map(normalizeServiceBooking),
-];
 
 const normalizeServiceItem = (item, serviceId, index) => ({
   id: item?.id || `${serviceId || "service"}-item-${index + 1}`,
@@ -758,21 +641,22 @@ const communityContentTypeLabels = {
 const communityContentStatusLabels = { unpublished: "已停用", published: "已发布", disabled: "已停用" };
 const communityParticipationStatusLabels = { interested: "想参加" };
 const communityLiveStatusLabels = { not_started: "未开始", live: "直播中", ended: "已结束" };
-const communityActivityMockNow = new Date("2026-08-24T15:00:00+08:00").getTime();
 const getCommunityActivityStatus = (activity) => {
   if (activity.isOffline) return "已下架";
   const startAt = new Date(activity.startAt).getTime();
   const endAt = new Date(activity.endAt).getTime();
-  if (Number.isFinite(endAt) && communityActivityMockNow >= endAt) return "已结束";
-  if (Number.isFinite(startAt) && communityActivityMockNow >= startAt) return "进行中";
+  const now = Date.now();
+  if (Number.isFinite(endAt) && now >= endAt) return "已结束";
+  if (Number.isFinite(startAt) && now >= startAt) return "进行中";
   return "未开始";
 };
 const getCommunityActivityRegistrationPhase = (activity) => {
   if (activity.isOffline) return "报名结束";
   const registrationStartAt = new Date(activity.registrationStartAt).getTime();
   const registrationEndAt = new Date(activity.registrationEndAt).getTime();
-  if (Number.isFinite(registrationEndAt) && communityActivityMockNow >= registrationEndAt) return "报名结束";
-  if (Number.isFinite(registrationStartAt) && communityActivityMockNow >= registrationStartAt) return "报名中";
+  const now = Date.now();
+  if (Number.isFinite(registrationEndAt) && now >= registrationEndAt) return "报名结束";
+  if (Number.isFinite(registrationStartAt) && now >= registrationStartAt) return "报名中";
   return "未开始报名";
 };
 const isValidHttpUrl = (value = "") => {
@@ -1177,10 +1061,10 @@ function TabletOnlineStatusTag({ children }) {
 }
 
 const overviewAttentionMock = [
-  { id: "clue-001", type: "在线协助", elderly: "陈美玲", description: "在线协助正在处理中", source: "在线协助", generatedAt: "2026-07-28 09:42", status: "处理中", handler: "赵亚男", callStatus: "呼叫已接通，社区人员已介入", notificationStatus: "子女 2 人已送达，1 人通知失败", page: "emergencyHelp" },
-  { id: "clue-002", type: "在线协助", elderly: "王德昌", description: "在线协助已接通，等待运营确认", source: "在线协助", generatedAt: "2026-07-28 09:26", status: "待确认", handler: "赵亚男", callStatus: "呼叫中心已接听，老人情况稳定", notificationStatus: "子女 1 人已送达", page: "emergencyHelp" },
-  { id: "clue-003", type: "房间传感器离线", elderly: "陈美玲", description: "卧室活动传感器离线", source: "房间活动传感器", generatedAt: "2026-07-28 09:18", status: "离线", deviceName: "卧室活动传感器", deviceCode: "SN-A20-88932", validationStatus: "已离线 24 分钟", page: "sensorDevices" },
-  { id: "clue-004", type: "房间传感器离线", elderly: "王德昌", description: "玄关活动传感器离线", source: "房间活动传感器", generatedAt: "2026-07-28 08:52", status: "离线", deviceName: "玄关活动传感器", deviceCode: "SN-A22-93012", validationStatus: "已离线 50 分钟", page: "sensorDevices" },
+  { id: "clue-001", elderlyId: "SG-E-000128", projectId: "PRJ-001", sourceRecordId: "EM-001", type: "在线协助", elderly: "陈美玲", description: "在线协助正在处理中", source: "在线协助", generatedAt: "2026-07-28 09:42", status: "处理中", handler: "赵亚男", callStatus: "呼叫已接通，社区人员已介入", notificationStatus: "子女 2 人已送达，1 人通知失败", page: "emergencyHelp" },
+  { id: "clue-002", elderlyId: "SG-E-000125", projectId: "PRJ-001", sourceRecordId: "EM-002", type: "在线协助", elderly: "王德昌", description: "在线协助已接通，等待运营确认", source: "在线协助", generatedAt: "2026-07-28 09:26", status: "待确认", handler: "赵亚男", callStatus: "呼叫中心已接听，老人情况稳定", notificationStatus: "子女 1 人已送达", page: "emergencyHelp" },
+  { id: "clue-003", elderlyId: "SG-E-000128", projectId: "PRJ-001", sourceRecordId: "SEN-002", type: "房间传感器离线", elderly: "陈美玲", description: "卧室活动传感器离线", source: "房间活动传感器", generatedAt: "2026-07-28 09:18", status: "待处理", deviceName: "卧室活动传感器", deviceCode: "SN-A20-88932", validationStatus: "已离线 24 分钟", page: "sensorDevices" },
+  { id: "clue-004", elderlyId: "SG-E-000125", projectId: "PRJ-001", sourceRecordId: "SEN-009", type: "房间传感器离线", elderly: "王德昌", description: "玄关活动传感器离线", source: "房间活动传感器", generatedAt: "2026-07-28 08:52", status: "待处理", deviceName: "玄关活动传感器", deviceCode: "SN-A22-93012", validationStatus: "已离线 50 分钟", page: "sensorDevices" },
 ];
 
 const inactivityTodoTemplates = [
@@ -1188,13 +1072,18 @@ const inactivityTodoTemplates = [
   { name: "王德昌", hours: 4, room: "卧室", lastAt: "2026-07-28 05:12", generatedAt: "2026-07-28 09:12" },
 ];
 
-function buildInactivityTodoItems(records) {
+function buildInactivityTodoItems(records, sensors = []) {
   const uniqueRecords = [...new Map(records.map((record) => [record.name, record])).values()];
   return inactivityTodoTemplates.map((template, index) => {
     const record = uniqueRecords[index];
+    const normalizedSensors = sensors.map((sensor) => ({ ...sensor, projectId: record?.projectId, installed: sensor.installStatus === "已安装", bound: Boolean(sensor.elderlyId), disabled: sensor.installStatus === "已停用" }));
+    if (!record || !canFormInactivityConclusion({ sensors: normalizedSensors.filter((sensor) => sensor.elderlyId === record.id), projectId: record.projectId })) return null;
     const elderly = record?.name || template.name;
     return {
       id: `inactivity-${record?.id || index + 1}`,
+      elderlyId: record.id,
+      projectId: record.projectId,
+      sourceRecordId: `inactivity-${record.id}`,
       type: "无活动",
       elderly,
       description: `连续 ${template.hours} 小时无活动`,
@@ -1208,7 +1097,7 @@ function buildInactivityTodoItems(records) {
       status: "待处理",
       page: "elderlyDataDashboard",
     };
-  });
+  }).filter(Boolean);
 }
 
 const overviewTrendMock = {
@@ -1218,16 +1107,6 @@ const overviewTrendMock = {
   service: { label: "已完成预约服务", unit: "单", values: [2, 3, null, 4, 1, 5, 3] },
 };
 
-const platformOverviewNow = new Date("2026-10-26T15:00:00+08:00").getTime();
-const platformOverviewDate = "2026-10-26";
-const platformProjectCreatedAt = Object.freeze({ "PRJ-001": "2026-06-18 09:42", "PRJ-002": "2026-06-20 14:18", "PRJ-003": "2026-06-22 18:06", "PRJ-004": "2026-07-01 10:20" });
-const platformDeviceRecordedAt = Object.freeze({ "TAB-SG-20260031": "2026-07-02 09:30", "TAB-SG-20260030": "2026-06-28 14:20", "TAB-SG-20260029": "2026-06-25 08:50", "TAB-SG-20260032": "2026-10-24 09:10", "TAB-SG-20260033": "2026-10-25 08:40" });
-const platformOtaAttentionDemo = Object.freeze({
-  executions: [
-    { packageId: "OTA-ROM-001", taskId: "OTA-TASK-001", deviceId: "TAB-SG-20260030", targetVersion: "v1.6.0", status: "失败", createdAt: "2026-10-26 10:12", lastReportAt: "2026-10-26 10:12", message: "下载校验失败，可重新发起" },
-    { packageId: "OTA-ROM-002", taskId: "OTA-TASK-002", deviceId: "TAB-SG-20260031", targetVersion: "v1.6.0", status: "安装中", progress: "62%", createdAt: "2026-10-26 09:35", lastReportAt: "2026-10-26 13:48", message: "安装进度已超过 30 分钟未更新" },
-  ],
-});
 const platformIssueMeta = Object.freeze({
   "平板离线": { severity: "中", severityRank: 2, reason: "已绑定平板连续离线超过 30 分钟", destination: "devices", actionLabel: "前往平板设备", columns: [["projectName", "项目 / 社区"], ["deviceId", "设备编号"], ["lastOnline", "最后在线时间"], ["offlineDuration", "离线时长"]] },
   "升级失败": { severity: "高", severityRank: 3, reason: "设备最近一次升级执行失败，需要重新处理", destination: "ota", actionLabel: "前往 OTA 任务", columns: [["deviceId", "设备编号"], ["targetVersion", "目标版本"], ["taskId", "任务编号"], ["occurredAt", "失败时间"], ["failureReason", "失败原因"]] },
@@ -1239,12 +1118,14 @@ const platformIssueMeta = Object.freeze({
 
 function parsePlatformDate(value) {
   if (!value || value === "立即生效") return Number.NaN;
-  return new Date(String(value).replace(" ", "T") + (String(value).includes("T") ? "" : "+08:00")).getTime();
+  const normalized = String(value).trim().replace(" ", "T");
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+  return new Date(hasTimezone ? normalized : `${normalized}+08:00`).getTime();
 }
 
 function platformElapsedMinutes(value) {
   const timestamp = parsePlatformDate(value);
-  return Number.isFinite(timestamp) ? Math.max(0, Math.floor((platformOverviewNow - timestamp) / 60000)) : 0;
+  return Number.isFinite(timestamp) ? Math.max(0, Math.floor((Date.now() - timestamp) / 60000)) : Number.NaN;
 }
 
 function platformDurationLabel(minutes) {
@@ -1253,22 +1134,11 @@ function platformDurationLabel(minutes) {
   return `${minutes} 分钟`;
 }
 
-function platformOfflineMinutes(lastOnline) {
-  const value = String(lastOnline || "");
-  const day = value.match(/(\d+)\s*天/);
-  const hour = value.match(/(\d+)\s*小时/);
-  const minute = value.match(/(\d+)\s*分钟/);
-  if (day) return Number(day[1]) * 1440;
-  if (hour) return Number(hour[1]) * 60;
-  if (minute) return Number(minute[1]);
-  return 0;
-}
-
 function PlatformProjectDetailDrawer({ row, onClose }) {
   return <AdminDrawer title="项目详情" className="platform-project-detail-drawer" onClose={onClose} footer={<button className="secondary-button" onClick={onClose}>关闭</button>}>
     <section className="detail-section"><h3>基本信息</h3><div className="info-grid"><div><span>项目名称</span><b>{row.name}</b></div><div><span>项目状态</span><b><StatusTag>{row.status}</StatusTag></b></div><div><span>国家 / 地区</span><b>{row.country || "待补充"}</b></div><div><span>时区</span><b>{row.timezone || "待补充"}</b></div><div className="full"><span>项目位置</span><b>{row.address || "地址待补充"}</b></div></div></section>
     <section className="detail-section"><h3>联系信息</h3><div className="info-grid"><div><span>项目联系人</span><b>{row.contact || "待补充"}</b></div><div><span>联系电话</span><b>{row.phone || "待补充"}</b></div></div></section>
-    <section className="detail-section"><h3>服务与终端概况</h3><div className="info-grid"><div><span>服务老人</span><b>{row.elderlyCount} 位</b></div><div><span>已上报平板</span><b>{row.tabletCount} 台</b></div><div><span>在线平板</span><b>{row.onlineTabletCount} 台</b></div><div><span>平板运行状态</span><b>{row.tabletCount ? `${row.onlineTabletCount} / ${row.tabletCount} 在线` : "暂无上报"}</b></div></div></section>
+    <section className="detail-section"><h3>服务与终端概况</h3><div className="info-grid"><div><span>老人档案</span><b>{row.elderlyCount} 位</b></div><div><span>已关联子女账号</span><b>{row.childAccountCount} 人</b></div><div><span>家庭绑定覆盖</span><b>{row.familyCoverageRate}%</b></div><div><span>有效设备在线</span><b>{row.deviceCount ? `${row.onlineDeviceCount} / ${row.deviceCount} 台` : "暂无有效设备"}</b></div></div></section>
     <section className="detail-section"><h3>运行概况</h3><div className="info-grid"><div><span>待处理问题类型</span><b>{row.pendingCount ? `${row.pendingCount} 类` : "正常"}</b></div></div></section>
   </AdminDrawer>;
 }
@@ -1280,16 +1150,61 @@ function PlatformIssueDetailDrawer({ issue, onClose, onHandle }) {
   </AdminDrawer>;
 }
 
-function PlatformOverview({ projects, elderlyRecords, tablets, members, onSaveProject, onOpenPlatformDevices, onOpenPlatformOta }) {
+function PlatformOverview({ projects, elderlyRecords, tablets, sensors, familyRelations, serviceRecords, members, scenario = "normal", onSaveProject, onOpenPlatformDevices, onOpenPlatformOta, onOpenProject }) {
   const [detailProjectId, setDetailProjectId] = useState("");
   const [detailIssueType, setDetailIssueType] = useState("");
   const [editingProjectId, setEditingProjectId] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
+  const [registrationPeriod, setRegistrationPeriod] = useState(7);
+  const singaporeNow = getSingaporeNowParts();
+  const currentMonthKey = singaporeNow.dateKey.slice(0, 7);
+  const childRelationNames = new Set(["儿子", "女儿"]);
+  const uniqueById = (records) => [...new Map(records.filter((record) => record?.id).map((record) => [record.id, record])).values()];
+  const uniqueElderlyRecords = uniqueById(elderlyRecords);
+  const uniqueFamilyRelations = uniqueById(familyRelations);
+  const uniqueTablets = uniqueById(tablets);
+  const uniqueSensors = uniqueById(sensors);
+  const uniqueServiceRecords = uniqueById(serviceRecords);
+  const elderlyIds = new Set(uniqueElderlyRecords.map((record) => record.id));
+  const childAccounts = [...new Map(relativeAccounts.filter((account) => account.links.some((link) => elderlyIds.has(link.elderlyId) && childRelationNames.has(link.relation))).map((account) => [account.id, account])).values()];
+  const parseRegisteredAt = (value) => {
+    const timestamp = parsePlatformDate(value);
+    return Number.isFinite(timestamp) ? timestamp : Number.NaN;
+  };
+  const monthStart = parsePlatformDate(`${currentMonthKey}-01 00:00:00`);
+  const periodEnd = parsePlatformDate(`${singaporeNow.dateKey} 23:59:59`);
+  const currentMonthChildRegistrations = childAccounts.filter((account) => {
+    const timestamp = parseRegisteredAt(account.registeredAt);
+    return Number.isFinite(timestamp) && timestamp >= monthStart && timestamp <= periodEnd;
+  }).length;
+  const registrationTrendPoints = buildRegistrationTrend(childAccounts, registrationPeriod, singaporeNow.dateKey);
+  const recentChildRegistrations = registrationTrendPoints.reduce((sum, point) => sum + point.value, 0);
+  const activeFamilyRelations = uniqueFamilyRelations.filter((relation) => relation.status === "正常" && elderlyIds.has(relation.elderlyId));
+  const boundElderlyIds = new Set(activeFamilyRelations.map((relation) => relation.elderlyId));
+  const activeTablets = uniqueTablets.filter((device) => device.boundElderlyId && elderlyIds.has(device.boundElderlyId));
+  const activeSensors = uniqueSensors.filter((device) => device.elderlyId && elderlyIds.has(device.elderlyId) && device.installStatus === "已安装" && device.onlineStatus !== "停用");
+  const validDevices = [...activeTablets, ...activeSensors];
+  const onlineDeviceCount = validDevices.filter((device) => device.onlineStatus === "在线").length;
+  const serviceStatuses = ["待处理", "处理中", "已处理", "已失效"];
+  const serviceTypeStatusGroups = ["联系动态", "请家人帮忙"].map((type) => ({ label: type, items: serviceStatuses.map((status, index) => ({ label: status, value: uniqueServiceRecords.filter((record) => getServiceAssistanceRecordType(record) === type && getServiceAssistanceStatus(record) === status).length, tone: ["amber", "blue", "indigo", "slate"][index] })) }));
   const baseRows = projects.map((project) => {
-    const communityElderly = elderlyRecords.filter((record) => record.community === project.name);
-    const projectTablets = tablets.filter((device) => device.projectId === project.id);
-    const onlineTabletCount = projectTablets.filter((device) => device.onlineStatus === "在线").length;
-    return { ...project, elderlyCount: communityElderly.length, tabletCount: projectTablets.length, onlineTabletCount };
+    const projectElderly = uniqueElderlyRecords.filter((record) => record.projectId === project.id);
+    const projectElderlyIds = new Set(projectElderly.map((record) => record.id));
+    const projectChildAccounts = [...new Map(childAccounts.filter((account) => account.links.some((link) => projectElderlyIds.has(link.elderlyId) && childRelationNames.has(link.relation))).map((account) => [account.id, account])).values()];
+    const projectBoundElderlyCount = new Set(activeFamilyRelations.filter((relation) => projectElderlyIds.has(relation.elderlyId)).map((relation) => relation.elderlyId)).size;
+    const projectTablets = activeTablets.filter((device) => device.projectId ? device.projectId === project.id : projectElderlyIds.has(device.boundElderlyId));
+    const projectSensors = activeSensors.filter((device) => device.projectId ? device.projectId === project.id : projectElderlyIds.has(device.elderlyId));
+    const projectDevices = [...projectTablets, ...projectSensors];
+    const projectOnlineDevices = projectDevices.filter((device) => device.onlineStatus === "在线").length;
+    return {
+      ...project,
+      elderlyCount: projectElderly.length,
+      childAccountCount: projectChildAccounts.length,
+      familyCoverageRate: projectElderly.length ? Math.round((projectBoundElderlyCount / projectElderly.length) * 100) : 0,
+      deviceCount: projectDevices.length,
+      onlineDeviceCount: projectOnlineDevices,
+      deviceOnlineRate: projectDevices.length ? Math.round((projectOnlineDevices / projectDevices.length) * 100) : null,
+    };
   });
   const storedOtaPackages = (() => {
     try {
@@ -1309,39 +1224,56 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
     createdAt: task.createdAt,
     lastReportAt: result.lastReportAt || task.updatedAt || task.createdAt,
   }))));
-  const otaExecutions = [...storedOtaExecutions, ...platformOtaAttentionDemo.executions.filter((demo) => !storedOtaExecutions.some((item) => item.deviceId === demo.deviceId && item.status === demo.status))];
-  const latestOtaExecutions = tablets.map((device) => otaExecutions.filter((item) => item.deviceId === device.id).sort((left, right) => String(right.lastReportAt || right.createdAt || "").localeCompare(String(left.lastReportAt || left.createdAt || "")))[0]).filter(Boolean);
-  const issueDetails = [
-    ...tablets.filter((device) => device.boundElderlyId && device.onlineStatus !== "在线" && platformOfflineMinutes(device.lastOnline) >= 30).map((device) => {
+  const latestOtaExecutions = uniqueTablets.map((device) => storedOtaExecutions.filter((item) => item.deviceId === device.id).sort((left, right) => String(right.lastReportAt || right.createdAt || "").localeCompare(String(left.lastReportAt || left.createdAt || "")))[0]).filter(Boolean);
+  const sourceIssueDetails = [
+    ...uniqueTablets.filter((device) => {
+      const offlineMinutes = platformElapsedMinutes(device.lastReportAt || device.heartbeatAt);
+      return device.boundElderlyId && device.onlineStatus !== "在线" && Number.isFinite(offlineMinutes) && offlineMinutes >= 30;
+    }).map((device) => {
       const project = projects.find((item) => item.id === device.projectId);
-      const offlineMinutes = platformOfflineMinutes(device.lastOnline);
-      return { id: `offline-${device.id}`, type: "平板离线", projectId: device.projectId, projectName: project?.name || "未知项目", deviceId: device.id, lastOnline: device.lastOnline, offlineDuration: platformDurationLabel(offlineMinutes), offlineMinutes, occurredAt: new Date(platformOverviewNow - offlineMinutes * 60000).toISOString() };
+      const lastReportAt = device.lastReportAt || device.heartbeatAt;
+      const offlineMinutes = platformElapsedMinutes(lastReportAt);
+      return { id: `offline-${device.id}`, type: "平板离线", projectId: device.projectId, projectName: project?.name || "未知项目", deviceId: device.id, lastOnline: lastReportAt, offlineDuration: platformDurationLabel(offlineMinutes), offlineMinutes, occurredAt: lastReportAt };
     }),
     ...latestOtaExecutions.filter((execution) => execution.status === "失败").map((execution) => {
-      const device = tablets.find((item) => item.id === execution.deviceId);
+      const device = uniqueTablets.find((item) => item.id === execution.deviceId);
       const project = projects.find((item) => item.id === device?.projectId);
       return { id: `ota-failed-${execution.deviceId}`, type: "升级失败", projectId: device?.projectId || "", projectName: project?.name || "未归属项目", deviceId: execution.deviceId, targetVersion: execution.targetVersion || "—", taskId: execution.taskId || "—", occurredAt: execution.lastReportAt || execution.createdAt || "—", failureReason: execution.message || "升级失败，请重新发起" };
     }),
     ...latestOtaExecutions.filter((execution) => /下载中|安装中|执行中/.test(execution.status || "") && platformElapsedMinutes(execution.lastReportAt || execution.createdAt) >= 30).map((execution) => {
-      const device = tablets.find((item) => item.id === execution.deviceId);
+      const device = uniqueTablets.find((item) => item.id === execution.deviceId);
       const project = projects.find((item) => item.id === device?.projectId);
       const progress = execution.progress || (execution.status === "安装中" ? "72%" : execution.status === "下载中" ? "35%" : "0%");
       return { id: `ota-stalled-${execution.deviceId}`, type: "升级停滞", projectId: device?.projectId || "", projectName: project?.name || "未归属项目", deviceId: execution.deviceId, progress, lastReportAt: execution.lastReportAt || execution.createdAt || "—", taskId: execution.taskId || "—", occurredAt: execution.lastReportAt || execution.createdAt || "" };
     }),
-    ...tablets.filter((device) => !device.boundElderlyId && platformElapsedMinutes(device.recordedAt || platformDeviceRecordedAt[device.id]) >= 1440).map((device) => {
+    ...uniqueTablets.filter((device) => !device.boundElderlyId && Number.isFinite(platformElapsedMinutes(device.recordedAt)) && platformElapsedMinutes(device.recordedAt) >= 1440).map((device) => {
       const project = projects.find((item) => item.id === device.projectId);
-      const recordedAt = device.recordedAt || platformDeviceRecordedAt[device.id];
+      const recordedAt = device.recordedAt;
       return { id: `binding-timeout-${device.id}`, type: "设备待绑定超时", projectId: device.projectId, projectName: project?.name || "未归属项目", deviceId: device.id, recordedAt, elapsed: platformDurationLabel(platformElapsedMinutes(recordedAt)), occurredAt: recordedAt };
     }),
     ...projects.filter((project) => project.status === "启用" && (!project.contact?.trim() || !project.phone?.trim())).map((project) => {
       const missingFields = [["contact", "联系人姓名"], ["phone", "联系电话"]].filter(([field]) => !project[field]?.trim()).map(([, label]) => label);
-      return { id: `project-info-${project.id}`, type: "项目信息缺失", projectId: project.id, projectName: project.name, deviceId: "", missingFields: missingFields.join("、"), occurredAt: platformProjectCreatedAt[project.id] };
+      return { id: `project-info-${project.id}`, type: "项目信息缺失", projectId: project.id, projectName: project.name, deviceId: "", missingFields: missingFields.join("、"), occurredAt: project.updatedAt || project.createdAt || "" };
     }),
-    ...baseRows.filter((project) => project.status === "启用" && project.elderlyCount === 0 && platformElapsedMinutes(project.createdAt || platformProjectCreatedAt[project.id]) >= 1440).map((project) => {
-      const createdAt = project.createdAt || platformProjectCreatedAt[project.id];
+    ...baseRows.filter((project) => project.status === "启用" && project.elderlyCount === 0 && Number.isFinite(platformElapsedMinutes(project.createdAt)) && platformElapsedMinutes(project.createdAt) >= 1440).map((project) => {
+      const createdAt = project.createdAt;
       return { id: `no-elderly-${project.id}`, type: "老人档案未配置", projectId: project.id, projectName: project.name, deviceId: "", createdAt, elapsed: platformDurationLabel(platformElapsedMinutes(createdAt)), elderlyCount: "0 位", occurredAt: createdAt };
     }),
   ];
+  const acceptanceNow = Date.now();
+  const acceptanceTime = (minutesAgo) => new Date(acceptanceNow - minutesAgo * 60000).toISOString();
+  const acceptanceIssueDetails = scenario === "complete" ? [
+    { id: "acceptance-offline-TAB-SG-20260029", type: "平板离线", projectId: "PRJ-003", projectName: projects.find((project) => project.id === "PRJ-003")?.name || "女皇镇社区", deviceId: "TAB-SG-20260029", lastOnline: acceptanceTime(245), offlineDuration: platformDurationLabel(245), offlineMinutes: 245, occurredAt: acceptanceTime(245) },
+    { id: "acceptance-ota-failed-TAB-SG-20260031", type: "升级失败", projectId: "PRJ-001", projectName: projects.find((project) => project.id === "PRJ-001")?.name || "红山社区", deviceId: "TAB-SG-20260031", targetVersion: "v1.6.0", taskId: "ACCEPTANCE-OTA-FAIL-001", occurredAt: acceptanceTime(90), failureReason: "升级包校验失败，可重新发起" },
+    { id: "acceptance-ota-stalled-TAB-SG-20260030", type: "升级停滞", projectId: "PRJ-002", projectName: projects.find((project) => project.id === "PRJ-002")?.name || "大巴窑社区", deviceId: "TAB-SG-20260030", progress: "62%", lastReportAt: acceptanceTime(65), taskId: "ACCEPTANCE-OTA-STALLED-001", occurredAt: acceptanceTime(65) },
+    { id: "acceptance-binding-timeout-TAB-SG-20260032", type: "设备待绑定超时", projectId: "", projectName: "未归属项目", deviceId: "TAB-SG-20260032", recordedAt: acceptanceTime(2880), elapsed: platformDurationLabel(2880), occurredAt: acceptanceTime(2880) },
+    { id: "project-info-PRJ-004", type: "项目信息缺失", projectId: "PRJ-004", projectName: projects.find((project) => project.id === "PRJ-004")?.name || "宏茂桥社区", deviceId: "", missingFields: "联系电话", occurredAt: acceptanceTime(30) },
+  ] : [];
+  const issueDetails = scenario === "empty"
+    ? []
+    : scenario === "complete"
+      ? acceptanceIssueDetails
+      : sourceIssueDetails;
   const issueGroups = Object.values(issueDetails.reduce((groups, detail) => {
     const current = groups[detail.type] || { type: detail.type, details: [], ...platformIssueMeta[detail.type] };
     current.details.push(detail);
@@ -1356,9 +1288,6 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
     return { ...group, ...(offlineHigh ? { severity: "高", severityRank: 3 } : {}), projectNames, projectCount: projectNames.length, deviceCount: deviceIds.length, impactCount: deviceIds.length || projectNames.length, latestAt };
   }).sort((a, b) => b.severityRank - a.severityRank || b.latestAt - a.latestAt);
   const rows = baseRows.map((row) => ({ ...row, pendingCount: new Set(issueDetails.filter((issue) => issue.projectId === row.id).map((issue) => issue.type)).size }));
-  const allTablets = rows.reduce((sum, row) => sum + row.tabletCount, 0);
-  const onlineTablets = rows.reduce((sum, row) => sum + row.onlineTabletCount, 0);
-  const todayUsedTablets = tablets.filter((device) => (device.usageRecords || []).some((record) => record.valid !== false && String(record.occurredAt || "").startsWith(platformOverviewDate))).length;
   const detailRow = rows.find((row) => row.id === detailProjectId);
   const detailIssue = issueGroups.find((issue) => issue.type === detailIssueType);
   const editingProject = projects.find((project) => project.id === editingProjectId);
@@ -1368,18 +1297,31 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
     if (issue.destination === "devices") return onOpenPlatformDevices();
     if (issue.destination === "ota") return onOpenPlatformOta();
     if (issue.destination === "editProject") return setEditingProjectId(projectId);
+    if (issue.destination === "project" && projectId) return onOpenProject(projectId);
     setDetailProjectId(projectId);
   };
+  const deviceGroups = [
+    { label: "已绑定平板", items: [{ label: "在线", value: activeTablets.filter((device) => device.onlineStatus === "在线").length, tone: "green" }, { label: "离线", value: activeTablets.filter((device) => device.onlineStatus !== "在线").length, tone: "amber" }] },
+    { label: "房间感知器", items: [{ label: "在线", value: activeSensors.filter((device) => device.onlineStatus === "在线").length, tone: "green" }, { label: "离线", value: activeSensors.filter((device) => device.onlineStatus !== "在线").length, tone: "amber" }] },
+  ];
+  const familyCoverageRate = uniqueElderlyRecords.length ? Math.round((boundElderlyIds.size / uniqueElderlyRecords.length) * 100) : 0;
   return <>
-    <div className="page-heading platform-overview-heading"><div><h1>平台总览</h1><p>查看各项目运行状态、服务规模与待处理问题</p></div><button className="primary-button" onClick={() => setCreatingProject(true)}><Plus size={16}/>新建项目</button></div>
+    <div className="page-heading platform-overview-heading"><div><h1>平台总览</h1><p>汇总各运营项目的账号、家庭绑定、设备与服务运行情况</p></div><button className="primary-button" onClick={() => setCreatingProject(true)}><Plus size={16}/>新建项目</button></div>
     <div className="platform-metric-grid platform-overview-metrics">
-      <div className="platform-metric-card"><span>项目总数</span><b>{projects.length}<small> 个</small></b><p>平台已建立项目</p></div>
-      <div className="platform-metric-card"><span>运营中项目</span><b>{rows.filter((row) => row.status === "启用").length}<small> 个</small></b><p>项目状态为启用</p></div>
-      <div className="platform-metric-card"><span>服务老人</span><b>{rows.reduce((sum, row) => sum + row.elderlyCount, 0)}<small> 位</small></b><p>全部项目老人档案</p></div>
-      <div className="platform-metric-card"><span>平板总数</span><b>{allTablets}<small> 台</small></b><p>全部自动上报平板</p></div>
-      <div className="platform-metric-card"><span>今日使用</span><b>{todayUsedTablets}<small> 台</small></b><p>{todayUsedTablets} / {allTablets} 台今日使用</p></div>
-      <div className="platform-metric-card"><span>平板在线率</span><b>{allTablets ? Math.round((onlineTablets / allTablets) * 100) : "—"}<small>{allTablets ? "%" : ""}</small></b><p>{allTablets ? `${onlineTablets} 台在线 / ${allTablets} 台已上报` : "暂无上报平板"}</p></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>运营中项目</span><MetricHelp label="运营中项目指标说明" content="统计当前状态为启用的运营项目。"/></div><b>{rows.filter((row) => row.status === "启用").length}<small> 个</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>注册老人</span><MetricHelp label="注册老人指标说明" content="老人账号注册时间尚未获取，暂不以老人档案数量代替注册数量。"/></div><b>—</b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>已关联子女账号</span><MetricHelp label="已关联子女账号指标说明" content="统计与平台老人存在儿子或女儿关系的注册账号，并按账号去重。"/></div><b>{childAccounts.length}<small> 人</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>本月新增老人</span><MetricHelp label="本月新增老人指标说明" content="按老人账号的权威注册时间统计；当前未获取该时间，因此显示为“—”。"/></div><b>—</b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>本月新增已关联子女</span><MetricHelp label="本月新增已关联子女指标说明" content="按已关联子女账号的权威注册时间统计，不包含尚未关联老人的账号。"/></div><b>{currentMonthChildRegistrations}<small> 人</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>设备在线率</span><MetricHelp label="设备在线率指标说明" content={validDevices.length ? `统计已绑定平板与已安装、未停用的房间感知器；当前 ${onlineDeviceCount} 台在线，共 ${validDevices.length} 台有效设备。` : "统计已绑定平板与已安装、未停用的房间感知器；当前暂无有效设备。"}/></div><b>{validDevices.length ? Math.round((onlineDeviceCount / validDevices.length) * 100) : "—"}<small>{validDevices.length ? "%" : ""}</small></b></div>
     </div>
+    <div className="overview-chart-grid platform-overview-chart-grid">
+      <section className="panel overview-chart-card overview-registration-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>注册增长</h3><MetricHelp label="注册增长口径" content="老人档案缺少账号注册时间，不绘制老人趋势；子女仅统计与平台老人存在儿子或女儿关系的注册账号"/></div><div className="overview-period-toggle"><button className={registrationPeriod === 7 ? "active" : ""} onClick={() => setRegistrationPeriod(7)}>近 7 天</button><button className={registrationPeriod === 30 ? "active" : ""} onClick={() => setRegistrationPeriod(30)}>近 30 天</button></div></div><div className="overview-registration-summary"><span>老人注册 <b>—</b><small>暂无注册时间数据</small></span><span>已关联子女新增 <b>{recentChildRegistrations} 人</b></span></div><OverviewRegistrationTrend points={registrationTrendPoints}/></section>
+      <section className="panel overview-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>家庭绑定</h3><MetricHelp label="家庭绑定口径" content="按稳定 ID 去重后的平台老人档案与当前有效家庭关系统计，绑定时间不作为账号注册时间"/></div><strong className="overview-chart-kpi">{activeFamilyRelations.length}<small>条有效关系</small></strong></div>{uniqueElderlyRecords.length ? <OverviewDonut ariaLabel="平台老人家庭绑定覆盖" centerValue={`${familyCoverageRate}%`} centerLabel={`${boundElderlyIds.size} / ${uniqueElderlyRecords.length} 位老人`} items={[{ label: "已有家人绑定", value: boundElderlyIds.size, unit: "位", tone: "blue" }, { label: "尚无家人绑定", value: Math.max(0, uniqueElderlyRecords.length - boundElderlyIds.size), unit: "位", tone: "pale" }]}/> : <div className="overview-chart-empty"><span>—</span><b>暂无老人档案</b></div>}</section>
+      <section className="panel overview-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>设备运行</h3><MetricHelp label="设备运行口径" content="统计已绑定平板与已安装未停用感知器；各设备类型分别以自身有效设备数为分母"/></div><strong className="overview-chart-kpi">{validDevices.length ? `${Math.round((onlineDeviceCount / validDevices.length) * 100)}%` : "—"}<small>在线率</small></strong></div>{validDevices.length ? <><div className="overview-status-rows overview-device-status">{deviceGroups.map((group) => { const total = group.items.reduce((sum, item) => sum + item.value, 0); return <div key={group.label}><span>{group.label}</span><OverviewStackedBar items={group.items} total={total} ariaLabel={`${group.label}在线离线分布`}/><b>{group.items[0].value} / {total}<small>台</small></b></div>; })}</div><div className="overview-shared-legend"><span><i style={{ background: overviewChartToneColors.green }}/>在线<b>{onlineDeviceCount}</b></span><span><i style={{ background: overviewChartToneColors.amber }}/>离线<b>{validDevices.length - onlineDeviceCount}</b></span></div></> : <div className="overview-chart-empty"><span>—</span><b>暂无有效设备</b></div>}</section>
+      <section className="panel overview-chart-card service-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>服务处理</h3><MetricHelp label="服务处理口径" content="复用按稳定 ID 去重后的全部项目服务协助记录，按联系动态与请家人帮忙两类、四种统一状态统计"/></div><strong className="overview-chart-kpi">{uniqueServiceRecords.length}<small>条记录</small></strong></div>{uniqueServiceRecords.length ? <><div className="overview-status-rows overview-service-stacks">{serviceTypeStatusGroups.map((group) => { const total = group.items.reduce((sum, item) => sum + item.value, 0); return <div key={group.label}><span>{group.label}</span><OverviewStackedBar items={group.items} total={total} ariaLabel={`${group.label}四态分布`}/><b>{total}<small>条</small></b></div>; })}</div><div className="overview-shared-legend">{serviceStatuses.map((status, index) => <span key={status}><i style={{ background: overviewChartToneColors[["amber", "blue", "indigo", "slate"][index]] }}/>{status}<b>{uniqueServiceRecords.filter((record) => getServiceAssistanceStatus(record) === status).length}</b></span>)}</div></> : <div className="overview-chart-empty"><span>—</span><b>暂无服务记录</b></div>}</section>
+    </div>
+    <div className="platform-overview-bottom-grid">
     <section className="panel platform-attention-panel">
       <div className="panel-title"><div><h3>待处理事项</h3><p>按优先级和产生时间排序，聚合展示同类运行问题</p></div><span>{issueGroups.length} 类</span></div>
       <div className="platform-action-scroll">
@@ -1400,9 +1342,14 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
         </div>
       </div>
     </section>
-    <section className="panel management-panel platform-community-panel"><div className="panel-title"><div><h3>项目运行概况</h3><p>集中查看项目状态、联系信息与终端运行情况</p></div></div><div className="table-scroll"><table className="platform-community-table"><thead><tr><th>项目 / 位置</th><th>项目状态</th><th>联系信息</th><th>服务老人</th><th>平板在线</th><th>待处理</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}>
-      <td><div className="project-name-cell"><span><Building2 size={17}/></span><div><b>{row.name}</b><small>{row.address || "地址待补充"}</small></div></div></td><td><StatusTag>{row.status}</StatusTag></td><td><div className="stacked-cell"><b>{row.contact || "待补充"}</b><small>{row.phone || "电话待补充"}</small></div></td><td>{row.elderlyCount} 位</td><td>{row.tabletCount ? `${row.onlineTabletCount} / ${row.tabletCount} 台` : <span className="muted-value">未配置</span>}</td><td><StatusTag>{row.pendingCount ? `${row.pendingCount} 类` : "正常"}</StatusTag></td><td className="sticky-right platform-overview-actions"><button className="table-action" onClick={() => setDetailProjectId(row.id)}>查看项目</button></td>
-    </tr>)}</tbody></table></div><div className="pagination"><span>当前展示 {rows.length} 个项目</span></div></section>
+    <section className="panel platform-project-summary-panel"><div className="panel-title"><div><h3>项目运行概况</h3><p>按同一事实源核对老人、家庭、设备与平台待处理事项</p></div><span>{rows.length} 个</span></div><div className="platform-project-summary-list">{rows.map((row) => <div className="platform-project-summary-row" key={row.id}>
+      <div className="platform-project-summary-name"><span><Building2 size={17}/></span><div><b>{row.name}</b><small>{row.status}</small></div></div>
+      <div><span>老人 / 子女</span><b>{row.elderlyCount} / {row.childAccountCount}<small>人</small></b></div>
+      <div><span>绑定覆盖</span><b>{row.familyCoverageRate}<small>%</small></b></div>
+      <div><span>设备在线</span><b>{row.deviceOnlineRate === null ? "—" : row.deviceOnlineRate}<small>{row.deviceOnlineRate === null ? "" : "%"}</small></b></div>
+      <div><span>平台待处理</span><b>{row.pendingCount}<small>类</small></b></div>
+    </div>)}</div></section>
+    </div>
     {detailRow && <PlatformProjectDetailDrawer row={detailRow} onClose={() => setDetailProjectId("")}/>}
     {detailIssue && <PlatformIssueDetailDrawer issue={detailIssue} onClose={() => setDetailIssueType("")} onHandle={handleIssue}/>}
     {editingProject && <ProjectDrawer project={editingProject} adminMember={members.find((member) => member.projectId === editingProject.id && member.roleId?.endsWith("-ADMIN"))} allMembers={members} onClose={() => setEditingProjectId("")} onSave={(project, adminMember) => { onSaveProject(project, adminMember); setEditingProjectId(""); }}/>}
@@ -1410,80 +1357,249 @@ function PlatformOverview({ projects, elderlyRecords, tablets, members, onSavePr
   </>;
 }
 
-function OverviewAttentionDrawer({ item, onClose, onResolve }) {
-  const [submitting, setSubmitting] = useState(false);
+function OverviewAttentionDrawer({ item, contact, onClose, onResolve, onDemoUpdate, demoMode = false, resolved = false }) {
+  const [mode, setMode] = useState("view");
+  const [outcome, setOutcome] = useState("已接通");
+  const [note, setNote] = useState("");
   const [error, setError] = useState("");
-  const [attempts, setAttempts] = useState(0);
-  const isNotificationFailure = item.type === "通知失败";
-  const actionLabel = isNotificationFailure ? "重试通知" : item.source === "无活动提醒" ? "标记已关注" : item.source === "房间活动传感器" ? "确认处理" : item.source === "提醒事项" ? "标记已关注" : "确认已处理";
-  const submit = () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setError("");
-    window.setTimeout(() => {
-      if (isNotificationFailure && attempts === 0) {
-        setAttempts(1);
-        setSubmitting(false);
-        setError("通知重试失败，联系人通道暂时不可用，请稍后再试。");
-        return;
-      }
-      onResolve(item, isNotificationFailure ? "通知重试成功" : `${actionLabel}成功`);
-    }, 450);
-  };
   const commonFields = [
-    ["事项类型", item.type], ["老人", item.elderly], ["问题摘要", item.description], ["来源模块", item.source],
-    ["发生时间", item.generatedAt], ["当前状态", item.status], ["处理人", item.handler], ["处理结果", item.result],
+    ["发生时间", item.generatedAt], ["处理人", item.handler], ["处理结果", item.result], ["结束时间", item.resolvedAt], ["结束人", item.resolvedBy], ["结束说明", item.resolutionResult],
   ].filter(([, value]) => value);
-  return <AdminDrawer title="待处理事项详情" ariaLabel={`${item.elderly}${item.description}`} className="overview-attention-drawer" onClose={onClose} footer={<><button className="secondary-button" disabled={submitting} onClick={onClose}>关闭</button><button className="primary-button" disabled={submitting} onClick={submit}>{submitting ? "处理中…" : actionLabel}</button></>}>
-    <section className="detail-section"><h3>事项信息</h3><div className="info-grid">{commonFields.map(([label, value]) => <div className={label === "问题摘要" ? "full" : ""} key={label}><span>{label}</span><b>{value}</b></div>)}</div></section>
+  const submit = (resolve = false) => {
+    if (!note.trim()) return setError(resolve ? "请填写结束说明" : "请填写跟进记录");
+    if (resolve && ["未接通", "忙线", "号码无效"].includes(outcome)) return setError("当前联系结果不能结束跟进");
+    onDemoUpdate(item.id, { resolve, outcome, note: note.trim() });
+  };
+  const footer = mode === "view" ? <><button className="secondary-button" onClick={onClose}>关闭</button>{!resolved && (demoMode ? <><button className="secondary-button" onClick={() => setMode("follow")}>记录跟进</button><button className="primary-button" onClick={() => setMode("resolve")}>结束跟进</button></> : <button className="primary-button" onClick={() => onResolve(item)}>前往原业务处理</button>)}</> : <><button className="secondary-button" onClick={() => { setMode("view"); setError(""); }}>取消</button><button className="primary-button" onClick={() => submit(mode === "resolve")}>保存{mode === "resolve" ? "并结束" : "跟进"}</button></>;
+  return <AdminDrawer title="待关注事项详情" ariaLabel={`${item.elderly}${item.description}`} className="overview-attention-drawer" onClose={onClose} footer={footer}>
+    <section className="overview-attention-hero"><div><span>{item.type}</span><StatusTag>{item.status}</StatusTag></div><h3>{item.elderly}</h3><p>{item.description}</p></section>
+    <section className="detail-section"><h3>联系方式</h3><div className="info-grid"><div><span>老人电话</span><b>{contact?.phone || "未获取"}</b></div><div><span>紧急联系人</span><b>{contact?.emergency || "暂无可用联系方式"}</b></div></div></section>
+    {commonFields.length > 0 && <section className="detail-section"><h3>处理概况</h3><div className="info-grid">{commonFields.map(([label, value]) => <div className={label === "处理结果" ? "full" : ""} key={label}><span>{label}</span><b>{value}</b></div>)}</div></section>}
     {item.source === "在线协助" && <section className="detail-section"><h3>在线协助处理</h3><div className="info-grid"><div className="full"><span>呼叫处理</span><b>{item.callStatus}</b></div><div className="full"><span>子女通知</span><b>{item.notificationStatus}</b></div></div></section>}
     {item.source === "无活动提醒" && <section className="detail-section"><h3>无活动判断</h3><div className="info-grid"><div><span>持续时长</span><b>{item.inactiveHours} 小时</b></div><div><span>最后活动位置</span><b>{item.lastActivityRoom}</b></div><div><span>最后活动时间</span><b>{item.lastActivityAt}</b></div><div><span>命中规则</span><b>{item.matchedRule}</b></div></div></section>}
     {item.source === "房间活动传感器" && <section className="detail-section"><h3>房间传感器离线</h3><div className="info-grid"><div><span>设备</span><b>{item.deviceName}</b></div><div><span>设备编号</span><b>{item.deviceCode}</b></div><div className="full"><span>离线状态</span><b>{item.validationStatus}</b></div></div></section>}
-    {error && <div className="overview-attention-error" role="alert"><AlertTriangle size={16}/><span>{error}</span></div>}
+    {item.followUps?.length > 0 && <section className="detail-section"><h3>跟进记录</h3><div className="info-grid">{item.followUps.map((record) => <div className="full" key={record.id}><span>{record.createdAt} · {record.operator}</span><b>{record.outcome}：{record.note}</b></div>)}</div></section>}
+    {mode !== "view" && <section className="form-section"><h3>{mode === "resolve" ? "结束跟进" : "记录跟进"}</h3><label><span>联系结果 *</span><select className="select-control form-select-native" value={outcome} onChange={(event) => { setOutcome(event.target.value); setError(""); }}><option>已接通</option><option>未接通</option><option>忙线</option><option>号码无效</option><option>未拨打</option></select></label><label><span>{mode === "resolve" ? "结束说明" : "跟进记录"} *</span><textarea rows="3" value={note} onChange={(event) => { setNote(event.target.value); setError(""); }} placeholder="请记录联系与后续安排"/>{error && <small className="field-error">{error}</small>}</label><small className="field-help">人工跟进不会改写设备在线状态或老人活动事实。</small></section>}
   </AdminDrawer>;
 }
 
-function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, resetSignal, scope, records, tablets, sensors, reminders }) {
-  const [updatedAt, setUpdatedAt] = useState("2026-07-31 15:40:00");
+function getSingaporeNowParts(date = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(date).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return { dateKey: `${parts.year}-${parts.month}-${parts.day}`, dateLabel: `${parts.year}年${Number(parts.month)}月${Number(parts.day)}日 · ${parts.weekday}`, dateTime: `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}` };
+}
+
+const overviewChartToneColors = { blue: "#3975e8", green: "#45a982", amber: "#f2a33a", indigo: "#6c73d9", violet: "#8b5cf6", pale: "#d9e4f2", slate: "#b9c4d3" };
+
+function OverviewDonut({ items, centerValue, centerLabel, ariaLabel }) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  let progress = 0;
+  return <div className="overview-donut-wrap" role="img" aria-label={ariaLabel}>
+    <div className="overview-donut"><svg viewBox="0 0 120 120" aria-hidden="true"><circle className="overview-donut-track" cx="60" cy="60" r={radius}/>{total > 0 && items.map((item) => { const fraction = item.value / total; const offset = circumference * (1 - progress); progress += fraction; return item.value > 0 && <circle key={item.label} className="overview-donut-segment" cx="60" cy="60" r={radius} stroke={overviewChartToneColors[item.tone] || overviewChartToneColors.blue} strokeDasharray={`${circumference * fraction} ${circumference * (1 - fraction)}`} strokeDashoffset={offset}><title>{`${item.label} ${item.value}${item.unit || ""}，占 ${Math.round(fraction * 100)}%`}</title></circle>; })}</svg><div><b>{centerValue}</b><span>{centerLabel}</span></div></div>
+    <div className="overview-donut-legend">{items.map((item) => { const percentage = total ? Math.round((item.value / total) * 100) : 0; return <div key={item.label} title={`${item.label} ${item.value}${item.unit || ""}，占 ${percentage}%`} aria-label={`${item.label} ${item.value}${item.unit || ""}，占 ${percentage}%`}><i style={{ background: overviewChartToneColors[item.tone] || overviewChartToneColors.blue }}/><span>{item.label}</span><b>{item.value}<small>{item.unit}</small></b><em>{percentage}%</em></div>; })}</div>
+  </div>;
+}
+
+function OverviewStackedBar({ items, total, ariaLabel }) {
+  return <div className="overview-stacked-bar" role="img" aria-label={ariaLabel}>{total > 0 ? items.map((item) => item.value > 0 && <i key={item.label} aria-label={`${item.label} ${item.value}，占 ${Math.round((item.value / total) * 100)}%`} title={`${item.label} ${item.value}，占 ${Math.round((item.value / total) * 100)}%`} style={{ width: `${(item.value / total) * 100}%`, background: overviewChartToneColors[item.tone] || overviewChartToneColors.blue }}/>) : <span>暂无记录</span>}</div>;
+}
+
+function buildRegistrationTrend(accounts, days, dateKey) {
+  const end = new Date(`${dateKey}T00:00:00+08:00`);
+  const points = Array.from({ length: days }, (_, index) => {
+    const date = new Date(end);
+    date.setDate(end.getDate() - days + index + 1);
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const key = `${values.year}-${values.month}-${values.day}`;
+    return { key, label: `${Number(values.month)}/${Number(values.day)}`, value: 0 };
+  });
+  const pointMap = new Map(points.map((point) => [point.key, point]));
+  accounts.forEach((account) => {
+    const key = String(account.registeredAt || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
+    const registeredAt = new Date(`${key}T00:00:00+08:00`);
+    if (Number.isNaN(registeredAt.getTime()) || registeredAt > end) return;
+    const point = pointMap.get(key);
+    if (point) point.value += 1;
+  });
+  return points;
+}
+
+function OverviewRegistrationTrend({ points, elderlyPoints = [] }) {
+  const [hoverIndex, setHoverIndex] = useState(null);
+  const [pinnedIndex, setPinnedIndex] = useState(null);
+  const width = 520;
+  const height = 142;
+  const left = 34;
+  const right = 12;
+  const top = 12;
+  const bottom = 26;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const dataMax = Math.max(0, ...points.map((point) => point.value), ...elderlyPoints.map((point) => point.value));
+  const roughStep = Math.max(1, dataMax / 4);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalizedStep = roughStep / magnitude;
+  const tickStep = dataMax <= 4 ? 1 : (normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 : normalizedStep <= 5 ? 5 : 10) * magnitude;
+  const tickMax = dataMax <= 4 ? 4 : Math.ceil(dataMax / tickStep) * tickStep;
+  const ticks = Array.from({ length: Math.round(tickMax / tickStep) + 1 }, (_, index) => index * tickStep);
+  const toCoordinates = (series) => series.map((point, index) => ({ ...point, x: left + (series.length === 1 ? 0 : (index / (series.length - 1)) * plotWidth), y: top + plotHeight - (point.value / tickMax) * plotHeight }));
+  const coordinates = toCoordinates(points);
+  const elderlyCoordinates = toCoordinates(elderlyPoints);
+  const toPath = (series) => series.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
+  const labelIndexes = new Set([0, Math.floor((points.length - 1) / 2), points.length - 1]);
+  const activeIndex = pinnedIndex ?? hoverIndex;
+  const activePoint = activeIndex === null ? null : coordinates[activeIndex];
+  const activeElderlyPoint = activeIndex === null ? null : elderlyCoordinates[activeIndex];
+  const activatePoint = (index) => ({ onMouseEnter: () => setHoverIndex(index), onFocus: () => setHoverIndex(index), onBlur: () => setHoverIndex(null), onClick: () => setPinnedIndex((current) => current === index ? null : index), onKeyDown: (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setPinnedIndex((current) => current === index ? null : index); } if (event.key === "Escape") setPinnedIndex(null); } });
+  return <div className="overview-registration-trend" onMouseLeave={() => setHoverIndex(null)}><div className="overview-registration-chart"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`已关联子女每日注册共 ${points.reduce((sum, point) => sum + point.value, 0)} 人${elderlyPoints.length ? `，老人每日注册共 ${elderlyPoints.reduce((sum, point) => sum + point.value, 0)} 人` : ""}`}>
+    {ticks.map((tick) => { const y = top + plotHeight - (tick / tickMax) * plotHeight; return <g key={tick}><line className="overview-trend-grid" x1={left} x2={width - right} y1={y} y2={y} vectorEffect="non-scaling-stroke"/><text className="overview-trend-y-label" x={left - 9} y={y + 3}>{tick}</text></g>; })}
+    <path className="overview-trend-line" d={toPath(coordinates)}/>
+    {elderlyCoordinates.length > 0 && <path className="overview-trend-line elderly" d={toPath(elderlyCoordinates)}/>}
+    {coordinates.map((point, index) => <g key={`relative-${point.key}`}><circle className="overview-trend-point" cx={point.x} cy={point.y} r="3.5" tabIndex="0" role="button" aria-label={`${point.key}，已关联子女 ${point.value} 人${elderlyPoints[index] ? `，老人 ${elderlyPoints[index].value} 人` : ""}`} {...activatePoint(index)}><title>{`${point.key}：已关联子女 ${point.value} 人`}</title></circle>{labelIndexes.has(index) && <text className="overview-trend-x-label" x={point.x} y={height - 5} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{point.label}</text>}</g>)}
+    {elderlyCoordinates.map((point, index) => <circle key={`elderly-${point.key}`} className="overview-trend-point elderly" cx={point.x} cy={point.y} r="3.5" tabIndex="0" role="button" aria-label={`${point.key}，老人 ${point.value} 人，已关联子女 ${points[index]?.value || 0} 人`} {...activatePoint(index)}><title>{`${point.key}：老人 ${point.value} 人`}</title></circle>)}
+  </svg>{activePoint && <div className="overview-registration-tooltip" role="status" style={{ left: `${(activePoint.x / width) * 100}%`, top: `${Math.max(4, Math.min(height - 72, Math.min(activePoint.y, activeElderlyPoint?.y ?? activePoint.y) - 48))}px`, transform: activeIndex === 0 ? "none" : activeIndex === points.length - 1 ? "translateX(-100%)" : "translateX(-50%)" }}><b>{activePoint.key}</b>{activeElderlyPoint && <span><i className="elderly"/>老人 <strong>{activeElderlyPoint.value} 人</strong></span>}<span><i className="relative"/>已关联子女 <strong>{activePoint.value} 人</strong></span></div>}</div><div className="overview-registration-legend">{elderlyPoints.length > 0 && <span className="elderly"><i/>老人新增注册</span>}<span className="relative"><i/>已关联子女新增注册</span></div></div>;
+}
+
+function buildOverviewDemoData(dateKey, communityName) {
+  const base = new Date(`${dateKey}T12:00:00+08:00`);
+  const dateAt = (offset, time = "09:00") => {
+    const value = new Date(base);
+    value.setDate(value.getDate() - offset);
+    const key = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+    return `${key} ${time}`;
+  };
+  const elderlyDailyCounts = [4, 7, 3, 0, 9, 6, 12, 8, 5, 14, 10, 7, 16, 11, 6, 13, 9, 15, 8, 12, 17, 10, 14, 7, 18, 11, 15, 9, 13, 16];
+  const relativeDailyCounts = [6, 4, 8, 3, 0, 11, 7, 13, 9, 5, 15, 8, 12, 6, 14, 10, 16, 7, 11, 17, 9, 13, 6, 18, 12, 8, 15, 10, 14, 17];
+  const seedNames = ["陈美玲", "王德昌", "林秀英", "李玉珍", "黄国强", "周阿顺", "张秀兰", "吴国安"];
+  const demoContactProfiles = [
+    { phone: "+65 8603 2918", emergencyContacts: [{ id: "DEMO-EC-1", name: "陈丽华", relation: "女儿", phone: "+65 9123 1842" }] },
+    { phone: "+65 8221 4706", emergencyContacts: [{ id: "DEMO-EC-2", name: "王信昌", relation: "儿子", phone: "+65 9340 2281" }] },
+    { phone: "", emergencyContacts: [] },
+    { phone: "+65 8772 6405", emergencyContacts: [{ id: "DEMO-EC-4", name: "李慧敏", relation: "女儿", phone: "+65 9018 3726" }] },
+  ];
+  let elderlySequence = 0;
+  const records = elderlyDailyCounts.flatMap((count, dayIndex) => Array.from({ length: count }, (_, itemIndex) => {
+    const index = elderlySequence++;
+    return { id: `DEMO-E-${String(index + 1).padStart(4, "0")}`, name: seedNames[index] || `老人${String(index + 1).padStart(3, "0")}`, registeredAt: dateAt(29 - dayIndex, `${String(8 + (itemIndex % 10)).padStart(2, "0")}:${String((itemIndex * 7) % 60).padStart(2, "0")}`), community: communityName, rooms: ["客厅", "卧室"], ...(demoContactProfiles[index] || {}) };
+  }));
+  let relativeSequence = 0;
+  const relativeAccounts = relativeDailyCounts.flatMap((count, dayIndex) => Array.from({ length: count }, (_, itemIndex) => {
+    const index = relativeSequence++;
+    return { id: `DEMO-R-${String(index + 1).padStart(4, "0")}`, name: `家属${String(index + 1).padStart(3, "0")}`, registeredAt: dateAt(29 - dayIndex, `${String(8 + (itemIndex % 10)).padStart(2, "0")}:${String((itemIndex * 11) % 60).padStart(2, "0")}`), status: "正常", links: [{ elderlyId: records[index % records.length].id, relation: index % 3 === 0 ? "儿子" : "女儿" }] };
+  }));
+  const familyRelations = relativeAccounts.map((account, index) => ({ id: `DEMO-F-${index + 1}`, accountId: account.id, elderlyId: account.links[0].elderlyId, name: account.name, relation: account.links[0].relation, status: "正常", boundAt: dateAt(Math.max(1, 20 - index)) }));
+  const tablets = records.slice(0, 24).map((record, index) => ({ id: `DEMO-T-${index + 1}`, boundElderlyId: record.id, bindingStatus: "已绑定", onlineStatus: index % 6 !== 0 ? "在线" : "离线" }));
+  const sensors = records.slice(0, 20).flatMap((record, index) => [0, 1].map((roomIndex) => ({ id: `DEMO-S-${index + 1}-${roomIndex + 1}`, elderlyId: record.id, installStatus: "已安装", onlineStatus: (index + roomIndex) % 9 === 0 ? "离线" : "在线", room: roomIndex ? "卧室" : "客厅" })));
+  const serviceRecords = [
+    ["contact", "pending"], ["contact", "handling"], ["contact", "handled"], ["contact", "expired"],
+    ["family", "pending"], ["family", "handling"], ["family", "handled"], ["family", "cancelled"],
+  ].map(([type, status], index) => ({ id: `DEMO-SVC-${index + 1}`, status, requestedAt: new Date(base.getTime() - index * 3600000).toISOString(), ...(type === "family" ? { familyHelpRequestedAt: new Date(base.getTime() - index * 3600000).toISOString(), workflowStage: status === "handled" ? "family_help_handled" : status === "handling" ? "family_help_handling" : "family_help_pending", resultSummary: status === "pending" ? "等待家人处理" : "演示处理记录" } : { contactStartedAt: new Date(base.getTime() - index * 3600000).toISOString(), workflowStage: "contact_pending_confirmation" }) }));
+  const activities = [
+    { id: "DEMO-A-1", title: "晨间舒展课堂", startAt: `${dateKey}T09:00`, endAt: `${dateKey}T10:00`, location: "社区活动室", status: "报名中" },
+    { id: "DEMO-A-2", title: "健康饮食分享", startAt: `${dateKey}T14:00`, endAt: `${dateKey}T15:30`, location: "二楼多功能厅", status: "已发布" },
+    { id: "DEMO-A-3", title: "傍晚邻里茶话会", startAt: `${dateKey}T17:30`, endAt: `${dateKey}T18:30`, location: "空中花园", status: "已发布" },
+  ];
+  return { records, relativeAccounts, familyRelations, tablets, sensors, serviceRecords, activities };
+}
+
+function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, resetSignal, scope, records: sourceRecords, relativeAccounts: sourceRelativeAccounts, familyRelations: sourceFamilyRelations, tablets: sourceTablets, sensors: sourceSensors, reminders, activities: sourceActivities, serviceRecords: sourceServiceRecords }) {
+  const [updatedAt, setUpdatedAt] = useState(() => getSingaporeNowParts().dateTime);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState("");
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [showAllAttention, setShowAllAttention] = useState(false);
+  const [showResolvedAttention, setShowResolvedAttention] = useState(false);
   const [selectedAttention, setSelectedAttention] = useState(null);
-  const [resolvedAttentionIds, setResolvedAttentionIds] = useState(() => {
-    try { return JSON.parse(window.localStorage.getItem("u2g-overview-resolved-attention-v1") || "[]"); } catch { return []; }
-  });
-  const [attentionNotice, setAttentionNotice] = useState("");
+  const [demoAttentionState, setDemoAttentionState] = useState({});
+  const [attentionState, setAttentionState] = useState({});
+  const [registrationPeriod, setRegistrationPeriod] = useState(7);
   const overviewLifecycleKey = useRef(`${resetSignal}:${scenario}`);
   useEffect(() => {
-    setUpdatedAt("2026-07-31 15:40:00");
+    setUpdatedAt(getSingaporeNowParts().dateTime);
     setRefreshing(false);
     setRefreshNotice("");
     setQuickActionsOpen(false);
+    setShowAllAttention(false);
+    setShowResolvedAttention(false);
     setSelectedAttention(null);
-    setAttentionNotice("");
+    setDemoAttentionState({});
+    setAttentionState({});
     const nextLifecycleKey = `${resetSignal}:${scenario}`;
     if (overviewLifecycleKey.current !== nextLifecycleKey) {
       overviewLifecycleKey.current = nextLifecycleKey;
-      setResolvedAttentionIds([]);
-      window.localStorage.removeItem("u2g-overview-resolved-attention-v1");
     }
   }, [resetSignal, scenario]);
+  const singaporeNow = getSingaporeNowParts();
+  const isDemo = scenario === "demo";
+  const demoData = useMemo(() => buildOverviewDemoData(singaporeNow.dateKey, scope.name), [singaporeNow.dateKey, scope.name]);
+  const records = isDemo ? demoData.records : sourceRecords;
+  const relativeAccounts = isDemo ? demoData.relativeAccounts : sourceRelativeAccounts;
+  const familyRelations = isDemo ? demoData.familyRelations : sourceFamilyRelations;
+  const tablets = isDemo ? demoData.tablets : sourceTablets;
+  const sensors = isDemo ? demoData.sensors : sourceSensors;
+  const activities = isDemo ? demoData.activities : sourceActivities;
+  const serviceRecords = isDemo ? demoData.serviceRecords : sourceServiceRecords;
+  const currentMonthKey = singaporeNow.dateKey.slice(0, 7);
+  const currentElderlyIds = new Set(records.map((record) => record.id));
+  const childAccounts = [...new Map(relativeAccounts.filter((account) => account.links.some((link) => currentElderlyIds.has(link.elderlyId) && ["儿子", "女儿"].includes(link.relation))).map((account) => [account.id, account])).values()];
+  const periodEnd = new Date(`${singaporeNow.dateKey}T23:59:59+08:00`);
+  const currentMonthStart = new Date(`${currentMonthKey}-01T00:00:00+08:00`);
+  const parseRegisteredAt = (registeredAt) => registeredAt ? new Date(String(registeredAt).replace(" ", "T") + "+08:00") : null;
+  const currentMonthRelativeRegistrations = childAccounts.filter((account) => {
+    const registeredAt = parseRegisteredAt(account.registeredAt);
+    return registeredAt && !Number.isNaN(registeredAt.getTime()) && registeredAt >= currentMonthStart && registeredAt <= periodEnd;
+  }).length;
+  const currentMonthElderlyRegistrations = records.filter((record) => {
+    const registeredAt = parseRegisteredAt(record.registeredAt);
+    return registeredAt && !Number.isNaN(registeredAt.getTime()) && registeredAt >= currentMonthStart && registeredAt <= periodEnd;
+  }).length;
+  const activeFamilyRelations = familyRelations.filter((relation) => relation.status === "正常");
+  const boundElderlyCountByFamily = new Set(activeFamilyRelations.map((relation) => relation.elderlyId)).size;
+  const familyCoverageRate = records.length ? (boundElderlyCountByFamily === records.length ? "100" : String(Math.floor((boundElderlyCountByFamily / records.length) * 1000) / 10)) : "0";
+  const periodStart = new Date(`${singaporeNow.dateKey}T00:00:00+08:00`);
+  periodStart.setDate(periodStart.getDate() - registrationPeriod + 1);
+  const recentRelativeRegistrations = childAccounts.filter((account) => {
+    const registeredAt = parseRegisteredAt(account.registeredAt);
+    return registeredAt && !Number.isNaN(registeredAt.getTime()) && registeredAt >= periodStart && registeredAt <= periodEnd;
+  }).length;
+  const registrationTrendPoints = buildRegistrationTrend(childAccounts, registrationPeriod, singaporeNow.dateKey);
+  const elderlyRegistrationTrendPoints = isDemo ? buildRegistrationTrend(records, registrationPeriod, singaporeNow.dateKey) : [];
   const scopedNames = new Set(records.map((record) => record.name));
-  const scopedAttentionItems = [...overviewAttentionMock.filter((item) => scopedNames.has(item.elderly)), ...buildInactivityTodoItems(records)]
+  const demoAttentionItems = [
+    { id: "DEMO-ATT-1", elderlyId: records[0]?.id, projectId: "DEMO-PROJECT", sourceRecordId: "DEMO-EM-1", type: "在线协助", elderly: records[0]?.name, description: "在线协助正在处理中", source: "在线协助", generatedAt: `${singaporeNow.dateKey} 10:20`, status: "处理中", handler: "赵亚男", callStatus: "呼叫已接通，社区人员已介入", notificationStatus: "家属通知已送达" },
+    { id: "DEMO-ATT-2", elderlyId: records[1]?.id, projectId: "DEMO-PROJECT", sourceRecordId: "DEMO-INACTIVE-1", type: "无活动", elderly: records[1]?.name, description: "连续 3 小时无活动", clue: "最后活动：卧室 · 07:05", source: "无活动提醒", generatedAt: `${singaporeNow.dateKey} 10:05`, status: "待处理", inactiveHours: 3, lastActivityRoom: "卧室", lastActivityAt: `${singaporeNow.dateKey} 07:05`, matchedRule: "连续 3 小时无活动" },
+    { id: "DEMO-ATT-3", elderlyId: records[2]?.id, projectId: "DEMO-PROJECT", sourceRecordId: "DEMO-SENSOR-1", type: "房间传感器离线", elderly: records[2]?.name, description: "客厅活动感知器离线", source: "房间活动传感器", generatedAt: `${singaporeNow.dateKey} 09:42`, status: "待处理", deviceName: "客厅活动感知器", deviceCode: "SN-A20-88935", validationStatus: "已离线 28 分钟" },
+    { id: "DEMO-ATT-4", elderlyId: records[3]?.id, projectId: "DEMO-PROJECT", sourceRecordId: "DEMO-INACTIVE-2", type: "无活动", elderly: records[3]?.name, description: "连续 4 小时无活动", clue: "最后活动：客厅 · 05:30", source: "无活动提醒", generatedAt: `${singaporeNow.dateKey} 09:30`, status: "待处理", inactiveHours: 4, lastActivityRoom: "客厅", lastActivityAt: `${singaporeNow.dateKey} 05:30`, matchedRule: "连续 4 小时无活动" },
+  ].map((item) => ({ ...item, ...(demoAttentionState[item.id] || {}) }));
+  const scopedRecordIds = new Set(records.map((record) => record.id));
+  const sourceAttentionItems = isDemo ? demoAttentionItems : [...overviewAttentionMock.filter((item) => scopedRecordIds.has(item.elderlyId)), ...buildInactivityTodoItems(records, sensors)].map((item) => ({ ...item, ...(attentionState[item.id] || {}) }));
+  const resolvedAttentionItems = sourceAttentionItems.filter((item) => item.resolvedAt).sort((a, b) => b.resolvedAt.localeCompare(a.resolvedAt));
+  const scopedAttentionItems = sourceAttentionItems.filter((item) => !item.resolvedAt)
     .filter((item) => item.type !== "通知失败")
-    .filter((item) => !resolvedAttentionIds.includes(item.id))
     .sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
   const availableAttentionItems = scenario === "partial" ? scopedAttentionItems.filter((item) => item.source !== "提醒事项") : scopedAttentionItems;
-  const attentionItems = scenario === "noAttention" ? [] : availableAttentionItems.slice(0, 6);
+  const attentionItems = showResolvedAttention ? resolvedAttentionItems : scenario === "noAttention" ? [] : showAllAttention ? availableAttentionItems : availableAttentionItems.slice(0, 6);
   const validDevices = [...tablets.filter((device) => device.boundElderlyId), ...sensors.filter((device) => device.installStatus === "已安装" && device.onlineStatus !== "停用")];
   const onlineDevices = validDevices.filter((device) => device.onlineStatus === "在线").length;
-  const dueOccurrences = reminders.flatMap((reminder) => reminder.occurrences || []).filter((item) => item.status !== "未到时间");
-  const completedOccurrences = dueOccurrences.filter((item) => item.status === "已完成").length;
+  const recordIds = new Set(records.map((record) => record.id));
+  const boundElderlyCount = new Set(tablets.filter((device) => device.boundElderlyId && recordIds.has(device.boundElderlyId)).map((device) => device.boundElderlyId)).size;
+  const activeTablets = tablets.filter((device) => device.boundElderlyId);
+  const activeSensors = sensors.filter((device) => device.installStatus === "已安装" && device.onlineStatus !== "停用");
+  const deviceGroups = [
+    { label: "已绑定平板", items: [{ label: "在线", value: activeTablets.filter((device) => device.onlineStatus === "在线").length, tone: "green" }, { label: "离线", value: activeTablets.filter((device) => device.onlineStatus !== "在线").length, tone: "amber" }] },
+    { label: "房间感知器", items: [{ label: "在线", value: activeSensors.filter((device) => device.onlineStatus === "在线").length, tone: "green" }, { label: "离线", value: activeSensors.filter((device) => device.onlineStatus !== "在线").length, tone: "amber" }] },
+  ];
+  const serviceStatuses = ["待处理", "处理中", "已处理", "已失效"];
+  const serviceTypeStatusGroups = ["联系动态", "请家人帮忙"].map((type) => ({ label: type, items: serviceStatuses.map((status, index) => ({ label: status, value: serviceRecords.filter((record) => getServiceAssistanceRecordType(record) === type && getServiceAssistanceStatus(record) === status).length, tone: ["amber", "blue", "indigo", "slate"][index] })) }));
+  const todayActivities = activities.filter((activity) => activity.startAt?.slice(0, 10) <= singaporeNow.dateKey && activity.endAt?.slice(0, 10) >= singaporeNow.dateKey && activity.status !== "已下架").sort((a, b) => a.startAt.localeCompare(b.startAt));
   const metrics = [
-    { label: "社区老人", value: String(records.length), unit: "位", hint: "当前社区老人档案数", icon: Users },
-    { label: "待处理事项", value: String(scopedAttentionItems.length), unit: "条", hint: "按尚未完成的待办统计，不按老人去重", icon: ClipboardList },
-    { label: "设备在线率", value: validDevices.length ? ((onlineDevices / validDevices.length) * 100).toFixed(1) : "—", unit: validDevices.length ? "%" : "", hint: validDevices.length ? `${onlineDevices} 台在线 ÷ ${validDevices.length} 台应在线有效设备` : "当前社区暂无应在线有效设备", icon: MonitorSmartphone },
-    { label: "今日提醒完成率", value: dueOccurrences.length ? ((completedOccurrences / dueOccurrences.length) * 100).toFixed(1) : "—", unit: dueOccurrences.length ? "%" : "", hint: dueOccurrences.length ? `${completedOccurrences} 条已完成 ÷ ${dueOccurrences.length} 条已到执行时间` : "今日暂无已到执行时间提醒", icon: Bell },
+    { label: "老人注册", value: isDemo ? String(records.length) : "—", unit: isDemo ? "人" : "", hint: isDemo ? "演示老人账号均包含独立 registeredAt；仅用于验收预览" : "老人档案暂无账号注册时间字段，不以档案数量代替注册数量", icon: Users },
+    { label: "已关联子女账号", value: String(childAccounts.length), unit: "人", hint: "按与当前社区老人存在儿子或女儿关系的注册账号 ID 去重；未关联子女账号缺少社区归属，无法纳入", icon: HeartHandshake },
+    { label: "本月新增老人", value: isDemo ? String(currentMonthElderlyRegistrations) : "—", unit: isDemo ? "人" : "", hint: isDemo ? "按演示老人账号 registeredAt 与项目当地月份统计" : "老人档案暂无账号注册时间字段，无法统计本月新增注册", icon: UserPlus },
+    { label: "本月新增已关联子女", value: String(currentMonthRelativeRegistrations), unit: "人", hint: "按已关联儿子或女儿账号的 registeredAt 与项目当地月份统计，不代表未关联子女全量", icon: UserPlus },
   ];
   const quickActions = [
     { key: "elderly", label: "新增老人", icon: Users, allowed: quickPermissions.elderly },
@@ -1502,18 +1618,14 @@ function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, reset
         setRefreshNotice("刷新未全部成功，已保留上次成功数据与更新时间");
         return;
       }
-      setUpdatedAt("2026-07-31 15:45:00");
+      setUpdatedAt(getSingaporeNowParts().dateTime);
       setRefreshNotice("数据已刷新");
     }, 500);
   };
-  const resolveAttention = (item, message) => {
-    setResolvedAttentionIds((ids) => {
-      const nextIds = ids.includes(item.id) ? ids : [...ids, item.id];
-      window.localStorage.setItem("u2g-overview-resolved-attention-v1", JSON.stringify(nextIds));
-      return nextIds;
-    });
+  const openAttentionSource = (item) => {
     setSelectedAttention(null);
-    setAttentionNotice(`${item.elderly}的待办已更新：${message}`);
+    if (item.source === "在线协助") onNavigate({ page: "emergencyHelp", filter: `${item.elderly} · 在线协助` });
+    else onNavigate({ page: "elderlyDataDashboard", filter: `${item.elderly} · ${item.type}` });
   };
 
   if (scenario === "noProject") {
@@ -1537,9 +1649,7 @@ function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, reset
         <div>
           <h1>运营概览</h1>
           <div className="overview-time-meta">
-            <span>项目当地日期：2026年7月31日 · 星期五</span>
-            <span>IANA 时区：Asia/Singapore (UTC+8)</span>
-            <span>最近更新：{scenario === "stale" ? "2026-07-30 09:10:00" : updatedAt}</span>
+            <span>最近更新：{scenario === "stale" ? "数据已过旧" : updatedAt}</span>
           </div>
         </div>
         <div className="overview-heading-actions">
@@ -1553,21 +1663,30 @@ function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, reset
 
       {scenario === "partial" && <div className="overview-state-banner warning"><AlertTriangle size={17}/><div><b>部分来源失败</b><span>提醒事项来源暂不可用，失败数据以“—”展示；其他正常模块继续显示。</span></div></div>}
       {scenario === "allFailed" && <div className="overview-state-banner danger"><AlertTriangle size={17}/><div><b>全部来源失败</b><span>当前无法获取运营数据，页面未将失败结果显示为 0，请稍后刷新重试。</span></div></div>}
-      {scenario === "stale" && <div className="overview-state-banner warning"><FileClock size={17}/><div><b>数据过旧</b><span>数据最后更新于 2026-07-30 09:10:00，请刷新后再用于运营判断。</span></div></div>}
+      {scenario === "stale" && <div className="overview-state-banner warning"><FileClock size={17}/><div><b>数据过旧</b><span>当前数据已超过有效更新时间，请刷新后再用于运营判断。</span></div></div>}
       {refreshNotice && <div className="overview-refresh-notice">{refreshNotice}</div>}
 
       <div className="metric-grid">
         {metrics.map(({ label, value, unit, hint, icon: Icon }) => (
           <div className="metric-card" key={label}>
             <div className="metric-icon"><Icon size={20} /></div>
-            <div className="metric-card-copy"><div className="admin-metric-heading"><span>{label}</span><MetricHelp label={`${label}指标说明`} content={hint}/></div><strong>{value}{unit && <em>{unit}</em>}</strong></div>
+            <div className="metric-card-copy"><div className="admin-metric-heading"><span>{label}</span><MetricHelp label={`${label}指标说明`} content={hint}/></div><strong>{scenario === "allFailed" ? "—" : value}{scenario !== "allFailed" && unit && <em>{unit}</em>}</strong></div>
           </div>
         ))}
       </div>
 
+      {scenario === "allFailed" ? <div className="overview-module-failed overview-statistics-failed"><AlertTriangle size={20}/><div><b>运营统计获取失败</b><span>本次未将失败结果统计为 0，请刷新后重试。</span></div></div> : <>
+        <div className="overview-chart-grid">
+          <section className="panel overview-chart-card overview-registration-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>注册增长</h3><MetricHelp label="注册增长口径" content={isDemo ? "演示老人和子女账号均使用独立稳定 ID 与 registeredAt；两组趋势按同一日期序列聚合，近 7 天为近 30 天尾部同源子集" : "老人档案缺少注册时间，不绘制老人趋势；子女仅统计已关联当前社区老人且关系为儿子或女儿的账号，不代表未关联子女全量"}/></div><div className="overview-period-toggle"><button className={registrationPeriod === 7 ? "active" : ""} onClick={() => setRegistrationPeriod(7)}>近 7 天</button><button className={registrationPeriod === 30 ? "active" : ""} onClick={() => setRegistrationPeriod(30)}>近 30 天</button></div></div><div className="overview-registration-summary"><span>老人注册 <b>{isDemo ? `${records.length} 人` : "—"}</b><small>{isDemo ? `本月新增 ${currentMonthElderlyRegistrations} 人` : "暂无注册时间数据"}</small></span><span>已关联子女新增 <b>{recentRelativeRegistrations} 人</b></span></div><OverviewRegistrationTrend points={registrationTrendPoints} elderlyPoints={elderlyRegistrationTrendPoints}/></section>
+          <section className="panel overview-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>家庭绑定</h3><MetricHelp label="家庭绑定口径" content="按当前社区有效家庭关系统计；绑定时间不作为账号注册时间"/></div><strong className="overview-chart-kpi">{activeFamilyRelations.length}<small>条有效关系</small></strong></div>{records.length ? <OverviewDonut ariaLabel="老人家庭绑定覆盖" centerValue={`${familyCoverageRate}%`} centerLabel={`${boundElderlyCountByFamily} / ${records.length} 位老人`} items={[{ label: "已有家人绑定", value: boundElderlyCountByFamily, unit: "位", tone: "blue" }, { label: "尚无家人绑定", value: Math.max(0, records.length - boundElderlyCountByFamily), unit: "位", tone: "pale" }]}/> : <div className="overview-chart-empty"><span>—</span><b>暂无老人档案</b></div>}</section>
+          <section className="panel overview-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>设备运行</h3><MetricHelp label="设备运行口径" content="统计已绑定平板与已安装未停用感知器；平板与感知器各用自身设备总数作为分母，停用设备不进入分母"/></div><strong className="overview-chart-kpi">{validDevices.length ? `${Math.round((onlineDevices / validDevices.length) * 100)}%` : "—"}<small>在线率</small></strong></div>{validDevices.length ? <><div className="overview-status-rows overview-device-status">{deviceGroups.map((group) => { const total = group.items.reduce((sum, item) => sum + item.value, 0); return <div key={group.label}><span>{group.label}</span><OverviewStackedBar items={group.items} total={total} ariaLabel={`${group.label}在线离线分布`}/><b>{group.items[0].value} / {total}<small>台</small></b></div>; })}</div><div className="overview-shared-legend"><span><i style={{ background: overviewChartToneColors.green }}/>在线<b>{onlineDevices}</b></span><span><i style={{ background: overviewChartToneColors.amber }}/>离线<b>{validDevices.length - onlineDevices}</b></span></div></> : <div className="overview-chart-empty"><span>—</span><b>暂无应在线有效设备</b></div>}</section>
+          <section className="panel overview-chart-card service-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>服务处理</h3><MetricHelp label="服务处理口径" content="按当前社区全部服务记录的两类四态统计；联系动态与请家人帮忙各用自身记录总数作为分母"/></div><strong className="overview-chart-kpi">{serviceRecords.length}<small>条记录</small></strong></div>{serviceRecords.length ? <><div className="overview-status-rows overview-service-stacks">{serviceTypeStatusGroups.map((group) => { const total = group.items.reduce((sum, item) => sum + item.value, 0); return <div key={group.label}><span>{group.label}</span><OverviewStackedBar items={group.items} total={total} ariaLabel={`${group.label}四态分布`}/><b>{total}<small>条</small></b></div>; })}</div><div className="overview-shared-legend">{serviceStatuses.map((status, index) => <span key={status}><i style={{ background: overviewChartToneColors[["amber", "blue", "indigo", "slate"][index]] }}/>{status}<b>{serviceRecords.filter((record) => getServiceAssistanceStatus(record) === status).length}</b></span>)}</div></> : <div className="overview-chart-empty"><span>—</span><b>暂无服务记录</b></div>}</section>
+        </div>
+      </>}
+
       <div className="overview-grid overview-attention-grid">
         <section className="panel attention-panel">
-          <div className="panel-title"><div><h3>待处理事项</h3><p>按发生时间倒序，最多显示 6 条</p></div><div className="attention-heading-actions"><span className="attention-count">{scenario === "allFailed" ? "—" : scenario === "partial" ? `已获取 ${availableAttentionItems.length} 条` : `${scenario === "noAttention" ? 0 : scopedAttentionItems.length} 条`}</span>{scenario !== "allFailed" && scenario !== "noAttention" && availableAttentionItems.length > 6 && <button className="text-button" onClick={() => onNavigate({ page: "elderlyDataDashboard", filter: `${scope.name} · 无活动待处理` })}>查看全部 <ChevronRight size={15}/></button>}</div></div>
+          <div className="panel-title"><div><h3>{showResolvedAttention ? "已结束跟进" : "待关注事项"}</h3></div><div className="attention-heading-actions"><button className="text-button" onClick={() => setShowResolvedAttention((value) => !value)}>{showResolvedAttention ? "返回待关注" : `已结束 ${resolvedAttentionItems.length}`}</button><span className="attention-count">{showResolvedAttention ? `${resolvedAttentionItems.length} 条` : scenario === "allFailed" ? "—" : scenario === "partial" ? `已获取 ${availableAttentionItems.length} 条` : `${scenario === "noAttention" ? 0 : scopedAttentionItems.length} 条`}</span>{!showResolvedAttention && scenario !== "allFailed" && scenario !== "noAttention" && availableAttentionItems.length > 6 && <button className="text-button" onClick={() => setShowAllAttention((value) => !value)}>{showAllAttention ? "收起" : "展开全部"} <ChevronRight className={showAllAttention ? "is-expanded" : ""} size={15}/></button>}</div></div>
           {scenario === "allFailed"
             ? <div className="overview-module-failed"><AlertTriangle size={20}/><div><b>关注线索获取失败</b><span>请刷新后重试。</span></div></div>
             : attentionItems.length
@@ -1580,11 +1699,14 @@ function Overview({ onNavigate, onQuickAction, quickPermissions, scenario, reset
                 <span className="attention-detail">{item.source === "无活动提醒" ? "处理" : "详情"}</span>
                 <ChevronRight size={16}/>
               </button>)}</div>
-              : <div className="overview-module-empty"><ShieldCheck size={24}/><b>暂无待处理事项</b><span>当前没有尚未结束的关注线索。</span></div>}
+              : <div className="overview-module-empty"><ShieldCheck size={24}/><b>暂无待关注事项</b><span>当前没有尚未结束的关注线索。</span></div>}
+        </section>
+        <section className="panel overview-today-activities">
+          <div className="panel-title"><div><h3>今日社区活动</h3></div><span className="attention-count">{todayActivities.length} 场</span></div>
+          {todayActivities.length ? <div className="overview-activity-list">{todayActivities.map((activity) => <button key={activity.id} className={isDemo ? "is-demo-readonly" : ""} onClick={() => { if (!isDemo) onNavigate({ page: "activities", activityId: activity.id, filter: `${activity.title} · 今日活动` }); }}><span><b>{activity.title}</b><small>{activity.startAt.slice(11, 16)}–{activity.endAt.slice(11, 16)} · {activity.location || "地点待确认"}</small></span><StatusTag>{activity.status}</StatusTag>{!isDemo && <em>查看活动 <ChevronRight size={14}/></em>}</button>)}</div> : <div className="overview-module-empty"><CalendarDays size={24}/><b>今日暂无社区活动</b><span>当前社区在项目当地日期内没有已发布活动。</span></div>}
         </section>
       </div>
-      {selectedAttention && <OverviewAttentionDrawer item={selectedAttention} onClose={() => setSelectedAttention(null)} onResolve={resolveAttention}/>}
-      {attentionNotice && <AdminToast message={attentionNotice} onClose={() => setAttentionNotice("")}/>}
+      {selectedAttention && <OverviewAttentionDrawer item={selectedAttention} contact={(() => { const elder = records.find((record) => record.id === selectedAttention.elderlyId); const emergency = getEmergencyContacts(elder || {})[0]; return { phone: elder?.phone, emergency: emergency ? `${emergency.name} · ${emergency.phone}` : "" }; })()} onClose={() => setSelectedAttention(null)} onResolve={openAttentionSource} demoMode={!selectedAttention.resolvedAt} resolved={Boolean(selectedAttention.resolvedAt)} onDemoUpdate={(id, update) => { const followUp = { id: `FOLLOW-${Date.now()}`, createdAt: getSingaporeNowParts().dateTime, operator: "赵亚男", outcome: update.outcome, note: update.note }; (isDemo ? setDemoAttentionState : setAttentionState)((current) => ({ ...current, [id]: { ...(current[id] || {}), status: update.resolve ? "已结束" : "跟进中", followUps: [...(current[id]?.followUps || []), followUp], ...(update.resolve ? { resolvedAt: followUp.createdAt, resolvedBy: "赵亚男", resolutionResult: update.note } : {}) } })); setSelectedAttention(null); }}/>}
     </>
   );
 }
@@ -1604,8 +1726,10 @@ function getEmergencyContacts(record) {
   return [];
 }
 
-function ElderlyPage({ records, tabletDevices, onOpen, onManageTablet }) {
-  const initialFilters = { query: "", packageType: "all" };
+const getElderMobileAccount = (record) => record.mobileAccount?.elderlyId === record.id ? record.mobileAccount : null;
+
+function ElderlyPage({ records, tabletDevices, projects = [], showCommunity = false, allowCreate = true, canEdit = true, canBind = true, onOpen, onManageTablet }) {
+  const initialFilters = { query: "", packageType: "all", projectId: "all" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
 
@@ -1617,14 +1741,16 @@ function ElderlyPage({ records, tabletDevices, onOpen, onManageTablet }) {
       formatSingaporeAddressText(record), ...emergencyKeywords,
     ].join(" ").toLowerCase().includes(keyword);
     const packageMatched = filters.packageType === "all" || (record.packageType || "unconfigured") === filters.packageType;
-    return keywordMatched && packageMatched;
+    const recordProjectId = record.projectId || projects.find((project) => [record.project, record.community].includes(project.name))?.id || "";
+    const projectMatched = filters.projectId === "all" || recordProjectId === filters.projectId;
+    return keywordMatched && packageMatched && projectMatched;
   }), [records, filters]);
 
   return (
     <>
       <div className="page-heading">
-        <div><h1>老人档案</h1><p>维护当前社区老人的基础资料和服务关系，进入详情页定义家庭空间并管理设备</p></div>
-        <button className="primary-button" onClick={() => onOpen("create")}><Plus size={16}/>新增老人</button>
+        <div><h1>老人档案</h1><p>{showCommunity ? "查看所有社区老人档案及所属社区" : "维护当前社区老人的基础资料和服务关系，进入详情页定义家庭空间并管理设备"}</p></div>
+        {allowCreate && <button className="primary-button" onClick={() => onOpen("create")}><Plus size={16}/>新增老人</button>}
       </div>
       <section className="panel management-panel elderly-management">
         <div className="filters elderly-filters">
@@ -1633,6 +1759,7 @@ function ElderlyPage({ records, tabletDevices, onOpen, onManageTablet }) {
             <div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters({ ...draftFilters, query: event.target.value })} placeholder="姓名、手机号或地址" /></div>
           </label>
           <label><span>套餐类型</span><select className="select-control filter-select wide" value={draftFilters.packageType} onChange={(event) => setDraftFilters({ ...draftFilters, packageType: event.target.value })}><option value="all">全部套餐类型</option>{elderlyPackageCatalog.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          {showCommunity && <label><span>所属社区</span><select className="select-control filter-select wide" value={draftFilters.projectId} onChange={(event) => setDraftFilters({ ...draftFilters, projectId: event.target.value })}><option value="all">全部社区</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>}
           <div className="filter-actions">
             <button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button>
             <button className="secondary-button" onClick={() => { setDraftFilters(initialFilters); setFilters(initialFilters); }}><RefreshCw size={15}/>重置</button>
@@ -1640,26 +1767,29 @@ function ElderlyPage({ records, tabletDevices, onOpen, onManageTablet }) {
         </div>
         <div className="table-scroll">
           <table className="elderly-table">
-            <thead><tr><th>老人信息</th><th>联系电话 / 居住地址</th><th>套餐类型</th><th>平板状态</th><th>房间活动传感器</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>老人信息</th>{showCommunity && <th>所属社区</th>}<th>联系电话 / 居住地址</th><th>移动端注册</th><th>套餐类型</th><th>平板状态</th><th>房间活动传感器</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
               {filteredRecords.map((record) => {
-                const tablet = tabletDevices.find((device) => device.boundElderlyId === record.id);
+                const tablet = tabletDevices.find((device) => device.boundElderlyId === record.id && (!record.projectId || device.projectId === record.projectId));
+                const mobileAccount = getElderMobileAccount(record);
                 return (
                   <tr key={record.id}>
                     <td><button className="elderly-name-cell" onClick={() => onOpen("view", record)}><span className="person-avatar">{record.name.slice(-1)}</span><span><b>{record.name}</b><small>{record.gender} · {record.age} 岁</small></span></button></td>
+                    {showCommunity && <td><b>{projects.find((project) => project.id === record.projectId)?.name || record.community || "未归属社区"}</b></td>}
                     <td><div className="stacked-cell"><b>{record.phone || "待补充"}</b><small><ElderlyAddress record={record}/></small></div></td>
+                    <td><div className="stacked-cell"><StatusTag>{mobileAccount ? "已注册" : "未获取"}</StatusTag><small>{mobileAccount?.registeredAt || "注册时间未获取"}</small></div></td>
                     <td><StatusTag>{getElderlyPackageLabel(record.packageType)}</StatusTag></td>
-                    <td><div className="stacked-cell">{tablet ? <TabletOnlineStatusTag>{tablet.onlineStatus}</TabletOnlineStatusTag> : <StatusTag>待绑定</StatusTag>}<small>{tablet ? `设备 ${formatDisplayId(tablet.id)}` : "尚未绑定平板"}</small></div></td>
+                    <td><div className="stacked-cell">{tablet ? <TabletOnlineStatusTag>{tablet.onlineStatus}</TabletOnlineStatusTag> : <StatusTag>待绑定</StatusTag>}{!tablet && <small>尚未绑定平板</small>}</div></td>
                     <td><StatusTag>{record.device}</StatusTag></td>
                     <td className="sticky-right elderly-actions">
                       <button className="table-action" onClick={() => onOpen("view", record)}>详情</button>
-                      <button className="table-action" onClick={() => onOpen("edit", record)}>编辑</button>
-                      {tablet && <button className="table-action" onClick={() => onManageTablet(record)}>管理绑定</button>}
+                      {canEdit && <button className="table-action" onClick={() => onOpen("edit", record)}>编辑</button>}
+                      {canBind && tablet && <button className="table-action" onClick={() => onManageTablet(record)}>管理绑定</button>}
                     </td>
                   </tr>
                 );
               })}
-              {!filteredRecords.length && <tr><td colSpan="6"><div className="empty-state"><Search size={24}/><b>未找到匹配的老人档案</b><span>请调整筛选条件后重新查询</span></div></td></tr>}
+              {!filteredRecords.length && <tr><td colSpan={showCommunity ? 8 : 7}><div className="empty-state"><Search size={24}/><b>未找到匹配的老人档案</b><span>请调整筛选条件后重新查询</span></div></td></tr>}
             </tbody>
           </table>
         </div>
@@ -1768,7 +1898,7 @@ function StatisticsEmptyState({ type, scenario, scope = "elderly" }) {
   return <div className="statistics-empty-state"><span>{offline ? <AlertTriangle size={24}/> : type === "activity" ? <Activity size={24}/> : <MonitorSmartphone size={24}/>}</span><h4>{offline ? "设备离线，当前数据不足" : "当前周期暂无统计数据"}</h4><p>{offline ? (type === "activity" ? "房间活动传感器恢复在线并持续上报后，将重新生成老人维度统计。" : "老人平板恢复在线并产生操作记录后，将重新生成屏幕使用统计。") : emptyCopy}</p></div>;
 }
 
-function CommunityElderlyUsageOverview({ communityName, records, tablets, sensors, view, onViewChange, onOpenElderly, inactivityRule, onOpenInactivityPolicies }) {
+function CommunityElderlyUsageOverview({ communityName, records, tablets, sensors, view, onViewChange, onOpenElderly, inactivityRule }) {
   const { type, period, scenario } = view;
   const inactivityRecordsRef = useRef(null);
   const setView = (patch) => onViewChange((current) => ({ ...current, ...patch }));
@@ -1839,11 +1969,11 @@ function CommunityElderlyUsageOverview({ communityName, records, tablets, sensor
       <div className="statistics-type-tabs" role="tablist" aria-label="社区老人使用统计类型"><button className={type === "activity" ? "active" : ""} onClick={() => setView({ type: "activity" })}><Activity size={15}/>活动情况</button><button className={type === "screen" ? "active" : ""} onClick={() => setView({ type: "screen" })}><MonitorSmartphone size={15}/>屏幕使用</button></div>
       <div className="statistics-toolbar-controls"><div className="statistics-period-tabs" role="tablist" aria-label="统计周期">{elderlyStatisticsPeriods.map((item) => <button className={period === item.value ? "active" : ""} key={item.value} onClick={() => setView({ period: item.value })}>{item.label}</button>)}</div><label className="statistics-scenario-select"><span>数据状态</span><select value={scenario} onChange={(event) => setView({ scenario: event.target.value })}><option value="normal">常规</option><option value="empty">无数据</option><option value="offline">设备离线</option></select></label></div>
     </div>
-    {type === "activity" && <div className="community-inactivity-toolbar"><div><b>无活动告警摘要</b><span>{inactivityRule?.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动 · ${inactivityRule.startTime}–${inactivityRule.endTime} · 当前社区` : "策略已停用"}</span></div><div><button className="secondary-button" onClick={onOpenInactivityPolicies}><SlidersHorizontal size={15}/>查看告警策略</button><button className="text-button" onClick={() => inactivityRecordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>查看记录 <ChevronRight size={15}/></button></div></div>}
+    {type === "activity" && <div className="community-inactivity-toolbar"><div><b>无活动告警摘要</b><span>{inactivityRule?.enabled ? `连续 ${inactivityRule.thresholdHours} 小时无活动 · ${inactivityRule.startTime}–${inactivityRule.endTime} · 当前社区` : "策略已停用"}</span></div><div><span className="toolbar-hint">规则由平台管理端配置</span><button className="text-button" onClick={() => inactivityRecordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>查看记录 <ChevronRight size={15}/></button></div></div>}
     <div className="statistics-context"><div><b>{type === "activity" ? "活动情况" : "屏幕使用"}</b><span>{periodLabel} · 仅当前社区</span></div><StatusTag>{scenario === "normal" ? "数据正常" : scenario === "empty" ? "无数据" : "数据不足"}</StatusTag></div>
     <StatisticsMetricGrid items={type === "screen" ? screenMetrics : activityMetrics} muted={!isNormal}/>
     {isNormal ? <div className="statistics-grid two-columns">{type === "screen" ? <><StatisticsTrendChart title="社区屏幕使用趋势" description={`${periodLabel}有效操作会话分布`} values={screenData.trend} labels={screenData.labels} tone="violet"/><StatisticsDistribution title="功能使用分布" description="按有效操作次数汇总" items={featureDistribution} tone="violet"/></> : <><StatisticsTrendChart title="社区活动趋势" description={`${periodLabel}检测到活动的次数变化`} values={activityData.trend} labels={activityData.labels}/><StatisticsDistribution title="房间分布" description="各房间检测到活动的占比" items={roomDistribution} tone="teal"/></>}</div> : <StatisticsEmptyState type={type} scenario={scenario} scope="community"/>}
-    {type === "activity" && <section ref={inactivityRecordsRef} className="statistics-records community-inactivity-records"><div className="statistics-card-heading"><div><h4>无活动记录</h4><p>每位老人独立记录，设备离线不计为无活动</p></div><span className="result-count">共 {buildInactivityTodoItems(records).length} 条</span></div><div className="inactivity-record-list">{buildInactivityTodoItems(records).map((item) => <button key={item.id} onClick={() => onOpenElderly(records.find((record) => record.name === item.elderly) || records[0])}><span><b>{item.elderly} · {item.description}</b><small>{item.clue} · {item.status}</small></span><em>查看统计 <ChevronRight size={14}/></em></button>)}</div></section>}
+    {type === "activity" && <section ref={inactivityRecordsRef} className="statistics-records community-inactivity-records"><div className="statistics-card-heading"><div><h4>无活动记录</h4><p>每位老人独立记录，设备离线不计为无活动</p></div><span className="result-count">共 {buildInactivityTodoItems(records, sensors).length} 条</span></div><div className="inactivity-record-list">{buildInactivityTodoItems(records, sensors).map((item) => <button key={item.id} onClick={() => onOpenElderly(records.find((record) => record.name === item.elderly) || records[0])}><span><b>{item.elderly} · {item.description}</b><small>{item.clue} · {item.status}</small></span><em>查看统计 <ChevronRight size={14}/></em></button>)}</div></section>}
     <section className="statistics-records community-usage-attention"><div className="statistics-card-heading"><div><h4>关注老人</h4><p>{type === "screen" ? "低频使用、无记录或设备数据不足" : "低活动、无数据或传感器离线"}；点击老人查看单人统计</p></div><span className="result-count">共 {attentionRows.length} 位</span></div>
       <div className="statistics-record-table community-usage-table"><div className="statistics-record-head"><span>老人</span><span>当前状态</span><span>数据摘要</span><span>最近记录</span><span>操作</span></div>{attentionRows.map((item) => { const status = item.status; const summary = type === "screen" ? (item.lowUsage ? "本周期使用频率偏低" : status === "无记录" ? "设备在线但无有效操作" : "平板离线或未完成激活") : status === "低活动" ? "活动次数低于社区关注阈值" : status === "无数据" ? "未安装传感器或无有效上报" : "传感器离线，不判断无活动"; return <div key={item.record.id}><button className="name-link" onClick={() => onOpenElderly(item.record)}>{item.record.name}</button><StatusTag>{item.lowUsage ? "低频使用" : status}</StatusTag><span>{summary}</span><span>{type === "screen" ? item.lastActive : item.lastActivity}</span><button className="table-action" onClick={() => onOpenElderly(item.record)}>查看统计</button></div>; })}{!attentionRows.length && <div className="community-usage-no-attention"><ShieldCheck size={18}/><span>当前周期没有需要关注的老人</span></div>}</div>
     </section>
@@ -1855,7 +1985,7 @@ function ElderlyDataDashboardPage(props) {
   return <><div className="page-heading"><div><h1>老人使用分析</h1><p>查看当前社区老人活动情况、屏幕使用、设备数据与趋势分析</p></div></div><CommunityElderlyUsageOverview {...props}/></>;
 }
 
-const buildDeviceAlertPolicyRows = ({ inactivityRule }) => [{
+const buildDeviceAlertPolicyRows = ({ inactivityRule, offlineRule }) => [{
   id: "room-activity-sensor:inactivity",
   deviceTypeId: "room-activity-sensor",
   deviceType: "房间活动传感器",
@@ -1867,20 +1997,32 @@ const buildDeviceAlertPolicyRows = ({ inactivityRule }) => [{
   resultName: "后台待关注",
   resultDescription: "不触发平板、电话或联系人通知",
   enabled: inactivityRule.enabled,
+}, {
+  id: "all-devices:offline",
+  deviceTypeId: "all-devices",
+  deviceType: "已安装并绑定设备",
+  eventId: "offline",
+  eventName: "设备离线",
+  eventDescription: "连续未收到可靠上报",
+  condition: offlineRule.enabled ? `连续 ${offlineRule.thresholdValue} ${offlineRule.thresholdUnit}未上报` : "已停用（未配置阈值）",
+  monitoringPeriod: "全天",
+  resultName: "后台设备告警",
+  resultDescription: "不自动电话或通知联系人",
+  enabled: offlineRule.enabled,
 }];
 
-function DeviceAlertPoliciesPage({ communityName, policies, onEdit }) {
+function DeviceAlertPoliciesPage({ communities, communityId, policies, appliedDeviceCount, canEdit, onCommunityChange, onEdit }) {
   const policyRows = useMemo(() => Array.from(new Map(policies.map((policy) => [`${policy.deviceTypeId}:${policy.eventId}`, policy])).values()), [policies]);
   const deviceTypes = useMemo(() => [...new Set(policyRows.map((policy) => policy.deviceType))], [policyRows]);
   return <>
-    <div className="page-heading"><div><h1>设备告警策略</h1><p>{communityName} · 按设备类型和事件维护当前社区已有的告警判断规则</p></div></div>
+    <div className="page-heading"><div><h1>设备告警策略</h1><p>由平台按社区配置设备数据判断规则，社区运营端仅查看业务关注结果</p></div><label className="top-context-select"><span>配置社区</span><select value={communityId} onChange={(event) => onCommunityChange(event.target.value)}>{communities.map((community) => <option key={community.id} value={community.id}>{community.name}</option>)}</select></label></div>
     <div className="platform-metric-grid device-alert-policy-metrics" aria-label="设备告警策略概览">
-      <div className="platform-metric-card"><div className="admin-metric-heading"><span>设备类型</span><MetricHelp label="设备类型指标说明" content="仅统计当前社区已有策略的设备类型"/></div><b>{deviceTypes.length}<small> 类</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>策略应用设备数</span><MetricHelp label="策略应用设备数说明" content="统计当前社区已启用且已完成配置的策略所覆盖的有效设备，并按设备 ID 去重；同一设备命中多条策略只计 1 台。"/></div><b>{appliedDeviceCount}<small> 台</small></b></div>
       <div className="platform-metric-card"><div className="admin-metric-heading"><span>已有策略</span><MetricHelp label="已有策略指标说明" content="按设备类型和事件去重后的当前社区策略数量"/></div><b>{policyRows.length}<small> 条</small></b></div>
       <div className="platform-metric-card"><div className="admin-metric-heading"><span>已启用</span><MetricHelp label="已启用指标说明" content="当前社区正在生效的策略数量"/></div><b>{policyRows.filter((policy) => policy.enabled).length}<small> 条</small></b></div>
     </div>
     <section className="panel device-alert-policy-panel">
-      <div className="table-scroll"><table className="device-alert-policy-table"><thead><tr><th>设备类型</th><th>事件</th><th>触发条件</th><th>监测时段</th><th>告警结果</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>{policyRows.map((policy) => <tr key={policy.id}><td><b>{policy.deviceType}</b></td><td><div className="stacked-cell"><b>{policy.eventName}</b><small>{policy.eventDescription}</small></div></td><td><b>{policy.condition}</b></td><td>{policy.monitoringPeriod}</td><td><div className="stacked-cell"><b>{policy.resultName}</b><small>{policy.resultDescription}</small></div></td><td><StatusTag>{policy.enabled ? "已启用" : "已停用"}</StatusTag></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(policy)}>设置策略</button></td></tr>)}{!policyRows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无告警策略</div></td></tr>}</tbody></table></div>
+      <div className="table-scroll"><table className="device-alert-policy-table"><thead><tr><th>设备类型</th><th>事件</th><th>触发条件</th><th>监测时段</th><th>告警结果</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>{policyRows.map((policy) => <tr key={policy.id}><td><b>{policy.deviceType}</b></td><td><div className="stacked-cell"><b>{policy.eventName}</b><small>{policy.eventDescription}</small></div></td><td><b>{policy.condition}</b></td><td>{policy.monitoringPeriod}</td><td><div className="stacked-cell"><b>{policy.resultName}</b><small>{policy.resultDescription}</small></div></td><td><StatusTag>{policy.enabled ? "已启用" : "已停用"}</StatusTag></td><td className="sticky-right">{canEdit ? <button className="table-action" onClick={() => onEdit(policy)}>设置策略</button> : <span className="muted-action">仅查看</span>}</td></tr>)}{!policyRows.length && <tr><td colSpan="7"><div className="empty-table-state">当前社区暂无告警策略</div></td></tr>}</tbody></table></div>
     </section>
   </>;
 }
@@ -1948,10 +2090,18 @@ function ElderlyDataStatisticsPanel({ record, sensors }) {
 function InactivityRuleDrawer({ rule, communityName, onClose, onSave }) {
   const [form, setForm] = useState(rule);
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer inactivity-rule-drawer" role="dialog" aria-modal="true" aria-label="设置连续无活动告警策略"><header><div><h2>设置连续无活动策略</h2><p>房间活动传感器 · {communityName}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>策略条件</h3><label><span>策略状态</span><select className="select-control form-select-native" value={form.enabled ? "启用" : "停用"} onChange={(event) => update("enabled", event.target.value === "启用")}><option>启用</option><option>停用</option></select></label><label><span>连续无活动时长</span><select className="select-control form-select-native" value={form.thresholdHours} onChange={(event) => update("thresholdHours", Number(event.target.value))}><option value="1">1 小时</option><option value="2">2 小时</option><option value="3">3 小时</option><option value="4">4 小时</option><option value="6">6 小时</option><option value="8">8 小时</option></select></label><div className="form-two-cols"><label><span>监测开始时间</span><input type="time" value={form.startTime} onChange={(event) => update("startTime", event.target.value)}/></label><label><span>监测结束时间</span><input type="time" value={form.endTime} onChange={(event) => update("endTime", event.target.value)}/></label></div></div><div className="form-tip"><ShieldCheck size={18}/><div><b>当前社区生效范围</b><p>保存后对 {communityName} 全部已安装房间活动传感器的老人统一生效，不需要逐个老人重复设置。</p></div></div><div className="form-tip"><ShieldCheck size={18}/><div><b>告警判断口径</b><p>监测时间段内，所有已安装且在线的房间传感器连续超过设定时长没有检测到活动，后台生成“待关注”提醒。任一设备离线时不判断老人无活动。</p></div></div><div className="form-tip neutral"><Bell size={18}/><div><b>告警结果</b><p>一期仅在运营后台展示，不触发平板警报、电话或紧急联系人通知。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={() => onSave(form)}>保存策略</button></footer></aside></div>;
+  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer inactivity-rule-drawer" role="dialog" aria-modal="true" aria-label="设置连续无活动告警策略"><header><div><h2>设置连续无活动策略</h2><p>房间活动传感器 · {communityName}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3>策略条件</h3><label><span>策略状态</span><select className="select-control form-select-native" value={form.enabled ? "启用" : "停用"} onChange={(event) => update("enabled", event.target.value === "启用")}><option>启用</option><option>停用</option></select></label><label><span>连续无活动时长</span><select className="select-control form-select-native" value={form.thresholdHours} onChange={(event) => update("thresholdHours", Number(event.target.value))}><option value="1">1 小时</option><option value="2">2 小时</option><option value="3">3 小时</option><option value="4">4 小时</option><option value="6">6 小时</option><option value="8">8 小时</option></select></label><div className="form-two-cols"><label><span>监测开始时间</span><input type="time" value={form.startTime} onChange={(event) => update("startTime", event.target.value)}/></label><label><span>监测结束时间</span><input type="time" value={form.endTime} onChange={(event) => update("endTime", event.target.value)}/></label></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={() => onSave(form)}>保存策略</button></footer></aside></div>;
 }
 
-function FamilyRelationshipPanel({ relations, onUnlinkRelation }) {
+function OfflineRuleDrawer({ rule, communityName, onClose, onSave }) {
+  const [form, setForm] = useState(rule);
+  const [error, setError] = useState("");
+  const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setError(""); };
+  const submit = () => { const nextError = validateOfflinePolicy(form); setError(nextError); if (!nextError) onSave({ ...form, monitoringPeriod: "全天" }); };
+  return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose}/><aside className="drawer inactivity-rule-drawer" role="dialog" aria-modal="true" aria-label="设置设备离线策略"><header><div><h2>设置设备离线策略</h2><p>当前社区 · {communityName}</p></div><button className="icon-button" onClick={onClose}><X size={19}/></button></header><div className="drawer-body"><div className="form-section"><h3 className="admin-field-label">策略条件<AdminTooltip label="查看设备离线策略适用范围" content="适用于当前社区已安装、已绑定且未停用的设备。停用策略不会删除历史告警；缺少可靠上报时间的设备不参与判断。"/></h3><label><span>策略状态</span><select className="select-control form-select-native" value={form.enabled ? "启用" : "停用"} onChange={(event) => update("enabled", event.target.value === "启用")}><option>启用</option><option>停用</option></select></label><div className="form-two-cols"><label><span>连续未上报时长</span><input type="number" min="1" step="1" placeholder="请输入正整数" value={form.thresholdValue} onChange={(event) => update("thresholdValue", event.target.value)}/>{error && <small className="field-error">{error}</small>}</label><label><span>时长单位</span><select className="select-control form-select-native" value={form.thresholdUnit} onChange={(event) => update("thresholdUnit", event.target.value)}><option>分钟</option><option>小时</option></select></label></div><label><span>监测时段</span><input value="全天" disabled/></label></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={submit}>保存策略</button></footer></aside></div>;
+}
+
+function FamilyRelationshipPanel({ relations, canManage = true, onUnlinkRelation }) {
   const [pendingAction, setPendingAction] = useState(null);
   const activeRelations = relations.filter((item) => item.status === "正常");
 
@@ -1965,7 +2115,7 @@ function FamilyRelationshipPanel({ relations, onUnlinkRelation }) {
       <section className="panel family-panel">
         <div className="panel-title"><div><h3>已绑定子女</h3></div></div>
         <div className="table-scroll"><table className="family-relation-table"><thead><tr><th>姓名</th><th>脱敏手机号</th><th>与老人关系</th><th>绑定时间</th><th>关系状态</th><th>操作</th></tr></thead><tbody>
-          {relations.map((item) => <tr key={item.id}><td><div className="relative-name-cell"><span>{item.name.slice(-1)}</span><b>{item.name}</b></div></td><td>{maskPhone(item.phone)}</td><td>{item.relation}</td><td>{item.boundAt}</td><td><StatusTag>{item.status}</StatusTag></td><td>{item.status === "正常" ? <button className="table-action danger-text" onClick={() => setPendingAction(item)}>解除关系</button> : <span className="muted-action">—</span>}</td></tr>)}
+          {relations.map((item) => <tr key={item.id}><td><div className="relative-name-cell"><span>{item.name.slice(-1)}</span><b>{item.name}</b></div></td><td>{maskPhone(item.phone)}</td><td>{item.relation}</td><td>{item.boundAt}</td><td><StatusTag>{item.status}</StatusTag></td><td>{canManage && item.status === "正常" ? <button className="table-action danger-text" onClick={() => setPendingAction(item)}>解除关系</button> : <span className="muted-action">—</span>}</td></tr>)}
           {!relations.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定子女</div></td></tr>}
         </tbody></table></div>
       </section>
@@ -1975,7 +2125,7 @@ function FamilyRelationshipPanel({ relations, onUnlinkRelation }) {
   );
 }
 
-function ElderlyReminderPanel({ reminders, onCreate, onEdit, onDelete }) {
+function ElderlyReminderPanel({ reminders, canManage = true, onCreate, onEdit, onDelete }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState("");
   const rows = reminders.filter((reminder) => !reminder.deletedAt);
@@ -1992,8 +2142,8 @@ function ElderlyReminderPanel({ reminders, onCreate, onEdit, onDelete }) {
 
   return <>
     <section className="panel detail-page-panel elderly-reminder-panel elderly-detail-content">
-      <div className="panel-title"><div><h3>提醒事项</h3></div><div className="panel-title-actions"><button className="primary-button" onClick={onCreate}><Plus size={15}/>新建提醒</button></div></div>
-      <div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>计划时间</th><th>重复方式</th><th>最后更新</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.type === "用药提醒" ? [reminder.dosage, reminder.usage].filter(Boolean).join(" · ") || reminder.note || "暂无用药说明" : reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time}</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{reminder.updatedBy || reminder.createdBy}</b><small>{reminder.updatedAt || reminder.createdAt}</small></div></td><td className="sticky-right"><button className="table-action" onClick={() => onEdit(reminder)}>编辑</button><button className="table-action danger-text" onClick={() => { setDeleteTarget(reminder); setDeleteError(""); }}>删除</button></td></tr>)}{!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人暂无提醒事项，可点击“新建提醒”进行配置</div></td></tr>}</tbody></table></div>
+      <div className="panel-title"><div><h3>提醒事项</h3></div>{canManage && <div className="panel-title-actions"><button className="primary-button" onClick={onCreate}><Plus size={15}/>新建提醒</button></div>}</div>
+      <div className="table-scroll"><table className="elderly-reminder-table"><thead><tr><th>提醒名称</th><th>类型</th><th>计划时间</th><th>重复方式</th><th>最后更新</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((reminder) => <tr key={reminder.id}><td><div className="reminder-name-cell"><span><Bell size={16}/></span><div><b>{reminder.title}</b><small>{reminder.type === "用药提醒" ? [reminder.dosage, reminder.usage].filter(Boolean).join(" · ") || reminder.note || "暂无用药说明" : reminder.note || "暂无补充说明"}</small></div></div></td><td><StatusTag>{reminder.type}</StatusTag></td><td><div className="stacked-cell"><b>{reminder.date}</b><small>{reminder.time}</small></div></td><td>{reminder.repeat}</td><td><div className="stacked-cell"><b>{reminder.updatedBy || reminder.createdBy}</b><small>{reminder.updatedAt || reminder.createdAt}</small></div></td><td className="sticky-right">{canManage ? <><button className="table-action" onClick={() => onEdit(reminder)}>编辑</button><button className="table-action danger-text" onClick={() => { setDeleteTarget(reminder); setDeleteError(""); }}>删除</button></> : <span className="muted-action">—</span>}</td></tr>)}{!rows.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人暂无提醒事项</div></td></tr>}</tbody></table></div>
     </section>
     {deleteTarget && <AdminConfirm title={`删除“${deleteTarget.title}”？`} description="删除后该提醒会从当前列表移除，并且不再产生后续提醒。已经发生的执行记录不会被改写。" error={deleteError} confirmLabel={deleteError ? "重试删除" : "确认删除"} icon={<Trash2 size={20}/>} onClose={() => { setDeleteTarget(null); setDeleteError(""); }} onConfirm={confirmDelete}/>}
   </>;
@@ -2006,16 +2156,17 @@ function ArchiveSubjectSummary({ name, details }) {
   </section>;
 }
 
-function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelations, inactivityRule, initialTab = "profile", onClose, onEdit, onManageSpaces, onAddSensor, onViewSensor, onManageTablet, onUnlinkRelation, onCreateReminder, onEditReminder, onDeleteReminder }) {
+function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelations, inactivityRule, initialTab = "profile", readOnly = false, canEdit = !readOnly, canBind = !readOnly, canManageFamily = !readOnly, canManageReminders = !readOnly, canManageSensors = !readOnly, onClose, onEdit, onManageSpaces, onAddSensor, onViewSensor, onManageTablet, onUnlinkRelation, onCreateReminder, onEditReminder, onDeleteReminder }) {
   const [tab, setTab] = useState(initialTab);
   const emergencyContacts = getEmergencyContacts(record);
   tablet = tablet ? { ...tablet, id: formatDisplayId(tablet.id) } : tablet;
   const boundSensors = sensors.filter((sensor) => sensor.elderlyId === record.id && sensor.installStatus !== "已解绑");
+  const mobileAccount = getElderMobileAccount(record);
   return <div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭老人档案详情" onClick={onClose}/><aside className="drawer record-detail-drawer elderly-record-detail-drawer" role="dialog" aria-modal="true" aria-label="老人档案详情">
     <header><h2>老人档案详情</h2><button className="icon-button" aria-label="关闭" onClick={onClose}><X size={19}/></button></header>
     <div className="drawer-body"><div className="elderly-detail-page">
     <ArchiveSubjectSummary name={record.name} details={[record.gender, `${record.age} 岁`]}/>
-    <div className="elderly-detail-tabs"><button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}>档案信息</button><button className={tab === "family" ? "active" : ""} onClick={() => setTab("family")}>家庭关系 <span>{familyRelations.filter((item) => item.status === "正常").length}</span></button><button className={tab === "reminders" ? "active" : ""} onClick={() => setTab("reminders")}>提醒事项 <span>{reminders.filter((reminder) => !reminder.deletedAt).length}</span></button><button className={tab === "spaces" ? "active" : ""} onClick={() => setTab("spaces")}>房间活动传感器 <span>{boundSensors.length}</span></button><button className={tab === "tablet" ? "active" : ""} onClick={() => setTab("tablet")}>平板设备</button><button className={tab === "statistics" ? "active" : ""} onClick={() => setTab("statistics")}>数据统计</button></div>
+    <div className="elderly-detail-tabs"><button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}>档案信息</button><button className={tab === "family" ? "active" : ""} onClick={() => setTab("family")}>家庭关系 <span>{familyRelations.filter((item) => item.status === "正常").length}</span></button><button className={tab === "reminders" ? "active" : ""} onClick={() => setTab("reminders")}>提醒事项 <span>{reminders.filter((reminder) => !reminder.deletedAt).length}</span></button><button className={tab === "spaces" ? "active" : ""} onClick={() => setTab("spaces")}>房间活动传感器 <span>{boundSensors.length}</span></button><button className={tab === "tablet" ? "active" : ""} onClick={() => setTab("tablet")}>平板设备</button><button className={tab === "statistics" ? "active" : ""} onClick={() => setTab("statistics")}>数据统计（暂时不做）</button></div>
     {tab === "profile" && <div className="elderly-detail-grid elderly-detail-content">
       <section className="panel detail-page-panel">
         <div className="panel-title"><div><h3>基础资料</h3></div><span className="result-count">更新于 {record.updatedAt || "—"}</span></div>
@@ -2028,13 +2179,14 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
       </section>
       <div className="elderly-detail-side">
         <section className="panel detail-page-panel elderly-contact-panel"><div className="panel-title"><div><h3>紧急联系人</h3></div></div><div className="elderly-detail-section-body emergency-contact-view-list">{emergencyContacts.map((contact) => <div className="relation-card" key={contact.id}><div><HeartHandshake size={18}/><span><b>{contact.name || "待补充"}</b><small>{contact.relation || "关系待补充"} · {contact.phone || "电话待补充"}</small></span></div></div>)}</div></section>
+        <section className="panel detail-page-panel"><div className="panel-title"><div><h3>移动端注册信息</h3></div></div><div className="elderly-detail-section-body"><div className="info-grid"><div><span>注册状态</span><StatusTag>{mobileAccount ? "已注册" : "未获取"}</StatusTag></div><div><span>注册手机号</span><b>{mobileAccount?.phone || "未获取"}</b></div><div><span>注册时间</span><b>{mobileAccount?.registeredAt || "未获取"}</b></div><div><span>最近登录</span><b>{mobileAccount?.lastLoginAt || "未获取"}</b></div></div></div></section>
       </div>
     </div>}
-    {tab === "family" && <FamilyRelationshipPanel relations={familyRelations} onUnlinkRelation={onUnlinkRelation}/>}
-    {tab === "reminders" && <ElderlyReminderPanel reminders={reminders} onCreate={onCreateReminder} onEdit={onEditReminder} onDelete={onDeleteReminder}/>}
-    {tab === "spaces" && <section className="panel sensor-relation-panel elderly-detail-content"><div className="panel-title"><div><h3>房间与活动传感器</h3></div><div className="panel-title-actions"><button className="secondary-button" onClick={onManageSpaces}>管理房间</button><button className="primary-button" onClick={onAddSensor}><Plus size={15}/>添加传感器</button></div></div><div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称</th><th>安装房间</th><th>设备型号 / SN</th><th>在线状态</th><th>最近上报</th><th>操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><b>{sensor.name}</b></td><td>{sensor.room}</td><td><div className="stacked-cell"><b>{sensor.model}</b><small>{sensor.sn}</small></div></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastReport}</td><td><button className="table-action" onClick={() => onViewSensor(sensor)}>详情</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section>}
+    {tab === "family" && <FamilyRelationshipPanel relations={familyRelations} canManage={canManageFamily} onUnlinkRelation={onUnlinkRelation}/>}
+    {tab === "reminders" && <ElderlyReminderPanel reminders={reminders} canManage={canManageReminders} onCreate={onCreateReminder} onEdit={onEditReminder} onDelete={onDeleteReminder}/>}
+    {tab === "spaces" && <section className="panel sensor-relation-panel elderly-detail-content"><div className="panel-title"><div><h3>房间与活动传感器</h3></div>{canManageSensors && <div className="panel-title-actions"><button className="secondary-button" onClick={onManageSpaces}>管理房间</button><button className="primary-button" onClick={onAddSensor}><Plus size={15}/>添加传感器</button></div>}</div><div className="table-scroll"><table className="elderly-sensor-table"><thead><tr><th>设备名称</th><th>安装房间</th><th>设备型号 / SN</th><th>在线状态</th><th>最近上报</th><th>操作</th></tr></thead><tbody>{boundSensors.map((sensor) => <tr key={sensor.id}><td><b>{sensor.name}</b></td><td>{sensor.room}</td><td><div className="stacked-cell"><b>{sensor.model}</b><small>{sensor.sn}</small></div></td><td><StatusTag>{sensor.onlineStatus}</StatusTag></td><td>{sensor.lastReport}</td><td><button className="table-action" onClick={() => onViewSensor(sensor)}>详情</button></td></tr>)}{!boundSensors.length && <tr><td colSpan="6"><div className="empty-table-state">当前老人尚未绑定房间活动传感器</div></td></tr>}</tbody></table></div></section>}
     {tab === "tablet" && <section className="panel tablet-detail-page elderly-detail-content">
-      <div className="panel-title"><div><h3>平板设备</h3></div>{tablet && <button className="primary-button" onClick={onManageTablet}>管理绑定</button>}</div>
+      <div className="panel-title"><div><h3>平板设备</h3></div>{tablet && canBind && <button className="primary-button" onClick={onManageTablet}>管理绑定</button>}</div>
       <div className="elderly-detail-section-body">
         {tablet ? <>
           <div className="tablet-profile-card"><span><MonitorSmartphone size={22}/></span><div><b>{tablet.model}</b><small>{tablet.id} · {tablet.sn}</small></div><TabletOnlineStatusTag>{tablet.onlineStatus}</TabletOnlineStatusTag></div>
@@ -2049,7 +2201,7 @@ function ElderlyDetailDrawer({ record, tablet, sensors, reminders, familyRelatio
     </section>}
     {tab === "statistics" && <ElderlyDataStatisticsPanel record={record} sensors={boundSensors}/>}
     </div></div>
-    <footer><button className="secondary-button" onClick={onClose}>关闭</button><button className="primary-button" onClick={onEdit}>编辑档案</button></footer>
+    <footer><button className="secondary-button" onClick={onClose}>关闭</button>{canEdit && <button className="primary-button" onClick={onEdit}>编辑档案</button>}</footer>
   </aside></div>;
 }
 
@@ -2455,18 +2607,17 @@ function sanitizeRecommendationScheduleOverrides(overrides) {
   if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) return {};
   return Object.fromEntries(Object.entries(overrides).map(([key, configs]) => [key, Array.isArray(configs) ? configs.filter((config) => !excludedRecommendationScheduleIds.has(config?.itemId)) : configs]));
 }
-const reminderPolicyStatusStorageKey = "u2g-reminder-policy-status-v1";
-
 const initialReminderPolicies = [
-  { id: "RP-CONTENT-ANNOUNCEMENT", group: "内容发布提醒", source: "社区公告", trigger: "公告发布成功后自动生成提醒", terminals: ["老人中控屏"], priority: "中", lastTriggeredAt: "2026-08-21 09:20", icon: "公告", enabled: true },
-  { id: "RP-CONTENT-LIFE", group: "内容发布提醒", source: "生活资讯", trigger: "资讯发布成功后自动生成提醒", terminals: ["老人中控屏"], priority: "低", lastTriggeredAt: "2026-08-20 16:45", icon: "资讯", enabled: true },
-  { id: "RP-CONTENT-ALERT", group: "内容发布提醒", source: "警惕事项", trigger: "事项发布成功后自动生成提醒", terminals: ["老人中控屏", "老人小程序", "子女手机端"], priority: "高", lastTriggeredAt: "2026-08-21 08:35", icon: "警示", enabled: true },
-  { id: "RP-EVENT-CALL", group: "事件触发提醒", source: "新来电", trigger: "老人端产生未接来电后自动提醒", terminals: ["老人中控屏"], priority: "中", lastTriggeredAt: "2026-08-21 10:02", icon: "来电", enabled: true },
-  { id: "RP-EVENT-ACTIVITY-START", group: "事件触发提醒", source: "活动开始提醒", trigger: "社区活动报名成功且活动未取消，在活动开始前30分钟自动提醒报名人；活动取消、报名取消或活动已开始时不触发；同一报名仅提醒一次。", terminals: ["老人中控屏", "老人小程序"], priority: "中", lastTriggeredAt: "2026-08-21 09:55", icon: "活动前", enabled: true },
-  { id: "RP-EVENT-MESSAGE", group: "事件触发提醒", source: "未读留言", trigger: "收到留言且老人尚未查看时自动提醒", terminals: ["老人中控屏", "老人小程序", "子女手机端"], priority: "中", lastTriggeredAt: "2026-08-21 09:48", icon: "留言", enabled: true },
-  { id: "RP-EVENT-SCHEDULE", group: "事件触发提醒", source: "到期日程", trigger: "日程到达预设提醒时间时自动提醒", terminals: ["老人中控屏", "老人小程序", "子女手机端"], priority: "高", lastTriggeredAt: "2026-08-21 08:00", icon: "日程", enabled: true },
-  { id: "RP-EVENT-ALBUM", group: "事件触发提醒", source: "新相册内容", trigger: "家庭相册新增内容后自动提醒", terminals: ["老人中控屏", "老人小程序"], priority: "低", lastTriggeredAt: "2026-08-19 20:12", icon: "相册", enabled: true },
-  { id: "RP-FALLBACK-AI-VOICE", group: "兜底展示", source: "AI语音兜底", trigger: "老人中控屏当前无任何待展示消息时持续展示AI语音入口；任一消息进入立即让位，消息队列清空后恢复展示；不进入消息队列，不产生未读或待处理状态，也不计入消息送达。", terminals: ["老人中控屏"], priority: "兜底", lastTriggeredAt: "", icon: "AI", enabled: true, fixed: true, queueExcluded: true },
+  { id: "RP-CONTENT-ANNOUNCEMENT", group: "内容发布提醒", source: "社区公告", trigger: "公告发布成功且开启推荐同步后，进入当前社区的内容推荐池。", stop: "公告下架、过期、不可打开或关联推荐超过有效期后退出。", terminals: ["老人中控屏"], priority: "中", lastTriggeredAt: "2026-08-21 09:20", icon: "公告", enabled: true },
+  { id: "RP-CONTENT-LIFE", group: "内容发布提醒", source: "生活资讯", trigger: "资讯发布成功且开启推荐同步后，进入当前社区的内容推荐池。", stop: "资讯下架、过期、不可打开或关联推荐超过有效期后退出。", terminals: ["老人中控屏"], priority: "低", lastTriggeredAt: "2026-08-20 16:45", icon: "资讯", enabled: true },
+  { id: "RP-CONTENT-ALERT", group: "内容发布提醒", source: "警惕事项", trigger: "事项发布成功且开启推荐同步后，进入当前社区的内容推荐池。", stop: "事项下架、过期、不可打开或关联推荐超过有效期后退出。", terminals: ["老人中控屏"], priority: "高", lastTriggeredAt: "2026-08-21 08:35", icon: "警示", enabled: true },
+  { id: "RP-CONTENT-ACTIVITY", group: "内容发布提醒", source: "社区活动推广", trigger: "活动发布成功且开启推荐同步后，进入当前社区的内容推荐池。", stop: "活动结束、取消、下架、超过有效期或不再属于老人当前社区后退出。", terminals: ["老人中控屏"], priority: "低", lastTriggeredAt: "", icon: "活动", enabled: false, integrationStatus: "待接入" },
+  { id: "RP-EVENT-CALL", group: "事件触发提醒", source: "新来电", trigger: "语音或视频通话结束且未成功接通时，立即生成未接来电内容。", stop: "对应未接来电记录全部查看后退出；接通、主动拒绝或取消呼叫不生成。", terminals: ["老人中控屏"], priority: "中", lastTriggeredAt: "2026-08-21 10:02", icon: "来电", enabled: true },
+  { id: "RP-EVENT-ACTIVITY-START", group: "事件触发提醒", source: "活动开始提醒", trigger: "有效报名活动进入开始前 30 分钟提醒点时，生成一次行前提醒。", stop: "老人查看、活动取消、老人取消参加或活动结束后退出。", terminals: ["老人中控屏"], priority: "中", lastTriggeredAt: "2026-08-21 09:55", icon: "活动前", enabled: true },
+  { id: "RP-EVENT-MESSAGE", group: "事件触发提醒", source: "未读留言", trigger: "收到尚未查看的文字留言或尚未听取的语音留言时生成。", stop: "当前老人的新留言全部查看或听取后退出。", terminals: ["老人中控屏"], priority: "中", lastTriggeredAt: "2026-08-21 09:48", icon: "留言", enabled: true },
+  { id: "RP-EVENT-SCHEDULE", group: "事件触发提醒", source: "到期日程", trigger: "待完成的用药或日常事项进入开始前 30 分钟时生成，到点后转为强提醒。", stop: "老人明确确认完成后退出；超时或跨日仍未完成时继续保留。", terminals: ["老人中控屏"], priority: "高", lastTriggeredAt: "2026-08-21 08:00", icon: "日程", enabled: true },
+  { id: "RP-EVENT-ALBUM", group: "事件触发提醒", source: "新相册内容", trigger: "老人收到尚未查看的照片、视频或混合影像批次时生成。", stop: "照片已打开且视频已开始播放，所有新家庭影像都已查看后退出。", terminals: ["老人中控屏"], priority: "低", lastTriggeredAt: "2026-08-19 20:12", icon: "相册", enabled: true },
+  { id: "RP-FALLBACK-AI-VOICE", group: "兜底展示", source: "AI语音兜底", trigger: "P1、时间提醒池、家庭互动池和内容推荐池均无有效候选时展示。", stop: "任一有效候选出现时立即让位；不进入消息队列，不产生未读或待处理状态。", terminals: ["老人中控屏"], priority: "兜底", lastTriggeredAt: "", icon: "AI", enabled: true, fixed: true, queueExcluded: true },
 ];
 
 const reminderSourceIcons = {
@@ -2474,6 +2625,7 @@ const reminderSourceIcons = {
   "生活资讯": BookOpen,
   "警惕事项": AlertTriangle,
   "社区活动": CalendarDays,
+  "社区活动推广": CalendarDays,
   "新来电": RadioTower,
   "活动开始提醒": CalendarDays,
   "未读留言": MessageSquareText,
@@ -2487,9 +2639,8 @@ function ReminderSourceIcon({ source }) {
   return <span className="policy-source-icon" aria-hidden="true"><SourceIcon size={18} strokeWidth={1.8}/></span>;
 }
 
-function ReminderPoliciesPage({ policies, onToggle }) {
-  const [toggleTarget, setToggleTarget] = useState(null);
-  const coveredTerminals = [...new Set(policies.flatMap((item) => item.terminals))];
+function ReminderPoliciesPage({ policies }) {
+  const coveredTerminals = [...new Set(policies.filter((item) => item.enabled).flatMap((item) => item.terminals))];
   const enabledCount = policies.filter((item) => item.enabled).length;
   const contentCount = policies.filter((item) => item.group === "内容发布提醒").length;
   const eventCount = policies.filter((item) => item.group === "事件触发提醒").length;
@@ -2497,27 +2648,15 @@ function ReminderPoliciesPage({ policies, onToggle }) {
   const priorityRank = { 高: 0, 中: 1, 低: 2, 兜底: 3 };
   const rows = [...policies].sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority] || (a.group === b.group ? 0 : a.group === "事件触发提醒" ? -1 : 1) || String(b.lastTriggeredAt || "").localeCompare(String(a.lastTriggeredAt || "")));
   return <>
-    <div className="page-heading"><div><h1>消息推送</h1><p>管理平台自动消息的触发规则、推送终端与启停状态</p></div></div>
+    <div className="page-heading"><div><h1>消息推送</h1><p>查看平台固定消息的触发、终止与接收范围</p></div></div>
     <div className="reminder-policy-overview">
       <div><div className="admin-metric-heading"><span>推送规则</span><MetricHelp label="推送规则指标说明" content={`内容发布 ${contentCount} 项 · 事件触发 ${eventCount} 项 · 兜底展示 ${fallbackCount} 项`}/></div><b>{policies.length}</b></div>
-      <div><div className="admin-metric-heading"><span>已启用</span><MetricHelp label="已启用指标说明" content="当前处于启用状态的固定推送规则数量"/></div><b>{enabledCount}</b></div>
+      <div><div className="admin-metric-heading"><span>当前生效</span><MetricHelp label="当前生效指标说明" content="当前作为平台固定规则生效的数量"/></div><b>{enabledCount}</b></div>
       <div><div className="admin-metric-heading"><span>覆盖终端</span><MetricHelp label="覆盖终端指标说明" content={coveredTerminals.join("、")}/></div><b>{coveredTerminals.length}</b></div>
     </div>
     <section className="panel management-panel reminder-policy-panel">
-      <div className="panel-title"><div><h3>固定推送规则</h3><p>规则字段由系统固定；非系统固定规则可由平台启停，社区不可覆盖</p></div><span>{rows.length} 项</span></div>
-      <div className="table-scroll"><table className="reminder-policy-table"><thead><tr><th>消息来源</th><th><div className="admin-metric-heading"><span>消息类型</span><MetricHelp label="消息类型说明" content="内容发布：对应内容发布成功后自动触发；事件触发：业务事件发生或达到预设提醒时间时自动触发；兜底展示：没有待展示消息时由系统持续提供入口，不进入消息队列。"/></div></th><th>触发条件</th><th><div className="admin-metric-heading"><span>优先级</span><MetricHelp label="优先级排序说明" content="按高、中、低、兜底处理；同级先事件触发、后内容发布，再按触发时间，完全同时间按固定来源顺序。多条同时触发全部入队，不合并、不覆盖、不丢弃；兜底展示不进入队列。"/></div></th><th>推送终端</th><th>状态</th><th className="sticky-right">操作</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><div className="policy-source-cell"><ReminderSourceIcon source={item.source}/><div><b>{item.source}</b></div></div></td><td><span className={`reminder-type-tag ${item.group === "事件触发提醒" ? "reminder-type-tag--event" : item.group === "兜底展示" ? "reminder-type-tag--fallback" : "reminder-type-tag--content"}`}>{item.group.replace("提醒", "")}</span></td><td>{item.trigger}</td><td><span className={`reminder-priority-tag priority-${item.priority}`}>{item.priority}</span></td><td><div className="reminder-terminal-tags">{item.terminals.map((terminal) => <span key={terminal}>{terminal}</span>)}</div></td><td><StatusTag>{item.enabled ? "已启用" : "已停用"}</StatusTag></td><td className="sticky-right reminder-policy-actions">{item.fixed ? <span className="muted-action">系统固定</span> : <button className={`table-action ${item.enabled ? "danger-text" : ""}`} onClick={() => setToggleTarget(item)}>{item.enabled ? "停用" : "启用"}</button>}</td></tr>)}</tbody></table></div>
+      <div className="table-scroll"><table className="reminder-policy-table"><thead><tr><th>消息来源</th><th><div className="admin-metric-heading"><span>消息类型</span><MetricHelp label="消息类型说明" content="内容发布：已开启推荐同步的内容发布后进入推荐池；事件触发：业务事件发生或达到预设提醒时间时生成；兜底展示：没有待展示内容时由系统提供入口，不进入消息队列。"/></div></th><th>触发条件</th><th>终止条件</th><th>接收终端</th><th>状态</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><div className="policy-source-cell"><ReminderSourceIcon source={item.source}/><div><b>{item.source}</b></div></div></td><td><span className={`reminder-type-tag ${item.group === "事件触发提醒" ? "reminder-type-tag--event" : item.group === "兜底展示" ? "reminder-type-tag--fallback" : "reminder-type-tag--content"}`}>{item.group.replace("提醒", "")}</span></td><td className="reminder-rule-copy">{item.trigger}</td><td className="reminder-rule-copy">{item.stop || "—"}</td><td><div className="reminder-terminal-tags">{item.terminals.map((terminal) => <span key={terminal}>{terminal}</span>)}</div></td><td><StatusTag>{item.integrationStatus || "当前生效"}</StatusTag></td></tr>)}</tbody></table></div>
     </section>
-    {toggleTarget && <AdminConfirm
-      title={`${toggleTarget.enabled ? "停用" : "启用"}“${toggleTarget.source}”？`}
-      description={toggleTarget.enabled ? "停用后，该能力将停止处理新的触发条件。" : "重新启用后，该能力只对新的触发条件生效。"}
-      impacts={toggleTarget.enabled
-        ? [`覆盖终端：${toggleTarget.terminals.join("、")}`, "停止生成新的提醒，并取消尚未发送的未来提醒。", "已生成或已送达的提醒记录继续保留。"]
-        : [`覆盖终端：${toggleTarget.terminals.join("、")}`, "仅对重新启用后的新触发生效。", "停用期间未生成或已取消的提醒不会补发。"]}
-      danger={toggleTarget.enabled}
-      confirmLabel={`确认${toggleTarget.enabled ? "停用" : "启用"}`}
-      onClose={() => setToggleTarget(null)}
-      onConfirm={() => { onToggle(toggleTarget.id); setToggleTarget(null); }}
-    />}
   </>;
 }
 
@@ -3169,7 +3308,7 @@ function SensorInstallDrawer({ sensors, elderlyRecords, initialElderlyId = "", o
   );
 }
 
-function SensorDetailDrawer({ sensor, elderlyRecords, onClose, onMove, onUnbind }) {
+function SensorDetailDrawer({ sensor, elderlyRecords, canManage = true, onClose, onMove, onUnbind }) {
   const elderly = elderlyRecords.find((record) => record.id === sensor.elderlyId);
   const [editingRoom, setEditingRoom] = useState(false);
   const [confirmUnbind, setConfirmUnbind] = useState(false);
@@ -3185,7 +3324,7 @@ function SensorDetailDrawer({ sensor, elderlyRecords, onClose, onMove, onUnbind 
         {editingRoom && elderly && <section className="detail-section room-change-panel"><h3>更换安装房间</h3><label><span>新安装房间</span><select className="select-control form-select-native" value={room} onChange={(event) => setRoom(event.target.value)}>{elderly.rooms?.map((item) => <option key={item}>{item}</option>)}</select></label><div className="inline-actions"><button className="secondary-button" onClick={() => setEditingRoom(false)}>取消</button><button className="primary-button" disabled={!nextRoom} onClick={() => onMove(sensor.id, nextRoom)}>确认换房</button></div></section>}
         <section className="detail-section"><h3>运行与安装信息</h3><div className="info-grid"><div><span>最近上报</span><b>{sensor.lastReport}</b></div><div><span>最近活动</span><b>{sensor.lastActivity}</b></div><div><span>信号状态</span><b>{sensor.signal}</b></div><div><span>安装人员</span><b>{sensor.installer}</b></div><div className="full"><span>安装时间</span><b>{sensor.installedAt}</b></div></div></section>
       </div>
-      <footer>{elderly && !editingRoom && <><button className="danger-outline-button" onClick={() => setConfirmUnbind(true)}>解除绑定</button><button className="secondary-button" onClick={() => setEditingRoom(true)}>更换房间</button></>}<button className="secondary-button" onClick={onClose}>关闭</button></footer>
+      <footer>{canManage && elderly && !editingRoom && <><button className="danger-outline-button" onClick={() => setConfirmUnbind(true)}>解除绑定</button><button className="secondary-button" onClick={() => setEditingRoom(true)}>更换房间</button></>}<button className="secondary-button" onClick={onClose}>关闭</button></footer>
     </aside>
     {confirmUnbind && <AdminConfirm title={`解除“${sensor.name}”绑定？`} description="解除后该设备不再产生新的房间活动统计；历史设备、房间和活动数据继续保留。" confirmLabel="确认解绑" onClose={() => setConfirmUnbind(false)} onConfirm={() => { onUnbind(sensor.id); setConfirmUnbind(false); }}/>}
   </div>;
@@ -3225,8 +3364,85 @@ function formatServiceAssistanceTime(value) {
   return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
 }
 
+const serviceAssistanceEventCopy = {
+  service_phone_viewed: "查看了服务商号码（仅查看号码，未发起拨号）",
+  service_call_started: "发起拨号（不代表已接通或已约好）",
+  family_help_inquiry_sent: "家人询问老人是否需要帮忙联系",
+  elder_appointment_confirmed: "老人答复：已经约好",
+  elder_family_help_requested: "老人答复：没约好，请家人帮忙",
+  elder_service_no_longer_needed: "老人答复：暂时不需要此服务",
+  family_help_requested: "发起请家人帮忙",
+  family_help_reminded: "再次提醒家人处理",
+  family_help_claimed: "家人开始处理",
+  family_service_contact_started: "家人开始联系服务商",
+};
+
+function getServiceAssistanceRecordType(record) {
+  return isFamilyAssistanceRecord(record) ? "请家人帮忙" : "联系动态";
+}
+
+function getServiceAssistanceStatus(record) {
+  const normalized = normalizeServiceAssistanceRecord(record);
+  if (["expired", "cancelled"].includes(normalized.status)) return "已失效";
+  if (normalized.status === "handled" || ["appointment_confirmed", "service_no_longer_needed"].includes(normalized.workflowStage) || ["appointment_confirmed", "service_no_longer_needed"].includes(normalized.appointmentOutcome)) return "已处理";
+  if (normalized.status === "handling") return "处理中";
+  if (normalized.status === "pending" && (normalized.familyContactResult === "not_appointed" || normalized.familyContactAttempts?.some((attempt) => attempt.result === "not_appointed"))) return "处理中";
+  return "待处理";
+}
+
+function getServiceAssistanceSource(record) {
+  const source = record.source || record.contactSource || record.contactStartedBy?.type || record.familyHelpRequestedBy?.type;
+  if (source === "elder") return "老人端";
+  if (source === "child") return "子女端";
+  if (source === "system") return "系统";
+  return source || "来源未记录";
+}
+
+function getServiceAssistanceTime(record) {
+  return isFamilyAssistanceRecord(record)
+    ? record.familyHelpRequestedAt || record.requestedAt || record.contactStartedAt || ""
+    : record.contactStartedAt || record.requestedAt || "";
+}
+
+function getServiceAssistanceServiceName(record) {
+  return record.service?.itemName || record.service?.name || "服务名称未记录";
+}
+
+function getServiceAssistanceHandler(record) {
+  const actor = record.familyContactBy || record.lastFamilyContactBy || (record.handledBy ? { name: record.handledBy, id: record.claimedById } : null);
+  if (!actor) return "—";
+  return `${actor.name || "身份未记录"}${actor.id ? `（${actor.id}）` : ""}`;
+}
+
+function getServiceAssistanceResult(record) {
+  if (record.resultSummary) return record.resultSummary;
+  if (record.familyContactResult === "not_appointed") return "未约好，协助仍在处理中";
+  if (record.familyContactStatus === "contacting") return "家人正在联系服务商";
+  if (record.appointmentOutcome === "appointment_confirmed") return "老人确认已经约好";
+  if (record.appointmentOutcome === "family_help_requested") return "老人已请家人帮忙";
+  if (record.appointmentOutcome === "service_no_longer_needed") return "老人表示暂时不需要服务";
+  if (record.phoneActionType === "phone_viewed") return "仅查看服务商号码，联系结果待确认";
+  if (record.phoneActionType === "call_started") return "已发起拨号，联系结果待确认";
+  return "—";
+}
+
+function getServiceAssistanceEventDescription(event) {
+  if (event.type === "family_service_contact_result_submitted") {
+    return event.payload?.result === "appointment_confirmed" ? "家人反馈：已约好" : "家人反馈：未约好，继续处理中";
+  }
+  return serviceAssistanceEventCopy[event.type] || event.type;
+}
+
+function getServiceAssistanceActor(event) {
+  const type = event.actorType === "child" ? "家人" : event.actorType === "elder" ? "老人" : event.actorType === "system" ? "系统" : "操作人";
+  return event.actorName || type;
+}
+
 function getServiceAssistanceTitle(record, elderlyName) {
-  return `${elderlyName}请求家人协助联系「${record.serviceName}」服务`;
+  const serviceName = getServiceAssistanceServiceName(record);
+  return getServiceAssistanceRecordType(record) === "请家人帮忙"
+    ? `${elderlyName}请家人协助联系「${serviceName}」`
+    : `${elderlyName}联系「${serviceName}」`;
 }
 
 function getServiceCoverageLabel(service, projects) {
@@ -3236,18 +3452,19 @@ function getServiceCoverageLabel(service, projects) {
 }
 
 function ServiceAssistanceRecordPage({ records, elderlyRecords, projects, communityName, showCommunity = false, onOpen }) {
-  const initialFilters = { query: "", community: "全部社区", status: "全部状态" };
+  const initialFilters = { query: "", community: "全部社区", type: "全部类型", status: "全部状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
   const rows = records.map((record) => {
-    const elderly = elderlyRecords.find((item) => item.id === record.elderlyId);
-    const elderlyName = elderly?.name || record.elderlyName || "老人档案已移除";
-    return { ...record, assistanceStatus: getServiceAssistanceStatus(record), elderly, elderlyName, assistanceTitle: getServiceAssistanceTitle(record, elderlyName), community: projects.find((project) => project.id === record.projectId) };
+    const normalized = normalizeServiceAssistanceRecord(record);
+    const elderly = elderlyRecords.find((item) => item.id === normalized.elder?.id);
+    const elderlyName = elderly?.name || normalized.elder?.name || "老人档案已移除";
+    return { ...normalized, assistanceType: getServiceAssistanceRecordType(normalized), assistanceStatus: getServiceAssistanceStatus(normalized), initiatedAt: getServiceAssistanceTime(normalized), elderly, elderlyName, assistanceTitle: getServiceAssistanceTitle(normalized, elderlyName), community: projects.find((project) => project.id === normalized.projectId) };
   }).filter((record) => {
     const keyword = filters.query.trim().toLowerCase();
-    const matchesKeyword = !keyword || [record.assistanceTitle, record.elderlyName, record.community?.name, record.serviceName, record.requestReason, record.provider, record.providerPhone, record.handledBy, record.resultSummary].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
+    const matchesKeyword = !keyword || [record.id, record.assistanceTitle, record.elderlyName, record.community?.name, getServiceAssistanceServiceName(record), record.provider?.name, record.provider?.phone, getServiceAssistanceHandler(record), getServiceAssistanceResult(record)].some((value) => `${value || ""}`.toLowerCase().includes(keyword));
     const matchesCommunity = !showCommunity || filters.community === "全部社区" || record.projectId === filters.community;
-    return matchesKeyword && matchesCommunity && (filters.status === "全部状态" || record.assistanceStatus === filters.status);
+    return matchesKeyword && matchesCommunity && (filters.type === "全部类型" || record.assistanceType === filters.type) && (filters.status === "全部状态" || record.assistanceStatus === filters.status);
   }).sort((a, b) => b.initiatedAt.localeCompare(a.initiatedAt));
   const reset = () => {
     setDraftFilters(initialFilters);
@@ -3255,20 +3472,21 @@ function ServiceAssistanceRecordPage({ records, elderlyRecords, projects, commun
   };
   return (
     <>
-      <div className="page-heading"><div><h1>服务协助记录</h1><p>{showCommunity ? "查看全部社区老人从中控屏发起的“请家人帮忙”请求及家人处理结果" : `查看${communityName}老人从中控屏发起的“请家人帮忙”请求及家人处理结果`}</p></div></div>
+      <div className="page-heading"><div><h1>服务记录</h1><p>{showCommunity ? "查看全部社区的联系动态与请家人帮忙记录" : `查看${communityName}的联系动态与请家人帮忙记录`}</p></div></div>
       <section className="panel management-panel service-assistance-panel">
           <div className="filters service-booking-filters">
             <label><span>关键字</span><div className="input-wrap"><Search size={16}/><input value={draftFilters.query} onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") setFilters(draftFilters); }} placeholder="老人、服务、服务商、处理家人或处理结果"/></div></label>
             {showCommunity && <label><span>所属社区</span><select className="select-control filter-select" value={draftFilters.community} onChange={(event) => setDraftFilters((current) => ({ ...current, community: event.target.value }))}><option value="全部社区">全部社区</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>}
-            <label><span>当前状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>待处理</option><option>处理中</option><option>已完成</option><option>已取消</option><option>已失效</option></select></label>
+            <label><span>记录类型</span><select className="select-control filter-select" value={draftFilters.type} onChange={(event) => setDraftFilters((current) => ({ ...current, type: event.target.value }))}><option>全部类型</option><option>联系动态</option><option>请家人帮忙</option></select></label>
+            <label><span>当前状态</span><select className="select-control filter-select" value={draftFilters.status} onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}><option>全部状态</option><option>待处理</option><option>处理中</option><option>已处理</option><option>已失效</option></select></label>
             <div className="filter-actions"><button className="primary-button" onClick={() => setFilters(draftFilters)}><Search size={15}/>查询</button><button className="secondary-button" onClick={reset}><RefreshCw size={15}/>重置</button></div>
           </div>
           <div className="table-scroll">
-            <table className="service-booking-table">
-              <thead><tr><th>老人</th>{showCommunity && <th>所属社区</th>}<th>服务名称</th><th>请求原因</th><th>服务商 / 电话</th><th>请求时间</th><th>当前状态</th><th>处理家人</th><th>处理结果</th><th className="sticky-right">操作</th></tr></thead>
+            <table className="service-booking-table service-assistance-record-table">
+              <thead><tr><th>记录类型</th><th>老人</th>{showCommunity && <th>所属社区</th>}<th>服务 / 服务商</th><th>来源 / 动作</th><th>发生时间</th><th>当前状态</th><th>当前处理人</th><th>最新结果</th><th className="sticky-right">操作</th></tr></thead>
               <tbody>
-                {rows.map((record) => <tr key={record.id}><td className="service-assistance-elderly"><b>{record.elderlyName}</b></td>{showCommunity && <td className="service-assistance-community"><b>{record.community?.name || "未归属社区"}</b></td>}<td className="service-assistance-title"><button className="service-booking-name" title={record.assistanceTitle} aria-label={`${record.assistanceTitle}，查看详情`} onClick={() => onOpen(record)}><b>{record.assistanceTitle}</b><small>{record.category}</small></button></td><td className="service-assistance-reason"><span title={record.requestReason || "请家人协助联系服务商"}>{record.requestReason || "请家人协助联系服务商"}</span></td><td className="service-assistance-provider"><div className="stacked-cell"><b>{record.provider}</b><small>{record.providerPhone}</small></div></td><td>{formatServiceAssistanceTime(record.initiatedAt)}</td><td><StatusTag>{record.assistanceStatus}</StatusTag></td><td><div className="stacked-cell"><b>{record.handledBy || "—"}</b><small>{formatServiceAssistanceTime(record.handledAt)}</small></div></td><td className="service-assistance-result"><span title={record.resultSummary || "—"}>{record.resultSummary || "—"}</span></td><td className="sticky-right"><button className="table-action" onClick={() => onOpen(record)}>详情</button></td></tr>)}
-                {!rows.length && <tr><td colSpan={showCommunity ? 10 : 9}><div className="empty-table-state"><b>{showCommunity ? "暂无符合条件的全平台服务协助记录" : `暂无${communityName}符合条件的服务协助记录`}</b><span>请调整筛选条件。</span></div></td></tr>}
+                {rows.map((record) => <tr key={record.id}><td><StatusTag>{record.assistanceType}</StatusTag></td><td className="service-assistance-elderly"><div className="stacked-cell"><b>{record.elderlyName}</b><small>{record.elder?.id || "档案编号未记录"}</small></div></td>{showCommunity && <td className="service-assistance-community"><b>{record.community?.name || "未归属社区"}</b></td>}<td className="service-assistance-title"><button className="service-booking-name" aria-label={`${record.assistanceTitle}，查看详情`} onClick={() => onOpen(record)}><b>{getServiceAssistanceServiceName(record)}</b><small>{record.provider?.name || "服务商未记录"}</small></button></td><td><div className="stacked-cell"><b>{getServiceAssistanceSource(record)}</b><small>{record.phoneActionType === "phone_viewed" ? "查看号码" : record.phoneActionType === "call_started" ? "发起拨号" : record.requestReason || "流程记录"}</small></div></td><td>{formatServiceAssistanceTime(record.initiatedAt)}</td><td><StatusTag>{record.assistanceStatus}</StatusTag></td><td><span>{getServiceAssistanceHandler(record)}</span></td><td className="service-assistance-result"><span title={getServiceAssistanceResult(record)}>{getServiceAssistanceResult(record)}</span></td><td className="sticky-right"><button className="table-action" onClick={() => onOpen(record)}>详情</button></td></tr>)}
+                {!rows.length && <tr><td colSpan={showCommunity ? 10 : 9}><div className="empty-table-state"><b>{showCommunity ? "暂无符合条件的全平台服务记录" : `暂无${communityName}符合条件的服务记录`}</b><span>请调整筛选条件。</span></div></td></tr>}
               </tbody>
             </table>
           </div>
@@ -3492,14 +3710,21 @@ function ServiceCatalogDetailDrawer({ record, projects, reviewSummary, onClose, 
 }
 
 function ServiceAssistanceRecordDrawer({ record, elderly, onClose }) {
-  const elderlyName = elderly?.name || record.elderlyName || "老人档案已移除";
+  const elderlyName = elderly?.name || record.elder?.name || "老人档案已移除";
   const assistanceTitle = getServiceAssistanceTitle(record, elderlyName);
   const assistanceStatus = getServiceAssistanceStatus(record);
+  const assistanceType = getServiceAssistanceRecordType(record);
+  const initiatedAt = getServiceAssistanceTime(record);
+  const workflowEvents = [...(record.workflowEvents || [])].sort((first, second) => `${first.createdAt || ""}`.localeCompare(`${second.createdAt || ""}`));
+  const reviewEligible = isFamilyAssistanceRecord(record) && canReviewServiceAssistance(record, record.elder?.id);
+  const handlingCompleted = record.familyHandlingStatus === "completed" && record.handlingCompletedBy && record.handlingCompletedAt;
   return (
-    <AdminDrawer title="服务协助事项详情" ariaLabel="服务协助事项详情" className="service-booking-drawer" onClose={onClose} footer={<button className="secondary-button" onClick={onClose}>关闭</button>}>
-      <div className="service-booking-hero"><span className="service-booking-hero-icon"><ClipboardList size={20}/></span><div><small>{record.source || "老人中控屏"}</small><h3>{assistanceTitle}</h3><p>请求于 {formatServiceAssistanceTime(record.initiatedAt)}</p></div><StatusTag>{assistanceStatus}</StatusTag></div>
-      <section className="detail-section"><h3>协助请求</h3><div className="info-grid"><div><span>老人</span><b>{elderlyName}</b></div><div><span>服务名称</span><b>{record.serviceName}</b></div><div className="full"><span>请求原因</span><b>{record.requestReason || "请家人协助联系服务商"}</b></div><div><span>服务商</span><b>{record.provider}</b></div><div><span>服务商电话</span><b>{record.providerPhone}</b></div><div><span>请求时间</span><b>{formatServiceAssistanceTime(record.initiatedAt)}</b></div><div><span>当前状态</span><StatusTag>{assistanceStatus}</StatusTag></div>{assistanceStatus === "已失效" && <><div><span>失效时间</span><b>{formatServiceAssistanceTime(getServiceAssistanceExpiredAt(record))}</b></div><div className="full"><span>失效说明</span><b>确认发送后 48 小时内未提交处理结果，事项已自动失效。</b></div></>}</div></section>
-      <section className="detail-section"><h3>家人处理</h3><div className="info-grid"><div><span>处理家人</span><b>{record.handledBy || "—"}</b></div><div><span>处理时间</span><b>{formatServiceAssistanceTime(record.handledAt)}</b></div><div className="full"><span>处理结果</span><b>{record.resultSummary || "—"}</b></div></div></section>
+    <AdminDrawer title="服务记录详情" ariaLabel="服务记录详情" className="service-booking-drawer" onClose={onClose} footer={<button className="secondary-button" onClick={onClose}>关闭</button>}>
+      <div className="service-booking-hero"><span className="service-booking-hero-icon"><ClipboardList size={20}/></span><div><small>{assistanceType} · {getServiceAssistanceSource(record)}</small><h3>{assistanceTitle}</h3><p>发生于 {formatServiceAssistanceTime(initiatedAt)}</p></div><StatusTag>{assistanceStatus}</StatusTag></div>
+      <section className="detail-section"><h3>记录概况</h3><div className="info-grid"><div><span>记录编号</span><b>{record.id}</b></div><div><span>记录类型</span><StatusTag>{assistanceType}</StatusTag></div><div><span>老人</span><b>{elderlyName}{record.elder?.id ? `（${record.elder.id}）` : ""}</b></div><div><span>所属社区</span><b>{record.community?.name || record.projectId || "未归属社区"}</b></div><div><span>服务名称</span><b>{getServiceAssistanceServiceName(record)}</b></div><div><span>服务分类</span><b>{record.service?.categoryName || "—"}</b></div><div><span>服务商</span><b>{record.provider?.name || "—"}</b></div><div><span>服务商电话</span><b>{record.provider?.phone || "—"}</b></div><div><span>发生时间</span><b>{formatServiceAssistanceTime(initiatedAt)}</b></div><div><span>当前状态</span><StatusTag>{assistanceStatus}</StatusTag></div>{isFamilyAssistanceRecord(record) && record.expiredAt && <div><span>48 小时失效时间</span><b>{formatServiceAssistanceTime(record.expiredAt)}</b></div>}</div></section>
+      <section className="detail-section"><h3>因果时间线</h3>{workflowEvents.length ? <div className="emergency-timeline">{workflowEvents.map((event) => <div className="emergency-timeline-item" key={event.id || `${event.type}-${event.createdAt}`}><time>{formatServiceAssistanceTime(event.createdAt)}</time><span className="emergency-timeline-axis" aria-hidden="true"><i/></span><div className="emergency-timeline-content"><b>{getServiceAssistanceEventDescription(event)}</b><p>{getServiceAssistanceActor(event)}</p>{event.payload?.appointmentAt && <p>上门时间：{event.payload.appointmentAt}</p>}{event.payload?.feeText && <p>费用：{event.payload.feeText}</p>}{event.payload?.note && <p>备注：{event.payload.note}</p>}</div></div>)}</div> : <div className="service-assistance-timeline-empty">该历史记录没有可追溯的流程事件，后台不补造事件。</div>}</section>
+      {isFamilyAssistanceRecord(record) && <section className="detail-section"><h3>处理完成确认</h3><div className="info-grid"><div><span>完成状态</span><b>{handlingCompleted ? "已确认完成" : "尚未确认完成"}</b></div><div><span>确认人</span><b>{handlingCompleted ? record.handlingCompletedBy : "—"}</b></div><div><span>确认时间</span><b>{handlingCompleted ? formatServiceAssistanceTime(record.handlingCompletedAt) : "—"}</b></div></div></section>}
+      {isFamilyAssistanceRecord(record) && (record.review || reviewEligible) && <section className="detail-section"><h3>服务评价</h3><div className="info-grid"><div><span>评价状态</span><b>{record.review ? "已评价" : "已具备评价资格，尚未评价"}</b></div>{record.review && <><div><span>评分</span><b>{"★".repeat(record.review.rating)}（{record.review.rating} 星）</b></div><div><span>评价时间</span><b>{formatServiceAssistanceTime(record.review.submittedAt)}</b></div><div className="full"><span>评价内容</span><b>{record.review.text || "仅评分，未填写评价内容"}</b></div></>}</div></section>}
     </AdminDrawer>
   );
 }
@@ -4408,7 +4633,7 @@ function RelativeWeatherLocationDrawer({ account, location, onClose, onSave }) {
   </div><div className="form-tip"><ShieldCheck size={18}/><div><b>位置维护规则</b><p>城市必须通过国家和行政区逐级选择，保存后自动带入经纬度与 IANA 时区；后台不允许编辑天气事实。</p></div></div></div><footer><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={!city} onClick={() => onSave(weatherMockApi.resolveSelection(form.countryCode, form.regionCode, form.cityCode))}>保存位置</button></footer></aside></div>;
 }
 
-function RelativeArchivePage({ accounts, elderlyRecords, weatherLocations, onOpen }) {
+function RelativeArchivePage({ accounts, elderlyRecords, weatherLocations, showCommunity = false, onOpen }) {
   const initialFilters = { query: "", project: "全部项目", relationStatus: "全部关联状态" };
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
@@ -4451,12 +4676,13 @@ function RelativeArchivePage({ accounts, elderlyRecords, weatherLocations, onOpe
         </div>
         <div className="table-scroll">
           <table className="relative-archive-table">
-            <thead><tr><th>注册用户</th><th>注册手机</th><th>关联老人</th><th>常住地址</th><th>关联状态</th><th>注册时间</th><th>最近登录</th><th>账号状态</th><th className="sticky-right">操作</th></tr></thead>
+            <thead><tr><th>注册用户</th><th>注册手机</th>{showCommunity && <th>所属社区</th>}<th>关联老人</th><th>常住地址</th><th>关联状态</th><th>注册时间</th><th>最近登录</th><th>账号状态</th><th className="sticky-right">操作</th></tr></thead>
             <tbody>
               {rows.map((account) => (
                 <tr key={account.id}>
                   <td><div className="relative-user-cell"><span>{account.name.slice(-1)}</span><b>{account.name}</b></div></td>
                   <td>{account.phone}</td>
+                  {showCommunity && <td>{account.linkedElderly.length ? [...new Set(account.linkedElderly.map((link) => link.elderly.community || link.elderly.project).filter(Boolean))].join("、") : "未归属社区"}</td>}
                   <td>
                     {account.linkedElderly.length ? (
                       <div className="relative-link-list">
@@ -4472,7 +4698,7 @@ function RelativeArchivePage({ accounts, elderlyRecords, weatherLocations, onOpe
                   <td className="sticky-right"><button className="table-action" onClick={() => onOpen(account)}>详情</button></td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan="9"><div className="empty-table-state">没有符合条件的亲属账号</div></td></tr>}
+              {!rows.length && <tr><td colSpan={showCommunity ? 10 : 9}><div className="empty-table-state">没有符合条件的注册用户</div></td></tr>}
             </tbody>
           </table>
         </div>
@@ -4546,7 +4772,8 @@ export function App() {
   const componentCenterMode = acceptanceMode && acceptanceParams.has("component-center");
   const [platformMode, setPlatformMode] = useState("community");
   const [active, setActive] = useState("overview");
-  const [overviewScenario, setOverviewScenario] = useState("normal");
+  const [overviewScenario, setOverviewScenario] = useState(() => acceptanceMode ? "demo" : "normal");
+  const [platformOverviewScenario, setPlatformOverviewScenario] = useState(() => acceptanceMode ? "complete" : "normal");
   const [recommendationScenario, setRecommendationScenario] = useState("normal");
   const [elderlyScenario, setElderlyScenario] = useState("normal");
   const [communityActivityScenario, setCommunityActivityScenario] = useState("normal");
@@ -4564,6 +4791,7 @@ export function App() {
       const records = savedRecords ? JSON.parse(savedRecords) : elderlyRows;
       return records.map((record) => ({
         ...record,
+        projectId: record.projectId || elderlyRows.find((preset) => preset.id === record.id)?.projectId || "",
         packageType: record.packageType || "unconfigured",
         ...(record.community ? { project: record.community } : {}),
       }));
@@ -4597,14 +4825,7 @@ export function App() {
       return initialPlatformAuditLogs;
     }
   });
-  const [reminderPolicies, setReminderPolicies] = useState(() => {
-    try {
-      const savedStatuses = JSON.parse(window.localStorage.getItem(reminderPolicyStatusStorageKey) || "{}");
-      return initialReminderPolicies.map((item) => ({ ...item, enabled: item.fixed ? true : savedStatuses[item.id] !== false }));
-    } catch {
-      return initialReminderPolicies;
-    }
-  });
+  const [reminderPolicies, setReminderPolicies] = useState(initialReminderPolicies);
   const [tabletDevices, setTabletDevices] = useState(() => {
     try {
       const savedDevices = window.localStorage.getItem("u2g-tablet-devices");
@@ -4737,14 +4958,7 @@ export function App() {
       return unifiedServiceCategorySettings;
     }
   });
-  const [serviceBookings, setServiceBookings] = useState(() => {
-    try {
-      const savedBookings = window.localStorage.getItem("u2g-service-assistance-records-v5-family-help");
-      return mergeSharedServiceAssistanceRecords(savedBookings ? JSON.parse(savedBookings) : initialServiceBookings);
-    } catch {
-      return mergeSharedServiceAssistanceRecords(initialServiceBookings);
-    }
-  });
+  const [serviceBookings, setServiceBookings] = useState(() => readSharedServiceAssistanceRecords().map((record) => normalizeServiceAssistanceRecord(record)));
   const [serviceCatalog, setServiceCatalog] = useState(() => {
     try {
       const savedServices = window.localStorage.getItem("u2g-service-catalog-v8-service-items")
@@ -4763,6 +4977,8 @@ export function App() {
       return initialCommunityActivities.map(normalizeCommunityActivityScope);
     }
   });
+  const [serviceConversations, setServiceConversations] = useState(serviceCommunicationFixture);
+  const [serviceCommunicationTargetId, setServiceCommunicationTargetId] = useState("");
   const [customActivityScopes, setCustomActivityScopes] = useState(() => {
     try {
       const savedScopes = window.localStorage.getItem(activityScopeStorageKey);
@@ -4806,6 +5022,22 @@ export function App() {
       return Object.fromEntries(["PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"].map((projectId) => [projectId, { ...initialGlobalInactivityRule }]));
     }
   });
+  const [communityOfflineRules, setCommunityOfflineRules] = useState(() => {
+    try {
+      const savedRules = window.localStorage.getItem("u2g-community-offline-rules-v1");
+      return savedRules ? JSON.parse(savedRules) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [deviceOfflineEvents, setDeviceOfflineEvents] = useState(() => {
+    try {
+      const savedEvents = window.localStorage.getItem("u2g-device-offline-events-v1");
+      return savedEvents ? JSON.parse(savedEvents) : [];
+    } catch {
+      return [];
+    }
+  });
   const [weatherLocations, setWeatherLocations] = useState(() => {
     try {
       const savedLocations = window.localStorage.getItem("u2g-weather-locations-v11");
@@ -4844,10 +5076,30 @@ export function App() {
   const [overviewToast, setOverviewToast] = useState("");
   const [communityTopicToast, setCommunityTopicToast] = useState("");
   const [currentProjectId, setCurrentProjectId] = useState("PRJ-001");
+  const [policyProjectId, setPolicyProjectId] = useState("PRJ-001");
   const [pendingProjectId, setPendingProjectId] = useState("");
   const currentMenuGroups = platformMode === "platform" ? platformMenuGroups : communityMenuGroups;
   const currentProject = projects.find((project) => project.id === currentProjectId) || projects.find((project) => project.status === "启用") || projects[0];
   const currentInactivityRule = communityInactivityRules[currentProjectId] || initialGlobalInactivityRule;
+  const policyProject = projects.find((project) => project.id === policyProjectId) || projects[0];
+  const policyInactivityRule = communityInactivityRules[policyProject?.id] || initialGlobalInactivityRule;
+  const policyOfflineRule = { ...DEFAULT_OFFLINE_POLICY, ...(communityOfflineRules[policyProject?.id] || {}) };
+  const policyAppliedDeviceCount = useMemo(() => {
+    const projectId = policyProject?.id;
+    if (!projectId) return 0;
+    const validSensors = sensorDevices.filter((device) => {
+      const elderly = elderlyRecords.find((record) => record.id === device.elderlyId);
+      const elderlyProjectId = elderly?.projectId || projects.find((project) => [elderly?.project, elderly?.community].includes(project.name))?.id || "";
+      return elderlyProjectId === projectId && device.installStatus === "已安装" && Boolean(device.elderlyId);
+    });
+    const ids = new Set();
+    if (policyInactivityRule.enabled) validSensors.forEach((device) => ids.add(device.id));
+    if (policyOfflineRule.enabled && !validateOfflinePolicy(policyOfflineRule)) {
+      validSensors.forEach((device) => ids.add(device.id));
+      tabletDevices.filter((device) => device.projectId === projectId && device.bindingStatus === "已绑定" && Boolean(device.boundElderlyId) && device.status !== "已停用").forEach((device) => ids.add(device.id));
+    }
+    return ids.size;
+  }, [elderlyRecords, policyInactivityRule, policyOfflineRule, policyProject?.id, sensorDevices, tabletDevices]);
   const currentCommunityMember = communityMembers.find((member) => member.projectId === currentProject?.id && member.name === "赵亚男" && member.status === "已启用")
     || communityMembers.find((member) => member.projectId === currentProject?.id && member.status === "已启用");
   const currentCommunityRole = roles.find((role) => role.id === currentCommunityMember?.roleId);
@@ -4855,7 +5107,7 @@ export function App() {
   const currentPlatformMember = communityMembers.find((member) => !member.projectId && member.name === "赵亚男" && member.status === "已启用")
     || communityMembers.find((member) => !member.projectId && member.status === "已启用");
   const currentPlatformRole = roles.find((role) => role.id === currentPlatformMember?.roleId);
-  const permissionModuleId = (moduleId) => ({ tabletDevices: "devices", deviceAlertPolicies: "devices", platformTabletDevices: "tabletOta", communityTopics: "lifeInformation" })[moduleId] || moduleId;
+  const permissionModuleId = (moduleId) => ({ tabletDevices: "devices", platformTabletDevices: "tabletOta", communityTopics: "lifeInformation" })[moduleId] || moduleId;
   const canViewMenuItem = (moduleId) => platformMode === "platform"
     ? Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.[permissionModuleId(moduleId)]?.includes("view"))
     : hasCommunityPermission(permissionModuleId(moduleId), "view");
@@ -4879,6 +5131,7 @@ export function App() {
   const scopedSensorDevices = useMemo(() => sensorDevices.filter((device) => scopedElderlyIds.has(device.elderlyId)), [sensorDevices, scopedElderlyIds]);
   const scopedReminderRecords = useMemo(() => reminderRecords.filter((record) => scopedElderlyIds.has(record.elderlyId)), [reminderRecords, scopedElderlyIds]);
   const scopedEmergencyEvents = useMemo(() => emergencyHelpEvents.filter((event) => scopedElderlyIds.has(event.elderlyId)), [emergencyHelpEvents, scopedElderlyIds]);
+  const serviceCommunicationUnread = useMemo(() => serviceConversations.filter((conversation) => conversation.projectId === currentProject?.id).reduce((total, conversation) => total + Number(conversation.staffUnreadReplyCount || 0), 0), [serviceConversations, currentProject?.id]);
   const scopedAlbumBatches = useMemo(() => familyAlbumBatches.filter((batch) => scopedElderlyIds.has(batch.elderlyId)), [familyAlbumBatches, scopedElderlyIds]);
   const scopedCommunityActivities = useMemo(() => communityActivities.filter((activity) => activity.projectId === currentProject?.id), [communityActivities, currentProject?.id]);
   const scopedActivityCategories = useMemo(() => {
@@ -4914,8 +5167,8 @@ export function App() {
       return { ...record, sourceSyncEnabled: Boolean(source.syncToRecommendation), sourceStatus, sourceUnavailable: !isCommunityContentAvailable(source) };
     }), [recommendationStrategies, currentProject?.id, leisureEntertainmentEntries, scopedSafetyNews]);
   const activeLabel = useMemo(() => allMenuGroups.flatMap((group) => group.items).find((item) => item.key === safeActive)?.label, [safeActive]);
-  const elderlyDetailRecord = scopedElderlyRecords.find((record) => record.id === elderlyDetailId);
-  const relativeDetailRecord = scopedRelativeAccounts.find((account) => account.id === relativeDetailId);
+  const elderlyDetailRecord = (platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === elderlyDetailId);
+  const relativeDetailRecord = (platformMode === "platform" ? relativeAccounts : scopedRelativeAccounts).find((account) => account.id === relativeDetailId);
   const communityActivityRecords = useMemo(() => scopedCommunityActivities.map((activity) => ({ ...activity, status: getCommunityActivityStatus(activity), registrationPhase: getCommunityActivityRegistrationPhase(activity), interestCount: new Set(scopedRegistrations.filter((registration) => registration.activityId === activity.id).map((registration) => registration.elderlyId)).size })), [scopedCommunityActivities, scopedRegistrations]);
   const hasOpenEditor = Boolean(drawer || deviceDrawer || tabletTarget || spaceTarget || globalRuleOpen || elderlyDetailRecord || relativeDetailRecord || pendingNavigation);
   useEffect(() => {
@@ -4960,7 +5213,7 @@ export function App() {
   const applyCommunitySwitch = (projectId) => {
     setCurrentProjectId(projectId);
     closeOpenEditors();
-    setActive(["elderlyDataDashboard", "deviceAlertPolicies"].includes(active) ? active : "overview");
+    setActive(active === "elderlyDataDashboard" ? active : "overview");
     setPendingProjectId("");
     window.scrollTo({ top: 0, behavior: "auto" });
   };
@@ -4985,7 +5238,7 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
   const resetAcceptance = () => {
-    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario("normal"); setRecommendationScenario("normal"); setElderlyScenario("normal"); setCommunityActivityScenario("normal"); setCommunityContentScenario("normal"); setCommunityTopicScenario("normal"); setTabletDetailScenario("normal"); setLeisureEntertainmentScenario("normal"); setLeisureEntertainmentDirty(false); setPendingNavigation(null); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
+    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario(acceptanceMode ? "demo" : "normal"); setPlatformOverviewScenario(acceptanceMode ? "complete" : "normal"); setRecommendationScenario("normal"); setElderlyScenario("normal"); setCommunityActivityScenario("normal"); setCommunityContentScenario("normal"); setCommunityTopicScenario("normal"); setTabletDetailScenario("normal"); setLeisureEntertainmentScenario("normal"); setLeisureEntertainmentDirty(false); setPendingNavigation(null); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
     setElderlyDetailId(null); setRelativeDetailId(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext(""); setOverviewToast("");
     setCareScripts(initialCareScripts);
     setReminderPolicies(initialReminderPolicies);
@@ -4993,7 +5246,6 @@ export function App() {
     setCommunityInactivityRules(Object.fromEntries(["PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"].map((projectId) => [projectId, { ...initialGlobalInactivityRule }])));
     setEmergencyHelpEvents(initialEmergencyHelpEvents.map(normalizeEmergencyAssistanceEvent));
     window.localStorage.removeItem(tabletOtaStorageKey);
-    window.localStorage.removeItem(reminderPolicyStatusStorageKey);
     window.localStorage.removeItem("u2g-emergency-assistance-events-v2");
     window.localStorage.removeItem("u2g-emergency-assistance-events-v3");
     window.localStorage.removeItem("u2g-emergency-assistance-events-v4");
@@ -5027,7 +5279,7 @@ export function App() {
     else applyModuleNavigation(next.value);
   };
 
-  const navigateFromOverview = ({ page, filter = "", drawer: nextDrawer, elderlyName = "", detailTab = "profile" } = {}) => {
+  const navigateFromOverview = ({ page, filter = "", drawer: nextDrawer, elderlyName = "", detailTab = "profile", conversationId = "", activityId = "" } = {}) => {
     if (!page) return;
     if (["sensorDevices", "activity"].includes(page)) {
       setActive("tabletDevices");
@@ -5037,6 +5289,11 @@ export function App() {
     }
     setActive(page);
     setOverviewContext(filter);
+    if (page === "serviceCommunication") setServiceCommunicationTargetId(conversationId);
+    if (page === "activities" && activityId) {
+      const activity = communityActivityRecords.find((record) => record.id === activityId);
+      if (activity) setDrawer({ kind: "activity", mode: "view", record: activity });
+    }
     if (page === "elderly") {
       setElderlyDetailInitialTab(detailTab);
       setElderlyDetailId(elderlyName ? scopedElderlyRecords.find((record) => record.name === elderlyName)?.id || null : null);
@@ -5073,10 +5330,6 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem("u2g-platform-operation-logs-v1", JSON.stringify(operationLogs));
   }, [operationLogs]);
-
-  useEffect(() => {
-    window.localStorage.setItem(reminderPolicyStatusStorageKey, JSON.stringify(Object.fromEntries(reminderPolicies.map((item) => [item.id, item.fixed ? true : item.enabled]))));
-  }, [reminderPolicies]);
 
   useEffect(() => {
     window.localStorage.setItem("u2g-tablet-devices", JSON.stringify(tabletDevices));
@@ -5145,15 +5398,9 @@ export function App() {
   }, [serviceCategorySettings]);
 
   useEffect(() => {
-    window.localStorage.setItem("u2g-service-assistance-records-v5-family-help", JSON.stringify(serviceBookings));
-  }, [serviceBookings]);
-
-  useEffect(() => {
     const syncSharedRecords = () => {
-      setServiceBookings((current) => {
-        const next = mergeSharedServiceAssistanceRecords(current);
-        return JSON.stringify(next) === JSON.stringify(current) ? current : next;
-      });
+      const next = readSharedServiceAssistanceRecords().map((record) => normalizeServiceAssistanceRecord(record));
+      setServiceBookings((current) => JSON.stringify(next) === JSON.stringify(current) ? current : next);
     };
     syncSharedRecords();
     const unsubscribe = subscribeSharedServiceAssistanceRecords(syncSharedRecords);
@@ -5194,6 +5441,26 @@ export function App() {
   }, [communityInactivityRules]);
 
   useEffect(() => {
+    window.localStorage.setItem("u2g-community-offline-rules-v1", JSON.stringify(communityOfflineRules));
+  }, [communityOfflineRules]);
+
+  useEffect(() => {
+    const now = new Date().toISOString();
+    const normalizedDevices = [
+      ...tabletDevices.map((device) => ({ ...device, installed: true, bound: device.bindingStatus === "已绑定" && Boolean(device.boundElderlyId), disabled: device.status === "已停用", lastReportAt: device.lastReportAt || "" })),
+      ...sensorDevices.map((device) => ({ ...device, projectId: elderlyRecords.find((record) => record.id === device.elderlyId)?.projectId || "", installed: device.installStatus === "已安装", bound: Boolean(device.elderlyId), disabled: device.installStatus === "已停用", lastReportAt: device.lastReportAt || "" })),
+    ];
+    setDeviceOfflineEvents((current) => {
+      const next = projects.reduce((events, project) => reconcileDeviceOfflineEvents({ events, devices: normalizedDevices, policy: { ...DEFAULT_OFFLINE_POLICY, ...(communityOfflineRules[project.id] || {}) }, projectId: project.id, now }), current);
+      return JSON.stringify(next) === JSON.stringify(current) ? current : next;
+    });
+  }, [communityOfflineRules, elderlyRecords, projects, sensorDevices, tabletDevices]);
+
+  useEffect(() => {
+    window.localStorage.setItem("u2g-device-offline-events-v1", JSON.stringify(deviceOfflineEvents));
+  }, [deviceOfflineEvents]);
+
+  useEffect(() => {
     window.localStorage.setItem("u2g-weather-locations-v11", JSON.stringify(weatherLocations));
   }, [weatherLocations]);
 
@@ -5209,6 +5476,7 @@ export function App() {
     const created = !nextRecord.id;
     if (nextRecord.id) {
       const previousRecord = elderlyRecords.find((record) => record.id === nextRecord.id);
+      if (!previousRecord || (platformMode === "platform" && previousRecord.projectId !== nextRecord.projectId)) return;
       if (previousRecord && previousRecord.address !== nextRecord.address) {
         const now = "2026-07-27 10:30";
         const currentLocation = weatherMockApi.getLocation(weatherLocations, "老人", nextRecord.id);
@@ -5814,6 +6082,10 @@ export function App() {
 
   const unbindTablet = (tabletId) => {
     const currentDevice = tabletDevices.find((device) => device.id === tabletId);
+    const targetRecord = elderlyRecords.find((record) => record.id === tabletTarget?.id);
+    if (!currentDevice || !targetRecord || currentDevice.boundElderlyId !== targetRecord.id || currentDevice.projectId !== targetRecord.projectId) {
+      return { ok: false, message: "绑定关系与所属社区不一致。" };
+    }
     if (currentDevice?.unbindFailureOnce) {
       setTabletDevices((devices) => devices.map((device) => device.id === tabletId ? { ...device, unbindFailureOnce: false } : device));
       return { ok: false, message: "解绑失败，当前网络异常。" };
@@ -5922,14 +6194,12 @@ export function App() {
     <div className={`app-shell admin-style-theme ${collapsed ? "collapsed" : ""} ${platformMode === "platform" ? "platform-mode" : "community-mode"}`}>
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark"><img className="brand-logo" src={u2gLogo} alt="U2G"/></div><div className="brand-copy"><strong>U2G 乐龄服务平台</strong><span>{platformMode === "platform" ? "平台管理端" : "社区运营端"}</span></div></div>
-        <nav>{visibleMenuGroups.map((group) => <div className="menu-group" key={group.label}><div className="menu-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; return <button title={item.label} className={safeActive === item.key ? "active" : ""} key={item.key} onClick={() => requestModuleNavigation(item.key)}><Icon size={18}/><span>{item.label}</span>{safeActive === item.key && <i/>}</button>; })}</div>)}</nav>
+        <nav>{visibleMenuGroups.map((group) => <div className="menu-group" key={group.label}><div className="menu-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; return <button title={item.label} className={safeActive === item.key ? "active" : ""} key={item.key} onClick={() => requestModuleNavigation(item.key)}><Icon size={18}/><span>{item.label}</span>{item.key === "serviceCommunication" && serviceCommunicationUnread > 0 && <em className="menu-unread-badge" aria-label={`${serviceCommunicationUnread} 条未读消息`}>{serviceCommunicationUnread > 99 ? "99+" : serviceCommunicationUnread}</em>}{safeActive === item.key && <i/>}</button>; })}</div>)}</nav>
         <div className="sidebar-footer"><button onClick={() => setCollapsed(!collapsed)}><Menu size={18}/><span>收起菜单</span></button></div>
       </aside>
       <div className="main-shell">
         <header className="topbar">
           <div className="topbar-navigation">
-            <a className="portal-return-link" href={u2gPortalUrl} aria-label="返回 U2G智慧养老"><ArrowLeft size={16}/><span>返回 U2G智慧养老</span></a>
-            <span className="topbar-navigation-divider" aria-hidden="true"/>
             <div className="breadcrumb"><Home size={15}/><span>{platformMode === "platform" ? "平台管理端" : currentProject?.name}</span><ChevronRight size={14}/><b>{activeLabel}</b></div>
           </div>
           <div className="top-actions">
@@ -5941,11 +6211,15 @@ export function App() {
         <main className="content">
           {safeActive !== "overview" && overviewContext && <div className="overview-filter-context"><div><SlidersHorizontal size={16}/><span>来自运营概览</span><b>{overviewContext}</b></div><button type="button" onClick={() => setOverviewContext("")}>清除条件</button></div>}
           {safeActive === "platformOverview"
-            ? <PlatformOverview projects={projects} elderlyRecords={elderlyRecords} tablets={tabletDevices} members={communityMembers} onSaveProject={saveProject} onOpenPlatformDevices={() => setActive("platformTabletDevices")} onOpenPlatformOta={() => setActive("tabletOta")}/>
+            ? <PlatformOverview projects={projects} elderlyRecords={elderlyRecords} tablets={tabletDevices} sensors={sensorDevices} familyRelations={familyRelations} serviceRecords={serviceBookings} members={communityMembers} scenario={platformOverviewScenario} onSaveProject={saveProject} onOpenPlatformDevices={() => setActive("platformTabletDevices")} onOpenPlatformOta={() => setActive("tabletOta")} onOpenProject={(projectId) => openCommunityModule(projectId, "overview")}/>
             : safeActive === "overview"
-            ? <Overview onNavigate={navigateFromOverview} onQuickAction={openOverviewQuickAction} quickPermissions={overviewQuickPermissions} scenario={overviewScenario} resetSignal={acceptanceResetSignal} scope={{ name: currentProject?.name || "未选择社区", project: currentProject?.name || "未选择社区" }} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} reminders={scopedReminderRecords.filter((reminder) => !reminder.deletedAt)}/>
+            ? <Overview onNavigate={navigateFromOverview} onQuickAction={openOverviewQuickAction} quickPermissions={overviewQuickPermissions} scenario={overviewScenario} resetSignal={acceptanceResetSignal} scope={{ name: currentProject?.name || "未选择社区", project: currentProject?.name || "未选择社区" }} records={scopedElderlyRecords} relativeAccounts={scopedRelativeAccounts} familyRelations={familyRelations.filter((relation) => scopedElderlyIds.has(relation.elderlyId))} tablets={scopedTabletDevices} sensors={scopedSensorDevices} reminders={scopedReminderRecords.filter((reminder) => !reminder.deletedAt)} activities={communityActivityRecords} serviceRecords={scopedServiceBookings}/>
             : safeActive === "elderlyDataDashboard"
-              ? <ElderlyDataDashboardPage communityName={currentProject?.name || "未选择社区"} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} view={communityUsageView} onViewChange={setCommunityUsageView} inactivityRule={currentInactivityRule} onOpenInactivityPolicies={() => setActive("deviceAlertPolicies")} onOpenElderly={(record) => navigateFromOverview({ page: "elderly", elderlyName: record.name, detailTab: "statistics", filter: `${currentProject?.name || "当前社区"} · ${record.name} · 数据统计` })}/>
+              ? <ElderlyDataDashboardPage communityName={currentProject?.name || "未选择社区"} records={scopedElderlyRecords} tablets={scopedTabletDevices} sensors={scopedSensorDevices} view={communityUsageView} onViewChange={setCommunityUsageView} inactivityRule={currentInactivityRule} onOpenElderly={(record) => navigateFromOverview({ page: "elderly", elderlyName: record.name, detailTab: "statistics", filter: `${currentProject?.name || "当前社区"} · ${record.name} · 数据统计` })}/>
+            : safeActive === "platformElderly"
+              ? <ElderlyPage records={elderlyRecords} tabletDevices={tabletDevices} projects={projects} showCommunity allowCreate={false} canEdit={Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.platformElderly?.includes("edit"))} canBind={Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.platformElderly?.includes("bind"))} onOpen={(mode, record) => { if (mode === "view") { setElderlyDetailInitialTab("profile"); setElderlyDetailId(record.id); } else setDrawer({ kind: "elderly", mode, record }); }} onManageTablet={setTabletTarget}/>
+            : safeActive === "platformRelations"
+              ? <RelativeArchivePage accounts={relativeAccounts} elderlyRecords={elderlyRecords} weatherLocations={weatherLocations} showCommunity onOpen={(account) => setRelativeDetailId(account.id)}/>
             : safeActive === "elderly"
               ? <ElderlyPage records={scopedElderlyRecords} tabletDevices={scopedTabletDevices} onOpen={(mode, record) => { if (mode === "view") { setElderlyDetailInitialTab("profile"); setElderlyDetailId(record.id); } else setDrawer({ kind: "elderly", mode, record }); }} onManageTablet={setTabletTarget}/>
               : safeActive === "relations"
@@ -5953,7 +6227,7 @@ export function App() {
               : safeActive === "emergencyHelp"
                 ? <EmergencyHelpPage events={scopedEmergencyEvents} elderlyRecords={scopedElderlyRecords} onOpen={(event) => setDrawer({ kind: "emergencyHelp", eventId: event.id })}/>
               : safeActive === "serviceCommunication"
-                ? <ServiceCommunicationPage projectId={currentProject?.id} communityName={currentProject?.name || "当前社区"}/>
+                ? <ServiceCommunicationPage projectId={currentProject?.id} communityName={currentProject?.name || "当前社区"} conversations={serviceConversations} onConversationsChange={setServiceConversations} openConversationId={serviceCommunicationTargetId}/>
               : safeActive === "familyAlbums"
                 ? <FamilyAlbumBatchManagementPage batches={scopedAlbumBatches} elderlyRecords={scopedElderlyRecords} relatives={scopedRelativeAccounts} onViewBatch={(batch) => setDrawer({ kind: "familyAlbumBatch", batchId: batch.id })}/>
               : safeActive === "recommendations"
@@ -5982,8 +6256,8 @@ export function App() {
                       : <RoleManagementPage currentProject={currentProject} projects={projects} roles={roles} users={communityMembers} onSave={saveRole} onDelete={deleteRole} onAudit={addAdminAuditLog}/>
                 : safeActive === "platformTabletDevices"
                   ? <PlatformTabletDevicesPage scope="platform" detailScenario={tabletDetailScenario} devices={tabletDevices} elderlyRecords={elderlyRecords} projects={projects} onOpenOta={() => setActive("tabletOta")} onCreate={savePlatformTabletDevice}/>
-                  : safeActive === "deviceAlertPolicies"
-                    ? <DeviceAlertPoliciesPage key={currentProjectId} communityName={currentProject?.name || "当前社区"} policies={buildDeviceAlertPolicyRows({ inactivityRule: currentInactivityRule })} onEdit={() => setGlobalRuleOpen(true)}/>
+                  : safeActive === "deviceAlertPolicies" && platformMode === "platform"
+                    ? <DeviceAlertPoliciesPage communities={projects.filter((project) => project.status === "启用")} communityId={policyProject?.id || ""} policies={buildDeviceAlertPolicyRows({ inactivityRule: policyInactivityRule, offlineRule: policyOfflineRule })} appliedDeviceCount={policyAppliedDeviceCount} canEdit={Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.deviceAlertPolicies?.includes("edit"))} onCommunityChange={setPolicyProjectId} onEdit={(policy) => setGlobalRuleOpen(policy.eventId)}/>
                   : safeActive === "tabletDevices"
                     ? <PlatformTabletDevicesPage key={`${safeActive}-${currentProjectId}`} scope="community" detailScenario={tabletDetailScenario} devices={scopedTabletDevices} elderlyRecords={scopedElderlyRecords} projects={currentProject ? [currentProject] : []} onManageTablet={hasCommunityPermission("devices", "bind") ? setTabletTarget : undefined}/>
                   : safeActive === "tabletOta"
@@ -5991,7 +6265,7 @@ export function App() {
                   : safeActive === "careScripts"
                       ? <CareScriptManagementPage scripts={careScripts} onEdit={(condition, record) => setDrawer({ kind: "careScript", condition, availableConditions: [], record })} onToggle={toggleCareScript}/>
                     : safeActive === "reminderPolicies"
-                      ? <ReminderPoliciesPage policies={reminderPolicies} onToggle={(id) => setReminderPolicies((items) => items.map((item) => item.id === id && !item.fixed ? { ...item, enabled: !item.enabled } : item))}/>
+                      ? <ReminderPoliciesPage policies={reminderPolicies}/>
                     : safeActive === "leisureEntertainment"
                       ? <LeisureEntertainmentPage entries={leisureEntertainmentEntries} onChange={setLeisureEntertainmentEntries} scenario={leisureEntertainmentScenario} resetSignal={acceptanceResetSignal} onDirtyChange={setLeisureEntertainmentDirty}/>
                     : safeActive === "logs"
@@ -5999,9 +6273,9 @@ export function App() {
                     : <ManagementPage page={safeActive} onCreate={() => setDrawer({ kind: "generic" })}/>}
         </main>
       </div>
-      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id)} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
-      {relativeDetailRecord && <RelativeDetailDrawer account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} onClose={() => setRelativeDetailId(null)} onOpenElderly={(record) => { setActive("elderly"); setRelativeDetailId(null); setElderlyDetailId(record.id); window.scrollTo({ top: 0, behavior: "auto" }); }}/>}
-      {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={currentProject ? [currentProject] : []} tablet={scopedTabletDevices.find((device) => device.boundElderlyId === drawer.record?.id)} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>}
+      {elderlyDetailRecord && <ElderlyDetailDrawer key={`${elderlyDetailRecord.id}-${elderlyDetailInitialTab}`} initialTab={elderlyDetailInitialTab} readOnly={platformMode === "platform"} canEdit={platformMode !== "platform" || Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.platformElderly?.includes("edit"))} canBind={platformMode !== "platform" || Boolean(currentPlatformRole?.isAdmin || currentPlatformRole?.permissionMatrix?.platformElderly?.includes("bind"))} record={elderlyDetailRecord} tablet={tabletDevices.find((device) => device.boundElderlyId === elderlyDetailRecord.id && (!elderlyDetailRecord.projectId || device.projectId === elderlyDetailRecord.projectId))} sensors={sensorDevices} reminders={reminderRecords.filter((reminder) => reminder.elderlyId === elderlyDetailRecord.id)} familyRelations={familyRelations.filter((item) => item.elderlyId === elderlyDetailRecord.id)} onUnlinkRelation={unlinkFamilyRelation} inactivityRule={{ ...currentInactivityRule, ...(inactivityRules[elderlyDetailRecord.id] || defaultInactivityState), enabled: currentInactivityRule.enabled, thresholdHours: currentInactivityRule.thresholdHours, startTime: currentInactivityRule.startTime, endTime: currentInactivityRule.endTime }} onClose={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); }} onEdit={() => { setElderlyDetailId(null); setElderlyDetailInitialTab("profile"); setDrawer({ kind: "elderly", mode: "edit", record: elderlyDetailRecord }); }} onCreateReminder={() => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id })} onEditReminder={(record) => setDrawer({ kind: "reminder", elderlyId: elderlyDetailRecord.id, record })} onDeleteReminder={deleteReminder} onManageSpaces={() => setSpaceTarget(elderlyDetailRecord)} onAddSensor={() => setDeviceDrawer({ kind: "sensorCreate", elderlyId: elderlyDetailRecord.id })} onViewSensor={(sensor) => setDeviceDrawer({ kind: "sensorView", sensor })} onManageTablet={() => setTabletTarget(elderlyDetailRecord)}/>}
+      {relativeDetailRecord && <RelativeDetailDrawer account={relativeDetailRecord} elderlyRecords={elderlyRecords} weatherLocation={weatherMockApi.getLocation(weatherLocations, "亲属", relativeDetailRecord.id)} onClose={() => setRelativeDetailId(null)} onOpenElderly={(record) => { setActive(platformMode === "platform" ? "platformElderly" : "elderly"); setRelativeDetailId(null); setElderlyDetailId(record.id); window.scrollTo({ top: 0, behavior: "auto" }); }}/>}
+      {drawer?.kind === "elderly" && <ElderlyDrawer key={`${drawer.mode}-${drawer.record?.id || "new"}`} mode={drawer.mode} record={drawer.record} projects={platformMode === "platform" ? projects : currentProject ? [currentProject] : []} tablet={(platformMode === "platform" ? tabletDevices : scopedTabletDevices).find((device) => device.boundElderlyId === drawer.record?.id && (!drawer.record?.projectId || device.projectId === drawer.record.projectId))} onManageTablet={() => setTabletTarget(drawer.record)} onClose={() => setDrawer(null)} onSave={saveElderlyRecord}/>}
       {drawer?.kind === "overviewReminderPicker" && <ElderlyPickerModal records={scopedElderlyRecords} value="" onClose={() => setDrawer(null)} onConfirm={(elderlyId) => setDrawer({ kind: "reminder", elderlyId, source: "overview" })}/>}
       {drawer?.kind === "reminder" && <ReminderDrawer key={drawer.record?.id || `new-reminder-${drawer.elderlyId}`} record={drawer.record} elderlyRecords={scopedElderlyRecords} initialElderlyId={drawer.elderlyId} lockElderly onClose={() => setDrawer(null)} onSave={saveReminder}/>}
       {drawer?.kind === "emergencyHelp" && (() => {
@@ -6025,7 +6299,7 @@ export function App() {
         if (!topic) return null;
         return <CommunityTopicDetailDrawer topic={topic} comments={scopedTopicComments.filter((comment) => comment.topicId === topic.id)} contentRecords={scopedSafetyNews} currentUser={currentCommunityMember} onClose={() => setDrawer(null)} onAddComment={addCommunityTopicComment} onCloseTopic={closeCommunityTopic} onViewReference={(record) => setDrawer({ kind: "safety", mode: "view", record, contentType: record.type })}/>;
       })()}
-      {drawer?.kind === "serviceAssistanceRecord" && <ServiceAssistanceRecordDrawer record={drawer.record} elderly={(platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === drawer.record.elderlyId)} onClose={() => setDrawer(null)}/>}
+      {drawer?.kind === "serviceAssistanceRecord" && <ServiceAssistanceRecordDrawer record={drawer.record} elderly={(platformMode === "platform" ? elderlyRecords : scopedElderlyRecords).find((record) => record.id === drawer.record.elder?.id)} onClose={() => setDrawer(null)}/>}
       {drawer?.kind === "serviceCategory" && <ServiceCategoryModal key={drawer.record?.id || "new-service-category"} record={drawer.record} categories={serviceCategories} onClose={() => setDrawer(null)} onSave={saveServiceCategory}/>}
       {drawer?.kind === "serviceCatalog" && <ServiceCatalogDrawer key={drawer.record?.id || "new-service"} record={drawer.record} projects={unifiedCommunities} categoryEnabled={serviceCategorySettings.enabled} categories={serviceCategories} onClose={() => setDrawer(null)} onSave={saveServiceCatalogItem}/>}
       {drawer?.kind === "serviceCatalogDetail" && <ServiceCatalogDetailDrawer record={drawer.record} projects={unifiedCommunities} reviewSummary={serviceReviewSummaries[drawer.record.id]} onClose={() => setDrawer(null)} onEdit={() => setDrawer({ kind: "serviceCatalog", record: drawer.record })}/>}
@@ -6033,15 +6307,16 @@ export function App() {
       {drawer?.kind === "careScript" && <CareScriptDrawer key={drawer.record?.id || drawer.condition?.code || "new-care-script"} condition={drawer.condition} availableConditions={drawer.availableConditions} record={drawer.record} onClose={() => setDrawer(null)} onSave={saveCareScript}/>}
       {drawer?.kind === "generic" && <CreateDrawer page={active} onClose={() => setDrawer(null)}/>}
       {deviceDrawer?.kind === "sensorCreate" && <SensorInstallDrawer sensors={scopedSensorDevices} elderlyRecords={scopedElderlyRecords} initialElderlyId={deviceDrawer.elderlyId} onClose={() => setDeviceDrawer(null)} onSave={saveSensorDevice}/>}
-      {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={scopedElderlyRecords} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
+      {deviceDrawer?.kind === "sensorView" && <SensorDetailDrawer sensor={deviceDrawer.sensor} elderlyRecords={platformMode === "platform" ? elderlyRecords : scopedElderlyRecords} canManage={platformMode !== "platform"} onClose={() => setDeviceDrawer(null)} onMove={moveSensorRoom} onUnbind={unbindSensor}/>}
       {spaceTarget && <SpaceManagementDrawer record={spaceTarget} onClose={() => setSpaceTarget(null)} onSave={saveElderlySpaces}/>}
-      {tabletTarget && <TabletBindingModal record={tabletTarget} devices={tabletDevices} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
-      {globalRuleOpen && <InactivityRuleDrawer rule={currentInactivityRule} communityName={currentProject?.name || "当前社区"} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setCommunityInactivityRules((rules) => ({ ...rules, [currentProjectId]: rule })); setGlobalRuleOpen(false); }}/>}
+      {tabletTarget && <TabletBindingModal record={tabletTarget} devices={tabletDevices.filter((device) => device.projectId === tabletTarget.projectId)} onClose={() => setTabletTarget(null)} onUnbind={unbindTablet}/>}
+      {globalRuleOpen === "inactivity" && <InactivityRuleDrawer rule={policyInactivityRule} communityName={policyProject?.name || "当前社区"} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setCommunityInactivityRules((rules) => ({ ...rules, [policyProject.id]: rule })); setGlobalRuleOpen(false); }}/>}
+      {globalRuleOpen === "offline" && <OfflineRuleDrawer rule={policyOfflineRule} communityName={policyProject?.name || "当前社区"} onClose={() => setGlobalRuleOpen(false)} onSave={(rule) => { setCommunityOfflineRules((rules) => ({ ...rules, [policyProject.id]: rule })); setGlobalRuleOpen(false); }}/>}
       {pendingProjectId && <div className="modal-layer"><button className="modal-backdrop" aria-label="取消切换社区" onClick={() => setPendingProjectId("")}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="切换社区确认"><span className="confirm-icon warning"><Building2 size={20}/></span><h3>切换到“{projects.find((project) => project.id === pendingProjectId)?.name}”？</h3><p>当前打开的编辑内容尚未保存。切换社区后将关闭当前弹窗，并按新社区的数据权限重新加载页面。</p><div><button className="secondary-button" onClick={() => setPendingProjectId("")}>继续当前操作</button><button className="primary-button" onClick={() => applyCommunitySwitch(pendingProjectId)}>确认切换</button></div></section></div>}
       {pendingNavigation && <div className="modal-layer"><button className="modal-backdrop" aria-label="继续编辑" onClick={() => setPendingNavigation(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="离开休闲娱乐配置"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>离开当前页面？</h3><p>当前休闲娱乐配置尚未保存。离开后，本次修改将不会保留。</p><div><button className="secondary-button" onClick={() => setPendingNavigation(null)}>继续编辑</button><button className="danger-button" onClick={confirmPendingNavigation}>放弃修改并离开</button></div></section></div>}
       {overviewToast && <AdminToast message={overviewToast} onClose={() => setOverviewToast("")}/>}
       {communityTopicToast && <AdminToast message={communityTopicToast} onClose={() => setCommunityTopicToast("")}/>}
-      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} communityActivityScenario={communityActivityScenario} communityContentScenario={communityContentScenario} communityTopicScenario={communityTopicScenario} tabletDetailScenario={tabletDetailScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onCommunityActivityScenarioChange={(scenario) => { setCommunityActivityScenario(scenario); setPlatformMode("community"); setActive("activities"); closeOpenEditors(); }} onCommunityContentScenarioChange={(scenario) => { const contentType = communityContentTypeByMenu[active]; const target = scopedSafetyNews.find((item) => item.type === contentType); setCommunityContentScenario(scenario); setPlatformMode("community"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(scenario === "createRecommendation" ? { kind: "safety", mode: "edit", contentType } : scenario === "editNoRecommendation" && target ? { kind: "safety", mode: "edit", record: target, contentType } : scenario === "detailNoRecommendation" && target ? { kind: "safety", mode: "view", record: target, contentType } : null); }} onCommunityTopicScenarioChange={(scenario) => { setCommunityTopicScenario(scenario); setPlatformMode("community"); setActive("communityTopics"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(["createSuccess", "createFailure", "createValidation"].includes(scenario) ? { kind: "communityTopicCreate" } : null); }} onTabletDetailScenarioChange={(scenario) => { setTabletDetailScenario(scenario); setDeviceDrawer(null); setTabletTarget(null); }} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
+      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} platformOverviewScenario={platformOverviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} communityActivityScenario={communityActivityScenario} communityContentScenario={communityContentScenario} communityTopicScenario={communityTopicScenario} tabletDetailScenario={tabletDetailScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onPlatformOverviewScenarioChange={(scenario) => { setPlatformOverviewScenario(scenario); setPlatformMode("platform"); setActive("platformOverview"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onCommunityActivityScenarioChange={(scenario) => { setCommunityActivityScenario(scenario); setPlatformMode("community"); setActive("activities"); closeOpenEditors(); }} onCommunityContentScenarioChange={(scenario) => { const contentType = communityContentTypeByMenu[active]; const target = scopedSafetyNews.find((item) => item.type === contentType); setCommunityContentScenario(scenario); setPlatformMode("community"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(scenario === "createRecommendation" ? { kind: "safety", mode: "edit", contentType } : scenario === "editNoRecommendation" && target ? { kind: "safety", mode: "edit", record: target, contentType } : scenario === "detailNoRecommendation" && target ? { kind: "safety", mode: "view", record: target, contentType } : null); }} onCommunityTopicScenarioChange={(scenario) => { setCommunityTopicScenario(scenario); setPlatformMode("community"); setActive("communityTopics"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(["createSuccess", "createFailure", "createValidation"].includes(scenario) ? { kind: "communityTopicCreate" } : null); }} onTabletDetailScenarioChange={(scenario) => { setTabletDetailScenario(scenario); setDeviceDrawer(null); setTabletTarget(null); }} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
       {componentCenterMode && <ComponentCenter/>}
     </div>
   );

@@ -1,3 +1,9 @@
+import {
+  localFamilyCityIdentityMap,
+  resolveAuthorizedFamilyCity,
+  subscribeAuthorizedFamilyCity,
+} from "./familyCityBindingAdapter";
+
 export type WeatherLocationStatus = "valid" | "incomplete" | "invalid";
 export type WeatherLocationSource = "elder-profile" | "child-manual" | "child-location-confirmed" | "admin-maintained";
 export type WeatherLocationSyncStatus = "synced" | "pending" | "failed";
@@ -78,6 +84,22 @@ export interface FamilyWeatherSnapshot {
   children: FamilyWeatherMember[];
   loadedAt: string;
 }
+
+const cityWeatherDirectory: Record<string, {
+  countryCode: string;
+  administrativeAreaName: string;
+  administrativeAreaCode: string;
+  conditionCode: WeatherConditionCode;
+  conditionText: string;
+  temperatureC: number;
+  highC: number;
+  lowC: number;
+  riskText?: string;
+}> = {
+  "CN-SHA": { countryCode: "CN", administrativeAreaName: "上海市", administrativeAreaCode: "CN-SH", conditionCode: "rain", conditionText: "有雨", temperatureC: 19, highC: 22, lowC: 17, riskText: "今天有雨，出门记得带伞" },
+  "CA-YVR": { countryCode: "CA", administrativeAreaName: "不列颠哥伦比亚省", administrativeAreaCode: "CA-BC", conditionCode: "cold", conditionText: "偏冷", temperatureC: 8, highC: 11, lowC: 5, riskText: "当地天气偏冷，注意添衣" },
+  "SG-SIN": { countryCode: "SG", administrativeAreaName: "新加坡", administrativeAreaCode: "SG-01", conditionCode: "storm", conditionText: "雷阵雨", temperatureC: 30, highC: 32, lowC: 27, riskText: "午后可能有雷阵雨" },
+};
 
 const makeLocation = (
   id: string,
@@ -215,9 +237,62 @@ const createBaseSnapshot = (): FamilyWeatherSnapshot => {
   };
 };
 
+const applySharedFamilyCities = (snapshot: FamilyWeatherSnapshot) => {
+  for (const identity of localFamilyCityIdentityMap) {
+    const memberIndex = snapshot.children.findIndex((member) => member.userId === identity.weatherUserId);
+    if (memberIndex < 0) continue;
+    const member = snapshot.children[memberIndex];
+    const { authorized, preference } = resolveAuthorizedFamilyCity(identity, member.relationStatus);
+    if (!authorized || !preference?.sharing || !preference.city) {
+      snapshot.children[memberIndex] = { ...member, location: null, weather: null };
+      continue;
+    }
+    const cityWeather = cityWeatherDirectory[preference.city.id];
+    const locationId = `loc-shared-${identity.ownerUserId}-${preference.city.id}`;
+    const location: FamilyWeatherLocation = {
+      id: locationId,
+      ownerUserId: preference.ownerUserId,
+      countryCode: cityWeather?.countryCode ?? preference.city.id.split("-")[0],
+      countryName: preference.city.country,
+      administrativeAreaCode: cityWeather?.administrativeAreaCode,
+      administrativeAreaName: cityWeather?.administrativeAreaName,
+      cityCode: preference.city.id,
+      cityName: preference.city.name,
+      latitude: preference.city.latitude,
+      longitude: preference.city.longitude,
+      timeZone: preference.city.timeZone,
+      status: "valid",
+      source: preference.source,
+      updatedAt: preference.updatedAt,
+      syncStatus: "synced",
+      syncUpdatedAt: preference.updatedAt,
+      auditTrail: [{
+        id: `audit-${identity.ownerUserId}-${preference.updatedAt}`,
+        changedAt: preference.updatedAt,
+        changedBy: "家人本人确认",
+        source: preference.source,
+        nextLocationId: locationId,
+        summary: `家人确认共享${preference.city.name}`,
+      }],
+    };
+    snapshot.children[memberIndex] = {
+      ...member,
+      location,
+      weather: cityWeather
+        ? makeWeather(locationId, cityWeather.conditionCode, cityWeather.conditionText, cityWeather.temperatureC, cityWeather.highC, cityWeather.lowC, cityWeather.riskText)
+        : null,
+    };
+  }
+  return snapshot;
+};
+
 const getSnapshot = (scenario: FamilyWeatherMockScenario = "default"): FamilyWeatherSnapshot => {
   const snapshot = createBaseSnapshot();
   snapshot.scenario = scenario;
+
+  // 关系状态先于城市共享授权判断，确保解绑场景不会短暂泄露城市。
+  if (scenario === "relation-unbound") snapshot.children[0] = { ...snapshot.children[0], relationStatus: "unbound" };
+  applySharedFamilyCities(snapshot);
 
   if (scenario === "cached") {
     snapshot.children[0] = {
@@ -285,14 +360,13 @@ const getSnapshot = (scenario: FamilyWeatherMockScenario = "default"): FamilyWea
     };
   }
 
-  if (scenario === "relation-unbound") snapshot.children[0] = { ...snapshot.children[0], relationStatus: "unbound" };
-
   return snapshot;
 };
 
 export const familyWeatherMockApi = {
   getSnapshot,
   reset: () => undefined,
+  subscribe: subscribeAuthorizedFamilyCity,
 };
 
 export const formatWeatherLocalTime = (timeZone: string) => new Intl.DateTimeFormat("zh-CN", {

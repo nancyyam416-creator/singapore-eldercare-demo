@@ -465,6 +465,10 @@ export default function App() {
   const [familyWeatherScenario, setFamilyWeatherScenario] = useState<FamilyWeatherMockScenario>("default");
   const [familyWeather, setFamilyWeather] = useState(() => familyWeatherMockApi.getSnapshot("default"));
 
+  useEffect(() => familyWeatherMockApi.subscribe(() => {
+    setFamilyWeather(familyWeatherMockApi.getSnapshot(familyWeatherScenario));
+  }), [familyWeatherScenario]);
+
   const handleFocusSchedule = () => {
     setHighlightSchedule(true);
     setTimeout(() => {

@@ -7,7 +7,7 @@ import { ServiceAssistanceBadge } from './H5BookingConfirmation';
 
 import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AssistanceScenario, assistanceForElder, assistanceRevision, createAssistanceEvents, hasViewedAssistance, initialAssistanceViews, markAssistanceViewed } from '../data/onlineAssistance';
-import { AssistanceHomeSummary, AssistanceNoticeEntry, H5OnlineAssistance } from './H5OnlineAssistance';
+import { AssistanceNoticeEntry, H5OnlineAssistance } from './H5OnlineAssistance';
 import { 
   Heart, 
   ShoppingBag, 
@@ -639,7 +639,6 @@ export const H5AppFrame: React.FC<H5AppFrameProps> = ({
               orders={orders}
               parentProfile={currentParentProfile}
               onSwitchElder={activeBoundElders.length > 1 ? () => setShowElderSwitcher(true) : undefined}
-              assistanceSummary={<AssistanceHomeSummary events={assistanceEvents} elderName={currentBoundElder.name} isViewed={isAssistanceViewed} onOpen={id => { setAssistanceFromList(false); openAssistance(id); }} onList={() => { setAssistanceFromList(true); setSelectedAssistanceId(null); setAssistanceOpen(true); contentScrollRef.current?.scrollTo({ top: 0 }); }} />}
               onSwitchToOrders={() => setActiveTab('orders')}
               onOpenElderProfile={() => {
                 setElderProfileRadarExpanded(true);
