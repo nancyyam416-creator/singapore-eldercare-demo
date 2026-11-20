@@ -52,6 +52,9 @@ export type CommunityLifeAcceptanceScenario =
   | "announcement-load-failure"
   | "announcement-disabled"
   | "announcement-cover-load-failure"
+  | "life-info-empty"
+  | "life-info-load-failure"
+  | "life-info-cover-load-failure"
   | "topic-normal"
   | "topic-elder"
   | "topic-backend"
@@ -64,10 +67,12 @@ export type CommunityLifeAcceptanceScenario =
   | "topic-publish-failure"
   | "topic-comment-failure"
   | "topic-empty"
-  | "topic-load-failure";
+  | "topic-load-failure"
+  | "alert-empty"
+  | "alert-load-failure";
 
 type CommunityInfoCategory = "announcement" | "life-info";
-type CommunityLifeCategory = CommunityInfoCategory | "community-staff" | "topic" | "activity" | "alert";
+export type CommunityLifeCategory = CommunityInfoCategory | "community-staff" | "topic" | "activity" | "alert";
 
 interface CommunityLifePageProps {
   isOpen: boolean;
@@ -78,6 +83,9 @@ interface CommunityLifePageProps {
   onOpenActivity: (activityId: string) => void;
   onOpenAlert: (alertId: string) => void;
   acceptanceScenario?: CommunityLifeAcceptanceScenario;
+  acceptanceCategory?: CommunityLifeCategory;
+  acceptanceMode?: boolean;
+  acceptanceRevision?: number;
 }
 
 interface CommunityCategoryDefinition {
@@ -120,7 +128,8 @@ interface CommunityTopicComment {
 
 interface CommunityTopic {
   id: string;
-  title: string;
+  // 兼容已有社区和后台话题；老人端新发布话题只保存正文。
+  title?: string;
   body: string;
   initiatorId: string;
   initiatorName: string;
@@ -274,13 +283,9 @@ const referenceFromInfo = (item: CommunityInfoItem): CommunityTopicReference => 
   isAvailable: true,
 });
 
-const summarizeTopicTitle = (content: string, reference?: CommunityTopicReference) => {
-  if (reference) return `聊聊“${reference.title}”`;
-  const normalized = content.trim().replace(/\s+/g, " ");
-  const firstSentence = normalized.split(/[。！？!?]/)[0]?.trim() || normalized;
-  if (!firstSentence) return "我想和大家聊聊";
-  return firstSentence.length > 18 ? `${firstSentence.slice(0, 18)}…` : firstSentence;
-};
+const topicVisibleBody = (topic: CommunityTopic) => (
+  topic.body.trim() || topic.title?.trim() || "内容暂不可用"
+);
 
 export default function CommunityLifePage({
   isOpen,
@@ -291,8 +296,11 @@ export default function CommunityLifePage({
   onOpenActivity,
   onOpenAlert,
   acceptanceScenario = "default",
+  acceptanceCategory,
+  acceptanceMode = false,
+  acceptanceRevision = 0,
 }: CommunityLifePageProps) {
-  const [selectedCategory, setSelectedCategory] = useState<CommunityLifeCategory>("community-staff");
+  const [selectedCategory, setSelectedCategory] = useState<CommunityLifeCategory>(acceptanceCategory ?? "community-staff");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [topics, setTopics] = useState<CommunityTopic[]>(() => cloneTopics(baseTopics));
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
@@ -307,13 +315,13 @@ export default function CommunityLifePage({
   const [publishState, setPublishState] = useState<"idle" | "submitting" | "error">("idle");
   const [commentState, setCommentState] = useState<"idle" | "submitting" | "error">("idle");
   const elderId = elderProfileMock.id ?? "current-elder";
-  const [readIds, setReadIds] = useState<string[]>(() => readViewedCommunityAnnouncementIds(elderId));
+  const [readIds, setReadIds] = useState<string[]>(() => acceptanceMode ? [] : readViewedCommunityAnnouncementIds(elderId));
   const [announcements, setAnnouncements] = useState<SharedCommunityAnnouncement[]>([]);
   const [announcementLoadFailed, setAnnouncementLoadFailed] = useState(false);
   const [retrySucceeded, setRetrySucceeded] = useState(false);
   const communityStaff = useMemo(() => getActiveCommunityStaff(), []);
 
-  const effectiveScenario = ["load-failure", "topic-load-failure", "announcement-load-failure"].includes(acceptanceScenario) && retrySucceeded
+  const effectiveScenario = ["load-failure", "topic-load-failure", "announcement-load-failure", "life-info-load-failure", "alert-load-failure"].includes(acceptanceScenario) && retrySucceeded
     ? (acceptanceScenario === "topic-load-failure" ? "topic-normal" : "default")
     : acceptanceScenario;
 
@@ -335,9 +343,15 @@ export default function CommunityLifePage({
     () => scenarioAnnouncements.map(toCommunityInfoItem),
     [scenarioAnnouncements],
   );
+  const scenarioLifeInfoItems = useMemo(() => {
+    if (effectiveScenario !== "life-info-cover-load-failure") return communityInfoItems;
+    return communityInfoItems.map((item, index) => index === 0
+      ? { ...item, coverUrl: "/mock/community-life/covers/life-info-missing.svg" }
+      : item);
+  }, [effectiveScenario]);
   const allInfoItems = useMemo(
-    () => [...announcementItems, ...communityInfoItems],
-    [announcementItems],
+    () => [...announcementItems, ...scenarioLifeInfoItems],
+    [announcementItems, scenarioLifeInfoItems],
   );
   const visibleTopics = useMemo(() => {
     const contentRecords = allInfoItems.map((item) => ({
@@ -359,7 +373,8 @@ export default function CommunityLifePage({
         authorName: resolveCommunityTopicAccountName(comment.authorId, comment.authorName),
       })),
     }));
-    return sortCommunityTopicsByPublishedAt(normalized) as CommunityTopic[];
+    return (sortCommunityTopicsByPublishedAt(normalized) as CommunityTopic[])
+      .filter((topic) => topic.status === "open");
   }, [allInfoItems, effectiveScenario, topics]);
 
   const selectedItem = useMemo(
@@ -374,9 +389,16 @@ export default function CommunityLifePage({
   const isGenericLoadFailure = effectiveScenario === "load-failure";
   const isAnnouncementEmpty = effectiveScenario === "announcement-empty";
   const isAnnouncementLoadFailure = effectiveScenario === "announcement-load-failure" || announcementLoadFailed;
+  const isLifeInfoEmpty = effectiveScenario === "life-info-empty";
+  const isLifeInfoLoadFailure = effectiveScenario === "life-info-load-failure";
   const isTopicEmpty = effectiveScenario === "topic-empty";
   const isTopicLoadFailure = effectiveScenario === "topic-load-failure";
-  const visibleInfoItems = !isGenericEmpty && !isGenericLoadFailure && !(selectedCategory === "announcement" && (isAnnouncementEmpty || isAnnouncementLoadFailure))
+  const isAlertEmpty = effectiveScenario === "alert-empty";
+  const isAlertLoadFailure = effectiveScenario === "alert-load-failure";
+  const visibleInfoItems = !isGenericEmpty
+    && !isGenericLoadFailure
+    && !(selectedCategory === "announcement" && (isAnnouncementEmpty || isAnnouncementLoadFailure))
+    && !(selectedCategory === "life-info" && (isLifeInfoEmpty || isLifeInfoLoadFailure))
     ? allInfoItems.filter((item) => item.category === selectedCategory && item.publishStatus !== "disabled")
     : [];
   const visibleCount = selectedCategory === "community-staff"
@@ -384,7 +406,7 @@ export default function CommunityLifePage({
     : selectedCategory === "activity"
       ? activities.length
     : selectedCategory === "alert"
-      ? alerts.length
+      ? (isAlertEmpty || isAlertLoadFailure ? 0 : alerts.length)
       : selectedCategory === "topic"
         ? (isTopicEmpty || isTopicLoadFailure ? 0 : visibleTopics.length)
       : visibleInfoItems.length;
@@ -392,6 +414,12 @@ export default function CommunityLifePage({
   const isAnnouncementListEmpty = selectedCategory === "announcement"
     && !isAnnouncementLoadFailure
     && visibleInfoItems.length === 0;
+
+  useEffect(() => {
+    if (selectedTopicId && !visibleTopics.some((topic) => topic.id === selectedTopicId)) {
+      setSelectedTopicId(null);
+    }
+  }, [selectedTopicId, visibleTopics]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -422,6 +450,10 @@ export default function CommunityLifePage({
   }, [isOpen]);
 
   useEffect(() => {
+    setReadIds(acceptanceMode ? [] : readViewedCommunityAnnouncementIds(elderId));
+  }, [acceptanceMode, acceptanceScenario, elderId]);
+
+  useEffect(() => {
     setRetrySucceeded(false);
     const nextTopics = cloneTopics(baseTopics);
     if (acceptanceScenario === "topic-reference-expired") {
@@ -449,7 +481,7 @@ export default function CommunityLifePage({
 
     if (acceptanceScenario.startsWith("topic-")) {
       setSelectedCategory("topic");
-      if (acceptanceScenario === "topic-elder" || acceptanceScenario === "topic-closed") setSelectedTopicId("topic-elder-walk");
+      if (acceptanceScenario === "topic-elder") setSelectedTopicId("topic-elder-walk");
       if (acceptanceScenario === "topic-backend" || acceptanceScenario === "topic-no-comments") setSelectedTopicId("topic-canteen");
       if (["topic-normal", "topic-multiple-comments", "topic-reference-expired", "topic-comment-failure"].includes(acceptanceScenario)) {
         setSelectedTopicId("topic-garden");
@@ -471,9 +503,16 @@ export default function CommunityLifePage({
         setCommentVoiceState("ready");
       }
     } else {
-      setSelectedCategory(acceptanceScenario === "default" ? "community-staff" : "announcement");
+      setSelectedCategory(acceptanceCategory
+        ?? (acceptanceScenario.startsWith("life-info-")
+          ? "life-info"
+          : acceptanceScenario.startsWith("alert-")
+            ? "alert"
+            : acceptanceScenario === "default"
+              ? "community-staff"
+              : "announcement"));
     }
-  }, [acceptanceScenario]);
+  }, [acceptanceCategory, acceptanceRevision, acceptanceScenario]);
 
   useEffect(() => {
     if (!isOpen || effectiveScenario !== "announcement-disabled" || !announcementItems[0]) return;
@@ -495,6 +534,7 @@ export default function CommunityLifePage({
     setSelectedItemId(item.id);
     setReadIds((current) => {
       if (item.category !== "announcement") return current.includes(item.id) ? current : [...current, item.id];
+      if (acceptanceMode) return current.includes(item.id) ? current : [...current, item.id];
       return markCommunityAnnouncementViewed(elderId, item.id);
     });
   };
@@ -562,7 +602,6 @@ export default function CommunityLifePage({
     }
     const newTopic: CommunityTopic = {
       id: `topic-elder-${Date.now()}`,
-      title: summarizeTopicTitle(topicBody, composerReference),
       body: topicBody,
       initiatorId: elderProfileMock.id ?? "current-elder",
       initiatorName: elderProfileMock.name,
@@ -663,7 +702,11 @@ export default function CommunityLifePage({
             </div>
           </header>
 
-          {(isGenericLoadFailure || (selectedCategory === "topic" && isTopicLoadFailure) || (selectedCategory === "announcement" && isAnnouncementLoadFailure)) ? (
+          {(isGenericLoadFailure
+            || (selectedCategory === "topic" && isTopicLoadFailure)
+            || (selectedCategory === "announcement" && isAnnouncementLoadFailure)
+            || (selectedCategory === "life-info" && isLifeInfoLoadFailure)
+            || (selectedCategory === "alert" && isAlertLoadFailure)) ? (
             <div className="community-life-state is-error" role="alert">
               <CircleAlert aria-hidden="true" />
               <h3>内容暂时没有加载出来</h3>
@@ -672,7 +715,11 @@ export default function CommunityLifePage({
                 <RefreshCcw aria-hidden="true" />重新加载
               </button>
             </div>
-          ) : (isGenericEmpty || (selectedCategory === "topic" && isTopicEmpty) || (selectedCategory === "announcement" && (isAnnouncementEmpty || isAnnouncementListEmpty))) ? (
+          ) : (isGenericEmpty
+            || (selectedCategory === "topic" && isTopicEmpty)
+            || (selectedCategory === "announcement" && (isAnnouncementEmpty || isAnnouncementListEmpty))
+            || (selectedCategory === "life-info" && isLifeInfoEmpty)
+            || (selectedCategory === "alert" && isAlertEmpty)) ? (
             <div className="community-life-state">
               <Newspaper aria-hidden="true" />
               <h3>当前暂无内容</h3>
@@ -689,10 +736,8 @@ export default function CommunityLifePage({
                   <span className="community-topic-card__copy">
                     <span className="community-topic-card__meta">
                       <small>{topic.initiatorName} · {topic.publishAt}</small>
-                      {topic.status === "closed" && <em>话题已关闭</em>}
                     </span>
-                    <strong>{topic.title}</strong>
-                    <p>{topic.body}</p>
+                    <p className="is-body-only">{topicVisibleBody(topic)}</p>
                     {topic.reference && (
                       <span className="community-topic-card__reference"><Quote aria-hidden="true" />引用资讯：{topic.reference.title}</span>
                     )}
@@ -759,19 +804,19 @@ export default function CommunityLifePage({
               }) : selectedCategory === "alert" ? alerts.map((alert) => {
                 const hasRead = alertReadIds.includes(alert.id);
                 return (
-                  <button key={alert.id} type="button" onClick={() => onOpenAlert(alert.id)}>
+                  <button
+                    key={alert.id}
+                    type="button"
+                    data-read-state={hasRead ? "read" : "unread"}
+                    onClick={() => onOpenAlert(alert.id)}
+                  >
                     <span className={`community-life-info-list__media${alert.coverUrl ? " has-cover" : ""}`}>
                       <CategoryIcon aria-hidden="true" />
                       {alert.coverUrl && <img src={alert.coverUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} />}
                     </span>
                     <span className="community-life-info-list__copy">
-                      <span>
-                        <small>{alert.source}</small>
-                        {hasRead ? <em>已查看</em> : <span className="community-life-info-list__badge">待查看</span>}
-                      </span>
                       <strong>{alert.title}</strong>
                       <p>{alert.summary ?? alert.description}</p>
-                      <small>{alert.category}</small>
                     </span>
                     <ChevronRight aria-hidden="true" />
                   </button>
@@ -816,7 +861,7 @@ export default function CommunityLifePage({
             <article>
               <div className="community-life-detail__meta">
                 <span><BadgeCheck aria-hidden="true" />已查看</span>
-                <small>{selectedItem.source ? `${selectedItem.source} · ` : ""}{selectedItem.publishAt}</small>
+                <small>{selectedItem.publishAt}</small>
               </div>
               <h2>{selectedItem.title}</h2>
               {selectedItem.summary && <p className="community-life-detail__summary">{selectedItem.summary}</p>}
@@ -870,7 +915,7 @@ export default function CommunityLifePage({
           <div className="community-topic-composer__panel">
             <div className="community-topic-composer__heading">
               <Mic aria-hidden="true" />
-              <div><h2>点一下，把想说的话告诉大家</h2><p>系统会整理成文字，您确认后才会发布。</p></div>
+              <div><h2>说一句想说的话</h2><p>系统会转成文字，您确认后才会发布。</p></div>
             </div>
             {composerReference && (
               <div className="community-topic-reference is-composer">
@@ -938,7 +983,7 @@ export default function CommunityLifePage({
       )}
 
       {selectedTopic && (
-        <section className="community-topic-detail" role="dialog" aria-modal="true" aria-label={`社区话题：${selectedTopic.title}`}>
+        <section className="community-topic-detail" role="dialog" aria-modal="true" aria-label={`社区话题：${topicVisibleBody(selectedTopic).slice(0, 50)}`}>
           <header>
             <button type="button" onClick={() => setSelectedTopicId(null)}><X aria-hidden="true" />收起</button>
             <strong>社区话题</strong>
@@ -947,10 +992,8 @@ export default function CommunityLifePage({
             <article className="community-topic-detail__article">
               <div className="community-topic-detail__meta">
                 <span>{selectedTopic.initiatorName}</span><small>{selectedTopic.publishAt}</small>
-                {selectedTopic.status === "closed" && <em>话题已关闭</em>}
               </div>
-              <h2>{selectedTopic.title}</h2>
-              <p>{selectedTopic.body}</p>
+              <p>{topicVisibleBody(selectedTopic)}</p>
               {selectedTopic.reference && (
                 <button
                   type="button"
@@ -979,10 +1022,7 @@ export default function CommunityLifePage({
                   ))}
                 </div>
               )}
-              {selectedTopic.status === "closed" ? (
-                <p className="community-topic-closed"><CircleAlert aria-hidden="true" />话题已关闭，可以查看历史评论，但不能再发表评论。</p>
-              ) : (
-                <div className="community-topic-comment-form">
+              <div className="community-topic-comment-form">
                   <h4><Mic aria-hidden="true" />说说您的想法</h4>
                   <div className={`community-topic-voice is-comment is-${commentVoiceState}`}>
                     {commentVoiceState === "idle" && (
@@ -1026,8 +1066,7 @@ export default function CommunityLifePage({
                     {commentState === "submitting" ? <Loader2 className="is-spinning" aria-hidden="true" /> : <Send aria-hidden="true" />}确认发表
                   </button>
                   {commentState === "error" && <p className="community-topic-error" role="alert">评论发送失败，文字已经保留，请重试。</p>}
-                </div>
-              )}
+              </div>
             </section>
           </div>
         </section>

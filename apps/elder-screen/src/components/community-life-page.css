@@ -438,6 +438,12 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+.community-topic-card__copy > p.is-body-only {
+  color: var(--color-text);
+  font-size: 24px;
+  font-weight: 750;
+  line-height: 1.5;
+}
 .community-topic-card__reference {
   display: inline-flex;
   align-items: center;

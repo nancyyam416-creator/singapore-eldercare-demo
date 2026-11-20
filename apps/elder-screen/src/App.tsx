@@ -14,7 +14,10 @@ import FamilyAlbumPage from "./components/FamilyAlbumPage";
 import SchedulePage from "./components/SchedulePage";
 import MoreFunctionsDrawer from "./components/MoreFunctionsDrawer";
 import CommunityActivitiesPage, { type CommunityActivityAcceptanceScenario } from "./components/CommunityActivitiesPage";
-import CommunityLifePage, { type CommunityLifeAcceptanceScenario } from "./components/CommunityLifePage";
+import CommunityLifePage, {
+  type CommunityLifeAcceptanceScenario,
+  type CommunityLifeCategory,
+} from "./components/CommunityLifePage";
 import SecurityInformationPage from "./components/SecurityInformationPage";
 import SpecialServicesPage, { type SpecialServicesAcceptanceScenario } from "./components/SpecialServicesPage";
 import PersonalProfilePage from "./components/PersonalProfilePage";
@@ -30,6 +33,7 @@ import InteractionAcceptanceConsole, {
   type AcceptanceRightContentCondition,
   type AcceptanceRightContentScenario,
   type AcceptanceTaskContentScenario,
+  type AcceptanceCommunityModule,
   type AcceptanceCommunityScenario,
 } from "./components/InteractionAcceptanceConsole";
 import {
@@ -444,6 +448,13 @@ export default function App() {
   const [acceptanceRightContentScenario, setAcceptanceRightContentScenario] = useState<AcceptanceRightContentScenario>("default");
   const [acceptanceRightContentCondition, setAcceptanceRightContentCondition] = useState<AcceptanceRightContentCondition>("relationship-valid");
   const [acceptanceCommunityScenario, setAcceptanceCommunityScenario] = useState<AcceptanceCommunityScenario>("default");
+  const [acceptanceCommunityModule, setAcceptanceCommunityModule] = useState<AcceptanceCommunityModule>("community-staff");
+  const [acceptanceCommunityRevision, setAcceptanceCommunityRevision] = useState(0);
+  const [acceptanceCommunityLifeCategory, setAcceptanceCommunityLifeCategory] = useState<CommunityLifeCategory>("community-staff");
+  const [isAcceptanceCommunityContext, setIsAcceptanceCommunityContext] = useState(false);
+  const [isAcceptanceCommunityLifeMode, setIsAcceptanceCommunityLifeMode] = useState(false);
+  const [isAcceptanceSafetyMode, setIsAcceptanceSafetyMode] = useState(false);
+  const [acceptanceSafetyReadIds, setAcceptanceSafetyReadIds] = useState<string[]>([]);
   const [acceptanceSpecialServicesScenario, setAcceptanceSpecialServicesScenario] = useState<SpecialServicesAcceptanceScenario>("default");
   const [acceptanceSpecialServicesActionSignal, setAcceptanceSpecialServicesActionSignal] = useState(0);
   const [acceptanceCommunityStaffScenario, setAcceptanceCommunityStaffScenario] = useState<CommunityStaffAcceptanceScenario>("multiple");
@@ -826,6 +837,9 @@ export default function App() {
     setIsMoreModulesOpen(false);
     setHomeReminderAlert(null);
     setReturnToCommunityLife(false);
+    setIsAcceptanceCommunityContext(false);
+    setIsAcceptanceCommunityLifeMode(false);
+    setIsAcceptanceSafetyMode(false);
     setFamilyMediaFocusRequest(null);
     setFamilyMediaOpenError("");
     setAlbumInitialMediaId(null);
@@ -1094,11 +1108,20 @@ export default function App() {
     }
   };
 
-  const openAcceptanceCommunityScenario = (scenario: AcceptanceCommunityScenario) => {
+  const openAcceptanceCommunityScenario = (
+    module: AcceptanceCommunityModule,
+    scenario: AcceptanceCommunityScenario,
+  ) => {
     showHomeForAcceptance();
+    setAcceptanceCommunityModule(module);
+    setIsAcceptanceCommunityContext(true);
     setAcceptanceCommunityScenario(scenario);
+    setAcceptanceCommunityRevision((revision) => revision + 1);
     setHomeRecommendationKind(null);
     setReturnToCommunityLife(false);
+    setCommunityActivityInitialId(null);
+    setCommunityAlertInitialId(null);
+    setAcceptanceSafetyReadIds([]);
 
     const activityScenarioMap: Partial<Record<AcceptanceCommunityScenario, CommunityActivityAcceptanceScenario>> = {
       "activity-ended-cancelled": "ended-cancelled",
@@ -1113,24 +1136,39 @@ export default function App() {
     };
     const activityScenario = activityScenarioMap[scenario];
 
-    if (activityScenario) {
-      setCommunityActivityAcceptanceScenario(activityScenario);
+    if (module === "community-activities") {
+      setCommunityActivityAcceptanceScenario(activityScenario ?? "default");
+      if (scenario === "activity-submit-failure") setCommunityActivityInitialId("act-1");
+      if (scenario.startsWith("activity-live-")) setCommunityActivityInitialId("act-3");
       setIsCommunityActivitiesOpen(true);
       return;
     }
 
     setCommunityActivityAcceptanceScenario("default");
-    setCommunityLifeAcceptanceScenario(
+    if (module === "community-alerts" && ["alert-detail", "alert-listen"].includes(scenario)) {
+      setIsAcceptanceSafetyMode(true);
+      setCommunityAlertInitialId("tip-1");
+      openSafetyInformation(scenario === "alert-listen", "alert");
+      return;
+    }
+
+    const categoryByModule: Partial<Record<AcceptanceCommunityModule, CommunityLifeCategory>> = {
+      "community-announcements": "announcement",
+      "community-life-info": "life-info",
+      "community-topics": "topic",
+      "community-alerts": "alert",
+    };
+    const communityLifeScenario: CommunityLifeAcceptanceScenario = (
       scenario === "empty"
-        ? "empty"
-        : scenario === "load-failure"
-          ? "load-failure"
-          : scenario.startsWith("announcement-")
-            ? scenario
-          : scenario.startsWith("topic-")
-            ? scenario
-            : "default",
-    );
+      || scenario === "load-failure"
+      || scenario.startsWith("announcement-")
+      || scenario.startsWith("life-info-")
+      || scenario.startsWith("topic-")
+      || scenario.startsWith("alert-")
+    ) ? scenario as CommunityLifeAcceptanceScenario : "default";
+    setAcceptanceCommunityLifeCategory(categoryByModule[module] ?? "announcement");
+    setCommunityLifeAcceptanceScenario(communityLifeScenario);
+    setIsAcceptanceCommunityLifeMode(true);
     setIsCommunityLifeOpen(true);
   };
 
@@ -1144,6 +1182,9 @@ export default function App() {
 
   const openAcceptanceCommunityStaffScenario = (scenario: CommunityStaffAcceptanceScenario) => {
     showHomeForAcceptance();
+    setAcceptanceCommunityModule("community-staff");
+    setIsAcceptanceCommunityContext(true);
+    setAcceptanceCommunityRevision((revision) => revision + 1);
     setAcceptanceCommunityStaffScenario(scenario);
     setIsCommunityStaffOpen(true);
   };
@@ -1171,6 +1212,13 @@ export default function App() {
     setAcceptanceRightContentCondition("relationship-valid");
     setFamilyMediaFocusRequest(null);
     setAcceptanceCommunityScenario("default");
+    setAcceptanceCommunityModule("community-staff");
+    setAcceptanceCommunityRevision((revision) => revision + 1);
+    setAcceptanceCommunityLifeCategory("community-staff");
+    setIsAcceptanceCommunityContext(false);
+    setIsAcceptanceCommunityLifeMode(false);
+    setIsAcceptanceSafetyMode(false);
+    setAcceptanceSafetyReadIds([]);
     setAcceptanceSpecialServicesScenario("default");
     setAcceptanceCommunityStaffScenario("multiple");
     setAcceptanceServiceConversationScenario("off");
@@ -1309,6 +1357,12 @@ export default function App() {
       familyRequestCondition={acceptanceFamilyRequestCondition}
       activationScenario={acceptanceActivationScenario}
       activationContractState={activationContractState}
+      activeCommunityModule={isAcceptanceCommunityContext && (
+        (isAcceptanceCommunityLifeMode && isCommunityLifeOpen)
+        || (acceptanceCommunityModule === "community-activities" && isCommunityActivitiesOpen)
+        || (acceptanceCommunityModule === "community-alerts" && isAcceptanceSafetyMode && isSecurityInformationOpen)
+        || (acceptanceCommunityModule === "community-staff" && isCommunityStaffOpen)
+      ) ? acceptanceCommunityModule : null}
       onShowHome={showHomeForAcceptance}
       onShowAlbum={() => {
         showHomeForAcceptance();
@@ -1318,9 +1372,9 @@ export default function App() {
         showHomeForAcceptance();
         setIsSchedulePageOpen(true);
       }}
-      onShowCommunity={() => openAcceptanceCommunityScenario(acceptanceCommunityScenario)}
+      onShowCommunity={(module, scenario) => openAcceptanceCommunityScenario(module, scenario ?? acceptanceCommunityScenario)}
       onShowServices={(scenario) => openAcceptanceSpecialServicesScenario(scenario ?? acceptanceSpecialServicesScenario)}
-      onShowCommunityStaff={() => openAcceptanceCommunityStaffScenario(acceptanceCommunityStaffScenario)}
+      onShowCommunityStaff={(scenario) => openAcceptanceCommunityStaffScenario(scenario ?? acceptanceCommunityStaffScenario)}
       onShowContacts={(scenario) => {
         showHomeForAcceptance();
         setIsContactsOpen(true);
@@ -1338,9 +1392,9 @@ export default function App() {
       onSetReminderScenario={setAcceptanceReminderScenario}
       onSetRightContentScenario={handleAcceptanceRightContentScenario}
       onSetRightContentCondition={setAcceptanceRightContentCondition}
-      onSetCommunityScenario={openAcceptanceCommunityScenario}
+      onSetCommunityScenario={setAcceptanceCommunityScenario}
       onSetServiceScenario={openAcceptanceSpecialServicesScenario}
-      onSetCommunityStaffScenario={openAcceptanceCommunityStaffScenario}
+      onSetCommunityStaffScenario={setAcceptanceCommunityStaffScenario}
       onSetServiceConversationScenario={setAcceptanceServiceConversationScenario}
       onSetFamilyRequestScenario={setAcceptanceFamilyRequestScenario}
       onSetFamilyRequestCondition={setAcceptanceFamilyRequestCondition}
@@ -1430,6 +1484,7 @@ export default function App() {
             onOpenSchedule={() => setIsSchedulePageOpen(true)}
             onOpenCommunity={() => {
               setHomeRecommendationKind(null);
+              setIsAcceptanceCommunityContext(false);
               setReturnToCommunityLife(false);
               setCommunityActivityAcceptanceScenario("default");
               setIsCommunityActivitiesOpen(true);
@@ -1632,10 +1687,17 @@ export default function App() {
         <CommunityLifePage
           isOpen={isCommunityLifeOpen}
           acceptanceScenario={communityLifeAcceptanceScenario}
+          acceptanceRevision={acceptanceCommunityRevision}
+          acceptanceCategory={acceptanceCommunityLifeCategory}
+          acceptanceMode={isAcceptanceCommunityLifeMode}
           activities={activities}
           alerts={scamTips}
-          alertReadIds={safetyReadIds}
-          onClose={() => setIsCommunityLifeOpen(false)}
+          alertReadIds={isAcceptanceCommunityLifeMode ? acceptanceSafetyReadIds : safetyReadIds}
+          onClose={() => {
+            setIsCommunityLifeOpen(false);
+            setIsAcceptanceCommunityContext(false);
+            setIsAcceptanceCommunityLifeMode(false);
+          }}
           onOpenActivity={(activityId) => {
             setIsCommunityLifeOpen(false);
             setReturnToCommunityLife(true);
@@ -1647,6 +1709,7 @@ export default function App() {
             setIsCommunityLifeOpen(false);
             setReturnToCommunityLife(true);
             setCommunityAlertInitialId(alertId);
+            setIsAcceptanceSafetyMode(isAcceptanceCommunityLifeMode && acceptanceCommunityModule === "community-alerts");
             openSafetyInformation(false, "alert");
           }}
         />
@@ -1655,6 +1718,7 @@ export default function App() {
           isOpen={isCommunityActivitiesOpen}
           initialActivityId={communityActivityInitialId ?? (homeRecommendationKind === "community" ? "act-1" : null)}
           acceptanceScenario={communityActivityAcceptanceScenario}
+          acceptanceRevision={acceptanceCommunityRevision}
           onClose={() => {
             setIsCommunityActivitiesOpen(false);
             setCommunityActivityAcceptanceScenario("default");
@@ -1662,7 +1726,10 @@ export default function App() {
             if (returnToCommunityLife) {
               setReturnToCommunityLife(false);
               setIsCommunityLifeOpen(true);
-            } else if (homeRecommendationKind === "community") setHomeRecommendationKind(null);
+            } else {
+              if (homeRecommendationKind === "community") setHomeRecommendationKind(null);
+              setIsAcceptanceCommunityContext(false);
+            }
           }}
           activities={activities}
         />
@@ -1670,20 +1737,27 @@ export default function App() {
         <SecurityInformationPage
           isOpen={isSecurityInformationOpen}
           pageTitle={securityInformationMode === "alert" ? "警惕事项" : "安全资讯"}
+          acceptanceRevision={isAcceptanceSafetyMode ? acceptanceCommunityRevision : 0}
           autoPlayFeatured={autoPlaySafetyInformation}
           initialTipId={communityAlertInitialId ?? (homeRecommendationKind === "security" ? "tip-1" : null)}
           tips={scamTips}
-          readIds={safetyReadIds}
-          onRead={handleReadSafetyTip}
+          readIds={isAcceptanceSafetyMode ? acceptanceSafetyReadIds : safetyReadIds}
+          onRead={isAcceptanceSafetyMode
+            ? (tipId) => setAcceptanceSafetyReadIds((current) => current.includes(tipId) ? current : [...current, tipId])
+            : handleReadSafetyTip}
           onClose={() => {
             setIsSecurityInformationOpen(false);
             setAutoPlaySafetyInformation(false);
             setSecurityInformationMode("security");
             setCommunityAlertInitialId(null);
+            setIsAcceptanceSafetyMode(false);
             if (returnToCommunityLife) {
               setReturnToCommunityLife(false);
               setIsCommunityLifeOpen(true);
-            } else if (homeRecommendationKind === "security") setHomeRecommendationKind(null);
+            } else {
+              if (homeRecommendationKind === "security") setHomeRecommendationKind(null);
+              setIsAcceptanceCommunityContext(false);
+            }
           }}
         />
 
@@ -1708,7 +1782,10 @@ export default function App() {
 
         <CommunityStaffPage
           isOpen={isCommunityStaffOpen}
-          onClose={() => setIsCommunityStaffOpen(false)}
+          onClose={() => {
+            setIsCommunityStaffOpen(false);
+            setIsAcceptanceCommunityContext(false);
+          }}
           acceptanceScenario={acceptanceCommunityStaffScenario}
         />
 
@@ -1763,6 +1840,8 @@ export default function App() {
           onOpenReminders={() => setIsSchedulePageOpen(true)}
           onOpenCommunity={() => {
             setHomeRecommendationKind(null);
+            setIsAcceptanceCommunityContext(false);
+            setIsAcceptanceCommunityLifeMode(false);
             setCommunityLifeAcceptanceScenario("default");
             setIsCommunityLifeOpen(true);
           }}

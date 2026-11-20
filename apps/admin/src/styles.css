@@ -732,7 +732,7 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .platform-overview-bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, .92fr) minmax(0, 1.28fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: 18px;
 }
@@ -754,9 +754,12 @@ th.sticky-right { background: #f7f8fa; }
 
 .admin-style-theme .platform-project-summary-list {
   padding: 4px 18px 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
 }
 
 .admin-style-theme .platform-project-summary-row {
+  min-width: 600px;
   min-height: 72px;
   display: grid;
   grid-template-columns: minmax(140px, 1.3fr) repeat(4, minmax(84px, .8fr));
@@ -843,7 +846,7 @@ th.sticky-right { background: #f7f8fa; }
   gap: 8px;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1100px) {
   .admin-style-theme .platform-overview-bottom-grid {
     grid-template-columns: minmax(0, 1fr);
   }

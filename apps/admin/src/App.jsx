@@ -1155,9 +1155,6 @@ function PlatformOverview({ projects, elderlyRecords, tablets, sensors, familyRe
   const [detailIssueType, setDetailIssueType] = useState("");
   const [editingProjectId, setEditingProjectId] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
-  const [registrationPeriod, setRegistrationPeriod] = useState(7);
-  const singaporeNow = getSingaporeNowParts();
-  const currentMonthKey = singaporeNow.dateKey.slice(0, 7);
   const childRelationNames = new Set(["儿子", "女儿"]);
   const uniqueById = (records) => [...new Map(records.filter((record) => record?.id).map((record) => [record.id, record])).values()];
   const uniqueElderlyRecords = uniqueById(elderlyRecords);
@@ -1166,19 +1163,7 @@ function PlatformOverview({ projects, elderlyRecords, tablets, sensors, familyRe
   const uniqueSensors = uniqueById(sensors);
   const uniqueServiceRecords = uniqueById(serviceRecords);
   const elderlyIds = new Set(uniqueElderlyRecords.map((record) => record.id));
-  const childAccounts = [...new Map(relativeAccounts.filter((account) => account.links.some((link) => elderlyIds.has(link.elderlyId) && childRelationNames.has(link.relation))).map((account) => [account.id, account])).values()];
-  const parseRegisteredAt = (value) => {
-    const timestamp = parsePlatformDate(value);
-    return Number.isFinite(timestamp) ? timestamp : Number.NaN;
-  };
-  const monthStart = parsePlatformDate(`${currentMonthKey}-01 00:00:00`);
-  const periodEnd = parsePlatformDate(`${singaporeNow.dateKey} 23:59:59`);
-  const currentMonthChildRegistrations = childAccounts.filter((account) => {
-    const timestamp = parseRegisteredAt(account.registeredAt);
-    return Number.isFinite(timestamp) && timestamp >= monthStart && timestamp <= periodEnd;
-  }).length;
-  const registrationTrendPoints = buildRegistrationTrend(childAccounts, registrationPeriod, singaporeNow.dateKey);
-  const recentChildRegistrations = registrationTrendPoints.reduce((sum, point) => sum + point.value, 0);
+  const linkedChildAccounts = uniqueById(relativeAccounts.filter((account) => account.links.some((link) => elderlyIds.has(link.elderlyId) && childRelationNames.has(link.relation))));
   const activeFamilyRelations = uniqueFamilyRelations.filter((relation) => relation.status === "正常" && elderlyIds.has(relation.elderlyId));
   const boundElderlyIds = new Set(activeFamilyRelations.map((relation) => relation.elderlyId));
   const activeTablets = uniqueTablets.filter((device) => device.boundElderlyId && elderlyIds.has(device.boundElderlyId));
@@ -1190,7 +1175,7 @@ function PlatformOverview({ projects, elderlyRecords, tablets, sensors, familyRe
   const baseRows = projects.map((project) => {
     const projectElderly = uniqueElderlyRecords.filter((record) => record.projectId === project.id);
     const projectElderlyIds = new Set(projectElderly.map((record) => record.id));
-    const projectChildAccounts = [...new Map(childAccounts.filter((account) => account.links.some((link) => projectElderlyIds.has(link.elderlyId) && childRelationNames.has(link.relation))).map((account) => [account.id, account])).values()];
+    const projectChildAccounts = linkedChildAccounts.filter((account) => account.links.some((link) => projectElderlyIds.has(link.elderlyId) && childRelationNames.has(link.relation)));
     const projectBoundElderlyCount = new Set(activeFamilyRelations.filter((relation) => projectElderlyIds.has(relation.elderlyId)).map((relation) => relation.elderlyId)).size;
     const projectTablets = activeTablets.filter((device) => device.projectId ? device.projectId === project.id : projectElderlyIds.has(device.boundElderlyId));
     const projectSensors = activeSensors.filter((device) => device.projectId ? device.projectId === project.id : projectElderlyIds.has(device.elderlyId));
@@ -1310,13 +1295,13 @@ function PlatformOverview({ projects, elderlyRecords, tablets, sensors, familyRe
     <div className="platform-metric-grid platform-overview-metrics">
       <div className="platform-metric-card"><div className="admin-metric-heading"><span>运营中项目</span><MetricHelp label="运营中项目指标说明" content="统计当前状态为启用的运营项目。"/></div><b>{rows.filter((row) => row.status === "启用").length}<small> 个</small></b></div>
       <div className="platform-metric-card"><div className="admin-metric-heading"><span>注册老人</span><MetricHelp label="注册老人指标说明" content="老人账号注册时间尚未获取，暂不以老人档案数量代替注册数量。"/></div><b>—</b></div>
-      <div className="platform-metric-card"><div className="admin-metric-heading"><span>已关联子女账号</span><MetricHelp label="已关联子女账号指标说明" content="统计与平台老人存在儿子或女儿关系的注册账号，并按账号去重。"/></div><b>{childAccounts.length}<small> 人</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>注册子女</span><MetricHelp label="注册子女指标说明" content="平台账号源尚未提供可区分子女身份的字段；亲属账号不能直接等同于子女账号，因此暂不统计。"/></div><b>—</b></div>
       <div className="platform-metric-card"><div className="admin-metric-heading"><span>本月新增老人</span><MetricHelp label="本月新增老人指标说明" content="按老人账号的权威注册时间统计；当前未获取该时间，因此显示为“—”。"/></div><b>—</b></div>
-      <div className="platform-metric-card"><div className="admin-metric-heading"><span>本月新增已关联子女</span><MetricHelp label="本月新增已关联子女指标说明" content="按已关联子女账号的权威注册时间统计，不包含尚未关联老人的账号。"/></div><b>{currentMonthChildRegistrations}<small> 人</small></b></div>
+      <div className="platform-metric-card"><div className="admin-metric-heading"><span>本月新增子女</span><MetricHelp label="本月新增子女指标说明" content="需基于全部已注册子女账号的身份与注册时间统计；当前未获取子女身份口径，因此显示为“—”。"/></div><b>—</b></div>
       <div className="platform-metric-card"><div className="admin-metric-heading"><span>设备在线率</span><MetricHelp label="设备在线率指标说明" content={validDevices.length ? `统计已绑定平板与已安装、未停用的房间感知器；当前 ${onlineDeviceCount} 台在线，共 ${validDevices.length} 台有效设备。` : "统计已绑定平板与已安装、未停用的房间感知器；当前暂无有效设备。"}/></div><b>{validDevices.length ? Math.round((onlineDeviceCount / validDevices.length) * 100) : "—"}<small>{validDevices.length ? "%" : ""}</small></b></div>
     </div>
     <div className="overview-chart-grid platform-overview-chart-grid">
-      <section className="panel overview-chart-card overview-registration-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>注册增长</h3><MetricHelp label="注册增长口径" content="老人档案缺少账号注册时间，不绘制老人趋势；子女仅统计与平台老人存在儿子或女儿关系的注册账号"/></div><div className="overview-period-toggle"><button className={registrationPeriod === 7 ? "active" : ""} onClick={() => setRegistrationPeriod(7)}>近 7 天</button><button className={registrationPeriod === 30 ? "active" : ""} onClick={() => setRegistrationPeriod(30)}>近 30 天</button></div></div><div className="overview-registration-summary"><span>老人注册 <b>—</b><small>暂无注册时间数据</small></span><span>已关联子女新增 <b>{recentChildRegistrations} 人</b></span></div><OverviewRegistrationTrend points={registrationTrendPoints}/></section>
+      <section className="panel overview-chart-card overview-registration-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>注册增长</h3><MetricHelp label="注册增长口径" content="老人账号缺少注册时间；子女账号缺少可验证的身份字段。两类数据均未形成可用的注册增长口径。"/></div></div><div className="overview-registration-summary"><span>老人注册 <b>—</b><small>暂无注册时间数据</small></span><span>子女新增 <b>—</b><small>子女身份未获取</small></span></div><div className="overview-chart-empty"><span>—</span><b>暂无可用的注册趋势</b></div></section>
       <section className="panel overview-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>家庭绑定</h3><MetricHelp label="家庭绑定口径" content="按稳定 ID 去重后的平台老人档案与当前有效家庭关系统计，绑定时间不作为账号注册时间"/></div><strong className="overview-chart-kpi">{activeFamilyRelations.length}<small>条有效关系</small></strong></div>{uniqueElderlyRecords.length ? <OverviewDonut ariaLabel="平台老人家庭绑定覆盖" centerValue={`${familyCoverageRate}%`} centerLabel={`${boundElderlyIds.size} / ${uniqueElderlyRecords.length} 位老人`} items={[{ label: "已有家人绑定", value: boundElderlyIds.size, unit: "位", tone: "blue" }, { label: "尚无家人绑定", value: Math.max(0, uniqueElderlyRecords.length - boundElderlyIds.size), unit: "位", tone: "pale" }]}/> : <div className="overview-chart-empty"><span>—</span><b>暂无老人档案</b></div>}</section>
       <section className="panel overview-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>设备运行</h3><MetricHelp label="设备运行口径" content="统计已绑定平板与已安装未停用感知器；各设备类型分别以自身有效设备数为分母"/></div><strong className="overview-chart-kpi">{validDevices.length ? `${Math.round((onlineDeviceCount / validDevices.length) * 100)}%` : "—"}<small>在线率</small></strong></div>{validDevices.length ? <><div className="overview-status-rows overview-device-status">{deviceGroups.map((group) => { const total = group.items.reduce((sum, item) => sum + item.value, 0); return <div key={group.label}><span>{group.label}</span><OverviewStackedBar items={group.items} total={total} ariaLabel={`${group.label}在线离线分布`}/><b>{group.items[0].value} / {total}<small>台</small></b></div>; })}</div><div className="overview-shared-legend"><span><i style={{ background: overviewChartToneColors.green }}/>在线<b>{onlineDeviceCount}</b></span><span><i style={{ background: overviewChartToneColors.amber }}/>离线<b>{validDevices.length - onlineDeviceCount}</b></span></div></> : <div className="overview-chart-empty"><span>—</span><b>暂无有效设备</b></div>}</section>
       <section className="panel overview-chart-card service-chart-card"><div className="overview-chart-heading"><div className="overview-chart-title"><h3>服务处理</h3><MetricHelp label="服务处理口径" content="复用按稳定 ID 去重后的全部项目服务协助记录，按联系动态与请家人帮忙两类、四种统一状态统计"/></div><strong className="overview-chart-kpi">{uniqueServiceRecords.length}<small>条记录</small></strong></div>{uniqueServiceRecords.length ? <><div className="overview-status-rows overview-service-stacks">{serviceTypeStatusGroups.map((group) => { const total = group.items.reduce((sum, item) => sum + item.value, 0); return <div key={group.label}><span>{group.label}</span><OverviewStackedBar items={group.items} total={total} ariaLabel={`${group.label}四态分布`}/><b>{total}<small>条</small></b></div>; })}</div><div className="overview-shared-legend">{serviceStatuses.map((status, index) => <span key={status}><i style={{ background: overviewChartToneColors[["amber", "blue", "indigo", "slate"][index]] }}/>{status}<b>{uniqueServiceRecords.filter((record) => getServiceAssistanceStatus(record) === status).length}</b></span>)}</div></> : <div className="overview-chart-empty"><span>—</span><b>暂无服务记录</b></div>}</section>

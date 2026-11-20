@@ -130,6 +130,9 @@ export type AcceptanceCommunityScenario =
   | "announcement-load-failure"
   | "announcement-disabled"
   | "announcement-cover-load-failure"
+  | "life-info-empty"
+  | "life-info-load-failure"
+  | "life-info-cover-load-failure"
   | "topic-normal"
   | "topic-elder"
   | "topic-backend"
@@ -151,7 +154,18 @@ export type AcceptanceCommunityScenario =
   | "activity-live-ended"
   | "activity-live-cancelled-conflict"
   | "activity-live-load-failure"
-  | "activity-live-interrupted";
+  | "activity-live-interrupted"
+  | "alert-empty"
+  | "alert-load-failure"
+  | "alert-detail"
+  | "alert-listen";
+export type AcceptanceCommunityModule =
+  | "community-staff"
+  | "community-announcements"
+  | "community-life-info"
+  | "community-topics"
+  | "community-activities"
+  | "community-alerts";
 export type AcceptanceHomeCommand =
   | "reset-home-overlays"
   | "previous-photo"
@@ -176,12 +190,13 @@ interface InteractionAcceptanceConsoleProps {
   activationContractState: ActivationContractState;
   emergencyScenario: EmergencyAcceptanceScenario;
   emergencyStatus?: EmergencyAssistanceStatus;
+  activeCommunityModule?: AcceptanceCommunityModule | null;
   onShowHome: () => void;
   onShowAlbum: () => void;
   onShowReminders: () => void;
-  onShowCommunity: () => void;
+  onShowCommunity: (module: AcceptanceCommunityModule, scenario?: AcceptanceCommunityScenario) => void;
   onShowServices: (scenario?: SpecialServicesAcceptanceScenario) => void;
-  onShowCommunityStaff: () => void;
+  onShowCommunityStaff: (scenario?: CommunityStaffAcceptanceScenario) => void;
   onShowContacts: (scenario?: ServiceConversationAcceptanceScenario) => void;
   onShowFamilyRequests: () => void;
   onSetWeatherScenario: (scenario: FamilyWeatherMockScenario) => void;
@@ -212,8 +227,8 @@ interface InteractionAcceptanceConsoleProps {
 }
 
 type SpecialServicesAcceptanceSection = "special-services-list" | "special-services-detail" | "special-services-records";
-type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | "community-life" | SpecialServicesAcceptanceSection | "community-staff" | "family-requests" | "service-messages" | "activation";
-type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "community-staff" | "contacts" | "activation";
+type AcceptanceConsoleSection = "weather" | "emergency" | "album" | "task-progress" | "reminders" | AcceptanceCommunityModule | SpecialServicesAcceptanceSection | "family-requests" | "service-messages" | "activation";
+type AcceptanceConsolePage = "home" | "family-album" | "reminders" | "community-life" | "special-services" | "contacts" | "activation";
 type WeatherAcceptanceTarget = "home" | "detail";
 type RightContentAcceptanceObject = "family" | "medication" | "schedule" | "activity" | "recommendation" | "queue";
 type SpecialServicesRecordType = "contact" | "family-help";
@@ -224,11 +239,15 @@ const acceptanceSectionOptions: Array<{ id: AcceptanceConsoleSection; label: str
   { id: "album", label: "家庭影像" },
   { id: "task-progress", label: "首页右侧" },
   { id: "reminders", label: "今日提醒" },
-  { id: "community-life", label: "社区生活" },
+  { id: "community-staff", label: "社区人员" },
+  { id: "community-announcements", label: "社区公告" },
+  { id: "community-life-info", label: "生活资讯" },
+  { id: "community-topics", label: "社区话题" },
+  { id: "community-activities", label: "社区活动" },
+  { id: "community-alerts", label: "警惕事项" },
   { id: "special-services-list", label: "服务列表" },
   { id: "special-services-detail", label: "服务详情" },
   { id: "special-services-records", label: "服务记录" },
-  { id: "community-staff", label: "社区人员" },
   { id: "family-requests", label: "家人申请" },
   { id: "service-messages", label: "通讯录与家庭互动" },
   { id: "activation", label: "激活流程" },
@@ -239,9 +258,8 @@ const acceptancePageOptions: Array<{ id: AcceptanceConsolePage; label: string; s
   { id: "home", label: "首页", sections: ["weather", "emergency", "album", "task-progress"] },
   { id: "family-album", label: "家庭相册", sections: ["album"] },
   { id: "reminders", label: "提醒事项", sections: ["reminders"] },
-  { id: "community-life", label: "社区生活", sections: ["community-life"] },
+  { id: "community-life", label: "社区生活", sections: ["community-staff", "community-announcements", "community-life-info", "community-topics", "community-activities", "community-alerts"] },
   { id: "special-services", label: "特约服务", sections: ["special-services-list", "special-services-detail", "special-services-records"] },
-  { id: "community-staff", label: "社区人员", sections: ["community-staff"] },
   { id: "contacts", label: "通讯录", sections: ["family-requests", "service-messages"] },
 ];
 
@@ -425,22 +443,25 @@ const reminderLabels: Record<AcceptanceReminderScenario, string> = {
 };
 
 const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: string; description: string }> = {
-  default: { label: "六类正常内容", description: "社区人员、公告、资讯、话题、活动和警惕事项均可进入。" },
+  default: { label: "正常列表", description: "使用当前模块的正常 Mock 数据，进入正式列表。" },
   empty: { label: "当前分类无内容", description: "展示温和空状态，不影响其他模块。" },
   "load-failure": { label: "内容加载失败", description: "展示失败提示并支持重新加载。" },
   "announcement-empty": { label: "公告为空", description: "当前社区没有已发布公告时展示空状态。" },
   "announcement-load-failure": { label: "公告加载失败", description: "公告读取失败时提示重试，不影响其他分类。" },
   "announcement-disabled": { label: "公告已停用", description: "已打开公告被停用后隐藏正文并返回列表。" },
   "announcement-cover-load-failure": { label: "公告封面加载失败", description: "隐藏失败图片，公告标题、摘要和正文仍可查看。" },
+  "life-info-empty": { label: "资讯为空", description: "当前社区没有生活资讯时展示空状态。" },
+  "life-info-load-failure": { label: "资讯加载失败", description: "生活资讯读取失败时提供重新加载。" },
+  "life-info-cover-load-failure": { label: "资讯图片失败", description: "隐藏失败图片，标题、摘要和正文仍可查看。" },
   "topic-normal": { label: "话题正常", description: "展示话题列表、引用摘要和评论数量。" },
   "topic-elder": { label: "老人发起", description: "展示当前老人发起且可继续评论的话题。" },
   "topic-backend": { label: "后台发起", description: "后台发布的话题同样支持查看和评论。" },
-  "topic-standalone": { label: "独立发起", description: "不引用资讯，填写标题和想说的话。" },
+  "topic-standalone": { label: "独立发起", description: "不引用资讯，说一句想说的话并确认发布。" },
   "topic-reference": { label: "引用资讯", description: "从生活资讯带入整篇资讯引用卡片。" },
   "topic-no-comments": { label: "暂无评论", description: "详情显示温和空状态和评论输入。" },
   "topic-multiple-comments": { label: "多条一级评论", description: "所有评论直接属于话题，不做楼中楼。" },
   "topic-reference-expired": { label: "引用已失效", description: "保留资讯快照并说明原文不可查看。" },
-  "topic-closed": { label: "话题已关闭", description: "可读正文和历史评论，不可新增评论。" },
+  "topic-closed": { label: "关闭话题不展示", description: "关闭后从老人端列表和详情撤下，历史数据仍保留在后台。" },
   "topic-publish-failure": { label: "发布失败", description: "保留填写内容并支持重新提交。" },
   "topic-comment-failure": { label: "评论失败", description: "保留评论内容并支持重试。" },
   "topic-empty": { label: "话题空列表", description: "无话题时保留发起话题入口。" },
@@ -454,7 +475,62 @@ const communityScenarioLabels: Record<AcceptanceCommunityScenario, { label: stri
   "activity-live-cancelled-conflict": { label: "活动取消但直播为 live", description: "活动取消优先，直播入口不可进入。" },
   "activity-live-load-failure": { label: "无法加入直播", description: "进入失败后可重试或返回活动详情。" },
   "activity-live-interrupted": { label: "直播中断", description: "播放中断后可重试或返回活动详情。" },
+  "alert-empty": { label: "警惕事项为空", description: "当前社区没有警惕事项时展示空状态。" },
+  "alert-load-failure": { label: "警惕事项加载失败", description: "警惕事项读取失败时提供重新加载。" },
+  "alert-detail": { label: "查看正文", description: "打开警惕事项详情，保留正文、重点提醒和朗读入口。" },
+  "alert-listen": { label: "朗读中", description: "直接进入详情并开始 Mock 朗读，展示播报进度。" },
 };
+
+interface CommunityModuleConfig {
+  title: string;
+  description: string;
+  scenarios: AcceptanceCommunityScenario[];
+  actionLabel: string;
+  note: string;
+}
+
+const communityModuleConfigs: Record<Exclude<AcceptanceCommunityModule, "community-staff">, CommunityModuleConfig> = {
+  "community-announcements": {
+    title: "社区公告验收",
+    description: "验收公告列表、正文、停用撤下、封面失败和重试。",
+    scenarios: ["default", "announcement-empty", "announcement-load-failure", "announcement-disabled", "announcement-cover-load-failure"],
+    actionLabel: "打开当前公告场景",
+    note: "公告查看状态使用验收内存，不写入正式阅读记录。",
+  },
+  "community-life-info": {
+    title: "生活资讯验收",
+    description: "验收资讯列表、详情、空状态、加载失败和图片失败。",
+    scenarios: ["default", "life-info-empty", "life-info-load-failure", "life-info-cover-load-failure"],
+    actionLabel: "打开当前资讯场景",
+    note: "资讯详情只展示发布时间，不恢复发布单位。",
+  },
+  "community-topics": {
+    title: "社区话题验收",
+    description: "验收正文发布、引用、评论、失败重试和关闭后隐藏。",
+    scenarios: ["topic-normal", "topic-elder", "topic-backend", "topic-standalone", "topic-reference", "topic-no-comments", "topic-multiple-comments", "topic-reference-expired", "topic-closed", "topic-publish-failure", "topic-comment-failure", "topic-empty", "topic-load-failure"],
+    actionLabel: "打开当前话题场景",
+    note: "老人端话题只展示正文；关闭话题不进入列表和详情。",
+  },
+  "community-activities": {
+    title: "社区活动验收",
+    description: "验收活动列表、单向参加意向、直播状态、失败和重试。",
+    scenarios: ["default", "activity-ended-cancelled", "activity-submit-failure", "activity-live-unconfigured", "activity-live-not-started", "activity-live-active", "activity-live-ended", "activity-live-cancelled-conflict", "activity-live-load-failure", "activity-live-interrupted"],
+    actionLabel: "打开当前活动场景",
+    note: "参加意向提交后不可重复提交或取消；直播观看与参加意向相互独立。",
+  },
+  "community-alerts": {
+    title: "警惕事项验收",
+    description: "验收入口列表、空状态、加载失败、正文和朗读。",
+    scenarios: ["default", "alert-empty", "alert-load-failure", "alert-detail", "alert-listen"],
+    actionLabel: "打开当前警惕事项场景",
+    note: "阅读状态仅保存在验收内存；列表与详情不展示来源、分类或查看标签。",
+  },
+};
+
+const isCommunityAcceptanceModule = (section: AcceptanceConsoleSection): section is AcceptanceCommunityModule => (
+  ["community-staff", "community-announcements", "community-life-info", "community-topics", "community-activities", "community-alerts"]
+    .includes(section)
+);
 
 const specialServicesScenarioLabels: Record<SpecialServicesAcceptanceScenario, { label: string; description: string }> = {
   default: { label: "当前服务目录", description: "不展示分类入口，按共享目录动态展示当前四项服务及明细价格。" },
@@ -698,6 +774,7 @@ export default function InteractionAcceptanceConsole({
   activationContractState,
   emergencyScenario,
   emergencyStatus,
+  activeCommunityModule,
   onShowHome,
   onShowAlbum,
   onShowReminders,
@@ -747,6 +824,9 @@ export default function InteractionAcceptanceConsole({
   const selectedWeatherScenario = getWeatherScenarioPresentation(selectedWeatherTarget, weatherScenario);
   const selectedPage = acceptancePageOptions.find((page) => page.id === activePage) ?? acceptancePageOptions[0];
   const selectedPageSections = acceptanceSectionOptions.filter((section) => selectedPage.sections.includes(section.id));
+  const selectedCommunityModule = activeSection !== "community-staff" && isCommunityAcceptanceModule(activeSection)
+    ? communityModuleConfigs[activeSection]
+    : null;
   const selectedSpecialServicesModule = isSpecialServicesSection(activeSection) ? specialServicesModuleConfigs[activeSection] : null;
   const selectedSpecialServicesRecordType = (Object.keys(specialServicesRecordTypeConfigs) as SpecialServicesRecordType[])
     .find((recordType) => specialServicesRecordTypeConfigs[recordType].statuses.some((status) => status.scenario === serviceScenario)) ?? "contact";
@@ -786,7 +866,28 @@ export default function InteractionAcceptanceConsole({
     }
   }, [familyRequestCondition, familyRequestScenario, onSetFamilyRequestCondition]);
 
+  useEffect(() => {
+    if (!activeCommunityModule) return;
+    setActivePage("community-life");
+    setActiveSection(activeCommunityModule);
+  }, [activeCommunityModule]);
+
   const showAlbumAcceptanceTarget = () => activePage === "family-album" ? onShowAlbum() : onShowHome();
+  const openCommunityModule = (
+    module: AcceptanceCommunityModule,
+    scenario?: AcceptanceCommunityScenario,
+    staffScenario?: CommunityStaffAcceptanceScenario,
+  ) => {
+    if (module === "community-staff") {
+      const nextScenario = staffScenario ?? communityStaffScenario;
+      onSetCommunityStaffScenario(nextScenario);
+      onShowCommunityStaff(nextScenario);
+      return;
+    }
+    const nextScenario = scenario ?? communityModuleConfigs[module].scenarios[0];
+    onSetCommunityScenario(nextScenario);
+    onShowCommunity(module, nextScenario);
+  };
   const changePage = (pageId: AcceptanceConsolePage) => {
     const nextPage = acceptancePageOptions.find((page) => page.id === pageId) ?? acceptancePageOptions[0];
     onReset();
@@ -794,11 +895,13 @@ export default function InteractionAcceptanceConsole({
     setActiveSection(nextPage.sections[0]);
     setWeatherAcceptanceTarget("home");
     setActivationDebugOpen(false);
+    if (nextPage.id === "community-life") openCommunityModule("community-staff", undefined, "multiple");
   };
   const changeSection = (sectionId: AcceptanceConsoleSection) => {
     onReset();
     setActiveSection(sectionId);
     if (isSpecialServicesSection(sectionId)) onSetServiceScenario(specialServicesModuleConfigs[sectionId].scenarios[0]);
+    if (isCommunityAcceptanceModule(sectionId)) openCommunityModule(sectionId);
     setWeatherAcceptanceTarget("home");
     setActivationDebugOpen(false);
   };
@@ -816,7 +919,14 @@ export default function InteractionAcceptanceConsole({
     if (event.button !== 0) return;
     const consoleElement = event.currentTarget.closest(".interaction-acceptance-console") as HTMLElement | null;
     if (!consoleElement) return;
-    const bounds = consoleElement.getBoundingClientRect();
+    const triggerBounds = consoleElement.getBoundingClientRect();
+    const panelBounds = consoleElement.querySelector<HTMLElement>(".interaction-acceptance-panel")?.getBoundingClientRect();
+    const bounds = panelBounds ? {
+      left: Math.min(triggerBounds.left, panelBounds.left),
+      top: Math.min(triggerBounds.top, panelBounds.top),
+      right: Math.max(triggerBounds.right, panelBounds.right),
+      bottom: Math.max(triggerBounds.bottom, panelBounds.bottom),
+    } : triggerBounds;
     dragStateRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -825,8 +935,8 @@ export default function InteractionAcceptanceConsole({
       startOffsetY: dragOffset.y,
       startLeft: bounds.left,
       startTop: bounds.top,
-      width: bounds.width,
-      height: bounds.height,
+      width: bounds.right - bounds.left,
+      height: bounds.bottom - bounds.top,
     };
     dragMovedRef.current = false;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1236,28 +1346,32 @@ export default function InteractionAcceptanceConsole({
 
             </section>}
 
-            {activeSection === "community-life" && <section>
+            {selectedCommunityModule && <section>
               <div className="interaction-acceptance-field">
-                <h2><Landmark aria-hidden="true" />社区生活场景</h2>
-                <p>选择场景后直接打开对应页面，验收台保持展开。</p>
+                <h2><Landmark aria-hidden="true" />{selectedCommunityModule.title}</h2>
+                <p>{selectedCommunityModule.description}</p>
                 <div className="interaction-acceptance-scenario-list">
-                  {(Object.keys(communityScenarioLabels) as AcceptanceCommunityScenario[]).map((scenario) => (
+                  {selectedCommunityModule.scenarios.map((scenario) => (
                     <button
                       key={scenario}
                       type="button"
                       className={communityScenario === scenario ? "is-active" : ""}
-                      onClick={() => onSetCommunityScenario(scenario)}
+                      onClick={() => openCommunityModule(activeSection as AcceptanceCommunityModule, scenario)}
                     >
                       <span><Landmark aria-hidden="true" /><strong>{communityScenarioLabels[scenario].label}</strong></span>
                       <small>{communityScenarioLabels[scenario].description}</small>
                     </button>
                   ))}
                 </div>
-                <button type="button" className="interaction-acceptance-primary-action" onClick={onShowCommunity}>
-                  <ChevronRight aria-hidden="true" />打开当前社区生活场景
+                <button
+                  type="button"
+                  className="interaction-acceptance-primary-action"
+                  onClick={() => onShowCommunity(activeSection as AcceptanceCommunityModule, communityScenario)}
+                >
+                  <ChevronRight aria-hidden="true" />{selectedCommunityModule.actionLabel}
                 </button>
               </div>
-              <p className="interaction-acceptance-note">社区话题支持独立发起、整篇资讯引用和一级评论；活动参加意向提交后不可重复提交或取消，与直播观看相互独立。</p>
+              <p className="interaction-acceptance-note">{selectedCommunityModule.note}</p>
             </section>}
 
             {selectedSpecialServicesModule && <section>
@@ -1299,14 +1413,18 @@ export default function InteractionAcceptanceConsole({
                       key={scenario}
                       type="button"
                       className={communityStaffScenario === scenario ? "is-active" : ""}
-                      onClick={() => onSetCommunityStaffScenario(scenario)}
+                      onClick={() => openCommunityModule("community-staff", undefined, scenario)}
                     >
                       <span><UsersRound aria-hidden="true" /><strong>{communityStaffScenarioLabels[scenario].label}</strong></span>
                       <small>{communityStaffScenarioLabels[scenario].description}</small>
                     </button>
                   ))}
                 </div>
-                <button type="button" className="interaction-acceptance-primary-action" onClick={onShowCommunityStaff}>
+                <button
+                  type="button"
+                  className="interaction-acceptance-primary-action"
+                  onClick={() => onShowCommunityStaff(communityStaffScenario)}
+                >
                   <ChevronRight aria-hidden="true" />打开当前社区人员场景
                 </button>
               </div>

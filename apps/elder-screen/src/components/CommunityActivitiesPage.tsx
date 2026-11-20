@@ -25,6 +25,7 @@ interface CommunityActivitiesPageProps {
   activities: CommunityActivity[];
   initialActivityId?: string | null;
   acceptanceScenario?: CommunityActivityAcceptanceScenario;
+  acceptanceRevision?: number;
 }
 
 const VALID_MOCK_PLAYBACK_URL = "https://live.example.test/community/activity";
@@ -75,7 +76,14 @@ const statusText = (activity: CommunityActivity) => {
   return `还剩 ${activity.spotsLeft} 个名额`;
 };
 
-export default function CommunityActivitiesPage({ isOpen, onClose, activities, initialActivityId = null, acceptanceScenario = "default" }: CommunityActivitiesPageProps) {
+export default function CommunityActivitiesPage({
+  isOpen,
+  onClose,
+  activities,
+  initialActivityId = null,
+  acceptanceScenario = "default",
+  acceptanceRevision = 0,
+}: CommunityActivitiesPageProps) {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(initialActivityId);
   const [participation, setParticipation] = useState<Record<string, ParticipationState>>({});
   const [failedIntent, setFailedIntent] = useState<ParticipationState | null>(null);
@@ -138,7 +146,7 @@ export default function CommunityActivitiesPage({ isOpen, onClose, activities, i
     setFailedIntent(null);
     setLiveActivityId(null);
     setLivePlaybackState("playing");
-  }, [acceptanceScenario, initialActivityId, isOpen]);
+  }, [acceptanceRevision, acceptanceScenario, initialActivityId, isOpen]);
 
   const getParticipation = (activity: CommunityActivity): ParticipationState | null => participation[activity.id] ?? null;
 

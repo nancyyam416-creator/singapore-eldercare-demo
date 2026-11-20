@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
-  Check,
   Headphones,
   Pause,
   RotateCcw,
@@ -24,6 +23,7 @@ interface SecurityInformationPageProps {
   onRead: (tipId: string) => void;
   onClose: () => void;
   pageTitle?: "安全资讯" | "警惕事项";
+  acceptanceRevision?: number;
 }
 
 interface SpeechChunk {
@@ -72,10 +72,10 @@ export default function SecurityInformationPage({
   autoPlayFeatured = false,
   initialTipId = null,
   tips,
-  readIds,
   onRead,
   onClose,
   pageTitle = "安全资讯",
+  acceptanceRevision = 0,
 }: SecurityInformationPageProps) {
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -88,7 +88,6 @@ export default function SecurityInformationPage({
     () => tips.find((tip) => tip.id === selectedTipId) ?? null,
     [selectedTipId, tips],
   );
-  const unreadCount = tips.filter((tip) => !readIds.includes(tip.id)).length;
   const selectedParagraphs = selectedTip ? getParagraphs(selectedTip.description) : [];
 
   const stopSpeaking = useCallback(() => {
@@ -146,6 +145,13 @@ export default function SecurityInformationPage({
   };
 
   useEffect(() => {
+    if (!isOpen || acceptanceRevision === 0) return;
+    autoPlayedRef.current = false;
+    stopSpeaking();
+    setSelectedTipId(null);
+  }, [acceptanceRevision, isOpen, stopSpeaking]);
+
+  useEffect(() => {
     if (!isOpen) {
       autoPlayedRef.current = false;
       stopSpeaking();
@@ -186,12 +192,6 @@ export default function SecurityInformationPage({
         title={pageTitle}
         icon={<ShieldAlert aria-hidden="true" />}
         onBack={onClose}
-        actions={(
-          <div className="security-information-summary">
-            <strong>{unreadCount > 0 ? `${unreadCount} 条未读` : "全部已阅读"}</strong>
-            <span>内容来自可信机构</span>
-          </div>
-        )}
       />
 
       {(
@@ -214,14 +214,13 @@ export default function SecurityInformationPage({
 
           <div className="security-information-list">
             {tips.map((tip) => {
-              const hasRead = readIds.includes(tip.id);
               return (
-                <article key={tip.id} className={`security-information-card${hasRead ? " is-read" : ""}`}>
+                <article key={tip.id} className="security-information-card">
                   <button
                     type="button"
                     className="security-information-card__main"
                     onClick={() => openTip(tip)}
-                    aria-label={`${tip.title}，${hasRead ? "已阅读" : "未读"}，打开查看`}
+                    aria-label={`${tip.title}，打开查看`}
                   >
                     <span className="security-information-card__icon" aria-hidden="true">
                       {tip.coverUrl
@@ -229,14 +228,10 @@ export default function SecurityInformationPage({
                         : <ShieldAlert />}
                     </span>
                     <span className="security-information-card__copy">
-                      <span className="security-information-card__meta">
-                        <i>{tip.category}</i>
-                        {hasRead && <b><Check aria-hidden="true" />已阅读</b>}
-                      </span>
                       <strong>{tip.title}</strong>
                       <small>{tip.summary ?? tip.description}</small>
                       <span className="security-information-card__source">
-                        {tip.source} · 预计朗读 {getReadingMinutes(tip)} 分钟
+                        预计朗读 {getReadingMinutes(tip)} 分钟
                       </span>
                     </span>
                   </button>
@@ -275,14 +270,7 @@ export default function SecurityInformationPage({
 
           <article className="security-information-article">
             <header>
-              <div className="security-information-article__meta">
-                <span>{selectedTip.category}</span>
-                <em><Check aria-hidden="true" />已阅读</em>
-              </div>
               <h2>{selectedTip.title}</h2>
-              <p className="security-information-article__source">
-                来源：{selectedTip.source} · 预计朗读 {getReadingMinutes(selectedTip)} 分钟
-              </p>
               {selectedTip.summary && (
                 <p className="security-information-article__summary">
                   <ShieldAlert aria-hidden="true" />
