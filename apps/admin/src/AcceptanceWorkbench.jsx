@@ -57,6 +57,13 @@ const recommendationScenarios = [
   { value: "empty", label: "今日暂无内容", description: "今日没有可展示推荐，日历和右侧预览展示空状态。", status: "空状态" },
 ];
 
+const serviceRecordScenarios = [
+  { value: "normal", label: "真实服务记录", description: "读取当前社区真实的联系动态与请家人帮忙记录，不写入或替换业务数据。", status: "默认" },
+  { value: "answeredNotEligible", label: "已答复暂不可评价", description: "已答复只代表联系结果，尚未确认家人处理完成，因此后台只读展示暂不可评价及原因。", status: "边界" },
+  { value: "pendingReview", label: "处理完成待评价", description: "家人已确认处理完成、老人尚未评价；后台只读展示待评价，不提供代评入口。", status: "待评价" },
+  { value: "reviewed", label: "已评价", description: "后台只读展示老人提交的评分、评价内容和评价时间。", status: "已评价" },
+];
+
 const elderlyScenarios = [
   { value: "normal", label: "默认档案", description: "展示当前社区的老人档案列表。", status: "默认" },
   { value: "tabletUnbound", label: "平板未绑定", description: "展示按设备 SN 建立老人档案与平板绑定关系的入口。", status: "空状态" },
@@ -115,7 +122,7 @@ const findContext = (moduleId) => {
   return { page, module: page.modules.find((item) => item.id === moduleId) || page.modules[0] };
 };
 
-export function AcceptanceWorkbench({ activeModuleId, overviewScenario, platformOverviewScenario, recommendationScenario, elderlyScenario, communityActivityScenario, communityContentScenario, communityTopicScenario, tabletDetailScenario, leisureEntertainmentScenario, portalUrl = import.meta.env.VITE_U2G_PORTAL_URL || (import.meta.env.DEV ? "http://localhost:53110/" : "/singapore-eldercare-demo/"), overlayOpen = false, onModuleChange, onOverviewScenarioChange, onPlatformOverviewScenarioChange, onRecommendationScenarioChange, onElderlyScenarioChange, onCommunityActivityScenarioChange, onCommunityContentScenarioChange, onCommunityTopicScenarioChange, onTabletDetailScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
+export function AcceptanceWorkbench({ activeModuleId, overviewScenario, platformOverviewScenario, recommendationScenario, serviceRecordScenario, elderlyScenario, communityActivityScenario, communityContentScenario, communityTopicScenario, tabletDetailScenario, leisureEntertainmentScenario, portalUrl = import.meta.env.VITE_U2G_PORTAL_URL || (import.meta.env.DEV ? "http://localhost:53110/" : "/singapore-eldercare-demo/"), overlayOpen = false, onModuleChange, onOverviewScenarioChange, onPlatformOverviewScenarioChange, onRecommendationScenarioChange, onServiceRecordScenarioChange, onElderlyScenarioChange, onCommunityActivityScenarioChange, onCommunityContentScenarioChange, onCommunityTopicScenarioChange, onTabletDetailScenarioChange, onLeisureEntertainmentScenarioChange, onReset }) {
   const shellRef = useRef(null);
   const dragStateRef = useRef(null);
   const dragMovedRef = useRef(false);
@@ -129,6 +136,8 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, platform
       ? platformOverviewScenarios
     : selectedModule.id === "recommendations"
       ? recommendationScenarios
+    : selectedModule.id === "services"
+      ? serviceRecordScenarios
       : selectedModule.id === "elderly"
         ? elderlyScenarios
         : selectedModule.id === "activities"
@@ -144,7 +153,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, platform
         : selectedModule.id === "leisureEntertainment"
           ? leisureEntertainmentScenarios
       : [];
-  const scenarioValue = selectedModule.id === "platformOverview" ? platformOverviewScenario : selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "activities" ? communityActivityScenario : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? communityContentScenario : selectedModule.id === "communityTopics" ? communityTopicScenario : ["platformTabletDevices", "tabletDevices"].includes(selectedModule.id) ? tabletDetailScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
+  const scenarioValue = selectedModule.id === "platformOverview" ? platformOverviewScenario : selectedModule.id === "recommendations" ? recommendationScenario : selectedModule.id === "services" ? serviceRecordScenario : selectedModule.id === "elderly" ? elderlyScenario : selectedModule.id === "activities" ? communityActivityScenario : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? communityContentScenario : selectedModule.id === "communityTopics" ? communityTopicScenario : ["platformTabletDevices", "tabletDevices"].includes(selectedModule.id) ? tabletDetailScenario : selectedModule.id === "leisureEntertainment" ? leisureEntertainmentScenario : overviewScenario;
   const currentScenario = scenarioOptions.find((item) => item.value === scenarioValue) || scenarioOptions[0];
   const hasScenarios = scenarioOptions.length > 0;
 
@@ -231,7 +240,7 @@ export function AcceptanceWorkbench({ activeModuleId, overviewScenario, platform
               {selectedModule.objectLabel && <div className="acceptance-object"><span>三级对象</span><b>{selectedModule.objectLabel}</b></div>}
             </div>
 
-            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "platformOverview" ? onPlatformOverviewScenarioChange(event.target.value) : selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "activities" ? onCommunityActivityScenarioChange(event.target.value) : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? onCommunityContentScenarioChange(event.target.value) : selectedModule.id === "communityTopics" ? onCommunityTopicScenarioChange(event.target.value) : ["platformTabletDevices", "tabletDevices"].includes(selectedModule.id) ? onTabletDetailScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
+            {hasScenarios ? <section className="acceptance-scenario-section"><div className="acceptance-section-title"><span>页面场景</span><em>{currentScenario.status}</em></div><div className="acceptance-select-wrap"><select aria-label="页面场景" value={scenarioValue} onChange={(event) => selectedModule.id === "platformOverview" ? onPlatformOverviewScenarioChange(event.target.value) : selectedModule.id === "recommendations" ? onRecommendationScenarioChange(event.target.value) : selectedModule.id === "services" ? onServiceRecordScenarioChange(event.target.value) : selectedModule.id === "elderly" ? onElderlyScenarioChange(event.target.value) : selectedModule.id === "activities" ? onCommunityActivityScenarioChange(event.target.value) : ["communityAnnouncements", "lifeInformation", "alertItems"].includes(selectedModule.id) ? onCommunityContentScenarioChange(event.target.value) : selectedModule.id === "communityTopics" ? onCommunityTopicScenarioChange(event.target.value) : ["platformTabletDevices", "tabletDevices"].includes(selectedModule.id) ? onTabletDetailScenarioChange(event.target.value) : selectedModule.id === "leisureEntertainment" ? onLeisureEntertainmentScenarioChange(event.target.value) : onOverviewScenarioChange(event.target.value)}>{scenarioOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select><ChevronDown size={14}/></div><p>{currentScenario.description}</p></section> : <section className="acceptance-empty-section"><b>页面场景</b><p>当前模块使用默认数据与状态。</p></section>}
 
           </div>
           <footer><a className="acceptance-component-center-link acceptance-portal-link" href={portalUrl}><ArrowLeft size={14}/>返回 U2G智慧养老</a><a className="acceptance-component-center-link" href="?acceptance&component-center"><Boxes size={14}/>后台组件中心</a><button onClick={onReset}><RefreshCw size={14}/>重置页面状态</button></footer>

@@ -3430,6 +3430,61 @@ function getServiceAssistanceTitle(record, elderlyName) {
     : `${elderlyName}联系「${serviceName}」`;
 }
 
+const serviceRecordAcceptanceFixtures = {
+  answeredNotEligible: {
+    id: "SERVICE-ACCEPTANCE-ANSWERED-001", projectId: "PRJ-001",
+    elder: { id: "SG-E-000128", name: "陈美玲" },
+    service: { id: "srv-electric-1", name: "电力维修和安装", categoryName: "电力维修", itemId: "srv-electric-1-item-lighting", itemName: "灯具与开关检查" },
+    provider: { name: "社区安心电工服务站", phone: "+65 6123 8801" }, source: "elder",
+    contactStartedAt: "2026-11-23T09:10:00+08:00", phoneActionType: "call_started", appointmentOutcome: "appointment_confirmed", status: "handled",
+    resultSummary: "老人答复已经约好，尚未确认家人处理完成",
+    workflowEvents: [
+      { id: "SERVICE-EVENT-ACCEPTANCE-ANSWERED-01", type: "service_call_started", actorType: "elder", actorId: "SG-E-000128", actorName: "陈美玲", createdAt: "2026-11-23T09:10:00+08:00" },
+      { id: "SERVICE-EVENT-ACCEPTANCE-ANSWERED-02", type: "elder_appointment_confirmed", actorType: "elder", actorId: "SG-E-000128", actorName: "陈美玲", createdAt: "2026-11-23T09:18:00+08:00" },
+    ],
+  },
+  pendingReview: {
+    id: "SERVICE-ACCEPTANCE-PENDING-REVIEW-001", projectId: "PRJ-001",
+    elder: { id: "SG-E-000128", name: "陈美玲" },
+    service: { id: "srv-electric-1", name: "电力维修和安装", categoryName: "电力维修", itemId: "srv-electric-1-item-lighting", itemName: "灯具与开关检查" },
+    provider: { name: "社区安心电工服务站", phone: "+65 6123 8801" }, source: "elder",
+    requestedAt: "2026-11-23T09:20:00+08:00", familyHelpRequestedAt: "2026-11-23T09:20:00+08:00",
+    familyHelpRequestedBy: { type: "elder", id: "SG-E-000128", name: "陈美玲" }, familyContactBy: { id: "RU-00031", name: "陈伟强" },
+    familyContactResult: "appointment_confirmed", status: "handled", familyHandlingStatus: "completed", handlingCompletedBy: "陈伟强", handlingCompletedAt: "2026-11-23T10:15:00+08:00",
+    resultSummary: "家人已确认协助处理完成，等待老人评价",
+    workflowEvents: [
+      { id: "SERVICE-EVENT-ACCEPTANCE-PENDING-01", type: "family_help_requested", actorType: "elder", actorId: "SG-E-000128", actorName: "陈美玲", createdAt: "2026-11-23T09:20:00+08:00" },
+      { id: "SERVICE-EVENT-ACCEPTANCE-PENDING-02", type: "family_help_claimed", actorType: "child", actorId: "RU-00031", actorName: "陈伟强", createdAt: "2026-11-23T09:32:00+08:00" },
+      { id: "SERVICE-EVENT-ACCEPTANCE-PENDING-03", type: "family_service_contact_result_submitted", actorType: "child", actorId: "RU-00031", actorName: "陈伟强", createdAt: "2026-11-23T10:05:00+08:00", payload: { result: "appointment_confirmed" } },
+    ],
+  },
+  reviewed: {
+    id: "SERVICE-ACCEPTANCE-REVIEWED-001", projectId: "PRJ-001",
+    elder: { id: "SG-E-000128", name: "陈美玲" },
+    service: { id: "srv-electric-1", name: "电力维修和安装", categoryName: "电力维修", itemId: "srv-electric-1-item-lighting", itemName: "灯具与开关检查" },
+    provider: { name: "社区安心电工服务站", phone: "+65 6123 8801" }, source: "elder",
+    requestedAt: "2026-11-22T14:00:00+08:00", familyHelpRequestedAt: "2026-11-22T14:00:00+08:00",
+    familyHelpRequestedBy: { type: "elder", id: "SG-E-000128", name: "陈美玲" }, familyContactBy: { id: "RU-00031", name: "陈伟强" },
+    familyContactResult: "appointment_confirmed", status: "handled", familyHandlingStatus: "completed", handlingCompletedBy: "陈伟强", handlingCompletedAt: "2026-11-22T16:30:00+08:00",
+    resultSummary: "家人已确认协助处理完成，老人已评价",
+    review: { rating: 5, text: "师傅很耐心，问题已经处理好了。", elderId: "SG-E-000128", submittedAt: "2026-11-22T17:05:00+08:00", edited: false },
+    workflowEvents: [
+      { id: "SERVICE-EVENT-ACCEPTANCE-REVIEWED-01", type: "family_help_requested", actorType: "elder", actorId: "SG-E-000128", actorName: "陈美玲", createdAt: "2026-11-22T14:00:00+08:00" },
+      { id: "SERVICE-EVENT-ACCEPTANCE-REVIEWED-02", type: "family_help_claimed", actorType: "child", actorId: "RU-00031", actorName: "陈伟强", createdAt: "2026-11-22T14:18:00+08:00" },
+      { id: "SERVICE-EVENT-ACCEPTANCE-REVIEWED-03", type: "family_service_contact_result_submitted", actorType: "child", actorId: "RU-00031", actorName: "陈伟强", createdAt: "2026-11-22T16:20:00+08:00", payload: { result: "appointment_confirmed" } },
+    ],
+  },
+};
+
+function getServiceReviewDisplayState(record, reviewEligible) {
+  if (record.review) return { label: "已评价", reason: "老人已完成评价，后台仅查看评价结果。" };
+  if (reviewEligible) return { label: "待评价", reason: "家人已确认处理完成，等待老人在老人端评价；后台不能代评。" };
+  if (!isFamilyAssistanceRecord(record)) return { label: "暂不可评价", reason: "当前记录仅为联系动态；已答复或已约好不等于家人协助处理完成。" };
+  if (record.status !== "handled") return { label: "暂不可评价", reason: "家人协助仍在处理中，尚未达到评价条件。" };
+  if (record.familyHandlingStatus !== "completed" || !record.handlingCompletedBy || !record.handlingCompletedAt) return { label: "暂不可评价", reason: "尚未完成家人处理确认；已处理或已答复本身不会自动开放评价。" };
+  return { label: "暂不可评价", reason: "评价资格信息不完整，请核对原服务记录。" };
+}
+
 function getServiceCoverageLabel(service, projects) {
   if (service.coverageMode === "all") return "全部社区";
   const names = (service.coverageCommunityIds || []).map((id) => projects.find((project) => project.id === id)?.name || "社区未设置");
@@ -3702,6 +3757,7 @@ function ServiceAssistanceRecordDrawer({ record, elderly, onClose }) {
   const initiatedAt = getServiceAssistanceTime(record);
   const workflowEvents = [...(record.workflowEvents || [])].sort((first, second) => `${first.createdAt || ""}`.localeCompare(`${second.createdAt || ""}`));
   const reviewEligible = isFamilyAssistanceRecord(record) && canReviewServiceAssistance(record, record.elder?.id);
+  const reviewState = getServiceReviewDisplayState(record, reviewEligible);
   const handlingCompleted = record.familyHandlingStatus === "completed" && record.handlingCompletedBy && record.handlingCompletedAt;
   return (
     <AdminDrawer title="服务记录详情" ariaLabel="服务记录详情" className="service-booking-drawer" onClose={onClose} footer={<button className="secondary-button" onClick={onClose}>关闭</button>}>
@@ -3709,7 +3765,7 @@ function ServiceAssistanceRecordDrawer({ record, elderly, onClose }) {
       <section className="detail-section"><h3>记录概况</h3><div className="info-grid"><div><span>记录编号</span><b>{record.id}</b></div><div><span>记录类型</span><StatusTag>{assistanceType}</StatusTag></div><div><span>老人</span><b>{elderlyName}{record.elder?.id ? `（${record.elder.id}）` : ""}</b></div><div><span>所属社区</span><b>{record.community?.name || record.projectId || "未归属社区"}</b></div><div><span>服务名称</span><b>{getServiceAssistanceServiceName(record)}</b></div><div><span>服务分类</span><b>{record.service?.categoryName || "—"}</b></div><div><span>服务商</span><b>{record.provider?.name || "—"}</b></div><div><span>服务商电话</span><b>{record.provider?.phone || "—"}</b></div><div><span>发生时间</span><b>{formatServiceAssistanceTime(initiatedAt)}</b></div><div><span>当前状态</span><StatusTag>{assistanceStatus}</StatusTag></div>{isFamilyAssistanceRecord(record) && record.expiredAt && <div><span>48 小时失效时间</span><b>{formatServiceAssistanceTime(record.expiredAt)}</b></div>}</div></section>
       <section className="detail-section"><h3>因果时间线</h3>{workflowEvents.length ? <div className="emergency-timeline">{workflowEvents.map((event) => <div className="emergency-timeline-item" key={event.id || `${event.type}-${event.createdAt}`}><time>{formatServiceAssistanceTime(event.createdAt)}</time><span className="emergency-timeline-axis" aria-hidden="true"><i/></span><div className="emergency-timeline-content"><b>{getServiceAssistanceEventDescription(event)}</b><p>{getServiceAssistanceActor(event)}</p>{event.payload?.appointmentAt && <p>上门时间：{event.payload.appointmentAt}</p>}{event.payload?.feeText && <p>费用：{event.payload.feeText}</p>}{event.payload?.note && <p>备注：{event.payload.note}</p>}</div></div>)}</div> : <div className="service-assistance-timeline-empty">该历史记录没有可追溯的流程事件，后台不补造事件。</div>}</section>
       {isFamilyAssistanceRecord(record) && <section className="detail-section"><h3>处理完成确认</h3><div className="info-grid"><div><span>完成状态</span><b>{handlingCompleted ? "已确认完成" : "尚未确认完成"}</b></div><div><span>确认人</span><b>{handlingCompleted ? record.handlingCompletedBy : "—"}</b></div><div><span>确认时间</span><b>{handlingCompleted ? formatServiceAssistanceTime(record.handlingCompletedAt) : "—"}</b></div></div></section>}
-      {isFamilyAssistanceRecord(record) && (record.review || reviewEligible) && <section className="detail-section"><h3>服务评价</h3><div className="info-grid"><div><span>评价状态</span><b>{record.review ? "已评价" : "已具备评价资格，尚未评价"}</b></div>{record.review && <><div><span>评分</span><b>{"★".repeat(record.review.rating)}（{record.review.rating} 星）</b></div><div><span>评价时间</span><b>{formatServiceAssistanceTime(record.review.submittedAt)}</b></div><div className="full"><span>评价内容</span><b>{record.review.text || "仅评分，未填写评价内容"}</b></div></>}</div></section>}
+      <section className="detail-section"><h3>服务评价</h3><div className="info-grid"><div><span>评价状态</span><StatusTag>{reviewState.label}</StatusTag></div>{record.review && <><div><span>评分</span><b>{"★".repeat(record.review.rating)}（{record.review.rating} 星）</b></div><div><span>评价时间</span><b>{formatServiceAssistanceTime(record.review.submittedAt)}</b></div><div className="full"><span>评价内容</span><b>{record.review.text || "仅评分，未填写评价内容"}</b></div></>}<div className="full"><span>状态说明</span><b>{reviewState.reason}</b></div></div></section>
     </AdminDrawer>
   );
 }
@@ -4760,6 +4816,7 @@ export function App() {
   const [overviewScenario, setOverviewScenario] = useState(() => acceptanceMode ? "demo" : "normal");
   const [platformOverviewScenario, setPlatformOverviewScenario] = useState(() => acceptanceMode ? "complete" : "normal");
   const [recommendationScenario, setRecommendationScenario] = useState("normal");
+  const [serviceRecordScenario, setServiceRecordScenario] = useState("normal");
   const [elderlyScenario, setElderlyScenario] = useState("normal");
   const [communityActivityScenario, setCommunityActivityScenario] = useState("normal");
   const [communityContentScenario, setCommunityContentScenario] = useState("normal");
@@ -5223,7 +5280,7 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
   const resetAcceptance = () => {
-    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario(acceptanceMode ? "demo" : "normal"); setPlatformOverviewScenario(acceptanceMode ? "complete" : "normal"); setRecommendationScenario("normal"); setElderlyScenario("normal"); setCommunityActivityScenario("normal"); setCommunityContentScenario("normal"); setCommunityTopicScenario("normal"); setTabletDetailScenario("normal"); setLeisureEntertainmentScenario("normal"); setLeisureEntertainmentDirty(false); setPendingNavigation(null); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
+    setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setOverviewScenario(acceptanceMode ? "demo" : "normal"); setPlatformOverviewScenario(acceptanceMode ? "complete" : "normal"); setRecommendationScenario("normal"); setServiceRecordScenario("normal"); setElderlyScenario("normal"); setCommunityActivityScenario("normal"); setCommunityContentScenario("normal"); setCommunityTopicScenario("normal"); setTabletDetailScenario("normal"); setLeisureEntertainmentScenario("normal"); setLeisureEntertainmentDirty(false); setPendingNavigation(null); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null);
     setElderlyDetailId(null); setRelativeDetailId(null); setSpaceTarget(null); setGlobalRuleOpen(false); setOverviewContext(""); setOverviewToast("");
     setCareScripts(initialCareScripts);
     setReminderPolicies(initialReminderPolicies);
@@ -6226,7 +6283,7 @@ export function App() {
               : communityContentTypeByMenu[safeActive]
                 ? <SafetyNewsPage records={scopedSafetyNews} contentType={communityContentTypeByMenu[safeActive]} communityName={currentProject?.name} onCreate={() => setDrawer({ kind: "safety", mode: "edit", contentType: communityContentTypeByMenu[safeActive] })} onView={(record) => setDrawer({ kind: "safety", mode: "view", record, contentType: record.type })} onEdit={(record) => setDrawer({ kind: "safety", mode: "edit", record, contentType: record.type })} onStatusChange={changeSafetyNewsStatus}/>
               : safeActive === "services"
-                ? <ServiceAssistanceRecordPage records={platformMode === "platform" ? serviceBookings : scopedServiceBookings} elderlyRecords={platformMode === "platform" ? elderlyRecords : scopedElderlyRecords} projects={projects} communityName={currentProject?.name || "当前社区"} showCommunity={platformMode === "platform"} onOpen={(record) => setDrawer({ kind: "serviceAssistanceRecord", record })}/>
+                ? <ServiceAssistanceRecordPage records={acceptanceMode && serviceRecordScenario !== "normal" ? [serviceRecordAcceptanceFixtures[serviceRecordScenario]] : platformMode === "platform" ? serviceBookings : scopedServiceBookings} elderlyRecords={platformMode === "platform" ? elderlyRecords : scopedElderlyRecords} projects={projects} communityName={currentProject?.name || "当前社区"} showCommunity={platformMode === "platform"} onOpen={(record) => setDrawer({ kind: "serviceAssistanceRecord", record })}/>
               : safeActive === "serviceCatalog" && platformMode === "platform"
                 ? <ServiceCatalogPage catalog={serviceCatalog} projects={unifiedCommunities} reviewSummaries={serviceReviewSummaries} categoryEnabled={serviceCategorySettings.enabled} categories={serviceCategories} onToggleCategories={(enabled) => setServiceCategorySettings({ enabled, updatedAt: new Date().toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }).replaceAll("/", "-") })} onCreateCategory={() => setDrawer({ kind: "serviceCategory" })} onEditCategory={(record) => setDrawer({ kind: "serviceCategory", record })} onToggleCategory={toggleServiceCategory} onDeleteCategory={deleteServiceCategory} onCreate={() => setDrawer({ kind: "serviceCatalog" })} onView={(record) => setDrawer({ kind: "serviceCatalogDetail", record })} onEdit={(record) => setDrawer({ kind: "serviceCatalog", record })} onToggleService={toggleServiceCatalogItem}/>
               : safeActive === "projects"
@@ -6301,7 +6358,7 @@ export function App() {
       {pendingNavigation && <div className="modal-layer"><button className="modal-backdrop" aria-label="继续编辑" onClick={() => setPendingNavigation(null)}/><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="离开休闲娱乐配置"><span className="confirm-icon warning"><AlertTriangle size={20}/></span><h3>离开当前页面？</h3><p>当前休闲娱乐配置尚未保存。离开后，本次修改将不会保留。</p><div><button className="secondary-button" onClick={() => setPendingNavigation(null)}>继续编辑</button><button className="danger-button" onClick={confirmPendingNavigation}>放弃修改并离开</button></div></section></div>}
       {overviewToast && <AdminToast message={overviewToast} onClose={() => setOverviewToast("")}/>}
       {communityTopicToast && <AdminToast message={communityTopicToast} onClose={() => setCommunityTopicToast("")}/>}
-      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} platformOverviewScenario={platformOverviewScenario} recommendationScenario={recommendationScenario} elderlyScenario={elderlyScenario} communityActivityScenario={communityActivityScenario} communityContentScenario={communityContentScenario} communityTopicScenario={communityTopicScenario} tabletDetailScenario={tabletDetailScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onPlatformOverviewScenarioChange={(scenario) => { setPlatformOverviewScenario(scenario); setPlatformMode("platform"); setActive("platformOverview"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onElderlyScenarioChange={applyElderlyScenario} onCommunityActivityScenarioChange={(scenario) => { setCommunityActivityScenario(scenario); setPlatformMode("community"); setActive("activities"); closeOpenEditors(); }} onCommunityContentScenarioChange={(scenario) => { const contentType = communityContentTypeByMenu[active]; const target = scopedSafetyNews.find((item) => item.type === contentType); setCommunityContentScenario(scenario); setPlatformMode("community"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(scenario === "createRecommendation" ? { kind: "safety", mode: "edit", contentType } : scenario === "editNoRecommendation" && target ? { kind: "safety", mode: "edit", record: target, contentType } : scenario === "detailNoRecommendation" && target ? { kind: "safety", mode: "view", record: target, contentType } : null); }} onCommunityTopicScenarioChange={(scenario) => { setCommunityTopicScenario(scenario); setPlatformMode("community"); setActive("communityTopics"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(["createSuccess", "createFailure", "createValidation"].includes(scenario) ? { kind: "communityTopicCreate" } : null); }} onTabletDetailScenarioChange={(scenario) => { setTabletDetailScenario(scenario); setDeviceDrawer(null); setTabletTarget(null); }} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
+      {acceptanceMode && !componentCenterMode && <AcceptanceWorkbench activeModuleId={active} overviewScenario={overviewScenario} platformOverviewScenario={platformOverviewScenario} recommendationScenario={recommendationScenario} serviceRecordScenario={serviceRecordScenario} elderlyScenario={elderlyScenario} communityActivityScenario={communityActivityScenario} communityContentScenario={communityContentScenario} communityTopicScenario={communityTopicScenario} tabletDetailScenario={tabletDetailScenario} leisureEntertainmentScenario={leisureEntertainmentScenario} overlayOpen={hasOpenEditor} onModuleChange={navigateFromAcceptance} onOverviewScenarioChange={(scenario) => { setOverviewScenario(scenario); setActive("overview"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onPlatformOverviewScenarioChange={(scenario) => { setPlatformOverviewScenario(scenario); setPlatformMode("platform"); setActive("platformOverview"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onRecommendationScenarioChange={(scenario) => { setRecommendationScenario(scenario); setActive("recommendations"); setDrawer(null); setDeviceDrawer(null); setTabletTarget(null); setAcceptanceResetSignal((value) => value + 1); }} onServiceRecordScenarioChange={(scenario) => { const record = serviceRecordAcceptanceFixtures[scenario]; setServiceRecordScenario(scenario); setPlatformMode("community"); setCurrentProjectId("PRJ-001"); setActive("services"); closeOpenEditors(); if (record) setDrawer({ kind: "serviceAssistanceRecord", record: { ...normalizeServiceAssistanceRecord(record), community: projects.find((project) => project.id === record.projectId) } }); }} onElderlyScenarioChange={applyElderlyScenario} onCommunityActivityScenarioChange={(scenario) => { setCommunityActivityScenario(scenario); setPlatformMode("community"); setActive("activities"); closeOpenEditors(); }} onCommunityContentScenarioChange={(scenario) => { const contentType = communityContentTypeByMenu[active]; const target = scopedSafetyNews.find((item) => item.type === contentType); setCommunityContentScenario(scenario); setPlatformMode("community"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(scenario === "createRecommendation" ? { kind: "safety", mode: "edit", contentType } : scenario === "editNoRecommendation" && target ? { kind: "safety", mode: "edit", record: target, contentType } : scenario === "detailNoRecommendation" && target ? { kind: "safety", mode: "view", record: target, contentType } : null); }} onCommunityTopicScenarioChange={(scenario) => { setCommunityTopicScenario(scenario); setPlatformMode("community"); setActive("communityTopics"); setDeviceDrawer(null); setTabletTarget(null); setDrawer(["createSuccess", "createFailure", "createValidation"].includes(scenario) ? { kind: "communityTopicCreate" } : null); }} onTabletDetailScenarioChange={(scenario) => { setTabletDetailScenario(scenario); setDeviceDrawer(null); setTabletTarget(null); }} onLeisureEntertainmentScenarioChange={(scenario) => { setLeisureEntertainmentScenario(scenario); setLeisureEntertainmentDirty(false); setPlatformMode("platform"); setActive("leisureEntertainment"); closeOpenEditors(); setAcceptanceResetSignal((value) => value + 1); }} onReset={resetAcceptance}/>}
       {componentCenterMode && <ComponentCenter/>}
     </div>
   );

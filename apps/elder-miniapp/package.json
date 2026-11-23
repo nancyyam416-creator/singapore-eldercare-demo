@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--max-http-header-size=131072 vite",
     "build": "tsc --noEmit && vite build",
+    "build:preview": "tsc --noEmit && VITE_ENABLE_ACCEPTANCE_WORKBENCH=true vite build",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

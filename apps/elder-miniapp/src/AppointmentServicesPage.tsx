@@ -519,7 +519,16 @@ export default function AppointmentServicesPage({
       scenario === "record_family_expired"
     ) {
       const scenarioRecord = createRecordAcceptanceScenario(scenario);
-      setRecords([scenarioRecord]);
+      const scenarioRecords = scenario === "record_family_handled"
+        ? [
+            scenarioRecord,
+            {
+              ...createScenarioRecord("reviewed"),
+              id: "RECORD-MOCK-REVIEWED",
+            },
+          ]
+        : [scenarioRecord];
+      setRecords(scenarioRecords);
       setLatest(scenarioRecord);
       setViewState("records");
     }
@@ -928,7 +937,9 @@ export default function AppointmentServicesPage({
     setReviewSubmitting(true);
     setReviewError("");
     try {
-      const scenarioOnly = latest.id.startsWith("HELP-MOCK-");
+      const scenarioOnly =
+        latest.id.startsWith("HELP-MOCK-") ||
+        latest.id.startsWith("RECORD-MOCK-");
       const mockReview = {
         rating,
         text: reviewText.trim(),

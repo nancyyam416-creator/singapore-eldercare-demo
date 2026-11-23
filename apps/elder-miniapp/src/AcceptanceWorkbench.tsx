@@ -96,7 +96,7 @@ const pages: AcceptancePage[] = [
       { id: 'family-help', label: '请家人帮忙', scenarios: [
         { value: 'record_family_pending', label: '待处理', description: '已通知绑定家人，等待家人开始联系。', status: '待处理' },
         { value: 'record_family_handling', label: '处理中', description: '家人正在联系服务商。', status: '处理中' },
-        { value: 'record_family_handled', label: '已处理', description: '家人已完成协助，可在真实列表中验收评价入口。', status: '已处理' },
+        { value: 'record_family_handled', label: '已处理', description: '同一已处理列表同时验收待评价入口与已评价历史；评价不拆成独立状态。', status: '已处理' },
         { value: 'record_family_expired', label: '已失效', description: '家人未在 48 小时内处理，历史保留且可重新发起。', status: '已失效' },
       ] },
     ] },
