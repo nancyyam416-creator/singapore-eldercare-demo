@@ -9,7 +9,7 @@ import { readSharedCommunityAnnouncements, setSharedCommunityAnnouncementStatus,
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { unifiedCommunities, unifiedServiceCatalog, unifiedServiceCategories, unifiedServiceCategorySettings, writeUnifiedServiceDirectoryRuntime } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
-import { canReviewServiceAssistance, getServiceReviewSummary, isFamilyAssistanceRecord, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
+import { getServiceReviewSummary, isFamilyAssistanceRecord, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import {
   careScriptMockApi,
   formatWeatherLocation,
@@ -3396,7 +3396,7 @@ function getServiceAssistanceServiceName(record) {
 function getServiceAssistanceHandler(record) {
   const actor = record.familyContactBy || record.lastFamilyContactBy || (record.handledBy ? { name: record.handledBy, id: record.claimedById } : null);
   if (!actor) return "—";
-  return `${actor.name || "身份未记录"}${actor.id ? `（${actor.id}）` : ""}`;
+  return actor.name || "身份未记录";
 }
 
 function getServiceAssistanceResult(record) {
@@ -3476,15 +3476,6 @@ const serviceRecordAcceptanceFixtures = {
   },
 };
 
-function getServiceReviewDisplayState(record, reviewEligible) {
-  if (record.review) return { label: "已评价", reason: "老人已完成评价，后台仅查看评价结果。" };
-  if (reviewEligible) return { label: "待评价", reason: "家人已确认处理完成，等待老人在老人端评价；后台不能代评。" };
-  if (!isFamilyAssistanceRecord(record)) return { label: "暂不可评价", reason: "当前记录仅为联系动态；已答复或已约好不等于家人协助处理完成。" };
-  if (record.status !== "handled") return { label: "暂不可评价", reason: "家人协助仍在处理中，尚未达到评价条件。" };
-  if (record.familyHandlingStatus !== "completed" || !record.handlingCompletedBy || !record.handlingCompletedAt) return { label: "暂不可评价", reason: "尚未完成家人处理确认；已处理或已答复本身不会自动开放评价。" };
-  return { label: "暂不可评价", reason: "评价资格信息不完整，请核对原服务记录。" };
-}
-
 function getServiceCoverageLabel(service, projects) {
   if (service.coverageMode === "all") return "全部社区";
   const names = (service.coverageCommunityIds || []).map((id) => projects.find((project) => project.id === id)?.name || "社区未设置");
@@ -3525,7 +3516,7 @@ function ServiceAssistanceRecordPage({ records, elderlyRecords, projects, commun
             <table className="service-booking-table service-assistance-record-table">
               <thead><tr><th>记录类型</th><th>老人</th>{showCommunity && <th>所属社区</th>}<th>服务 / 服务商</th><th>来源 / 动作</th><th>发生时间</th><th>当前状态</th><th>当前处理人</th><th>最新结果</th><th className="sticky-right">操作</th></tr></thead>
               <tbody>
-                {rows.map((record) => <tr key={record.id}><td><StatusTag>{record.assistanceType}</StatusTag></td><td className="service-assistance-elderly"><div className="stacked-cell"><b>{record.elderlyName}</b><small>{record.elder?.id || "档案编号未记录"}</small></div></td>{showCommunity && <td className="service-assistance-community"><b>{record.community?.name || "未归属社区"}</b></td>}<td className="service-assistance-title"><button className="service-booking-name" aria-label={`${record.assistanceTitle}，查看详情`} onClick={() => onOpen(record)}><b>{getServiceAssistanceServiceName(record)}</b><small>{record.provider?.name || "服务商未记录"}</small></button></td><td><div className="stacked-cell"><b>{getServiceAssistanceSource(record)}</b><small>{record.phoneActionType === "phone_viewed" ? "查看号码" : record.phoneActionType === "call_started" ? "发起拨号" : record.requestReason || "流程记录"}</small></div></td><td>{formatServiceAssistanceTime(record.initiatedAt)}</td><td><StatusTag>{record.assistanceStatus}</StatusTag></td><td><span>{getServiceAssistanceHandler(record)}</span></td><td className="service-assistance-result"><span title={getServiceAssistanceResult(record)}>{getServiceAssistanceResult(record)}</span></td><td className="sticky-right"><button className="table-action" onClick={() => onOpen(record)}>详情</button></td></tr>)}
+                {rows.map((record) => <tr key={record.id}><td><StatusTag>{record.assistanceType}</StatusTag></td><td className="service-assistance-elderly"><b>{record.elderlyName}</b></td>{showCommunity && <td className="service-assistance-community"><b>{record.community?.name || "未归属社区"}</b></td>}<td className="service-assistance-title"><button className="service-booking-name" aria-label={`${record.assistanceTitle}，查看详情`} onClick={() => onOpen(record)}><b>{getServiceAssistanceServiceName(record)}</b><small>{record.provider?.name || "服务商未记录"}</small></button></td><td><div className="stacked-cell"><b>{getServiceAssistanceSource(record)}</b><small>{record.phoneActionType === "phone_viewed" ? "查看号码" : record.phoneActionType === "call_started" ? "发起拨号" : record.requestReason || "流程记录"}</small></div></td><td>{formatServiceAssistanceTime(record.initiatedAt)}</td><td><StatusTag>{record.assistanceStatus}</StatusTag></td><td><span>{getServiceAssistanceHandler(record)}</span></td><td className="service-assistance-result"><span title={getServiceAssistanceResult(record)}>{getServiceAssistanceResult(record)}</span></td><td className="sticky-right"><button className="table-action" onClick={() => onOpen(record)}>详情</button></td></tr>)}
                 {!rows.length && <tr><td colSpan={showCommunity ? 10 : 9}><div className="empty-table-state"><b>{showCommunity ? "暂无符合条件的全平台服务记录" : `暂无${communityName}符合条件的服务记录`}</b><span>请调整筛选条件。</span></div></td></tr>}
               </tbody>
             </table>
@@ -3745,7 +3736,7 @@ function ServiceCatalogDetailDrawer({ record, projects, reviewSummary, onClose, 
       <section className="detail-section service-introduction"><h3>注意事项</h3><p>{record.precautions}</p></section>
       <section className="detail-section"><h3>服务信息</h3><div className="info-grid"><div><span>服务商</span><b>{record.provider}</b></div><div><span>营业时间</span><b>{record.businessHours || "—"}</b></div><div><span>服务范围</span><b>{getServiceCoverageLabel(record, projects)}</b></div><div><span>电话</span><b>{record.providerPhone}</b></div></div></section>
       <section className="detail-section service-introduction"><h3>服务详情</h3>{record.detailImages?.map((image, index) => <img key={`${image}-${index}`} src={image} alt={`${record.name}服务详情长图 ${index + 1}`}/>)}</section>
-    </div> : <section className="detail-section service-review-section"><div className="service-review-heading"><h3>服务评价</h3>{reviewSummary?.count > 0 && <span><b>★ {reviewSummary.average.toFixed(1)}</b> · {reviewSummary.count} 条评价</span>}</div>{reviewSummary?.count > 0 ? <div className="service-review-list">{reviewSummary.reviews.map((review) => <article key={review.recordId}><header><b>{formatServiceRating(review.rating)}</b><span>{review.reviewerName} · {formatServiceAssistanceTime(review.submittedAt)}</span></header><p>{review.text || "仅评分，未填写评价内容"}</p></article>)}</div> : <div className="service-review-empty">暂无评价</div>}</section>}
+    </div> : <section className="detail-section service-review-section"><div className="service-review-heading"><h3>服务评价</h3>{reviewSummary?.count > 0 && <span><b>★ {reviewSummary.average.toFixed(1)}</b> · {reviewSummary.count} 条评价</span>}</div>{reviewSummary?.count > 0 ? <div className="service-review-list">{reviewSummary.reviews.map((review) => <article key={review.recordId}><header><b>{"★".repeat(review.rating)}（{review.rating} 星）</b><span>{review.reviewerName} · {formatServiceAssistanceTime(review.submittedAt)}</span></header><p>{review.text || "仅评分，未填写评价内容"}</p></article>)}</div> : <div className="service-review-empty">暂无评价</div>}</section>}
   </AdminDrawer>;
 }
 
@@ -3756,16 +3747,14 @@ function ServiceAssistanceRecordDrawer({ record, elderly, onClose }) {
   const assistanceType = getServiceAssistanceRecordType(record);
   const initiatedAt = getServiceAssistanceTime(record);
   const workflowEvents = [...(record.workflowEvents || [])].sort((first, second) => `${first.createdAt || ""}`.localeCompare(`${second.createdAt || ""}`));
-  const reviewEligible = isFamilyAssistanceRecord(record) && canReviewServiceAssistance(record, record.elder?.id);
-  const reviewState = getServiceReviewDisplayState(record, reviewEligible);
   const handlingCompleted = record.familyHandlingStatus === "completed" && record.handlingCompletedBy && record.handlingCompletedAt;
   return (
     <AdminDrawer title="服务记录详情" ariaLabel="服务记录详情" className="service-booking-drawer" onClose={onClose} footer={<button className="secondary-button" onClick={onClose}>关闭</button>}>
       <div className="service-booking-hero"><span className="service-booking-hero-icon"><ClipboardList size={20}/></span><div><small>{assistanceType} · {getServiceAssistanceSource(record)}</small><h3>{assistanceTitle}</h3><p>发生于 {formatServiceAssistanceTime(initiatedAt)}</p></div><StatusTag>{assistanceStatus}</StatusTag></div>
-      <section className="detail-section"><h3>记录概况</h3><div className="info-grid"><div><span>记录编号</span><b>{record.id}</b></div><div><span>记录类型</span><StatusTag>{assistanceType}</StatusTag></div><div><span>老人</span><b>{elderlyName}{record.elder?.id ? `（${record.elder.id}）` : ""}</b></div><div><span>所属社区</span><b>{record.community?.name || record.projectId || "未归属社区"}</b></div><div><span>服务名称</span><b>{getServiceAssistanceServiceName(record)}</b></div><div><span>服务分类</span><b>{record.service?.categoryName || "—"}</b></div><div><span>服务商</span><b>{record.provider?.name || "—"}</b></div><div><span>服务商电话</span><b>{record.provider?.phone || "—"}</b></div><div><span>发生时间</span><b>{formatServiceAssistanceTime(initiatedAt)}</b></div><div><span>当前状态</span><StatusTag>{assistanceStatus}</StatusTag></div>{isFamilyAssistanceRecord(record) && record.expiredAt && <div><span>48 小时失效时间</span><b>{formatServiceAssistanceTime(record.expiredAt)}</b></div>}</div></section>
+      <section className="detail-section"><h3>记录概况</h3><div className="info-grid"><div><span>记录编号</span><b>{record.id}</b></div><div><span>记录类型</span><StatusTag>{assistanceType}</StatusTag></div><div><span>老人</span><b>{elderlyName}</b></div><div><span>所属社区</span><b>{record.community?.name || record.projectId || "未归属社区"}</b></div><div><span>服务名称</span><b>{getServiceAssistanceServiceName(record)}</b></div><div><span>服务分类</span><b>{record.service?.categoryName || "—"}</b></div><div><span>服务商</span><b>{record.provider?.name || "—"}</b></div><div><span>服务商电话</span><b>{record.provider?.phone || "—"}</b></div><div><span>发生时间</span><b>{formatServiceAssistanceTime(initiatedAt)}</b></div><div><span>当前状态</span><StatusTag>{assistanceStatus}</StatusTag></div>{isFamilyAssistanceRecord(record) && record.expiredAt && <div><span>48 小时失效时间</span><b>{formatServiceAssistanceTime(record.expiredAt)}</b></div>}</div></section>
       <section className="detail-section"><h3>因果时间线</h3>{workflowEvents.length ? <div className="emergency-timeline">{workflowEvents.map((event) => <div className="emergency-timeline-item" key={event.id || `${event.type}-${event.createdAt}`}><time>{formatServiceAssistanceTime(event.createdAt)}</time><span className="emergency-timeline-axis" aria-hidden="true"><i/></span><div className="emergency-timeline-content"><b>{getServiceAssistanceEventDescription(event)}</b><p>{getServiceAssistanceActor(event)}</p>{event.payload?.appointmentAt && <p>上门时间：{event.payload.appointmentAt}</p>}{event.payload?.feeText && <p>费用：{event.payload.feeText}</p>}{event.payload?.note && <p>备注：{event.payload.note}</p>}</div></div>)}</div> : <div className="service-assistance-timeline-empty">该历史记录没有可追溯的流程事件，后台不补造事件。</div>}</section>
       {isFamilyAssistanceRecord(record) && <section className="detail-section"><h3>处理完成确认</h3><div className="info-grid"><div><span>完成状态</span><b>{handlingCompleted ? "已确认完成" : "尚未确认完成"}</b></div><div><span>确认人</span><b>{handlingCompleted ? record.handlingCompletedBy : "—"}</b></div><div><span>确认时间</span><b>{handlingCompleted ? formatServiceAssistanceTime(record.handlingCompletedAt) : "—"}</b></div></div></section>}
-      <section className="detail-section"><h3>服务评价</h3><div className="info-grid"><div><span>评价状态</span><StatusTag>{reviewState.label}</StatusTag></div>{record.review && <><div><span>评分</span><b>{"★".repeat(record.review.rating)}（{record.review.rating} 星）</b></div><div><span>评价时间</span><b>{formatServiceAssistanceTime(record.review.submittedAt)}</b></div><div className="full"><span>评价内容</span><b>{record.review.text || "仅评分，未填写评价内容"}</b></div></>}<div className="full"><span>状态说明</span><b>{reviewState.reason}</b></div></div></section>
+      {record.review && <section className="detail-section"><h3>服务评价</h3><div className="info-grid"><div><span>评分</span><b>{"★".repeat(record.review.rating)}（{record.review.rating} 星）</b></div><div><span>评价时间</span><b>{formatServiceAssistanceTime(record.review.submittedAt)}</b></div><div className="full"><span>评价内容</span><b>{record.review.text || "仅评分，未填写评价内容"}</b></div></div></section>}
     </AdminDrawer>
   );
 }
