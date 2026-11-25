@@ -3359,6 +3359,7 @@ const serviceAssistanceEventCopy = {
   family_help_requested: "发起请家人帮忙",
   family_help_reminded: "再次提醒家人处理",
   family_help_claimed: "家人开始处理",
+  family_help_expired: "超过 48 小时未处理，记录已失效",
   family_service_contact_started: "家人开始联系服务商",
 };
 
@@ -3412,10 +3413,11 @@ function getServiceAssistanceResult(record) {
 }
 
 function getServiceAssistanceEventDescription(event) {
+  const demoLabel = event.demoBaseline ? "（演示）" : "";
   if (event.type === "family_service_contact_result_submitted") {
-    return event.payload?.result === "appointment_confirmed" ? "家人反馈：已约好" : "家人反馈：未约好，继续处理中";
+    return (event.payload?.result === "appointment_confirmed" ? "家人反馈：已约好" : "家人反馈：未约好，继续处理中") + demoLabel;
   }
-  return serviceAssistanceEventCopy[event.type] || event.type;
+  return (serviceAssistanceEventCopy[event.type] || event.type) + demoLabel;
 }
 
 function getServiceAssistanceActor(event) {

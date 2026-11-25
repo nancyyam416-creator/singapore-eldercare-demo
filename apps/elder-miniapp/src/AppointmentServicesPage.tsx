@@ -356,10 +356,14 @@ const getElderRecordStatus = (record: ServiceAssistanceRecord) => {
 };
 
 const getRecordProgress = (record: ServiceAssistanceRecord): RecordProgressItem[] => {
+  const demoEvents = record.workflowEvents?.filter(event => event.demoBaseline) ?? [];
+  const demoLabel = (type: string) => demoEvents.some(event => event.type === type) ? "（演示）" : "";
   const items: RecordProgressItem[] = [{
     time: record.contactStartedAt ?? record.requestedAt,
-    text: isFamilyAssistanceRecord(record) ? "已通知家人，请家人帮忙联系" : "已记录本次联系",
+    text: isFamilyAssistanceRecord(record) ? `已通知家人，请家人帮忙联系${demoLabel("family_help_requested")}` : "已记录本次联系",
   }];
+  const demoClaim = demoEvents.find(event => event.type === "family_help_claimed");
+  if (demoClaim) items.push({ time: demoClaim.createdAt, text: "家人开始处理（演示）" });
   if (record.familyHelpInquiry) items.push({
     time: record.familyHelpInquiry.askedAt,
     text: `${getFamilyActorLabel(record.familyHelpInquiry.askedBy.name, record.familyHelpInquiry.askedBy.id)}想问您约好了吗`,
@@ -393,12 +397,12 @@ const getRecordProgress = (record: ServiceAssistanceRecord): RecordProgressItem[
     });
   }
   if (record.handledAt && record.resultSummary && !record.familyContactResult && !record.appointmentOutcome) {
-    items.push({ time: record.handledAt, text: record.resultSummary });
+    items.push({ time: record.handledAt, text: record.resultSummary + demoLabel("family_service_contact_result_submitted") });
   }
   const completedAt = getFamilyHandlingCompletedAt(record);
   if (completedAt) items.push({ time: completedAt, text: `${getFamilyActorLabel(record.familyContactBy?.name || record.handledBy || record.handlingCompletedBy)}已完成本次帮忙` });
   if (record.status === "expired" || record.workflowStage === "expired") {
-    items.push({ time: record.expiredAt ?? record.requestedAt, text: "本次记录已失效" });
+    items.push({ time: record.expiredAt ?? record.requestedAt, text: `本次记录已失效${demoLabel("family_help_expired")}` });
   }
   if (record.review) items.push({
     time: record.review.submittedAt,

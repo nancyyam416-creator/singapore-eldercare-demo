@@ -152,11 +152,33 @@ export const getServiceAssistanceConfirmationCopy = (record) => {
 };
 
 export const serviceAssistanceSharedStorageKey = "u2g-service-assistance-records-v2-shared-contract";
-export const serviceAssistanceDemoBaselineVersion = "2026-11-25-v1";
-export const serviceAssistanceDemoBaselineRecords = [
+export const serviceAssistanceDemoBaselineVersion = "2026-11-25-v2";
+const serviceAssistanceDemoBaselineV1 = [
   { id: "HELP-20261029-01", projectId: "PRJ-001", elder: { id: "elder-wang-jianguo", name: "王建国", phone: "+65 8603 2918" }, service: { id: "srv-water-1", name: "水龙头检修", categoryName: "水利维修" }, provider: { name: "安心到家水务服务站", phone: "+65 6123 8802" }, requestReason: "请家人协助联系服务商", requestedAt: "2026-10-29T16:20:00+08:00", status: "pending", recipientIds: ["child-zhang-xiaoyan", "child-zhang-jianping"], handledBy: null, handledAt: null, resultSummary: null, serviceStatus: "not_completed", completedAt: null, review: null },
   { id: "HELP-20261027-01", projectId: "PRJ-001", elder: { id: "elder-wang-jianguo", name: "王建国", phone: "+65 8603 2918" }, service: { id: "srv-basic-2", name: "家具小修", categoryName: "基础维修" }, provider: { name: "乐居综合维修服务站", phone: "+65 6123 8803" }, requestReason: "请家人协助联系服务商", requestedAt: "2026-10-27T10:10:00+08:00", status: "handled", recipientIds: ["child-zhang-xiaoyan", "child-zhang-jianping"], handledBy: "张晓燕", handledAt: "2026-10-27T10:35:00+08:00", resultSummary: "已电话咨询服务商，约定 10 月 31 日上午再上门查看。", serviceStatus: "not_completed", completedAt: null, review: null },
 ];
+
+const demoWorkflowEvent = (recordId, type, createdAt, actorType, actorId, actorName, payload = {}) => ({
+  id: `DEMO-${recordId}-${type}`,
+  type, createdAt, actorType, actorId, actorName, payload, demoBaseline: true,
+});
+
+export const serviceAssistanceDemoBaselineRecords = serviceAssistanceDemoBaselineV1.map(record => {
+  const event = (...args) => demoWorkflowEvent(record.id, ...args);
+  const workflowEvents = [
+    event("family_help_requested", record.requestedAt, "elder", record.elder.id, record.elder.name),
+  ];
+  if (record.status === "handled") {
+    workflowEvents.push(
+      event("family_help_claimed", "2026-10-27T10:20:00+08:00", "child", record.recipientIds[0], record.handledBy),
+      event("family_service_contact_result_submitted", record.handledAt, "child", record.recipientIds[0], record.handledBy, { result: "appointment_confirmed", note: record.resultSummary }),
+    );
+  } else {
+    const expiredAt = normalizeServiceAssistanceRecord(record).expiredAt;
+    if (expiredAt) workflowEvents.push(event("family_help_expired", expiredAt, "system", null, null));
+  }
+  return { ...record, workflowEvents };
+});
 
 const cookieName = "u2g_service_assistance_records_v2";
 const changeEventName = "u2g:service-assistance-records-changed";
@@ -215,22 +237,39 @@ const writeRecords = (records) => {
   window.dispatchEvent(new CustomEvent(changeEventName));
 };
 
-export const readSharedServiceAssistanceRecords = () => {
+const readStoredServiceAssistanceRecords = () => {
   if (!isBrowser()) return [];
   const cookieRecords = readCookie();
   if (cookieRecords.length > 0) {
     window.localStorage.setItem(serviceAssistanceSharedStorageKey, JSON.stringify(cookieRecords));
-    return cookieRecords.map(record => normalizeServiceAssistanceRecord(record));
+    return cookieRecords;
   }
-  return parseRecords(window.localStorage.getItem(serviceAssistanceSharedStorageKey)).map(record => normalizeServiceAssistanceRecord(record));
+  return parseRecords(window.localStorage.getItem(serviceAssistanceSharedStorageKey));
 };
+
+export const readSharedServiceAssistanceRecords = () => readStoredServiceAssistanceRecords().map(record => normalizeServiceAssistanceRecord(record));
 
 export const ensureSharedServiceAssistanceDemoBaseline = () => {
   if (!isBrowser()) return [];
-  const existing = readSharedServiceAssistanceRecords();
+  const existing = readStoredServiceAssistanceRecords();
   const existingIds = new Set(existing.map(record => record.id));
   const missing = serviceAssistanceDemoBaselineRecords.filter(record => !existingIds.has(record.id));
-  if (missing.length) writeRecords([...existing, ...missing.map(record => JSON.parse(JSON.stringify(record)))]);
+  let upgraded = false;
+  const merged = existing.map(record => {
+    const seed = serviceAssistanceDemoBaselineRecords.find(item => item.id === record.id);
+    // Only backfill the known v1 snapshots, never a record with its own history.
+    if (!seed || record.workflowEvents?.length) return record;
+    const current = normalizeServiceAssistanceRecord(record);
+    const baseline = normalizeServiceAssistanceRecord(seed);
+    const sameSnapshot = record.projectId === seed.projectId && record.elder?.id === seed.elder.id
+      && record.service?.id === seed.service.id && record.requestedAt === seed.requestedAt
+      && current.status === baseline.status && record.handledBy === seed.handledBy
+      && record.handledAt === seed.handledAt && record.resultSummary === seed.resultSummary;
+    if (!sameSnapshot) return record;
+    upgraded = true;
+    return { ...record, workflowEvents: seed.workflowEvents };
+  });
+  if (missing.length || upgraded) writeRecords([...merged, ...missing]);
   window.localStorage.setItem(demoBaselineVersionKey, serviceAssistanceDemoBaselineVersion);
   return readSharedServiceAssistanceRecords();
 };

@@ -84,7 +84,7 @@ export type ServiceAssistanceRecord = {
   appointmentOutcomeAt?: string | null;
   familyHelpRequestedAt?: string | null;
   familyHelpInquiry?: { askedAt: string; askedBy: { type: string; id?: string | null; name?: string | null } };
-  workflowEvents?: Array<{ id: string; type: string; createdAt: string; actorType: string; actorId?: string | null; actorName?: string | null; payload?: Record<string, unknown> }>;
+  workflowEvents?: Array<{ id: string; type: string; createdAt: string; actorType: string; actorId?: string | null; actorName?: string | null; payload?: Record<string, unknown>; demoBaseline?: boolean }>;
 };
 
 export const appointmentCategories = serviceCatalog.categories
