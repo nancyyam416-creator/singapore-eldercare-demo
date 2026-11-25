@@ -9,7 +9,7 @@ import { readSharedCommunityAnnouncements, setSharedCommunityAnnouncementStatus,
 import serviceCategoryMock from "../../产品理解/90 原型与Mock素材/mock/特约服务分类统一Mock.json";
 import tabletActivationMock from "../../产品理解/90 原型与Mock素材/mock/设备激活跨端统一Mock.json";
 import { unifiedCommunities, unifiedServiceCatalog, unifiedServiceCategories, unifiedServiceCategorySettings, writeUnifiedServiceDirectoryRuntime } from "../../产品理解/90 原型与Mock素材/mock/统一服务目录";
-import { getServiceReviewSummary, isFamilyAssistanceRecord, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
+import { ensureSharedServiceAssistanceDemoBaseline, getServiceReviewSummary, isFamilyAssistanceRecord, normalizeServiceAssistanceRecord, readSharedServiceAssistanceRecords, subscribeSharedServiceAssistanceRecords } from "../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js";
 import {
   careScriptMockApi,
   formatWeatherLocation,
@@ -4799,6 +4799,7 @@ function CreateDrawer({ page, onClose }) {
 export function App() {
   const acceptanceParams = new URLSearchParams(window.location.search);
   const acceptanceMode = import.meta.env.DEV && acceptanceParams.has("acceptance");
+  const serviceDemoMode = acceptanceParams.has("acceptance");
   const componentCenterMode = acceptanceMode && acceptanceParams.has("component-center");
   const [platformMode, setPlatformMode] = useState("community");
   const [active, setActive] = useState("overview");
@@ -4989,7 +4990,7 @@ export function App() {
       return unifiedServiceCategorySettings;
     }
   });
-  const [serviceBookings, setServiceBookings] = useState(() => readSharedServiceAssistanceRecords().map((record) => normalizeServiceAssistanceRecord(record)));
+  const [serviceBookings, setServiceBookings] = useState(() => (serviceDemoMode ? ensureSharedServiceAssistanceDemoBaseline() : readSharedServiceAssistanceRecords()).map((record) => normalizeServiceAssistanceRecord(record)));
   const [serviceCatalog, setServiceCatalog] = useState(() => {
     try {
       const savedServices = window.localStorage.getItem("u2g-service-catalog-v8-service-items")

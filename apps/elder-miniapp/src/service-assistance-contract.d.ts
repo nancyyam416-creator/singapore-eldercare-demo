@@ -13,6 +13,9 @@ declare module '*服务协助记录共享Mock.js' {
   export function getServiceAssistanceConfirmationCopy(record?: Record<string, unknown> | null): ServiceAssistanceConfirmationCopy;
   export function getServiceReviewSummary(serviceId: string, records?: Record<string, unknown>[]): ServiceReviewSummary;
   export function readSharedServiceAssistanceRecords(): Record<string, unknown>[];
+  export const serviceAssistanceDemoBaselineVersion: string;
+  export const serviceAssistanceDemoBaselineRecords: Record<string, unknown>[];
+  export function ensureSharedServiceAssistanceDemoBaseline(): Record<string, unknown>[];
   export function upsertSharedServiceAssistanceRecord<T extends Record<string, unknown>>(record: T): T;
   export function requestSharedServiceAssistance<T extends Record<string, unknown>>(record: T): { record: T; reminded: boolean; message: string };
   export function startSharedServiceContact<T extends Record<string, unknown>>(record: T): { record: T; created: boolean };

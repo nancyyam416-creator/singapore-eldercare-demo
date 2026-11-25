@@ -40,6 +40,7 @@ import { ACCEPTANCE_WORKBENCH_ENABLED, U2G_PORTAL_URL } from './config';
 import MobileAppShell from './MobileAppShell';
 import ElderPageHeader from './ElderPageHeader';
 import AppointmentServicesPage, { type AppointmentReturnTarget, type AppointmentScenario } from './AppointmentServicesPage';
+import { ensureSharedServiceAssistanceDemoBaseline } from '../../产品理解/90 原型与Mock素材/mock/服务协助记录共享Mock.js';
 
 type MainTab = 'home' | 'family' | 'reminders' | 'activities' | 'services' | 'profile';
 type Overlay = 'photo' | 'reminder' | null;
@@ -280,6 +281,10 @@ export default function App() {
     window.speechSynthesis.pause();
     setAlertSpeechState('paused');
   };
+
+  useEffect(() => {
+    if (ACCEPTANCE_WORKBENCH_ENABLED) ensureSharedServiceAssistanceDemoBaseline();
+  }, []);
 
   useEffect(() => () => window.speechSynthesis.cancel(), []);
 

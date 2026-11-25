@@ -18,6 +18,7 @@ import {
   appointmentCategoryName,
   appointmentServices,
   currentElderProfile,
+  currentElderProjectId,
   getAppointmentServiceById,
   initialServiceAssistanceRecords,
   normalizeAppointmentServiceDirectoryContract,
@@ -86,7 +87,7 @@ const BOUND_FAMILY_IDS = ["child-zhang-xiaoyan", "child-zhang-jianping"];
 const readRecords = () => {
   const shared =
     readSharedServiceAssistanceRecords() as ServiceAssistanceRecord[];
-  return (shared.length ? shared : initialServiceAssistanceRecords)
+  return shared
     .map(
       (record) =>
         normalizeServiceAssistanceRecord(record) as ServiceAssistanceRecord,
@@ -109,6 +110,7 @@ const createScenarioRecord = (
   service = appointmentServices[0],
 ): ServiceAssistanceRecord => ({
   id: `HELP-MOCK-${scenario.toUpperCase()}`,
+  projectId: currentElderProjectId,
   elder: { id: "elder-wang-jianguo", name: "王建国", phone: "+65 8603 2918" },
   service: {
     id: service.id,
@@ -257,6 +259,7 @@ const createContactScenarioRecord = (
 ): ServiceAssistanceRecord =>
   normalizeServiceAssistanceRecord({
     id: `CALL-MOCK-PENDING-${index + 1}`,
+    projectId: currentElderProjectId,
     elder: {
       id: currentElderProfile.id,
       name: "王奶奶",
@@ -715,6 +718,7 @@ export default function AppointmentServicesPage({
     const now = new Date().toISOString();
     const candidate: ServiceAssistanceRecord = {
       id: `CALL-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      projectId: currentElderProjectId,
       elder: {
         id: currentElderProfile.id,
         name: "王奶奶",
@@ -852,6 +856,7 @@ export default function AppointmentServicesPage({
       const now = new Date().toISOString();
       const record: ServiceAssistanceRecord = {
         id: `HELP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+        projectId: currentElderProjectId,
         elder: {
           id: "elder-wang-jianguo",
           name: "王建国",
@@ -1458,6 +1463,13 @@ export default function AppointmentServicesPage({
 
       {view === "records" && (
         <section className="appointment-records">
+          {!records.length && (
+            <div className="acceptance-empty-state standalone">
+              <ClipboardCheck />
+              <strong>暂无协助记录</strong>
+              <span>拨打服务电话或请家人帮忙后，记录会显示在这里</span>
+            </div>
+          )}
           {records.map((record) => (
             <article key={record.id} className={`appointment-record-summary${isFamilyInquiryPending(record) ? " is-inquiry" : ""}`}>
               <button

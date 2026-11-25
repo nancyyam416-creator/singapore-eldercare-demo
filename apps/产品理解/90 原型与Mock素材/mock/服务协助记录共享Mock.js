@@ -152,9 +152,15 @@ export const getServiceAssistanceConfirmationCopy = (record) => {
 };
 
 export const serviceAssistanceSharedStorageKey = "u2g-service-assistance-records-v2-shared-contract";
+export const serviceAssistanceDemoBaselineVersion = "2026-11-25-v1";
+export const serviceAssistanceDemoBaselineRecords = [
+  { id: "HELP-20261029-01", projectId: "PRJ-001", elder: { id: "elder-wang-jianguo", name: "王建国", phone: "+65 8603 2918" }, service: { id: "srv-water-1", name: "水龙头检修", categoryName: "水利维修" }, provider: { name: "安心到家水务服务站", phone: "+65 6123 8802" }, requestReason: "请家人协助联系服务商", requestedAt: "2026-10-29T16:20:00+08:00", status: "pending", recipientIds: ["child-zhang-xiaoyan", "child-zhang-jianping"], handledBy: null, handledAt: null, resultSummary: null, serviceStatus: "not_completed", completedAt: null, review: null },
+  { id: "HELP-20261027-01", projectId: "PRJ-001", elder: { id: "elder-wang-jianguo", name: "王建国", phone: "+65 8603 2918" }, service: { id: "srv-basic-2", name: "家具小修", categoryName: "基础维修" }, provider: { name: "乐居综合维修服务站", phone: "+65 6123 8803" }, requestReason: "请家人协助联系服务商", requestedAt: "2026-10-27T10:10:00+08:00", status: "handled", recipientIds: ["child-zhang-xiaoyan", "child-zhang-jianping"], handledBy: "张晓燕", handledAt: "2026-10-27T10:35:00+08:00", resultSummary: "已电话咨询服务商，约定 10 月 31 日上午再上门查看。", serviceStatus: "not_completed", completedAt: null, review: null },
+];
 
 const cookieName = "u2g_service_assistance_records_v2";
 const changeEventName = "u2g:service-assistance-records-changed";
+const demoBaselineVersionKey = "u2g-service-assistance-demo-baseline-version";
 
 const isBrowser = () => typeof window !== "undefined" && typeof document !== "undefined";
 
@@ -217,6 +223,16 @@ export const readSharedServiceAssistanceRecords = () => {
     return cookieRecords.map(record => normalizeServiceAssistanceRecord(record));
   }
   return parseRecords(window.localStorage.getItem(serviceAssistanceSharedStorageKey)).map(record => normalizeServiceAssistanceRecord(record));
+};
+
+export const ensureSharedServiceAssistanceDemoBaseline = () => {
+  if (!isBrowser()) return [];
+  const existing = readSharedServiceAssistanceRecords();
+  const existingIds = new Set(existing.map(record => record.id));
+  const missing = serviceAssistanceDemoBaselineRecords.filter(record => !existingIds.has(record.id));
+  if (missing.length) writeRecords([...existing, ...missing.map(record => JSON.parse(JSON.stringify(record)))]);
+  window.localStorage.setItem(demoBaselineVersionKey, serviceAssistanceDemoBaselineVersion);
+  return readSharedServiceAssistanceRecords();
 };
 
 export const upsertSharedServiceAssistanceRecord = (record) => {
